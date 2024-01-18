@@ -1,0 +1,1226 @@
+0:00:00 DEB - argument: config=null (path to config file)
+0:00:00 DEB - argument: download_dir=data/sources (download directory)
+0:00:00 DEB - argument: area=planet (name of the extract to download if osm_url/osm_path not specified (i.e. 'monaco' 'rhode island' 'australia' or 'planet'))
+0:00:00 INF - argument: stats=use in-memory stats
+0:00:00 DEB - argument: madvise=true (default value for whether to use linux madvise(random) to improve memory-mapped read performance for temporary storage)
+0:00:00 DEB - argument: storage=mmap (default storage type for temporary data, one of [ram, mmap, direct])
+0:00:00 DEB - argument: threads=64 (num threads)
+0:00:00 DEB - argument: write_threads=2 (number of threads to use when writing temp features)
+0:00:00 DEB - argument: process_threads=62 (number of threads to use when processing input features)
+0:00:00 DEB - argument: bounds=null (bounds)
+0:00:00 DEB - argument: polygon=null (a .poly file that limits output to tiles intersecting the shape)
+0:00:00 DEB - argument: minzoom=0 (minimum zoom level)
+0:00:00 DEB - argument: maxzoom=14 (maximum zoom level up to 15)
+0:00:00 DEB - argument: render_maxzoom=14 (maximum rendering zoom level up to 15)
+0:00:00 DEB - argument: tmpdir=data/tmp (temp directory)
+0:00:00 DEB - argument: feature_read_threads=2 (number of threads to use when reading features at tile write time)
+0:00:00 DEB - argument: tile_write_threads=1 (number of threads used to write tiles - only supported by [files, csv, tsv, proto, pbf, json])
+0:00:00 DEB - argument: loginterval=10 seconds (time between logs)
+0:00:00 DEB - argument: force=true (overwriting output file and ignore disk/RAM warnings)
+0:00:00 DEB - argument: append=false (append to the output file - only supported by [files, csv, tsv, proto, pbf, json])
+0:00:00 DEB - argument: gzip_temp=false (gzip temporary feature storage (uses more CPU, but less disk space))
+0:00:00 DEB - argument: mmap_temp=true (use memory-mapped IO for temp feature files)
+0:00:00 DEB - argument: sort_max_readers=6 (maximum number of concurrent read threads to use when sorting chunks)
+0:00:00 DEB - argument: sort_max_writers=6 (maximum number of concurrent write threads to use when sorting chunks)
+0:00:00 DEB - argument: nodemap_type=array (type of node location map, one of [noop, sortedtable, sparsearray, array])
+0:00:00 DEB - argument: nodemap_storage=mmap (storage for node location map, one of [ram, mmap, direct])
+0:00:00 DEB - argument: nodemap_madvise=true (use linux madvise(random) for node locations)
+0:00:00 DEB - argument: multipolygon_geometry_storage=mmap (storage for multipolygon geometries, one of [ram, mmap, direct])
+0:00:00 DEB - argument: multipolygon_geometry_madvise=true (use linux madvise(random) for temporary multipolygon geometry storage)
+0:00:00 DEB - argument: http_user_agent=Planetiler downloader (https://github.com/onthegomap/planetiler) (User-Agent header to set when downloading files over HTTP)
+0:00:00 DEB - argument: http_timeout=30 seconds (Timeout to use when downloading files over HTTP)
+0:00:00 DEB - argument: http_retries=1 (Retries to use when downloading files over HTTP)
+0:00:00 DEB - argument: download_chunk_size_mb=100 (Size of file chunks to download in parallel in megabytes)
+0:00:00 DEB - argument: download_threads=1 (Number of parallel threads to use when downloading each file)
+0:00:00 DEB - argument: download_max_bandwidth= (Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.)
+0:00:00 DEB - argument: min_feature_size_at_max_zoom=0.0625 (Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming)
+0:00:00 DEB - argument: min_feature_size=1.0 (Default value for the minimum size in tile pixels of features to emit below the maximum zoom level)
+0:00:00 DEB - argument: simplify_tolerance_at_max_zoom=0.0625 (Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming)
+0:00:00 DEB - argument: simplify_tolerance=0.1 (Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level)
+0:00:00 DEB - argument: osm_lazy_reads=true (Read OSM blocks from disk in worker threads)
+0:00:00 DEB - argument: skip_filled_tiles=false (Skip writing tiles containing only polygon fills to the output)
+0:00:00 DEB - argument: tile_warning_size_mb=1.0 (Maximum size in megabytes of a tile to emit a warning about)
+0:00:00 DEB - argument: color=null (Color the terminal output)
+0:00:00 DEB - argument: keep_unzipped=false (keep unzipped sources by default after reading)
+0:00:00 DEB - argument: tile_compression=gzip (the tile compression, one of [none, gzip])
+0:00:00 DEB - argument: output_layerstats=false (output a tsv.gz file for each tile/layer size)
+0:00:00 DEB - argument: debug_url=https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon} (debug url to use for displaying tiles with {z} {lat} {lon} placeholders)
+0:00:00 DEB - argument: tile_weights=data/tile_weights.tsv.gz (tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat)
+0:00:00 DEB - argument: max_point_buffer=Infinity (Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support raster tile rendering)
+0:00:00 DEB - argument: log_jts_exceptions=false (Emit verbose details to debug JTS geometry errors)
+0:00:00 DEB - argument: only_download=false (download source data then exit)
+0:00:00 DEB - argument: download=false (download sources)
+0:00:00 DEB - argument: download_osm_tile_weights=false (download OSM tile weights file)
+0:00:00 DEB - argument: temp_nodes=data/tmp/node.db (temp node db location)
+0:00:00 DEB - argument: temp_multipolygons=data/tmp/multipolygon.db (temp multipolygon db location)
+0:00:00 DEB - argument: temp_features=data/tmp/feature.db (temp feature db location)
+0:00:00 DEB - argument: osm_parse_node_bounds=false (parse bounds from OSM nodes instead of header)
+0:00:00 DEB - argument: only_fetch_wikidata=false (fetch wikidata translations then quit)
+0:00:00 DEB - argument: fetch_wikidata=false (fetch wikidata translations then continue)
+0:00:00 DEB - argument: use_wikidata=true (use wikidata translations)
+0:00:00 DEB - argument: wikidata_cache=data/sources/wikidata_names.json (wikidata cache file)
+0:00:00 DEB - argument: lake_centerlines_path=data/sources/lake_centerline.shp.zip (lake_centerlines shapefile path)
+0:00:00 DEB - argument: free_lake_centerlines_after_read=false (delete lake_centerlines input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: water_polygons_path=data/sources/water-polygons-split-3857.zip (water_polygons shapefile path)
+0:00:00 DEB - argument: free_water_polygons_after_read=false (delete water_polygons input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: natural_earth_path=data/sources/natural_earth_vector.sqlite.zip (natural_earth sqlite db path)
+0:00:00 DEB - argument: free_natural_earth_after_read=false (delete natural_earth input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: natural_earth_keep_unzipped=false (keep unzipped natural_earth after reading)
+0:00:00 DEB - argument: osm_path=data/sources/planet.osm.pbf (osm OSM input file path)
+0:00:00 DEB - argument: free_osm_after_read=false (delete osm input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: output=planet.pmtiles (output tile archive path)
+0:00:00 DEB - argument: version=false (show version then exit)
+0:00:00 INF - Planetiler build git hash: fdb9ea6e026e052b41fdaba069c3d743d50b08f3
+0:00:00 INF - Planetiler build version: 0.7-SNAPSHOT
+0:00:00 INF - Planetiler build timestamp: 2024-01-17T10:53:26.321Z
+0:00:00 DEB - argument: transliterate=true (attempt to transliterate latin names)
+0:00:00 DEB - argument: languages=am,ar,az,be,bg,bn,br,bs,ca,co,cs,cy,da,de,el,en,eo,es,et,eu,fa,fi,fr,fy,ga,gd,he,hi,hr,hu,hy,id,is,it,ja,ja_kana,ja_rm,ja-Latn,ja-Hira,ka,kk,kn,ko,ko-Latn,ku,la,lb,lt,lv,mk,mt,ml,nl,no,oc,pa,pnb,pl,pt,rm,ro,ru,sk,sl,sq,sr,sr-Latn,sv,ta,te,th,tr,uk,ur,vi,zh,zh-Hant,zh-Hans (languages to use)
+0:00:00 DEB - argument: only_layers= (Include only certain layers)
+0:00:00 DEB - argument: exclude_layers= (Exclude certain layers)
+0:00:00 DEB - argument: boundary_country_names=true (boundary layer: add left/right codes of neighboring countries)
+0:00:00 DEB - argument: boundary_osm_only=false (boundary layer: only use OSM, even at low zoom levels)
+0:00:00 DEB - argument: transportation_z13_paths=false (transportation(_name) layer: show all paths on z13)
+0:00:00 DEB - argument: building_merge_z13=true (building layer: merge nearby buildings at z13)
+0:00:00 DEB - argument: transportation_name_brunnel=false (transportation_name layer: set to false to omit brunnel and help merge long highways)
+0:00:00 DEB - argument: transportation_name_size_for_shield=false (transportation_name layer: allow road names on shorter segments (ie. they will have a shield))
+0:00:00 DEB - argument: transportation_name_limit_merge=false (transportation_name layer: limit merge so we don't combine different relations to help merge long highways)
+0:00:00 DEB - argument: transportation_name_minor_refs=false (transportation_name layer: include name and refs from minor road networks if not present on a way)
+0:00:00 DEB - argument: help=false (show arguments then exit)
+0:00:00 DEB - argument: layer_stats=/data/planet.pmtiles.layerstats.tsv.gz (layer stats output path)
+0:00:00 INF - Building OpenMapTilesProfile profile into file:///data/planet.pmtiles in these phases:
+0:00:00 INF -   lake_centerlines: Process features in data/sources/lake_centerline.shp.zip
+0:00:00 INF -   water_polygons: Process features in data/sources/water-polygons-split-3857.zip
+0:00:00 INF -   natural_earth: Process features in data/sources/natural_earth_vector.sqlite.zip
+0:00:00 INF -   osm_pass1: Pre-process OpenStreetMap input (store node locations then relation members)
+0:00:00 INF -   osm_pass2: Process OpenStreetMap nodes, ways, then relations
+0:00:00 INF -   sort: Sort rendered features by tile ID
+0:00:00 INF -   archive: Encode each tile and write to TileArchiveConfig[format=PMTILES, scheme=FILE, uri=file:///data/planet.pmtiles, options={}]
+0:00:00 INF - no wikidata translations found, run with --fetch-wikidata to download
+0:00:00 DEB - ✓ 360G storage on /data (/dev/md0) requested for read phase disk, 3.6T available
+0:00:00 DEB -  - 88G used for temporary node location cache
+0:00:00 DEB -  - 11G used for temporary multipolygon geometry cache
+0:00:00 DEB -  - 259G used for temporary feature storage
+0:00:00 DEB - ✓ 389G storage on /data (/dev/md0) requested for write phase disk, 3.6T available
+0:00:00 DEB -  - 259G used for temporary feature storage
+0:00:00 DEB -  - 129G used for archive output
+0:00:00 DEB - ✓ 100G storage on /data (/dev/md0) requested for read phase, 3.6T available
+0:00:00 DEB -  - 88G used for array node location cache (switch to sparsearray to reduce size)
+0:00:00 DEB -  - 11G used for multipolygon way geometries
+0:00:00 DEB - ✓ 23G JVM heap requested for read phase, 32G available
+0:00:00 DEB -  - 23G used for temporary profile storage
+0:00:00 WAR - Planetiler will use ~100G memory-mapped files for node locations and multipolygon geometries but the OS only
+has 100G available to cache pages, this may slow the import down. To speed up, run on a machine with more
+memory or reduce the -Xmx setting.
+
+0:00:00 INF - Setting map bounds from input: Env[-180.0 : 180.0, -90.0 : 90.0]
+0:00:00 DEB - argument: archive_name=OpenMapTiles ('name' attribute for tileset metadata)
+0:00:00 DEB - argument: archive_description=A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org ('description' attribute for tileset metadata)
+0:00:00 DEB - argument: archive_attribution=<a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a> ('attribution' attribute for tileset metadata)
+0:00:00 DEB - argument: archive_version=3.14.0 ('version' attribute for tileset metadata)
+0:00:00 DEB - argument: archive_type=baselayer ('type' attribute for tileset metadata)
+0:00:00 DEB - argument: archive_format=pbf ('format' attribute for tileset metadata)
+0:00:00 INF - Using merge sort feature map, chunk size=2000mb max workers=64
+0:00:00 INF [lake_centerlines] -
+0:00:00 INF [lake_centerlines] - Starting...
+0:00:03 INF [lake_centerlines] -  read: [  59k 100%  39k/s ] write: [    0    0/s ] 0
+    cpus: 2.3 gc:  1% heap: 347M/32G direct: 262k postGC: 174M
+    ->     (0/4) -> read( -%  -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/114k) -> write( -%  -%)
+0:00:03 INF [lake_centerlines] - Finished in 2s cpu:8s avg:3.2
+0:00:03 INF [lake_centerlines] -   read     2x(28% 0.7s done:2s)
+0:00:03 INF [lake_centerlines] -   process 62x(0% 0s wait:1s)
+0:00:03 INF [lake_centerlines] -   write    2x(0% 0s wait:2s)
+0:00:03 INF [water_polygons] -
+0:00:03 INF [water_polygons] - Starting...
+0:00:13 INF [water_polygons] -  read: [ 4.2k  30%  429/s ] write: [  25M 2.5M/s ] 4G
+    cpus: 55.6 gc:  7% heap: 8G/32G direct: 54M postGC: 4.3G
+    ->     (0/4) -> read(92%) ->  (132/1k) -> process(80% 79% 85% 79% 88% 81% 79% 80% 81% 85% 82% 82% 88% 83% 80% 86% 85% 78% 82% 83% 79% 83% 83% 83% 80% 85% 83% 78% 81% 81% 82% 87% 79% 85% 89% 85% 75% 84% 80% 87% 82% 83% 74% 77% 81% 82% 81% 86% 76% 79% 89% 78% 82% 77% 87% 79% 77% 83% 84% 79% 88% 75%) -> (33k/114k) -> write(20% 21%)
+0:00:23 INF [water_polygons] -  read: [ 8.2k  57%  397/s ] write: [  79M 5.3M/s ] 7G
+    cpus: 41.2 gc:  5% heap: 7.7G/32G direct: 54M postGC: 6G
+    ->     (0/4) -> read(38%) ->   (1k/1k) -> process(54% 92% 54% 51% 60% 55% 55% 54% 53% 57% 74% 94% 75% 63% 51% 51% 55% 83% 77% 55% 51% 51% 94% 52% 62% 53% 67% 51% 51% 51% 51% 95% 51% 51% 59% 51% 61% 89% 77% 57% 52% 95% 51% 53% 51% 52% 52% 51% 54% 55% 51% 51% 57% 51% 70% 94% 53% 74% 51% 51% 55% 60%) -> (107k/114k) -> write(57% 57%)
+0:00:33 INF [water_polygons] -  read: [  11k  82%  365/s ] write: [ 162M 8.3M/s ] 10G
+    cpus: 8.4 gc:  0% heap: 15G/32G direct: 54M postGC: 5.9G
+    ->     (0/4) -> read( 0%) ->   (1k/1k) -> process( 9%  9%  9%  9%  8%  8%  9%  9%  8%  8%  9% 10%  8%  8%  8%  9%  9%  9%  9%  9%  8%  9% 24%  9%  9%  9%  9%  9%  9%  9%  9% 15%  9%  8%  9%  8%  9%  9%  9%  8%  9% 12%  9%  9%  9%  8%  9%  9%  9%  9%  9%  9%  9%  9%  8% 80%  8%  9%  9%  9%  9%  9%) -> (112k/114k) -> write(100% 100%)
+0:00:40 INF [water_polygons] -  read: [  14k 100%  340/s ] write: [ 222M 7.9M/s ] 10G
+    cpus: 7 gc:  0% heap: 12G/32G direct: 54M postGC: 5.9G
+    ->     (0/4) -> read( -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/114k) -> write( -%  -%)
+0:00:40 INF [water_polygons] - Finished in 38s cpu:18m26s gc:1s avg:29.4
+0:00:40 INF [water_polygons] -   read     2x(17% 7s wait:10s done:20s)
+0:00:40 INF [water_polygons] -   process 62x(42% 16s wait:20s)
+0:00:40 INF [water_polygons] -   write    2x(67% 25s wait:12s)
+0:00:40 INF [natural_earth] -
+0:00:40 INF [natural_earth] - Starting...
+0:00:40 INF [natural_earth] - unzipping /data/data/sources/natural_earth_vector.sqlite.zip to data/tmp/%2Fnatural_earth_vector.sqlite%2Fpackages%2Fnatural_earth_vector.sqlite
+0:00:44 INF [natural_earth] - unzipping /data/data/sources/natural_earth_vector.sqlite.zip to data/tmp/%2Fnatural_earth_vector.sqlite%2Fpackages%2Fnatural_earth_vector.sqlite
+0:00:54 INF [natural_earth] -  read: [ 283k  81%  28k/s ] write: [   1k   99/s ] 14G
+    cpus: 2 gc:  0% heap: 7G/32G direct: 54M postGC: 5.9G
+    ->     (0/4) -> read(99%) ->    (0/1k) -> process( 1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1% 12%  1%  1%  1%  1%  1%  1%  1%  1%  1%) -> (26k/114k) -> write( 0%  0%)
+0:00:56 INF [natural_earth] -  read: [ 349k 100%  41k/s ] write: [  33k  20k/s ] 10G
+    cpus: 1.6 gc:  0% heap: 8.1G/32G direct: 54M postGC: 5.9G
+    ->     (0/4) -> read( -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/114k) -> write( -%  -%)
+0:00:56 INF [natural_earth] - Finished in 15s cpu:27s avg:1.7
+0:00:56 INF [natural_earth] -   read     2x(36% 6s done:10s)
+0:00:56 INF [natural_earth] -   process 62x(1% 0.1s wait:11s done:4s)
+0:00:56 INF [natural_earth] -   write    2x(0% 0s wait:12s done:4s)
+0:00:56 INF [osm_pass1] -
+0:00:56 INF [osm_pass1] - Starting...
+0:01:06 INF [osm_pass1] -  nodes: [ 1.5B 153M/s ] 17G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [ 6.4k  646/s ]
+    cpus: 58.3 gc:  3% heap: 15G/32G direct: 3.6G postGC: 6.9G hppc:  848
+    read( 4%) -> (127/190) -> process(91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 92% 91% 91% 91% 91% 91% 91% 91% 91% 92% 91% 91% 91% 92% 91% 90% 91% 91% 91% 91% 90% 91% 91% 91% 91% 90% 91% 91% 90% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91%)
+0:01:16 INF [osm_pass1] -  nodes: [ 3.4B 185M/s ] 35G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [  12k  597/s ]
+    cpus: 59.3 gc:  3% heap: 16G/32G direct: 5.1G postGC: 8.1G hppc:  848
+    read( 5%) -> (126/190) -> process(93% 92% 92% 93% 93% 92% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 90% 93% 92% 92% 92% 93% 93% 93% 92% 93% 91% 93% 93% 93% 92% 92% 93% 93% 92% 93% 92% 92% 93% 92% 93% 92% 93% 92% 93% 93% 92% 92% 92% 92% 93% 93% 93% 92% 93% 93% 92% 93% 92% 93% 93% 93% 93%)
+0:01:26 INF [osm_pass1] -  nodes: [ 5.3B 192M/s ] 54G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [  17k  549/s ]
+    cpus: 58.4 gc:  3% heap: 14G/32G direct: 6.6G postGC: 7G hppc:  848
+    read( 4%) -> (117/190) -> process(92% 94% 89% 90% 92% 92% 89% 92% 93% 90% 91% 90% 90% 93% 93% 93% 92% 91% 90% 91% 90% 92% 91% 93% 93% 90% 89% 90% 93% 94% 90% 93% 91% 91% 89% 89% 90% 89% 90% 92% 91% 90% 93% 89% 91% 93% 94% 93% 93% 90% 91% 92% 90% 93% 89% 94% 90% 92% 90% 93% 90% 93% 91%)
+0:01:36 INF [osm_pass1] -  nodes: [ 7.2B 196M/s ] 73G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [  23k  552/s ]
+    cpus: 59.9 gc:  4% heap: 16G/32G direct: 6.8G postGC: 10G hppc:  848
+    read( 5%) -> (127/190) -> process(73% 93% 93% 93% 93% 94% 93% 94% 93% 93% 93% 93% 94% 89% 93% 93% 91% 94% 93% 94% 94% 93% 93% 94% 94% 93% 94% 93% 93% 93% 93% 94% 94% 94% 94% 93% 93% 93% 93% 90% 93% 94% 92% 93% 93% 94% 93% 94% 94% 93% 93% 94% 93% 94% 94% 93% 94% 94% 94% 93% 92% 93% 93%)
+0:01:46 INF [osm_pass1:process] - Finished nodes: 8,860,666,091 (177M/s) in 50s cpu:47m28s gc:2s avg:57.2
+0:01:46 INF [osm_pass1] -  nodes: [ 8.8B 156M/s ] 92G   ways: [ 2.8M 282k/s ] rels: [    0    0/s ] blocks: [  28k  450/s ]
+    cpus: 49.9 gc:  2% heap: 19G/32G direct: 7.1G postGC: 4.7G hppc:  848
+    read( 4%) -> (127/190) -> process(73% 77% 77% 78% 78% 77% 84% 79% 78% 78% 78% 78% 78% 78% 79% 78% 78% 79% 78% 78% 78% 78% 78% 78% 78% 78% 78% 79% 78% 77% 79% 78% 78% 78% 78% 78% 78% 78% 78% 79% 78% 78% 78% 75% 78% 78% 78% 78% 78% 77% 78% 79% 78% 77% 77% 78% 78% 77% 77% 78% 78% 75% 77%)
+0:01:56 INF [osm_pass1] -  nodes: [ 8.8B    0/s ] 92G   ways: [ 462M  45M/s ] rels: [    0    0/s ] blocks: [  35k  732/s ]
+    cpus: 59.8 gc:  5% heap: 5.4G/32G direct: 7.1G postGC: 1.9G hppc:  848
+    read( 7%) -> (127/190) -> process(92% 92% 92% 92% 92% 91% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%)
+0:02:06 INF [osm_pass1:process] - Finished ways: 992,064,323 (49M/s) in 20s cpu:20m11s avg:60.2
+0:02:06 INF [osm_pass1] -  nodes: [ 8.8B    0/s ] 92G   ways: [ 992M  52M/s ] rels: [ 108k  10k/s ] blocks: [  42k  738/s ]
+    cpus: 60.2 gc:  5% heap: 14G/32G direct: 7.1G postGC: 2G hppc:  10M
+    read( 6%) -> (127/190) -> process(93% 93% 92% 92% 93% 92% 92% 92% 92% 92% 92% 92% 92% 92% 93% 93% 92% 92% 93% 93% 92% 92% 92% 93% 92% 93% 92% 92% 93% 92% 92% 93% 92% 92% 92% 93% 92% 93% 93% 92% 93% 92% 93% 93% 92% 92% 92% 92% 92% 92% 93% 92% 92% 92% 92% 92% 92% 93% 93% 92% 92% 92% 92%)
+0:02:16 INF [osm_pass1] -  nodes: [ 8.8B    0/s ] 92G   ways: [ 992M    0/s ] rels: [ 8.4M 832k/s ] blocks: [  42k   24/s ]
+    cpus: 10.1 gc:  2% heap: 6.3G/32G direct: 7.1G postGC: 3.4G hppc: 498M
+    read( -%) ->  (58/190) -> process(12% 12%  8%  8% 10%  6%  9% 21% 10%  6%  9%  7% 12%  7%  8%  9% 10% 16%  8%  8%  7%  9% 11% 12%  6% 10% 11% 12%  8% 15%  9%  9%  5%  9% 14%  7% 10%  8%  9% 10%  7% 10%  9%  9%  6%  9% 10%  7%  7%  8%  7%  5%  9%  9%  8%  9%  8%  7% 15% 15%  9% 12% 12%)
+0:02:19 INF [osm_pass1:process] - Finished relations: 11,728,203 (868k/s) in 13s cpu:2m15s avg:10
+0:02:19 INF [osm_pass1] -  nodes: [ 8.8B    0/s ] 92G   ways: [ 992M    0/s ] rels: [  11M 987k/s ] blocks: [  43k   36/s ]
+    cpus: 8.9 gc:  2% heap: 5.1G/32G direct: 188M postGC: 3.4G hppc: 700M
+    read( -%) ->   (0/190) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%)
+0:02:19 DEB [osm_pass1] - Processed 43,112 blocks:
+0:02:19 DEB [osm_pass1] -   nodes: 8,860,666,091 (177M/s) in 50s cpu:47m28s gc:2s avg:57.2
+0:02:19 DEB [osm_pass1] -   ways: 992,064,323 (49M/s) in 20s cpu:20m11s avg:60.2
+0:02:19 DEB [osm_pass1] -   relations: 11,728,203 (868k/s) in 13s cpu:2m15s avg:10
+0:02:19 INF [osm_pass1] - Finished in 1m23s cpu:1h9m56s gc:3s avg:50.3
+0:02:19 INF [osm_pass1] -   read     1x(4% 3s wait:1m done:6s)
+0:02:19 INF [osm_pass1] -   process 63x(77% 1m4s block:12s wait:2s)
+0:02:19 INF [osm_pass2] -
+0:02:19 INF [osm_pass2] - Starting...
+0:02:29 INF [osm_pass2] -  nodes: [ 573M   6%  57M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 271M 4.9M/s ] 19G   blocks: [ 2.4k   6%  247/s ]
+    cpus: 52.2 gc:  7% heap: 9.5G/32G direct: 54M postGC: 2.8G relInfo: 700M mpGeoms: 277
+    read( 1%) ->   (32/94) -> process(72% 71% 72% 72% 70% 66% 72% 71% 70% 68% 69% 67% 68% 70% 72% 73% 70% 69% 73% 70% 71% 69% 71% 71% 72% 69% 71% 70% 68% 68% 68% 71% 68% 70% 70% 71% 70% 71% 71% 73% 73% 69% 72% 70% 70% 70% 71% 70% 70% 71% 68% 71% 69% 70% 67% 69% 71% 67% 70% 67% 69% 71%) -> (32k/114k) -> write(58% 58%)
+0:02:39 INF [osm_pass2] -  nodes: [ 1.4B  16%  85M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 307M 3.5M/s ] 22G   blocks: [   6k  14%  356/s ]
+    cpus: 56.7 gc:  4% heap: 5.5G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(80% 82% 80% 82% 81% 82% 82% 81% 82% 83% 83% 82% 82% 82% 83% 84% 80% 81% 82% 83% 81% 82% 82% 81% 82% 82% 81% 81% 83% 83% 82% 82% 82% 80% 83% 81% 83% 85% 84% 81% 81% 82% 81% 83% 81% 82% 81% 82% 80% 84% 83% 81% 80% 80% 82% 82% 82% 83% 82% 82% 82% 83%) -> (43k/114k) -> write(47% 48%)
+0:02:49 INF [osm_pass2] -  nodes: [ 2.3B  27%  92M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 355M 4.7M/s ] 27G   blocks: [ 9.3k  22%  326/s ]
+    cpus: 57 gc:  4% heap: 7.6G/32G direct: 54M postGC: 2.7G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(85% 84% 85% 85% 85% 84% 85% 85% 84% 85% 86% 85% 85% 85% 84% 85% 85% 86% 85% 85% 86% 85% 86% 85% 85% 85% 84% 85% 85% 86% 85% 85% 85% 85% 85% 85% 85% 86% 84% 85% 86% 85% 84% 85% 85% 84% 85% 86% 85% 86% 85% 85% 85% 85% 85% 86% 86% 86% 85% 85% 85% 85%) -> (33k/114k) -> write(66% 65%)
+0:02:59 INF [osm_pass2] -  nodes: [ 3.3B  38% 100M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 387M 3.2M/s ] 30G   blocks: [  12k  29%  299/s ]
+    cpus: 57.2 gc:  5% heap: 6.2G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (31/94) -> process(86% 84% 86% 85% 86% 86% 85% 85% 85% 85% 84% 85% 86% 85% 86% 85% 85% 85% 86% 86% 85% 85% 86% 86% 86% 86% 86% 85% 86% 85% 85% 87% 86% 87% 86% 86% 86% 86% 85% 86% 86% 86% 86% 85% 86% 86% 86% 84% 85% 86% 85% 85% 85% 85% 86% 85% 86% 86% 85% 85% 85% 85%) -> (65k/114k) -> write(51% 52%)
+0:03:10 INF [osm_pass2] -  nodes: [ 4.3B  49% 101M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 419M 3.1M/s ] 33G   blocks: [  15k  35%  291/s ]
+    cpus: 57.9 gc:  5% heap: 10G/32G direct: 54M postGC: 2.5G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(88% 87% 87% 89% 88% 88% 88% 88% 87% 88% 88% 88% 88% 87% 87% 88% 88% 88% 87% 87% 88% 87% 87% 88% 89% 87% 88% 88% 88% 88% 87% 88% 88% 88% 88% 88% 88% 88% 88% 87% 87% 88% 88% 88% 87% 89% 88% 88% 88% 88% 88% 88% 87% 87% 88% 87% 88% 88% 88% 88% 88% 87%) -> (55k/114k) -> write(48% 50%)
+0:03:20 INF [osm_pass2] -  nodes: [ 5.4B  62% 109M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 449M 2.9M/s ] 37G   blocks: [  18k  43%  311/s ]
+    cpus: 58.8 gc:  4% heap: 10G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(91% 91% 90% 91% 91% 91% 91% 90% 91% 90% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 90% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 90% 90% 91% 91% 91% 91% 91% 90%) -> (64k/114k) -> write(44% 45%)
+0:03:30 INF [osm_pass2] -  nodes: [ 6.5B  74% 109M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 481M 3.2M/s ] 39G   blocks: [  21k  50%  307/s ]
+    cpus: 58.4 gc:  4% heap: 11G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(90% 90% 90% 91% 90% 90% 90% 89% 90% 90% 90% 90% 90% 90% 90% 89% 90% 89% 90% 90% 90% 90% 89% 90% 90% 90% 90% 90% 89% 90% 89% 91% 90% 89% 89% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 90% 89% 90% 89% 90% 90% 90% 89% 90% 90% 90% 90%) -> (38k/114k) -> write(53% 52%)
+0:03:40 INF [osm_pass2] -  nodes: [ 7.6B  86% 106M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 514M 3.3M/s ] 43G   blocks: [  24k  57%  296/s ]
+    cpus: 58.8 gc:  4% heap: 6.1G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(91% 91% 92% 91% 91% 90% 91% 91% 92% 91% 91% 90% 91% 91% 91% 91% 91% 90% 90% 91% 91% 90% 90% 91% 91% 90% 90% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 92% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 92% 92% 92% 92% 91% 91% 91% 91% 92% 90% 92% 91% 92%) -> (53k/114k) -> write(43% 44%)
+0:03:50 INF [osm_pass2] -  nodes: [ 8.7B  98% 105M/s ] 92G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 549M 3.4M/s ] 46G   blocks: [  27k  64%  300/s ]
+    cpus: 58.5 gc:  4% heap: 2.6G/32G direct: 54M postGC: 2.6G relInfo: 700M mpGeoms: 277
+    read( 2%) ->   (32/94) -> process(90% 91% 89% 91% 91% 90% 90% 90% 91% 90% 91% 90% 90% 91% 90% 90% 90% 90% 90% 90% 89% 90% 90% 90% 89% 91% 91% 91% 90% 91% 91% 91% 91% 90% 91% 90% 91% 90% 90% 91% 91% 90% 91% 90% 91% 91% 90% 89% 90% 91% 90% 89% 90% 89% 90% 91% 91% 90% 89% 90% 89% 91%) -> (32k/114k) -> write(48% 47%)
+0:03:51 DEB [osm_pass2:process] - Sorting long long multimap...
+0:03:51 INF [osm_pass2:process] - Finished nodes: 8,860,666,091 (96M/s) in 1m32s cpu:1h27m39s gc:4s avg:57.3
+0:03:57 DEB [osm_pass2:process] - Sorted long long multimap 6s cpu:17s avg:2.9
+0:04:00 INF [osm_pass2] -  nodes: [ 8.8B 100%  16M/s ] 92G   ways: [ 748k   0%  74k/s ] rels: [    0   0%    0/s ] features: [ 559M 992k/s ] 47G   blocks: [  27k  65%   48/s ]
+    cpus: 18.4 gc:  1% heap: 3.5G/32G direct: 55M postGC: 2.9G relInfo: 564M mpGeoms: 10M
+    read( 0%) ->   (32/94) -> process(23% 26% 22% 24% 25% 26% 25% 23% 24% 24% 23% 23% 24% 25% 23% 24% 23% 23% 23% 28% 22% 25% 22% 22% 22% 23% 24% 24% 25% 81% 24% 22% 25% 24% 22% 22% 26% 25% 23% 22% 22% 22% 23% 23% 25% 22% 20% 21% 25% 27% 24% 24% 24% 27% 25% 25% 24% 28% 24% 25% 22% 28%) -> (30k/114k) -> write(13% 13%)
+0:04:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 5.9M   1% 520k/s ] rels: [    0   0%    0/s ] features: [ 593M 3.3M/s ] 51G   blocks: [  28k  65%   10/s ]
+    cpus: 30.1 gc:  3% heap: 4.4G/32G direct: 57M postGC: 4.5G relInfo: 564M mpGeoms: 72M
+    read( 0%) ->   (32/94) -> process(41% 54% 41% 50% 48% 50% 45% 48% 53% 48% 40% 42% 45% 45% 46% 50% 39% 44% 47% 50% 44% 46% 42% 40% 37% 45% 48% 49% 50% 42% 47% 39% 47% 44% 39% 38% 46% 47% 43% 40% 36% 39% 43% 43% 47% 46% 37% 37% 50% 45% 43% 53% 46% 41% 48% 53% 45% 47% 49% 48% 39% 49%) -> (30k/114k) -> write(46% 46%)
+0:04:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  13M   1% 757k/s ] rels: [    0   0%    0/s ] features: [ 638M 4.4M/s ] 55G   blocks: [  28k  65%   18/s ]
+    cpus: 39.5 gc:  5% heap: 9G/32G direct: 57M postGC: 8.5G relInfo: 564M mpGeoms: 143M
+    read( 0%) ->   (32/94) -> process(59% 54% 58% 56% 59% 60% 61% 60% 54% 60% 60% 59% 60% 63% 63% 58% 55% 53% 61% 58% 55% 54% 55% 58% 59% 61% 61% 57% 60% 58% 58% 58% 56% 61% 59% 56% 58% 62% 59% 55% 57% 52% 60% 59% 60% 54% 59% 56% 56% 58% 62% 62% 59% 60% 57% 58% 52% 63% 57% 57% 57% 60%) -> (35k/114k) -> write(65% 66%)
+0:04:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  18M   2% 488k/s ] rels: [    0   0%    0/s ] features: [ 666M 2.8M/s ] 57G   blocks: [  28k  66%   10/s ]
+    cpus: 38.7 gc:  4% heap: 11G/32G direct: 57M postGC: 5.2G relInfo: 564M mpGeoms: 271M
+    read( 0%) ->   (32/94) -> process(58% 60% 65% 58% 59% 66% 56% 58% 57% 59% 57% 58% 56% 61% 56% 60% 58% 57% 56% 58% 57% 57% 57% 65% 59% 61% 61% 60% 68% 59% 60% 56% 63% 56% 58% 64% 56% 63% 57% 59% 57% 62% 55% 57% 58% 56% 54% 56% 68% 56% 57% 62% 58% 55% 59% 56% 57% 54% 57% 58% 57% 62%) -> (30k/114k) -> write(42% 42%)
+0:04:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  25M   3% 665k/s ] rels: [    0   0%    0/s ] features: [ 698M 3.2M/s ] 60G   blocks: [  28k  66%   14/s ]
+    cpus: 47.5 gc:  6% heap: 3.9G/32G direct: 57M postGC: 3.9G relInfo: 564M mpGeoms: 439M
+    read( 0%) ->   (32/94) -> process(79% 69% 70% 70% 66% 69% 68% 68% 71% 68% 71% 73% 71% 71% 70% 78% 68% 71% 81% 79% 69% 69% 71% 70% 67% 67% 71% 66% 67% 73% 74% 61% 68% 70% 66% 70% 67% 65% 69% 72% 78% 70% 71% 74% 83% 79% 67% 82% 80% 71% 71% 69% 79% 81% 69% 75% 71% 72% 69% 72% 69% 73%) -> (33k/114k) -> write(48% 48%)
+0:04:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  31M   3% 590k/s ] rels: [    0   0%    0/s ] features: [ 725M 2.6M/s ] 63G   blocks: [  28k  66%   12/s ]
+    cpus: 51.7 gc:  6% heap: 13G/32G direct: 57M postGC: 5.6G relInfo: 564M mpGeoms: 631M
+    read( 0%) ->   (32/94) -> process(76% 75% 84% 77% 78% 78% 84% 84% 75% 75% 76% 87% 76% 77% 87% 76% 76% 76% 78% 83% 77% 75% 77% 77% 77% 77% 79% 75% 78% 79% 78% 74% 79% 85% 74% 85% 87% 77% 75% 77% 75% 80% 79% 83% 83% 76% 74% 83% 76% 74% 85% 77% 86% 84% 84% 77% 75% 76% 75% 88% 78% 75%) -> (28k/114k) -> write(39% 40%)
+0:05:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  38M   4% 761k/s ] rels: [    0   0%    0/s ] features: [ 752M 2.7M/s ] 65G   blocks: [  28k  67%   14/s ]
+    cpus: 54.1 gc:  6% heap: 12G/32G direct: 57M postGC: 3.9G relInfo: 564M mpGeoms: 757M
+    read( 0%) ->   (32/94) -> process(84% 81% 81% 82% 81% 84% 80% 85% 83% 81% 81% 84% 80% 81% 85% 81% 81% 84% 79% 80% 83% 78% 80% 80% 79% 82% 82% 79% 82% 80% 78% 80% 82% 81% 82% 85% 83% 83% 84% 84% 80% 81% 83% 80% 79% 84% 81% 87% 79% 82% 87% 79% 84% 82% 89% 82% 78% 80% 79% 85% 81% 83%) -> (32k/114k) -> write(44% 44%)
+0:05:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  48M   5%   1M/s ] rels: [    0   0%    0/s ] features: [ 781M 2.8M/s ] 67G   blocks: [  28k  67%   18/s ]
+    cpus: 55.3 gc:  7% heap: 10G/32G direct: 57M postGC: 5.8G relInfo: 564M mpGeoms: 857M
+    read( 0%) ->   (32/94) -> process(82% 83% 81% 84% 84% 85% 83% 84% 82% 84% 83% 83% 84% 86% 83% 86% 82% 83% 83% 82% 84% 85% 83% 84% 85% 82% 84% 82% 85% 82% 82% 82% 84% 84% 84% 83% 85% 84% 85% 83% 83% 83% 84% 84% 85% 84% 84% 82% 84% 84% 85% 84% 84% 82% 84% 86% 82% 81% 86% 84% 85% 84%) -> (29k/114k) -> write(45% 45%)
+0:05:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  57M   6% 840k/s ] rels: [    0   0%    0/s ] features: [ 806M 2.5M/s ] 70G   blocks: [  29k  68%   15/s ]
+    cpus: 55.5 gc:  7% heap: 4.1G/32G direct: 57M postGC: 4.1G relInfo: 564M mpGeoms: 990M
+    read( 0%) ->   (32/94) -> process(83% 85% 82% 83% 84% 82% 85% 85% 86% 83% 85% 84% 86% 86% 83% 85% 85% 86% 84% 84% 84% 82% 83% 86% 83% 85% 84% 83% 84% 83% 84% 87% 84% 84% 83% 83% 84% 83% 84% 85% 83% 84% 84% 84% 84% 85% 86% 84% 84% 85% 83% 84% 83% 85% 86% 85% 83% 83% 84% 84% 84% 83%) -> (30k/114k) -> write(41% 40%)
+0:05:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  65M   7% 808k/s ] rels: [    0   0%    0/s ] features: [ 832M 2.5M/s ] 71G   blocks: [  29k  68%   15/s ]
+    cpus: 55.7 gc:  6% heap: 8.4G/32G direct: 57M postGC: 5.4G relInfo: 564M mpGeoms: 1.1G
+    read( 0%) ->   (32/94) -> process(84% 84% 85% 84% 85% 83% 83% 86% 84% 84% 85% 87% 86% 87% 85% 87% 85% 85% 85% 83% 85% 84% 84% 85% 85% 87% 85% 84% 85% 85% 87% 88% 83% 86% 83% 84% 86% 85% 85% 84% 84% 86% 84% 84% 84% 84% 83% 85% 84% 83% 87% 83% 84% 86% 87% 86% 85% 82% 83% 90% 84% 83%) -> (29k/114k) -> write(40% 40%)
+0:05:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  74M   7% 890k/s ] rels: [    0   0%    0/s ] features: [ 860M 2.8M/s ] 72G   blocks: [  29k  68%   16/s ]
+    cpus: 55.5 gc:  6% heap: 16G/32G direct: 57M postGC: 7.1G relInfo: 564M mpGeoms: 1.2G
+    read( 0%) ->   (32/94) -> process(84% 85% 83% 84% 84% 84% 84% 85% 84% 83% 86% 83% 84% 85% 85% 85% 83% 83% 83% 86% 84% 84% 84% 82% 83% 86% 83% 84% 84% 84% 84% 84% 82% 85% 84% 84% 85% 85% 84% 84% 84% 85% 83% 84% 83% 84% 84% 85% 83% 84% 83% 84% 84% 85% 84% 84% 84% 82% 84% 85% 83% 85%) -> (30k/114k) -> write(52% 52%)
+0:05:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  84M   9%   1M/s ] rels: [    0   0%    0/s ] features: [ 893M 3.2M/s ] 74G   blocks: [  29k  69%   17/s ]
+    cpus: 55.6 gc:  7% heap: 8.9G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 1.3G
+    read( 0%) ->   (32/94) -> process(85% 84% 84% 84% 86% 85% 84% 83% 84% 83% 83% 85% 83% 83% 84% 83% 84% 83% 83% 85% 81% 83% 85% 83% 83% 85% 84% 83% 82% 84% 85% 85% 83% 83% 84% 83% 84% 84% 84% 84% 83% 84% 84% 84% 86% 85% 84% 84% 85% 84% 84% 84% 83% 84% 84% 84% 85% 85% 83% 84% 84% 83%) -> (32k/114k) -> write(55% 55%)
+0:06:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [  94M  10% 986k/s ] rels: [    0   0%    0/s ] features: [ 925M 3.1M/s ] 77G   blocks: [  29k  69%   16/s ]
+    cpus: 56.3 gc:  7% heap: 10G/32G direct: 57M postGC: 6.7G relInfo: 564M mpGeoms: 1.4G
+    read( 0%) ->   (32/94) -> process(84% 85% 85% 86% 83% 84% 85% 86% 86% 85% 85% 86% 85% 86% 86% 85% 87% 86% 84% 85% 85% 86% 86% 86% 86% 86% 84% 85% 83% 84% 86% 84% 86% 85% 84% 86% 85% 86% 84% 85% 86% 84% 85% 85% 85% 86% 85% 85% 85% 85% 85% 86% 83% 84% 84% 86% 86% 85% 86% 83% 85% 86%) -> (31k/114k) -> write(52% 51%)
+0:06:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 104M  11% 980k/s ] rels: [    0   0%    0/s ] features: [ 955M   3M/s ] 79G   blocks: [  29k  69%   15/s ]
+    cpus: 56.8 gc:  7% heap: 10G/32G direct: 57M postGC: 4.6G relInfo: 564M mpGeoms: 1.6G
+    read( 0%) ->   (32/94) -> process(85% 87% 85% 86% 84% 87% 86% 87% 86% 85% 86% 86% 85% 87% 87% 85% 86% 85% 86% 86% 87% 86% 86% 86% 85% 86% 87% 87% 86% 85% 87% 87% 86% 85% 87% 86% 86% 85% 86% 87% 87% 85% 87% 86% 87% 86% 86% 85% 85% 85% 85% 85% 86% 86% 86% 86% 84% 85% 86% 86% 86% 85%) -> (33k/114k) -> write(49% 48%)
+0:06:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 114M  12%   1M/s ] rels: [    0   0%    0/s ] features: [ 989M 3.3M/s ] 81G   blocks: [  30k  70%   17/s ]
+    cpus: 56.8 gc:  7% heap: 12G/32G direct: 57M postGC: 6.7G relInfo: 564M mpGeoms: 1.7G
+    read( 0%) ->   (32/94) -> process(86% 85% 86% 86% 86% 85% 85% 85% 86% 85% 86% 86% 86% 85% 86% 84% 86% 86% 86% 86% 86% 86% 85% 85% 86% 86% 85% 86% 87% 85% 85% 85% 86% 85% 85% 85% 86% 86% 85% 86% 85% 86% 86% 86% 85% 85% 85% 87% 85% 86% 86% 87% 86% 85% 86% 85% 85% 86% 85% 87% 87% 85%) -> (33k/114k) -> write(55% 55%)
+0:06:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 125M  13%   1M/s ] rels: [    0   0%    0/s ] features: [   1B 3.4M/s ] 85G   blocks: [  30k  70%   17/s ]
+    cpus: 56.8 gc:  7% heap: 11G/32G direct: 57M postGC: 4.6G relInfo: 564M mpGeoms: 1.8G
+    read( 0%) ->   (32/94) -> process(86% 85% 86% 87% 85% 85% 84% 86% 86% 85% 86% 85% 86% 85% 85% 86% 85% 86% 86% 86% 86% 86% 86% 85% 85% 85% 85% 86% 85% 85% 85% 86% 86% 86% 85% 86% 85% 84% 87% 86% 85% 85% 86% 85% 86% 85% 86% 86% 86% 86% 85% 86% 86% 84% 85% 85% 85% 86% 85% 86% 86% 86%) -> (26k/114k) -> write(55% 55%)
+0:06:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 135M  14% 980k/s ] rels: [    0   0%    0/s ] features: [   1B 3.1M/s ] 86G   blocks: [  30k  71%   15/s ]
+    cpus: 57 gc:  7% heap: 13G/32G direct: 57M postGC: 6.4G relInfo: 564M mpGeoms: 1.9G
+    read( 0%) ->   (32/94) -> process(87% 86% 86% 86% 86% 86% 87% 86% 87% 87% 87% 86% 87% 87% 87% 86% 86% 86% 86% 85% 86% 87% 86% 86% 86% 87% 87% 87% 86% 86% 86% 86% 86% 86% 86% 86% 86% 87% 87% 85% 86% 86% 86% 86% 87% 86% 86% 86% 86% 86% 86% 87% 85% 86% 86% 86% 87% 85% 86% 85% 87% 87%) -> (28k/114k) -> write(50% 50%)
+0:06:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 145M  15%   1M/s ] rels: [    0   0%    0/s ] features: [   1B 3.1M/s ] 88G   blocks: [  30k  71%   16/s ]
+    cpus: 57.4 gc:  7% heap: 7.9G/32G direct: 57M postGC: 4.4G relInfo: 564M mpGeoms: 2.1G
+    read( 0%) ->   (32/94) -> process(86% 88% 87% 86% 86% 87% 87% 88% 87% 86% 86% 87% 87% 87% 87% 87% 87% 87% 86% 88% 86% 86% 87% 86% 86% 88% 86% 86% 86% 88% 87% 87% 86% 87% 85% 86% 86% 86% 86% 86% 87% 87% 86% 86% 87% 86% 86% 86% 86% 87% 87% 87% 86% 87% 87% 86% 85% 87% 86% 86% 87% 86%) -> (34k/114k) -> write(51% 50%)
+0:07:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 155M  16%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 3.2M/s ] 91G   blocks: [  30k  71%   15/s ]
+    cpus: 57.7 gc:  7% heap: 8G/32G direct: 57M postGC: 6G relInfo: 564M mpGeoms: 2.2G
+    read( 0%) ->   (32/94) -> process(88% 86% 86% 87% 86% 87% 87% 89% 88% 87% 87% 88% 87% 88% 87% 88% 88% 87% 87% 88% 87% 88% 87% 86% 87% 87% 87% 88% 88% 87% 87% 87% 86% 87% 86% 87% 87% 87% 87% 87% 87% 87% 86% 87% 87% 87% 87% 87% 87% 86% 88% 87% 87% 88% 87% 87% 87% 87% 87% 88% 87% 88%) -> (28k/114k) -> write(52% 52%)
+0:07:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 166M  17%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 3.2M/s ] 93G   blocks: [  30k  72%   16/s ]
+    cpus: 57.7 gc:  7% heap: 13G/32G direct: 57M postGC: 7.8G relInfo: 564M mpGeoms: 2.3G
+    read( 0%) ->   (32/94) -> process(87% 86% 87% 87% 88% 87% 86% 88% 87% 87% 87% 87% 88% 87% 88% 87% 87% 87% 87% 88% 87% 88% 87% 88% 87% 87% 88% 87% 87% 87% 86% 87% 87% 85% 87% 87% 88% 87% 88% 88% 87% 88% 86% 87% 87% 89% 88% 88% 87% 88% 87% 88% 88% 87% 88% 86% 86% 87% 87% 87% 88% 89%) -> (32k/114k) -> write(51% 52%)
+0:07:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 176M  18%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 3.1M/s ] 95G   blocks: [  31k  72%   15/s ]
+    cpus: 57.7 gc:  6% heap: 15G/32G direct: 57M postGC: 4.6G relInfo: 564M mpGeoms: 2.4G
+    read( 0%) ->   (32/94) -> process(88% 87% 88% 87% 86% 87% 86% 87% 87% 86% 88% 88% 88% 89% 88% 87% 86% 89% 87% 87% 87% 87% 90% 87% 87% 88% 88% 87% 88% 88% 88% 88% 89% 87% 87% 87% 88% 87% 90% 86% 86% 88% 88% 87% 86% 87% 87% 87% 87% 87% 88% 88% 88% 88% 88% 87% 87% 88% 88% 88% 87% 87%) -> (35k/114k) -> write(56% 56%)
+0:07:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 187M  19%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 3.2M/s ] 97G   blocks: [  31k  72%   17/s ]
+    cpus: 57.8 gc:  6% heap: 9.4G/32G direct: 57M postGC: 5.1G relInfo: 564M mpGeoms: 2.5G
+    read( 0%) ->   (32/94) -> process(87% 88% 88% 87% 88% 87% 88% 88% 88% 87% 87% 88% 88% 88% 88% 87% 88% 87% 88% 88% 88% 88% 88% 88% 88% 88% 87% 87% 88% 88% 88% 89% 87% 88% 88% 87% 87% 88% 87% 88% 87% 87% 88% 88% 88% 88% 87% 88% 87% 88% 87% 88% 88% 88% 87% 88% 88% 88% 88% 89% 87% 88%) -> (31k/114k) -> write(57% 56%)
+0:07:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 197M  20%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 3.1M/s ] 100G  blocks: [  31k  73%   15/s ]
+    cpus: 57.5 gc:  6% heap: 8.9G/32G direct: 57M postGC: 5.7G relInfo: 564M mpGeoms: 2.6G
+    read( 0%) ->   (32/94) -> process(87% 88% 88% 87% 88% 87% 87% 87% 88% 87% 86% 87% 87% 88% 87% 87% 87% 88% 87% 88% 88% 87% 87% 87% 87% 87% 87% 87% 88% 87% 87% 87% 87% 88% 88% 88% 87% 87% 87% 88% 87% 86% 87% 87% 88% 88% 87% 88% 87% 87% 87% 87% 87% 87% 87% 88% 88% 88% 88% 87% 87% 89%) -> (30k/114k) -> write(54% 54%)
+0:07:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 208M  21%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 2.9M/s ] 102G  blocks: [  31k  73%   18/s ]
+    cpus: 57.2 gc:  7% heap: 10G/32G direct: 57M postGC: 6.6G relInfo: 564M mpGeoms: 2.9G
+    read( 0%) ->   (32/94) -> process(87% 86% 88% 87% 86% 86% 86% 86% 86% 87% 87% 86% 86% 87% 85% 86% 86% 87% 87% 87% 87% 87% 86% 86% 87% 87% 86% 87% 87% 86% 87% 86% 86% 86% 87% 86% 86% 87% 85% 87% 86% 87% 86% 87% 87% 87% 86% 85% 87% 87% 87% 86% 86% 85% 86% 87% 86% 85% 87% 87% 88% 85%) -> (32k/114k) -> write(52% 51%)
+0:08:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 219M  22% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.9M/s ] 104G  blocks: [  31k  74%   19/s ]
+    cpus: 57.7 gc:  6% heap: 10G/32G direct: 57M postGC: 6.8G relInfo: 564M mpGeoms: 2.9G
+    read( 0%) ->   (32/94) -> process(89% 88% 87% 87% 88% 87% 87% 86% 87% 86% 87% 88% 88% 87% 88% 88% 87% 87% 88% 87% 87% 87% 88% 86% 86% 88% 88% 88% 88% 87% 88% 87% 88% 87% 89% 88% 87% 88% 86% 87% 88% 87% 88% 89% 87% 86% 87% 88% 87% 87% 88% 87% 88% 88% 87% 88% 88% 87% 88% 87% 88% 89%) -> (39k/114k) -> write(55% 55%)
+0:08:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 230M  23%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B   3M/s ] 106G  blocks: [  31k  74%   16/s ]
+    cpus: 57.4 gc:  6% heap: 12G/32G direct: 57M postGC: 7.3G relInfo: 564M mpGeoms: 3G
+    read( 0%) ->   (32/94) -> process(88% 89% 87% 88% 87% 87% 86% 88% 87% 87% 86% 87% 88% 87% 88% 88% 87% 88% 87% 88% 87% 88% 88% 87% 88% 86% 87% 86% 87% 88% 87% 87% 87% 88% 87% 87% 87% 87% 88% 88% 87% 87% 87% 86% 87% 87% 87% 86% 88% 87% 88% 88% 87% 88% 87% 86% 87% 88% 88% 87% 87% 87%) -> (35k/114k) -> write(54% 53%)
+0:08:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 240M  24%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B   3M/s ] 107G  blocks: [  32k  74%   16/s ]
+    cpus: 57.2 gc:  5% heap: 16G/32G direct: 57M postGC: 7.8G relInfo: 564M mpGeoms: 3.2G
+    read( 0%) ->   (32/94) -> process(87% 88% 86% 88% 88% 88% 87% 87% 88% 87% 87% 87% 86% 87% 86% 88% 87% 87% 87% 87% 86% 88% 88% 87% 88% 87% 87% 87% 88% 87% 88% 87% 86% 87% 88% 87% 88% 87% 88% 87% 86% 87% 88% 87% 86% 88% 87% 87% 87% 87% 86% 87% 88% 88% 87% 86% 87% 87% 87% 86% 88% 88%) -> (33k/114k) -> write(53% 54%)
+0:08:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 251M  25%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B   3M/s ] 110G  blocks: [  32k  75%   17/s ]
+    cpus: 57.5 gc:  6% heap: 6.5G/32G direct: 57M postGC: 4.2G relInfo: 564M mpGeoms: 3.3G
+    read( 0%) ->   (32/94) -> process(87% 87% 88% 87% 87% 88% 88% 87% 87% 88% 88% 88% 88% 88% 87% 87% 87% 88% 87% 87% 87% 87% 87% 86% 87% 87% 87% 88% 88% 88% 86% 87% 87% 87% 87% 87% 87% 87% 87% 87% 87% 87% 88% 87% 86% 87% 86% 87% 87% 87% 87% 84% 87% 86% 86% 86% 88% 87% 87% 86% 88% 87%) -> (29k/114k) -> write(54% 54%)
+0:08:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 261M  26%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B   3M/s ] 112G  blocks: [  32k  75%   15/s ]
+    cpus: 57.4 gc:  6% heap: 14G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 3.5G
+    read( 0%) ->   (32/94) -> process(87% 88% 88% 88% 88% 87% 88% 87% 87% 89% 88% 87% 87% 88% 88% 87% 88% 88% 87% 87% 87% 88% 87% 87% 87% 87% 87% 88% 88% 87% 88% 88% 87% 88% 87% 88% 88% 88% 87% 88% 88% 87% 88% 87% 87% 88% 88% 87% 88% 87% 87% 87% 88% 88% 88% 87% 88% 86% 87% 87% 89% 88%) -> (29k/114k) -> write(54% 53%)
+0:08:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 273M  28% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B   3M/s ] 113G  blocks: [  32k  76%   17/s ]
+    cpus: 57.5 gc:  5% heap: 15G/32G direct: 57M postGC: 5.2G relInfo: 564M mpGeoms: 3.6G
+    read( 0%) ->   (32/94) -> process(89% 88% 88% 87% 88% 88% 88% 88% 88% 87% 87% 88% 89% 87% 89% 87% 89% 88% 87% 87% 88% 88% 87% 89% 88% 88% 88% 88% 88% 87% 89% 88% 88% 88% 87% 88% 87% 88% 87% 87% 88% 87% 87% 87% 87% 88% 88% 87% 87% 88% 88% 88% 88% 88% 89% 87% 88% 88% 87% 88% 88% 88%) -> (35k/114k) -> write(52% 52%)
+0:09:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 285M  29% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B 3.1M/s ] 115G  blocks: [  32k  76%   17/s ]
+    cpus: 57.4 gc:  6% heap: 13G/32G direct: 57M postGC: 6G relInfo: 564M mpGeoms: 3.8G
+    read( 0%) ->   (32/94) -> process(86% 87% 87% 88% 88% 87% 86% 88% 88% 88% 86% 88% 88% 87% 88% 88% 87% 88% 88% 87% 88% 88% 87% 88% 88% 87% 87% 88% 88% 88% 87% 88% 87% 88% 88% 88% 88% 89% 87% 87% 86% 87% 87% 87% 87% 88% 88% 88% 88% 88% 88% 87% 88% 87% 87% 88% 88% 88% 88% 89% 88% 89%) -> (28k/114k) -> write(53% 53%)
+0:09:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 296M  30% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 3.1M/s ] 117G  blocks: [  32k  76%   16/s ]
+    cpus: 57.5 gc:  5% heap: 8.2G/32G direct: 57M postGC: 6.4G relInfo: 564M mpGeoms: 3.9G
+    read( 0%) ->   (32/94) -> process(87% 87% 88% 88% 88% 88% 88% 87% 87% 88% 88% 87% 89% 88% 87% 88% 88% 87% 88% 89% 87% 88% 89% 86% 88% 87% 88% 88% 88% 88% 87% 88% 88% 87% 88% 87% 88% 88% 88% 88% 88% 88% 88% 87% 88% 88% 87% 87% 88% 87% 87% 88% 88% 88% 88% 87% 88% 87% 89% 89% 88% 88%) -> (28k/114k) -> write(54% 54%)
+0:09:20 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 307M  31% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.5B   3M/s ] 119G  blocks: [  33k  77%   15/s ]
+    cpus: 57.6 gc:  5% heap: 12G/32G direct: 57M postGC: 7G relInfo: 564M mpGeoms: 4G
+    read( 0%) ->   (32/94) -> process(88% 88% 89% 88% 87% 88% 88% 89% 87% 87% 88% 88% 88% 88% 87% 88% 88% 87% 86% 87% 87% 88% 87% 88% 89% 88% 87% 87% 88% 87% 88% 88% 87% 88% 88% 88% 87% 89% 88% 88% 87% 87% 88% 88% 88% 88% 88% 88% 89% 88% 88% 88% 87% 88% 88% 88% 88% 87% 89% 87% 88% 87%) -> (27k/114k) -> write(52% 51%)
+0:09:30 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 319M  32% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 3.1M/s ] 122G  blocks: [  33k  77%   17/s ]
+    cpus: 57.9 gc:  5% heap: 13G/32G direct: 57M postGC: 7.6G relInfo: 564M mpGeoms: 4.1G
+    read( 0%) ->   (32/94) -> process(89% 89% 88% 89% 89% 88% 88% 89% 89% 88% 88% 88% 88% 89% 88% 87% 88% 89% 89% 88% 88% 88% 88% 88% 88% 88% 89% 88% 89% 88% 89% 88% 89% 88% 88% 88% 88% 88% 88% 89% 89% 88% 88% 89% 88% 88% 88% 88% 88% 88% 89% 88% 88% 85% 88% 88% 88% 88% 88% 89% 88% 89%) -> (29k/114k) -> write(53% 53%)
+0:09:40 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 331M  33% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.6B 3.1M/s ] 124G  blocks: [  33k  78%   17/s ]
+    cpus: 58 gc:  6% heap: 15G/32G direct: 57M postGC: 8.3G relInfo: 564M mpGeoms: 4.3G
+    read( 0%) ->   (32/94) -> process(88% 89% 89% 88% 88% 88% 88% 88% 87% 88% 88% 88% 88% 89% 89% 89% 89% 90% 89% 88% 88% 87% 88% 89% 88% 88% 88% 88% 90% 88% 88% 88% 89% 89% 88% 88% 88% 89% 89% 89% 88% 87% 88% 89% 88% 89% 89% 88% 89% 89% 89% 89% 88% 89% 88% 88% 88% 90% 89% 88% 88% 88%) -> (32k/114k) -> write(53% 54%)
+0:09:50 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 343M  35% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.6B   3M/s ] 125G  blocks: [  33k  78%   17/s ]
+    cpus: 57.7 gc:  6% heap: 13G/32G direct: 57M postGC: 4G relInfo: 564M mpGeoms: 4.4G
+    read( 0%) ->   (32/94) -> process(87% 87% 88% 88% 88% 87% 87% 88% 87% 87% 86% 86% 88% 88% 88% 88% 87% 88% 88% 87% 88% 87% 88% 88% 86% 88% 88% 88% 87% 88% 87% 86% 88% 88% 87% 88% 86% 87% 88% 88% 88% 87% 87% 88% 88% 87% 87% 88% 87% 88% 87% 87% 87% 87% 86% 88% 88% 89% 87% 88% 88% 87%) -> (36k/114k) -> write(52% 52%)
+0:10:00 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 354M  36% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.6B   3M/s ] 127G  blocks: [  33k  78%   17/s ]
+    cpus: 58 gc:  5% heap: 13G/32G direct: 57M postGC: 4.3G relInfo: 564M mpGeoms: 4.5G
+    read( 0%) ->   (32/94) -> process(89% 88% 88% 89% 88% 88% 89% 89% 89% 89% 88% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 88% 89% 88% 89% 89% 88% 89% 89% 89% 89% 89% 88% 88% 88% 88% 89% 88% 88% 88% 89% 88% 89% 88% 90% 88% 89% 88% 89% 89% 89% 88% 88% 89% 89% 89% 89% 88% 87%) -> (32k/114k) -> write(54% 53%)
+0:10:10 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 366M  37% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 3.1M/s ] 128G  blocks: [  34k  79%   17/s ]
+    cpus: 58.3 gc:  5% heap: 7.9G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 4.6G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 89% 89% 88% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 90% 89% 89% 89% 88% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89%) -> (37k/114k) -> write(54% 54%)
+0:10:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 378M  38% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.7B   3M/s ] 130G  blocks: [  34k  79%   17/s ]
+    cpus: 57.5 gc:  6% heap: 6G/32G direct: 57M postGC: 5.3G relInfo: 564M mpGeoms: 4.9G
+    read( 0%) ->   (32/94) -> process(87% 87% 87% 87% 88% 88% 88% 87% 87% 88% 88% 88% 87% 88% 88% 88% 88% 88% 87% 88% 87% 88% 88% 88% 89% 88% 87% 88% 87% 88% 88% 88% 88% 88% 88% 87% 88% 88% 88% 88% 86% 88% 88% 87% 88% 87% 88% 88% 87% 88% 89% 88% 87% 88% 88% 87% 88% 88% 88% 87% 88% 88%) -> (30k/114k) -> write(53% 52%)
+0:10:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 390M  39% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 3.1M/s ] 132G  blocks: [  34k  80%   17/s ]
+    cpus: 57.9 gc:  5% heap: 11G/32G direct: 57M postGC: 5.7G relInfo: 564M mpGeoms: 5G
+    read( 0%) ->   (32/94) -> process(88% 89% 89% 89% 89% 89% 88% 89% 88% 89% 88% 89% 88% 89% 89% 89% 88% 89% 89% 89% 89% 89% 88% 89% 88% 89% 89% 88% 88% 88% 89% 89% 90% 88% 88% 89% 89% 89% 89% 89% 87% 89% 88% 89% 89% 88% 88% 88% 89% 89% 89% 89% 88% 88% 89% 88% 90% 89% 88% 88% 89% 89%) -> (28k/114k) -> write(55% 54%)
+0:10:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 403M  41% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 3.1M/s ] 134G  blocks: [  34k  80%   17/s ]
+    cpus: 58 gc:  5% heap: 6.8G/32G direct: 57M postGC: 6G relInfo: 564M mpGeoms: 5.1G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 88% 90% 89% 89% 89% 88% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 88% 87% 87% 89% 89% 88% 89% 89% 88% 89% 88% 88% 89% 89% 89% 89% 88% 89% 88% 89% 89% 89% 89% 88% 89% 89% 89% 89%) -> (35k/114k) -> write(54% 54%)
+0:10:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 416M  42% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 3.1M/s ] 136G  blocks: [  34k  80%   16/s ]
+    cpus: 58.3 gc:  5% heap: 15G/32G direct: 57M postGC: 6.5G relInfo: 564M mpGeoms: 5.1G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 89% 88% 89% 89% 90% 89% 89% 89% 90% 90% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 90% 89% 88% 89% 89% 90% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89%) -> (28k/114k) -> write(56% 56%)
+0:11:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 429M  43% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 3.2M/s ] 137G  blocks: [  34k  81%   17/s ]
+    cpus: 58.4 gc:  5% heap: 9.8G/32G direct: 57M postGC: 6.9G relInfo: 564M mpGeoms: 5.2G
+    read( 0%) ->   (32/94) -> process(90% 89% 90% 90% 90% 89% 89% 90% 89% 89% 90% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 89% 89% 90% 89% 90% 89% 89% 90% 89% 89% 89% 89% 90% 90% 90% 90% 90% 89% 89% 89% 90% 90% 89% 89% 90% 89% 89% 89% 89% 88% 89% 89% 89% 89%) -> (33k/114k) -> write(56% 56%)
+0:11:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 442M  45% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 3.2M/s ] 140G  blocks: [  35k  81%   17/s ]
+    cpus: 58.3 gc:  5% heap: 12G/32G direct: 57M postGC: 7.1G relInfo: 564M mpGeoms: 5.3G
+    read( 0%) ->   (32/94) -> process(89% 90% 90% 90% 90% 90% 89% 89% 89% 89% 90% 90% 89% 89% 89% 89% 89% 89% 89% 90% 90% 90% 89% 89% 89% 89% 89% 89% 90% 90% 89% 89% 89% 89% 89% 89% 90% 89% 90% 89% 89% 90% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 88% 89% 89% 88% 89% 89% 89%) -> (39k/114k) -> write(55% 55%)
+0:11:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 455M  46% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 3.2M/s ] 142G  blocks: [  35k  82%   18/s ]
+    cpus: 58.1 gc:  5% heap: 16G/32G direct: 57M postGC: 7.2G relInfo: 564M mpGeoms: 5.5G
+    read( 0%) ->   (32/94) -> process(90% 89% 89% 89% 88% 89% 89% 89% 89% 87% 88% 88% 89% 88% 89% 89% 89% 89% 89% 90% 89% 89% 90% 89% 89% 88% 89% 89% 89% 90% 90% 89% 89% 88% 88% 87% 89% 89% 88% 89% 89% 87% 89% 89% 89% 88% 89% 88% 89% 89% 90% 89% 89% 88% 88% 90% 89% 89% 89% 89% 90% 89%) -> (29k/114k) -> write(60% 59%)
+0:11:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 468M  47% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 3.3M/s ] 143G  blocks: [  35k  82%   17/s ]
+    cpus: 58.5 gc:  5% heap: 13G/32G direct: 57M postGC: 7.4G relInfo: 564M mpGeoms: 5.5G
+    read( 0%) ->   (32/94) -> process(90% 90% 90% 90% 90% 89% 89% 90% 90% 89% 90% 90% 89% 90% 90% 90% 89% 90% 90% 90% 89% 90% 89% 89% 90% 89% 90% 89% 90% 90% 90% 89% 89% 90% 90% 90% 89% 90% 89% 89% 88% 90% 89% 89% 89% 90% 90% 89% 89% 90% 89% 90% 88% 89% 89% 89% 89% 90% 90% 89% 89% 90%) -> (35k/114k) -> write(57% 57%)
+0:11:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 482M  49% 1.3M/s ] rels: [    0   0%    0/s ] features: [   2B 3.3M/s ] 145G  blocks: [  35k  83%   18/s ]
+    cpus: 58.5 gc:  5% heap: 7.7G/32G direct: 57M postGC: 7.7G relInfo: 564M mpGeoms: 5.6G
+    read( 0%) ->   (32/94) -> process(90% 89% 89% 90% 89% 90% 90% 90% 90% 89% 90% 90% 89% 89% 90% 90% 90% 89% 90% 90% 90% 90% 90% 90% 90% 89% 89% 90% 90% 90% 89% 90% 90% 90% 89% 90% 89% 89% 89% 89% 89% 90% 89% 89% 89% 90% 90% 89% 88% 90% 90% 90% 89% 89% 90% 90% 90% 90% 90% 87% 90% 90%) -> (33k/114k) -> write(57% 56%)
+0:11:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 496M  50% 1.3M/s ] rels: [    0   0%    0/s ] features: [   2B 3.3M/s ] 147G  blocks: [  35k  83%   18/s ]
+    cpus: 58.4 gc:  5% heap: 18G/32G direct: 57M postGC: 8G relInfo: 564M mpGeoms: 5.7G
+    read( 0%) ->   (32/94) -> process(89% 90% 89% 89% 89% 88% 89% 90% 89% 90% 90% 89% 90% 88% 90% 89% 90% 89% 89% 89% 90% 89% 89% 89% 90% 88% 89% 89% 90% 90% 89% 90% 88% 89% 89% 90% 89% 89% 89% 91% 90% 89% 90% 89% 89% 90% 90% 89% 89% 89% 89% 90% 90% 89% 90% 90% 90% 88% 89% 89% 89% 90%) -> (31k/114k) -> write(58% 58%)
+0:12:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 508M  51% 1.2M/s ] rels: [    0   0%    0/s ] features: [   2B 3.2M/s ] 149G  blocks: [  35k  83%   17/s ]
+    cpus: 58.1 gc:  5% heap: 17G/32G direct: 57M postGC: 8.1G relInfo: 564M mpGeoms: 5.9G
+    read( 0%) ->   (32/94) -> process(88% 91% 89% 88% 89% 90% 90% 90% 90% 88% 90% 89% 90% 89% 89% 89% 90% 90% 89% 89% 89% 88% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 88% 89% 89% 89% 88% 89% 88% 89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 90% 89% 90% 89% 88% 89% 89% 90% 88% 89% 89% 90% 90%) -> (33k/114k) -> write(56% 55%)
+0:12:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 522M  53% 1.3M/s ] rels: [    0   0%    0/s ] features: [   2B 3.2M/s ] 151G  blocks: [  36k  84%   17/s ]
+    cpus: 58.3 gc:  6% heap: 18G/32G direct: 57M postGC: 8.6G relInfo: 564M mpGeoms: 5.9G
+    read( 0%) ->   (32/94) -> process(89% 89% 88% 89% 88% 89% 89% 89% 89% 88% 89% 90% 89% 89% 88% 89% 88% 90% 88% 88% 89% 89% 89% 89% 88% 89% 89% 89% 89% 88% 88% 88% 89% 88% 89% 89% 88% 87% 87% 88% 89% 88% 89% 88% 88% 89% 88% 89% 89% 88% 88% 89% 88% 88% 89% 88% 89% 88% 89% 89% 89% 89%) -> (33k/114k) -> write(58% 58%)
+0:12:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 534M  54% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 3.1M/s ] 153G  blocks: [  36k  84%   17/s ]
+    cpus: 58.1 gc:  5% heap: 11G/32G direct: 57M postGC: 4.4G relInfo: 564M mpGeoms: 6G
+    read( 0%) ->   (32/94) -> process(89% 88% 89% 88% 89% 89% 90% 89% 89% 89% 89% 89% 90% 90% 88% 91% 89% 89% 89% 88% 90% 90% 89% 88% 89% 87% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 88% 88% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 90% 89% 89% 89% 90% 88% 88% 89% 89% 89% 88% 89%) -> (33k/114k) -> write(55% 54%)
+0:12:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 546M  55% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 3.1M/s ] 154G  blocks: [  36k  85%   17/s ]
+    cpus: 57.9 gc:  5% heap: 10G/32G direct: 57M postGC: 4.7G relInfo: 564M mpGeoms: 6.1G
+    read( 0%) ->   (32/94) -> process(88% 89% 88% 89% 89% 89% 88% 89% 89% 88% 88% 89% 88% 88% 89% 88% 89% 88% 88% 88% 89% 89% 89% 88% 89% 88% 89% 89% 88% 88% 89% 88% 88% 88% 87% 89% 88% 89% 89% 89% 89% 88% 89% 88% 88% 88% 89% 88% 89% 89% 88% 90% 89% 88% 87% 88% 89% 89% 88% 88% 88% 89%) -> (29k/114k) -> write(54% 55%)
+0:12:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 559M  56% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 3.2M/s ] 156G  blocks: [  36k  85%   18/s ]
+    cpus: 57.8 gc:  5% heap: 15G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 6.3G
+    read( 0%) ->   (32/94) -> process(88% 89% 88% 89% 88% 89% 89% 88% 89% 88% 89% 88% 89% 89% 87% 90% 89% 89% 89% 89% 89% 89% 88% 88% 89% 88% 89% 88% 89% 89% 89% 88% 89% 89% 90% 89% 88% 88% 90% 89% 89% 88% 89% 88% 88% 88% 89% 89% 89% 88% 89% 89% 88% 89% 88% 88% 88% 88% 89% 88% 90% 88%) -> (29k/114k) -> write(56% 55%)
+0:12:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 571M  58% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 3.1M/s ] 158G  blocks: [  36k  85%   17/s ]
+    cpus: 57.9 gc:  5% heap: 9.5G/32G direct: 57M postGC: 5G relInfo: 564M mpGeoms: 6.4G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 89% 89% 88% 88% 87% 88% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 87% 88% 89% 89% 88% 88% 89% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89%) -> (33k/114k) -> write(56% 55%)
+0:13:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 584M  59% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 3.2M/s ] 159G  blocks: [  37k  86%   18/s ]
+    cpus: 58.1 gc:  5% heap: 5.2G/32G direct: 57M postGC: 5.2G relInfo: 564M mpGeoms: 6.5G
+    read( 0%) ->   (32/94) -> process(89% 88% 89% 89% 88% 89% 90% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 90% 88% 89% 89% 88% 89% 88% 89% 89% 89% 89% 89% 88% 89% 89% 88% 89% 89% 89% 89% 87% 87% 90% 89% 89% 89% 89% 88% 88% 89% 89% 89% 90% 89% 88% 89%) -> (32k/114k) -> write(56% 56%)
+0:13:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 597M  60% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 3.3M/s ] 162G  blocks: [  37k  86%   18/s ]
+    cpus: 58 gc:  5% heap: 17G/32G direct: 57M postGC: 5.3G relInfo: 564M mpGeoms: 6.6G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 88% 90% 89% 88% 89% 89% 90% 89% 89% 89% 89% 88% 88% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 90% 89% 90% 89% 88% 89% 88% 89% 90% 89% 89% 89% 90% 89% 89% 89% 89% 86% 87% 89% 89% 89% 89% 89% 89% 87% 89% 89% 87%) -> (33k/114k) -> write(57% 56%)
+0:13:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 610M  62% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.3B 3.3M/s ] 164G  blocks: [  37k  87%   18/s ]
+    cpus: 58 gc:  5% heap: 17G/32G direct: 57M postGC: 5.4G relInfo: 564M mpGeoms: 6.8G
+    read( 0%) ->   (32/94) -> process(88% 89% 88% 89% 90% 88% 89% 90% 89% 90% 88% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 88% 89% 90% 90% 88% 88% 90% 89% 89% 87% 89% 88% 89% 89% 89% 89% 88% 89% 89% 89% 89% 88% 89% 89% 84% 89% 89% 89% 89% 89% 89% 87% 89% 86% 89% 88% 89% 88% 89%) -> (33k/114k) -> write(59% 60%)
+0:13:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 623M  63% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.3B 3.2M/s ] 166G  blocks: [  37k  87%   16/s ]
+    cpus: 57.8 gc:  5% heap: 7.4G/32G direct: 57M postGC: 5.8G relInfo: 564M mpGeoms: 6.9G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 87% 89% 89% 89% 89% 88% 88% 89% 88% 90% 89% 89% 88% 88% 90% 90% 89% 89% 89% 88% 88% 88% 90% 89% 89% 89% 89% 88% 89% 88% 83% 89% 89% 88% 87% 89% 89% 90% 89% 89% 89% 89% 90% 89% 88% 87% 87% 89% 89% 89% 89% 88% 90% 88% 88% 88% 88% 88% 88%) -> (33k/114k) -> write(53% 54%)
+0:13:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 635M  64% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.3B   3M/s ] 168G  blocks: [  37k  88%   17/s ]
+    cpus: 57.7 gc:  5% heap: 15G/32G direct: 57M postGC: 5.9G relInfo: 564M mpGeoms: 7.1G
+    read( 0%) ->   (32/94) -> process(88% 88% 88% 88% 89% 89% 88% 88% 87% 89% 88% 89% 89% 88% 87% 89% 88% 88% 89% 89% 88% 89% 89% 87% 88% 88% 89% 87% 89% 89% 89% 89% 88% 89% 89% 89% 89% 88% 89% 90% 88% 89% 89% 90% 88% 88% 89% 89% 89% 88% 88% 89% 88% 89% 88% 90% 89% 87% 89% 89% 89% 89%) -> (33k/114k) -> write(53% 52%)
+0:13:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 648M  65% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.4B 3.2M/s ] 170G  blocks: [  37k  88%   18/s ]
+    cpus: 58.1 gc:  5% heap: 6.1G/32G direct: 57M postGC: 6.1G relInfo: 564M mpGeoms: 7.3G
+    read( 0%) ->   (32/94) -> process(89% 90% 90% 88% 89% 88% 89% 89% 89% 89% 90% 90% 89% 88% 90% 89% 88% 89% 89% 90% 90% 89% 90% 90% 89% 88% 89% 90% 89% 89% 89% 89% 90% 88% 89% 89% 89% 89% 88% 90% 89% 90% 89% 89% 89% 88% 89% 89% 88% 89% 90% 89% 90% 89% 88% 89% 89% 89% 89% 88% 90% 88%) -> (28k/114k) -> write(55% 55%)
+0:14:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 662M  67% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.4B 3.4M/s ] 172G  blocks: [  38k  88%   19/s ]
+    cpus: 58.1 gc:  5% heap: 13G/32G direct: 57M postGC: 6.2G relInfo: 564M mpGeoms: 7.4G
+    read( 0%) ->   (32/94) -> process(90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 88% 88% 89% 89% 89% 88% 89% 88% 89% 89% 89% 88% 88% 89% 89% 88% 89% 89% 89% 90% 89% 89% 89% 89% 89%) -> (36k/114k) -> write(59% 59%)
+0:14:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 675M  68% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.4B 3.2M/s ] 174G  blocks: [  38k  89%   18/s ]
+    cpus: 58.1 gc:  5% heap: 7.1G/32G direct: 57M postGC: 6.4G relInfo: 564M mpGeoms: 7.5G
+    read( 0%) ->   (32/94) -> process(86% 89% 90% 89% 89% 89% 89% 90% 89% 88% 89% 89% 90% 90% 88% 89% 88% 88% 89% 89% 89% 89% 89% 91% 89% 88% 90% 90% 89% 89% 90% 91% 87% 89% 89% 90% 88% 89% 89% 89% 90% 89% 89% 91% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 87% 89% 89% 89% 89% 89%) -> (33k/114k) -> write(57% 56%)
+0:14:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 689M  69% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.5B 3.3M/s ] 175G  blocks: [  38k  89%   18/s ]
+    cpus: 58.2 gc:  5% heap: 18G/32G direct: 57M postGC: 6.5G relInfo: 564M mpGeoms: 7.6G
+    read( 0%) ->   (32/94) -> process(89% 89% 90% 87% 90% 90% 89% 88% 89% 89% 90% 88% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 90% 89% 87% 89% 89% 90% 90% 90% 90% 87% 89% 88% 89% 89% 89% 88% 89% 90% 89% 90% 90% 88% 89% 86% 88% 89% 89% 89% 90% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89%) -> (31k/114k) -> write(57% 56%)
+0:14:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 702M  71% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.5B 3.2M/s ] 177G  blocks: [  38k  90%   18/s ]
+    cpus: 58 gc:  5% heap: 12G/32G direct: 57M postGC: 6.6G relInfo: 564M mpGeoms: 7.7G
+    read( 0%) ->   (32/94) -> process(89% 89% 88% 89% 89% 89% 90% 89% 88% 88% 89% 90% 90% 89% 90% 88% 89% 89% 89% 88% 90% 90% 89% 88% 87% 89% 89% 86% 89% 88% 88% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 90% 89% 89% 89% 89% 90% 88% 89% 88% 89% 89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 88%) -> (45k/114k) -> write(56% 55%)
+0:14:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 715M  72% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.5B 3.2M/s ] 178G  blocks: [  38k  90%   18/s ]
+    cpus: 58 gc:  5% heap: 15G/32G direct: 57M postGC: 6.7G relInfo: 564M mpGeoms: 7.9G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 88% 90% 89% 89% 89% 88% 89% 89% 88% 88% 89% 89% 88% 89% 89% 89% 88% 89% 89% 89% 89% 90% 89% 88% 89% 88% 89% 89% 89% 89% 88% 89% 88% 89% 88% 90% 89% 89% 89% 88% 89%) -> (30k/114k) -> write(56% 55%)
+0:14:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 729M  74% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.6B 3.3M/s ] 181G  blocks: [  39k  91%   19/s ]
+    cpus: 57.8 gc:  5% heap: 19G/32G direct: 57M postGC: 6.8G relInfo: 564M mpGeoms: 8G
+    read( 0%) ->   (32/94) -> process(89% 88% 88% 89% 88% 88% 88% 89% 89% 89% 88% 89% 89% 89% 88% 88% 89% 89% 89% 88% 89% 89% 89% 88% 88% 89% 88% 89% 88% 88% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 88% 89% 89% 89% 89% 89% 88% 88% 88% 88% 89% 89% 89% 88% 89% 89%) -> (30k/114k) -> write(57% 57%)
+0:15:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 743M  75% 1.4M/s ] rels: [    0   0%    0/s ] features: [ 2.6B 3.2M/s ] 183G  blocks: [  39k  91%   19/s ]
+    cpus: 58.3 gc:  5% heap: 18G/32G direct: 57M postGC: 6.8G relInfo: 564M mpGeoms: 8.1G
+    read( 0%) ->   (32/94) -> process(90% 89% 90% 89% 89% 90% 90% 89% 89% 87% 90% 91% 90% 90% 88% 90% 90% 89% 90% 89% 90% 90% 90% 90% 90% 90% 89% 90% 89% 89% 90% 90% 90% 89% 89% 90% 89% 90% 89% 90% 89% 90% 90% 89% 88% 90% 89% 89% 90% 89% 89% 89% 89% 88% 90% 90% 90% 90% 90% 90% 89% 89%) -> (32k/114k) -> write(56% 56%)
+0:15:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 757M  76% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.6B 3.2M/s ] 185G  blocks: [  39k  92%   19/s ]
+    cpus: 58 gc:  5% heap: 16G/32G direct: 57M postGC: 6.8G relInfo: 564M mpGeoms: 8.2G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 89% 88% 89% 89% 89% 89% 89% 89% 90% 89% 89% 88% 90% 88% 90% 89% 88% 89% 89% 88% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 88% 89% 89% 89% 89% 89% 89% 89% 88% 88% 89% 88% 89% 89% 89% 89%) -> (29k/114k) -> write(56% 55%)
+0:15:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 771M  78% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.7B 3.2M/s ] 187G  blocks: [  39k  92%   18/s ]
+    cpus: 58.1 gc:  5% heap: 10G/32G direct: 57M postGC: 6.9G relInfo: 564M mpGeoms: 8.3G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 90% 89% 89% 88% 89% 89% 89% 89% 90% 89% 89% 89% 89% 90% 90% 88% 87% 90% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 90% 89% 87% 89% 88% 89% 89% 88% 89% 89% 88%) -> (30k/114k) -> write(57% 57%)
+0:15:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 784M  79% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.7B 3.1M/s ] 189G  blocks: [  39k  92%   18/s ]
+    cpus: 58 gc:  5% heap: 12G/32G direct: 57M postGC: 6.9G relInfo: 564M mpGeoms: 8.4G
+    read( 0%) ->   (32/94) -> process(88% 89% 90% 89% 89% 89% 88% 88% 89% 89% 89% 89% 90% 89% 89% 89% 90% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 90% 89% 89%) -> (29k/114k) -> write(54% 54%)
+0:15:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 797M  80% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.7B 3.1M/s ] 190G  blocks: [  40k  93%   18/s ]
+    cpus: 58.1 gc:  5% heap: 7G/32G direct: 57M postGC: 7G relInfo: 564M mpGeoms: 8.5G
+    read( 0%) ->   (32/94) -> process(90% 89% 89% 90% 90% 89% 89% 89% 89% 90% 89% 89% 90% 90% 89% 90% 89% 90% 90% 89% 89% 90% 90% 89% 89% 90% 89% 88% 89% 90% 88% 90% 89% 89% 88% 89% 89% 89% 89% 90% 88% 89% 90% 89% 89% 89% 90% 89% 89% 89% 88% 89% 89% 89% 89% 89% 90% 89% 89% 90% 89% 89%) -> (36k/114k) -> write(53% 54%)
+0:15:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 810M  82% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.8B 3.1M/s ] 192G  blocks: [  40k  93%   18/s ]
+    cpus: 58.2 gc:  5% heap: 17G/32G direct: 57M postGC: 7.1G relInfo: 564M mpGeoms: 8.6G
+    read( 0%) ->   (32/94) -> process(90% 89% 90% 89% 89% 90% 89% 89% 89% 90% 89% 89% 90% 89% 90% 88% 89% 89% 90% 89% 90% 89% 90% 89% 89% 89% 89% 90% 89% 90% 89% 89% 89% 90% 89% 89% 89% 90% 89% 89% 90% 89% 90% 90% 89% 89% 89% 89% 90% 90% 89% 90% 90% 89% 89% 90% 90% 90% 89% 90% 89% 90%) -> (38k/114k) -> write(53% 53%)
+0:16:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 823M  83% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.8B   3M/s ] 193G  blocks: [  40k  94%   17/s ]
+    cpus: 57.9 gc:  5% heap: 9G/32G direct: 57M postGC: 7.1G relInfo: 564M mpGeoms: 8.7G
+    read( 0%) ->   (32/94) -> process(88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 88% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89%) -> (31k/114k) -> write(52% 52%)
+0:16:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 836M  84% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.8B   3M/s ] 195G  blocks: [  40k  94%   17/s ]
+    cpus: 57 gc:  5% heap: 11G/32G direct: 57M postGC: 7.7G relInfo: 564M mpGeoms: 9.2G
+    read( 0%) ->   (32/94) -> process(87% 87% 90% 88% 88% 88% 89% 87% 88% 88% 87% 87% 88% 87% 87% 87% 88% 89% 88% 87% 87% 86% 87% 87% 87% 87% 88% 87% 88% 87% 87% 88% 87% 87% 88% 88% 88% 88% 87% 87% 87% 88% 87% 87% 88% 88% 87% 87% 87% 88% 88% 87% 87% 87% 88% 87% 87% 88% 88% 87% 87% 87%) -> (34k/114k) -> write(53% 53%)
+0:16:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 849M  86% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.9B   3M/s ] 197G  blocks: [  40k  94%   17/s ]
+    cpus: 58.1 gc:  5% heap: 8.6G/32G direct: 57M postGC: 7.8G relInfo: 564M mpGeoms: 9.3G
+    read( 0%) ->   (32/94) -> process(90% 89% 88% 90% 89% 90% 88% 89% 88% 89% 90% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 90% 89% 89% 89% 88% 89% 89% 89% 90% 89% 89% 89% 89% 90% 89% 89% 90% 89% 89% 89% 89% 88% 89% 89%) -> (39k/114k) -> write(53% 52%)
+0:16:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 863M  87% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.9B 3.1M/s ] 199G  blocks: [  40k  95%   18/s ]
+    cpus: 58.3 gc:  5% heap: 14G/32G direct: 57M postGC: 8G relInfo: 564M mpGeoms: 9.4G
+    read( 0%) ->   (32/94) -> process(90% 90% 90% 90% 87% 90% 89% 90% 90% 90% 89% 89% 89% 90% 89% 90% 89% 89% 90% 89% 90% 90% 90% 90% 90% 89% 90% 89% 89% 89% 90% 89% 90% 89% 89% 90% 89% 89% 90% 89% 89% 90% 90% 89% 89% 89% 89% 89% 90% 90% 90% 89% 90% 89% 89% 89% 90% 89% 89% 89% 90% 90%) -> (29k/114k) -> write(54% 55%)
+0:16:41 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 876M  88% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.9B 3.1M/s ] 200G  blocks: [  41k  95%   18/s ]
+    cpus: 58.2 gc:  5% heap: 19G/32G direct: 57M postGC: 8.1G relInfo: 564M mpGeoms: 9.5G
+    read( 0%) ->   (32/94) -> process(89% 89% 90% 89% 89% 90% 89% 89% 89% 90% 90% 89% 89% 90% 90% 90% 89% 90% 90% 89% 90% 89% 89% 90% 90% 90% 90% 89% 90% 89% 89% 90% 89% 88% 90% 89% 90% 89% 89% 89% 89% 89% 89% 90% 89% 90% 89% 89% 89% 90% 90% 90% 90% 90% 90% 90% 89% 89% 90% 90% 89% 89%) -> (29k/114k) -> write(53% 53%)
+0:16:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 889M  90% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.9B   3M/s ] 202G  blocks: [  41k  96%   17/s ]
+    cpus: 57.6 gc:  5% heap: 9.8G/32G direct: 57M postGC: 8.3G relInfo: 564M mpGeoms: 9.6G
+    read( 0%) ->   (32/94) -> process(88% 89% 89% 89% 88% 89% 88% 89% 89% 89% 88% 89% 89% 87% 89% 88% 88% 89% 87% 88% 89% 89% 88% 86% 87% 89% 88% 89% 88% 87% 89% 89% 88% 89% 88% 89% 89% 89% 88% 88% 89% 88% 88% 87% 88% 89% 88% 88% 89% 88% 88% 88% 89% 89% 88% 89% 89% 88% 89% 89% 89% 89%) -> (35k/114k) -> write(52% 51%)
+0:17:01 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 902M  91% 1.2M/s ] rels: [    0   0%    0/s ] features: [   3B 2.9M/s ] 203G  blocks: [  41k  96%   18/s ]
+    cpus: 57.6 gc:  5% heap: 14G/32G direct: 57M postGC: 8.3G relInfo: 564M mpGeoms: 9.8G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 89% 88% 87% 89% 89% 89% 89% 89% 88% 87% 89% 88% 89% 85% 89% 89% 88% 89% 89% 89% 88% 89% 89% 89% 88% 89% 89% 88% 90% 89% 90% 89% 89% 89% 89% 89% 88% 89% 87% 88% 86% 89% 89% 88% 89% 89% 89% 89% 87% 88% 89% 89% 88% 87% 89% 88% 88% 89% 88%) -> (28k/114k) -> write(51% 51%)
+0:17:11 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 914M  92% 1.2M/s ] rels: [    0   0%    0/s ] features: [   3B 2.9M/s ] 205G  blocks: [  41k  97%   17/s ]
+    cpus: 57.7 gc:  5% heap: 14G/32G direct: 57M postGC: 8.5G relInfo: 564M mpGeoms: 9.9G
+    read( 0%) ->   (32/94) -> process(89% 89% 88% 86% 89% 89% 89% 89% 89% 89% 88% 89% 90% 89% 88% 90% 86% 90% 88% 89% 88% 89% 88% 89% 88% 89% 89% 88% 90% 89% 89% 89% 88% 89% 89% 89% 86% 89% 89% 89% 89% 90% 89% 89% 89% 84% 90% 88% 88% 88% 89% 89% 89% 89% 89% 90% 88% 89% 89% 89% 88% 89%) -> (33k/114k) -> write(50% 49%)
+0:17:21 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 927M  93% 1.2M/s ] rels: [    0   0%    0/s ] features: [   3B 2.9M/s ] 207G  blocks: [  41k  97%   17/s ]
+    cpus: 58.1 gc:  5% heap: 16G/32G direct: 57M postGC: 4.4G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(87% 89% 89% 89% 90% 89% 88% 90% 88% 89% 88% 89% 89% 89% 89% 89% 89% 90% 91% 88% 89% 88% 89% 88% 89% 89% 88% 90% 90% 89% 88% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 90% 89% 88% 89% 89% 89% 87% 89% 89% 89% 89% 89% 88%) -> (30k/114k) -> write(50% 51%)
+0:17:31 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 940M  95% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 3.1B 2.9M/s ] 208G  blocks: [  41k  97%   18/s ]
+    cpus: 57.8 gc:  5% heap: 13G/32G direct: 57M postGC: 4.5G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(89% 88% 88% 89% 88% 90% 89% 89% 88% 89% 88% 88% 89% 88% 88% 89% 89% 89% 89% 88% 90% 89% 89% 89% 89% 87% 88% 89% 89% 88% 88% 89% 88% 88% 89% 88% 88% 89% 89% 88% 89% 89% 89% 88% 89% 89% 89% 88% 89% 90% 89% 88% 90% 89% 88% 91% 89% 89% 89% 89% 89% 89%) -> (35k/114k) -> write(50% 50%)
+0:17:42 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 952M  96% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 3.1B 2.9M/s ] 211G  blocks: [  42k  98%   17/s ]
+    cpus: 58 gc:  5% heap: 10G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(90% 86% 90% 89% 89% 90% 90% 89% 90% 89% 89% 89% 88% 88% 88% 88% 89% 90% 88% 89% 90% 89% 89% 89% 90% 89% 89% 89% 88% 89% 90% 89% 89% 89% 89% 90% 89% 90% 88% 89% 88% 89% 89% 89% 90% 90% 89% 89% 89% 89% 89% 89% 90% 90% 89% 89% 88% 90% 89% 89% 88% 89%) -> (29k/114k) -> write(51% 51%)
+0:17:52 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 965M  97% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 3.1B 2.9M/s ] 212G  blocks: [  42k  98%   18/s ]
+    cpus: 58.3 gc:  5% heap: 9.4G/32G direct: 57M postGC: 5G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(89% 91% 89% 89% 89% 89% 90% 89% 89% 90% 89% 89% 90% 90% 90% 89% 90% 89% 90% 90% 90% 90% 89% 90% 89% 90% 89% 90% 90% 89% 90% 90% 89% 90% 89% 90% 89% 89% 90% 89% 89% 90% 89% 90% 90% 90% 90% 90% 89% 90% 90% 89% 89% 89% 89% 90% 89% 90% 90% 89% 89% 90%) -> (45k/114k) -> write(51% 51%)
+0:18:02 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 978M  99% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 3.2B 2.9M/s ] 214G  blocks: [  42k  99%   17/s ]
+    cpus: 58.1 gc:  5% heap: 18G/32G direct: 57M postGC: 5.2G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(90% 90% 89% 90% 90% 90% 89% 89% 89% 88% 89% 89% 89% 90% 90% 90% 89% 89% 89% 90% 90% 90% 89% 90% 90% 89% 89% 89% 89% 88% 90% 89% 89% 89% 90% 89% 90% 89% 90% 89% 90% 87% 90% 88% 89% 89% 89% 89% 89% 89% 89% 89% 90% 90% 89% 89% 89% 88% 89% 90% 89% 90%) -> (33k/114k) -> write(51% 51%)
+0:18:12 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 989M 100% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 3.2B 2.6M/s ] 216G  blocks: [  42k  99%   15/s ]
+    cpus: 57.8 gc:  5% heap: 12G/32G direct: 57M postGC: 5.5G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(89% 89% 89% 90% 89% 89% 89% 88% 89% 89% 89% 89% 88% 89% 90% 88% 89% 89% 89% 89% 90% 89% 89% 89% 89% 89% 89% 89% 88% 89% 89% 88% 89% 89% 90% 89% 89% 90% 88% 89% 90% 89% 88% 89% 89% 89% 89% 88% 89% 89% 89% 89% 89% 88% 89% 88% 89% 89% 89% 88% 89% 88%) -> (34k/114k) -> write(46% 47%)
+0:18:18 INF [osm_pass2:process] - Finished ways: 992,064,323 (1.1M/s) in 14m27s cpu:13h29m13s gc:46s avg:56
+0:18:22 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100% 243k/s ] rels: [ 184k   2%  18k/s ] features: [ 3.2B 725k/s ] 216G  blocks: [  42k  99%    7/s ]
+    cpus: 34.8 gc:  3% heap: 15G/32G direct: 57M postGC: 6G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(52% 37% 46% 41% 61% 39% 45% 44% 45% 49% 67% 57% 59% 51% 72% 61% 42% 46% 49% 75% 48% 50% 57% 67% 46% 49% 49% 57% 78% 38% 37% 41% 72% 48% 44% 54% 65% 67% 72% 38% 57% 55% 36% 61% 40% 37% 67% 50% 48% 60% 41% 48% 39% 92% 53% 45% 46% 51% 60% 45% 72% 58%) -> (34k/114k) -> write(12% 12%)
+0:18:32 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 532k   5%  34k/s ] features: [ 3.2B 302k/s ] 216G  blocks: [  42k  99%   <1/s ]
+    cpus: 57.2 gc:  2% heap: 10G/32G direct: 57M postGC: 6.1G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(90% 91% 91% 91% 92% 91% 91% 91% 89% 89% 91% 89% 91% 91% 89% 91% 91% 91% 91% 90% 90% 90% 91% 91% 92% 92% 90% 90% 91% 90% 91% 92% 91% 91% 90% 92% 92% 92% 90% 89% 90% 90% 90% 90% 90% 92% 90% 92% 91% 88% 91% 91% 91% 90% 92% 92% 93% 90% 90% 91% 90% 90%) -> (34k/114k) -> write( 4%  4%)
+0:18:42 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 909k   8%  37k/s ] features: [ 3.2B 259k/s ] 217G  blocks: [  42k  99%   <1/s ]
+    cpus: 57.6 gc:  2% heap: 13G/32G direct: 57M postGC: 6.2G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(93% 90% 92% 92% 92% 91% 91% 90% 93% 95% 93% 92% 91% 93% 92% 92% 91% 91% 92% 93% 92% 92% 92% 92% 93% 93% 93% 94% 93% 91% 92% 91% 91% 93% 90% 93% 93% 93% 92% 91% 91% 93% 92% 92% 91% 93% 92% 91% 93% 92% 94% 92% 95% 93% 93% 93% 91% 93% 90% 92% 92% 92%) -> (31k/114k) -> write( 4%  4%)
+0:18:52 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 1.2M  11%  37k/s ] features: [ 3.2B 320k/s ] 217G  blocks: [  42k  99%    1/s ]
+    cpus: 57.8 gc:  2% heap: 17G/32G direct: 57M postGC: 6.4G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(94% 91% 92% 91% 92% 91% 91% 92% 90% 92% 91% 91% 93% 93% 93% 92% 93% 91% 90% 93% 94% 93% 92% 92% 91% 94% 92% 93% 93% 93% 90% 92% 93% 93% 91% 92% 92% 91% 93% 90% 91% 95% 91% 92% 90% 90% 91% 91% 93% 92% 95% 93% 94% 93% 92% 91% 92% 93% 93% 90% 93% 94%) -> (30k/114k) -> write( 5%  5%)
+0:19:02 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 1.6M  14%  39k/s ] features: [ 3.2B 860k/s ] 219G  blocks: [  42k  99%    1/s ]
+    cpus: 57.9 gc:  2% heap: 10G/32G direct: 57M postGC: 6.7G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(94% 94% 89% 91% 92% 92% 92% 92% 92% 89% 91% 92% 94% 89% 93% 94% 91% 90% 93% 92% 95% 93% 91% 92% 91% 93% 96% 92% 93% 93% 91% 91% 89% 90% 92% 92% 90% 91% 93% 90% 91% 92% 86% 90% 94% 92% 94% 96% 94% 90% 94% 93% 94% 91% 93% 89% 93% 93% 90% 90% 92% 94%) -> (32k/114k) -> write( 8%  8%)
+0:19:12 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [   2M  18%  41k/s ] features: [ 3.2B 1.1M/s ] 220G  blocks: [  42k  99%    1/s ]
+    cpus: 57.9 gc:  2% heap: 19G/32G direct: 57M postGC: 6.8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(94% 95% 92% 94% 91% 94% 93% 93% 93% 90% 92% 94% 95% 80% 94% 90% 88% 93% 93% 89% 97% 95% 90% 93% 92% 95% 94% 90% 94% 93% 93% 90% 92% 90% 93% 94% 89% 92% 89% 92% 92% 90% 88% 92% 91% 92% 95% 94% 93% 91% 90% 91% 94% 94% 95% 89% 91% 93% 91% 90% 89% 90%) -> (34k/114k) -> write( 9%  9%)
+0:19:22 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 2.5M  22%  47k/s ] features: [ 3.2B 307k/s ] 220G  blocks: [  42k  99%    1/s ]
+    cpus: 58.2 gc:  2% heap: 18G/32G direct: 57M postGC: 7G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(95% 94% 92% 96% 96% 94% 93% 94% 92% 91% 92% 94% 92% 92% 93% 93% 92% 95% 94% 87% 95% 96% 92% 91% 93% 92% 92% 93% 94% 94% 95% 93% 92% 94% 91% 92% 93% 95% 93% 94% 93% 93% 91% 94% 91% 91% 95% 95% 91% 93% 94% 92% 95% 90% 95% 91% 92% 91% 92% 94% 94% 92%) -> (32k/114k) -> write( 5%  5%)
+0:19:32 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [   3M  26%  51k/s ] features: [ 3.2B 401k/s ] 221G  blocks: [  42k  99%    1/s ]
+    cpus: 58 gc:  2% heap: 16G/32G direct: 57M postGC: 7.3G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(90% 90% 92% 96% 95% 92% 89% 88% 92% 91% 93% 89% 93% 87% 92% 93% 93% 94% 91% 91% 95% 96% 93% 93% 94% 92% 94% 93% 93% 91% 93% 91% 92% 93% 93% 93% 93% 94% 92% 95% 95% 93% 92% 89% 92% 92% 91% 95% 92% 91% 93% 93% 95% 94% 90% 93% 94% 93% 92% 93% 91% 93%) -> (32k/114k) -> write( 6%  6%)
+0:19:42 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 3.6M  31%  52k/s ] features: [ 3.2B 309k/s ] 221G  blocks: [  42k  99%    1/s ]
+    cpus: 58.1 gc:  3% heap: 18G/32G direct: 57M postGC: 7.8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(93% 90% 92% 91% 93% 92% 92% 92% 94% 94% 92% 93% 93% 89% 94% 90% 92% 94% 91% 91% 95% 95% 92% 93% 91% 91% 94% 92% 93% 91% 94% 94% 92% 88% 94% 93% 91% 91% 85% 94% 92% 94% 94% 90% 92% 93% 89% 91% 92% 93% 93% 94% 92% 89% 97% 93% 91% 94% 91% 90% 93% 91%) -> (30k/114k) -> write( 4%  4%)
+0:19:52 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 4.1M  36%  55k/s ] features: [ 3.2B 315k/s ] 223G  blocks: [  42k  99%    1/s ]
+    cpus: 58.8 gc:  2% heap: 12G/32G direct: 57M postGC: 7.8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(93% 92% 94% 93% 95% 94% 94% 94% 94% 94% 93% 93% 92% 94% 95% 93% 92% 93% 94% 93% 96% 96% 95% 94% 93% 93% 95% 92% 94% 94% 95% 95% 94% 93% 91% 92% 93% 92% 91% 92% 95% 93% 96% 93% 95% 92% 93% 93% 94% 94% 92% 96% 95% 98% 98% 95% 93% 92% 95% 92% 93% 93%) -> (26k/114k) -> write( 4%  5%)
+0:20:02 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 4.8M  41%  63k/s ] features: [ 3.2B 546k/s ] 225G  blocks: [  42k  99%    2/s ]
+    cpus: 58.3 gc:  2% heap: 11G/32G direct: 57M postGC: 8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(95% 92% 93% 94% 93% 95% 92% 92% 93% 92% 94% 92% 93% 93% 96% 94% 93% 90% 94% 94% 96% 91% 95% 92% 94% 93% 96% 92% 95% 92% 94% 94% 90% 93% 93% 93% 91% 93% 94% 93% 91% 93% 92% 92% 95% 93% 92% 93% 89% 93% 93% 91% 91% 96% 95% 93% 94% 93% 94% 94% 93% 94%) -> (33k/114k) -> write( 6%  6%)
+0:20:12 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 5.4M  46%  63k/s ] features: [ 3.2B 485k/s ] 225G  blocks: [  42k 100%    1/s ]
+    cpus: 58.7 gc:  2% heap: 10G/32G direct: 57M postGC: 8.2G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(94% 95% 94% 94% 94% 94% 95% 94% 95% 94% 94% 93% 94% 93% 93% 92% 93% 92% 93% 95% 94% 93% 94% 94% 97% 93% 94% 94% 93% 93% 93% 93% 93% 95% 93% 94% 93% 94% 93% 94% 94% 94% 93% 92% 93% 94% 93% 94% 92% 93% 93% 93% 94% 95% 96% 94% 94% 95% 93% 93% 93% 92%) -> (26k/114k) -> write( 5%  6%)
+0:20:22 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [   6M  52%  61k/s ] features: [ 3.2B 407k/s ] 226G  blocks: [  42k 100%    1/s ]
+    cpus: 58.7 gc:  2% heap: 13G/32G direct: 57M postGC: 8.2G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(94% 94% 93% 95% 94% 94% 95% 95% 95% 94% 93% 94% 92% 94% 94% 94% 92% 93% 94% 92% 94% 94% 94% 95% 94% 95% 94% 95% 95% 95% 94% 93% 95% 94% 92% 92% 94% 95% 95% 92% 95% 95% 94% 94% 95% 94% 94% 94% 94% 94% 94% 94% 93% 94% 95% 94% 95% 94% 92% 93% 95% 93%) -> (31k/114k) -> write( 5%  6%)
+0:20:32 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 6.6M  57%  59k/s ] features: [ 3.3B 354k/s ] 228G  blocks: [  42k 100%    2/s ]
+    cpus: 58.7 gc:  2% heap: 21G/32G direct: 57M postGC: 8.5G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(93% 93% 93% 95% 94% 93% 95% 95% 94% 94% 93% 94% 93% 93% 96% 93% 93% 93% 93% 94% 94% 93% 94% 95% 93% 95% 94% 95% 95% 92% 94% 93% 91% 94% 94% 93% 94% 93% 93% 94% 93% 93% 93% 94% 96% 95% 94% 94% 94% 94% 94% 93% 93% 93% 96% 92% 94% 94% 94% 94% 95% 93%) -> (32k/114k) -> write( 5%  4%)
+0:20:42 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 7.2M  62%  59k/s ] features: [ 3.3B 887k/s ] 230G  blocks: [  42k 100%    1/s ]
+    cpus: 58.8 gc:  2% heap: 7G/32G direct: 57M postGC: 4.4G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(93% 93% 95% 93% 92% 92% 92% 93% 93% 92% 92% 92% 92% 94% 93% 94% 92% 94% 93% 94% 93% 93% 92% 92% 93% 95% 94% 91% 94% 93% 92% 92% 92% 93% 94% 92% 95% 93% 92% 94% 93% 93% 92% 94% 94% 94% 92% 94% 94% 92% 93% 94% 94% 93% 90% 91% 92% 93% 93% 93% 92% 94%) -> (30k/114k) -> write(10% 10%)
+0:20:52 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 7.8M  67%  61k/s ] features: [ 3.3B 366k/s ] 231G  blocks: [  42k 100%    1/s ]
+    cpus: 58.9 gc:  2% heap: 11G/32G direct: 57M postGC: 4.4G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(95% 95% 95% 93% 94% 94% 94% 93% 95% 94% 95% 94% 94% 94% 94% 93% 95% 93% 94% 95% 95% 95% 94% 95% 94% 93% 93% 95% 94% 94% 94% 95% 94% 95% 95% 95% 94% 94% 95% 95% 94% 96% 95% 94% 93% 93% 95% 95% 94% 94% 95% 94% 95% 94% 94% 95% 95% 95% 94% 94% 95% 94%) -> (31k/114k) -> write( 6%  6%)
+0:21:02 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 8.5M  73%  62k/s ] features: [ 3.3B 344k/s ] 231G  blocks: [  42k 100%    1/s ]
+    cpus: 59.2 gc:  2% heap: 7.4G/32G direct: 57M postGC: 4.6G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(95% 95% 94% 94% 95% 95% 94% 94% 96% 95% 95% 94% 95% 94% 94% 94% 95% 94% 95% 94% 95% 94% 95% 94% 95% 94% 94% 95% 94% 95% 95% 95% 96% 94% 93% 94% 95% 94% 94% 94% 95% 96% 96% 94% 94% 95% 95% 94% 95% 95% 95% 96% 94% 95% 94% 96% 94% 96% 95% 95% 95% 95%) -> (33k/114k) -> write( 5%  5%)
+0:21:12 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 9.1M  78%  65k/s ] features: [ 3.3B 392k/s ] 231G  blocks: [  43k 100%    2/s ]
+    cpus: 59.4 gc:  2% heap: 18G/32G direct: 57M postGC: 4.8G relInfo: 564M mpGeoms: 10G
+    read( 0%) ->   (32/94) -> process(95% 95% 95% 94% 95% 94% 95% 95% 95% 94% 96% 95% 95% 95% 95% 95% 95% 94% 94% 95% 95% 94% 94% 95% 95% 95% 94% 95% 94% 95% 95% 94% 95% 96% 95% 94% 95% 95% 95% 95% 95% 95% 95% 94% 95% 94% 95% 94% 94% 95% 96% 95% 94% 95% 96% 95% 95% 95% 95% 95% 94% 96%) -> (32k/114k) -> write( 5%  5%)
+0:21:22 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [ 9.8M  84%  65k/s ] features: [ 3.3B 309k/s ] 233G  blocks: [  43k 100%    1/s ]
+    cpus: 59.5 gc:  2% heap: 15G/32G direct: 57M postGC: 5G relInfo: 564M mpGeoms: 10G
+    read( -%) ->   (23/94) -> process(96% 95% 96% 95% 96% 94% 96% 94% 95% 95% 95% 96% 95% 95% 96% 96% 96% 95% 95% 96% 96% 96% 91% 95% 96% 95% 95% 95% 95% 95% 94% 95% 94% 95% 96% 95% 94% 94% 96% 96% 95% 96% 94% 95% 95% 95% 95% 96% 94% 96% 95% 94% 96% 95% 95% 95% 95% 96% 96% 94% 95% 95%) -> (33k/114k) -> write( 4%  5%)
+0:21:32 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [  10M  89%  67k/s ] features: [ 3.3B 296k/s ] 233G  blocks: [  43k 100%    1/s ]
+    cpus: 59.7 gc:  2% heap: 16G/32G direct: 57M postGC: 5.1G relInfo: 564M mpGeoms: 10G
+    read( -%) ->    (3/94) -> process(96% 95% 94% 96% 96% 95% 96% 95% 95% 95% 95% 96% 95% 96% 96% 95% 96% 95% 95% 95% 96% 94% 98% 96% 95% 95% 95% 96% 95% 95% 95% 96% 96% 95% 96% 96% 95% 96% 96% 95% 96% 95% 95% 95% 96% 96% 95% 96% 95% 96% 96% 95% 96% 96% 95% 94% 95% 95% 96% 95% 96% 95%) -> (30k/114k) -> write( 4%  4%)
+0:21:42 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [  11M  95%  67k/s ] features: [ 3.3B 321k/s ] 235G  blocks: [  43k 100%    2/s ]
+    cpus: 60.4 gc:  2% heap: 14G/32G direct: 57M postGC: 5.2G relInfo: 564M mpGeoms: 10G
+    read( -%) ->    (0/94) -> process(97% 97% 96% 97% 97% 96% 97% 96% 97% 97% 97% 97% 97% 97% 98% 96% 97% 97% 97% 97% 97% 96% 96% 97% 96% 97% 96% 97% 97% 96% 97% 97% 97% 96% 97% 97% 97% 97% 97% 96% 97% 97% 97% 97% 96% 97% 97% 98% 97% 97% 97% 96% 97% 97% 97% 96% 97% 96% 97% 98% 96% 97%) -> (32k/114k) -> write( 4%  5%)
+0:21:51 INF [osm_pass2:process] - Finished relations: 11,728,203 (55k/s) in 3m33s cpu:3h28m7s gc:4s avg:58.6
+0:21:51 INF [osm_pass2] -  nodes: [ 8.8B 100%    0/s ] 92G   ways: [ 992M 100%    0/s ] rels: [  11M 100%  59k/s ] features: [ 3.3B 392k/s ] 233G  blocks: [  43k 100%    4/s ]
+    cpus: 60.1 gc:  1% heap: 10G/32G direct: 54M postGC: 5.1G relInfo: 564M mpGeoms: 10G
+    read( -%) ->    (0/94) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/114k) -> write( -%  -%)
+0:21:51 DEB [osm_pass2] - Processed 43,112 blocks:
+0:21:51 DEB [osm_pass2] -   nodes: 8,860,666,091 (96M/s) in 1m32s cpu:1h27m39s gc:4s avg:57.3
+0:21:51 DEB [osm_pass2] -   ways: 992,064,323 (1.1M/s) in 14m27s cpu:13h29m13s gc:46s avg:56
+0:21:51 DEB [osm_pass2] -   relations: 11,728,203 (55k/s) in 3m33s cpu:3h28m7s gc:4s avg:58.6
+0:21:51 INF [osm_pass2] - Finished in 19m32s cpu:18h25m4s gc:54s avg:56.6
+0:21:51 INF [osm_pass2] -   read     1x(0% 3s wait:18m50s done:37s)
+0:21:51 INF [osm_pass2] -   process 62x(87% 16m58s block:7s wait:5s)
+0:21:51 INF [osm_pass2] -   write    2x(44% 8m32s wait:10m23s)
+0:21:51 INF [boundaries] -
+0:21:51 INF [boundaries] - Starting...
+0:21:51 INF [boundaries] - Creating polygons for 218 boundaries
+0:21:58 INF [boundaries] - Finished creating 218 country polygons
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [148838] around https://www.openstreetmap.org/#map=10/37.50088/-122.77084
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [148838] around https://www.openstreetmap.org/#map=10/25.02075/-80.14817
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [148838] around https://www.openstreetmap.org/#map=10/44.39315/-67.03956
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [148838] around https://www.openstreetmap.org/#map=10/44.63496/-66.98339
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [51477] around https://www.openstreetmap.org/#map=10/54.19118/7.52130
+0:21:59 WAR [boundaries] - no left or right country for border between OSM country relations: [51477] around https://www.openstreetmap.org/#map=10/54.61356/12.41358
+0:22:00 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/69.82292/-141.00275
+0:22:00 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/54.69762/-131.07388
+0:22:00 WAR [boundaries] - no left or right country for border between OSM country relations: [148838] around https://www.openstreetmap.org/#map=10/44.47493/-67.05737
+0:22:01 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/44.31380/-67.20427
+0:22:01 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/48.22766/-123.52594
+0:22:01 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/49.00208/-122.90137
+0:22:01 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/44.85574/-66.97773
+0:22:02 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/69.68036/-141.00235
+0:22:02 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/76.04680/-123.91190
+0:22:02 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/50.91588/-129.68001
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/64.08494/-63.79846
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/79.49433/-71.58243
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/44.58597/-67.14976
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [1428125] around https://www.openstreetmap.org/#map=10/44.99522/-61.11677
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [51477] around https://www.openstreetmap.org/#map=10/50.01340/6.13601
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [51477] around https://www.openstreetmap.org/#map=10/49.77642/6.51023
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/49.00207/-123.07119
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/45.26378/-71.36098
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/47.25611/-68.59617
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/47.35492/-68.36202
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/47.22749/-68.00727
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/47.16858/-67.93795
+0:22:03 WAR [boundaries] - no left or right country for border between OSM country relations: [148838, 1428125] around https://www.openstreetmap.org/#map=10/45.91031/-67.76265
+0:22:04 WAR [boundaries] - no left or right country for border between OSM country relations: [51477, 16239] around https://www.openstreetmap.org/#map=10/47.38554/10.16937
+0:22:04 WAR [boundaries] - no left or right country for border between OSM country relations: [51477, 16239] around https://www.openstreetmap.org/#map=10/47.67866/12.16969
+0:22:04 WAR [boundaries] - no left or right country for border between OSM country relations: [51477] around https://www.openstreetmap.org/#map=10/53.42387/6.88641
+0:22:04 INF [boundaries] - Finished in 13s cpu:16s avg:1.3
+0:22:04 INF [agg_stop] -
+0:22:04 INF [agg_stop] - Starting...
+0:22:04 INF [agg_stop] - Processing 28681 agg_stop sets
+0:22:05 INF [agg_stop] - Finished in 0.6s cpu:1s avg:2.4
+0:22:19 INF - Deleting node.db to make room for output file
+0:22:19 INF [sort] -
+0:22:19 INF [sort] - Starting...
+0:22:19 INF [sort] - Grouped 213 chunks into 204
+0:22:29 INF [sort] -  chunks: [  15 / 204   7% ] 233G
+    cpus: 28.4 gc: 13% heap: 13G/32G direct: 54M postGC: 11G
+    -> (184/210) -> worker(48% 47% 49% 46% 47%)
+0:22:39 INF [sort] -  chunks: [  28 / 204  14% ] 233G
+    cpus: 29.4 gc: 11% heap: 11G/32G direct: 54M postGC: 11G
+    -> (171/210) -> worker(45% 30% 44% 44% 33%)
+0:22:49 INF [sort] -  chunks: [  43 / 204  21% ] 233G
+    cpus: 26.1 gc:  9% heap: 10G/32G direct: 54M postGC: 9.8G
+    -> (156/210) -> worker(40% 43% 46% 48% 49%)
+0:22:59 INF [sort] -  chunks: [  59 / 204  29% ] 234G
+    cpus: 29.4 gc:  9% heap: 10G/32G direct: 54M postGC: 8.8G
+    -> (140/210) -> worker(51% 48% 48% 50% 47%)
+0:23:09 INF [sort] -  chunks: [  75 / 204  37% ] 233G
+    cpus: 26.7 gc:  9% heap: 9.1G/32G direct: 54M postGC: 8.9G
+    -> (124/210) -> worker(50% 54% 53% 41% 51%)
+0:23:19 INF [sort] -  chunks: [  90 / 204  44% ] 233G
+    cpus: 32.1 gc:  7% heap: 10G/32G direct: 54M postGC: 10G
+    -> (109/210) -> worker(50% 51% 50% 47% 52%)
+0:23:29 INF [sort] -  chunks: [ 105 / 204  51% ] 233G
+    cpus: 29.5 gc:  8% heap: 10G/32G direct: 54M postGC: 10G
+    ->  (94/210) -> worker(43% 48% 41% 49% 46%)
+0:23:39 INF [sort] -  chunks: [ 122 / 204  60% ] 233G
+    cpus: 29.2 gc:  9% heap: 6.7G/32G direct: 54M postGC: 4.4G
+    ->  (77/210) -> worker(53% 57% 44% 41% 43%)
+0:23:49 INF [sort] -  chunks: [ 134 / 204  66% ] 233G
+    cpus: 29.8 gc: 10% heap: 11G/32G direct: 54M postGC: 10G
+    ->  (65/210) -> worker(36% 49% 37% 51% 37%)
+0:23:59 INF [sort] -  chunks: [ 149 / 204  73% ] 233G
+    cpus: 32.7 gc:  8% heap: 10G/32G direct: 54M postGC: 10G
+    ->  (50/210) -> worker(48% 46% 50% 46% 49%)
+0:24:09 INF [sort] -  chunks: [ 164 / 204  80% ] 234G
+    cpus: 32.9 gc:  8% heap: 10G/32G direct: 54M postGC: 10G
+    ->  (35/210) -> worker(49% 51% 49% 50% 51%)
+0:24:20 INF [sort] -  chunks: [ 180 / 204  88% ] 234G
+    cpus: 29.4 gc:  9% heap: 10G/32G direct: 54M postGC: 9.6G
+    ->  (19/210) -> worker(43% 46% 48% 45% 48%)
+0:24:30 INF [sort] -  chunks: [ 196 / 204  96% ] 235G
+    cpus: 29.8 gc: 10% heap: 16G/32G direct: 54M postGC: 13G
+    ->   (3/210) -> worker(53% 49% 47% 42% 48%)
+0:24:33 INF [sort] -  chunks: [ 204 / 204 100% ] 233G
+    cpus: 26.7 gc: 12% heap: 10G/32G direct: 54M postGC: 10G
+    ->   (0/210) -> worker( -%  -%  -%  -%  -%)
+0:24:33 INF [sort] - Finished in 2m14s cpu:1h5m55s gc:12s avg:29.6
+0:24:33 INF [sort] -   worker  5x(47% 1m2s wait:37s)
+0:24:33 INF - read:285s write:186s sort:194s
+0:24:33 INF [archive] -
+0:24:33 INF [archive] - Starting...
+0:24:35 INF [archive:write] - Starting z0
+0:24:35 INF [archive:write] - Finished z0 in 0s cpu:0s avg:10.6, now starting z1
+0:24:35 INF [archive:write] - Finished z1 in 0s cpu:0s avg:0, now starting z2
+0:24:35 INF [archive:write] - Finished z2 in 0s cpu:0.7s avg:37.9, now starting z3
+0:24:35 INF [archive:write] - Finished z3 in 0.1s cpu:7s avg:53.1, now starting z4
+0:24:36 INF [archive:write] - Finished z4 in 1s cpu:1m7s avg:59.1, now starting z5
+0:24:36 INF [archive:write] - Finished z5 in 0s cpu:0.7s avg:39, now starting z6
+0:24:39 INF [archive:write] - Finished z6 in 3s cpu:2m47s avg:60, now starting z7
+0:24:44 INF [archive] -  features: [  28M   1% 2.8M/s ] 233G  tiles: [  16k 1.6k/s ] 142M
+    cpus: 60 gc: 10% heap: 15G/32G direct: 54M postGC: 7.3G
+    read(32% 33%) -> merge(57%) -> (1.2k/1.6k) -> encode(84% 82% 85% 84% 83% 84% 81% 83% 81% 81% 84% 83% 83% 82% 83% 81% 81% 83% 82% 83% 85% 79% 86% 81% 83% 84% 83% 82% 86% 85% 85% 81% 84% 83% 84% 80% 85% 83% 82% 81% 81% 83% 83% 84% 82% 80% 82% 83% 80% 82% 81% 81% 81% 84% 81% 78% 84% 83% 78% 81% 83% 85%) -> (1.4k/1.6k) -> write( 1%)
+    last tile: 7/77/41 (z7 85%) https://onthegomap.github.io/planetiler-demo/#7.5/53.32261/37.96875
+0:24:46 INF [archive:write] - Finished z7 in 7s cpu:7m17s avg:60.9, now starting z8
+0:24:54 INF [archive] -  features: [  63M   2% 3.5M/s ] 233G  tiles: [  64k 4.7k/s ] 409M
+    cpus: 60.7 gc:  6% heap: 18G/32G direct: 54M postGC: 5.9G
+    read(11% 11%) -> merge(21%) -> (365/1.6k) -> encode(90% 89% 91% 91% 89% 91% 93% 92% 92% 92% 89% 92% 93% 90% 90% 87% 92% 92% 92% 87% 92% 92% 90% 89% 93% 89% 93% 90% 87% 90% 92% 91% 93% 92% 90% 86% 93% 92% 89% 89% 89% 91% 91% 93% 91% 87% 91% 93% 92% 91% 91% 91% 92% 90% 92% 90% 88% 91% 90% 92% 93% 92%) -> (597/1.6k) -> write( 2%)
+    last tile: 8/132/84 (z8 85%) https://onthegomap.github.io/planetiler-demo/#8.5/52.0504/6.32812
+0:24:56 INF [archive:write] - Finished z8 in 10s cpu:10m33s avg:60.8, now starting z9
+0:25:04 INF [archive] -  features: [  95M   3% 3.1M/s ] 233G  tiles: [ 226k  16k/s ] 801M
+    cpus: 60.7 gc:  7% heap: 12G/32G direct: 54M postGC: 12G
+    read(19% 20%) -> merge(39%) ->  (0/1.6k) -> encode(91% 92% 90% 90% 92% 89% 90% 89% 89% 89% 89% 91% 89% 90% 91% 90% 90% 87% 88% 89% 86% 87% 90% 86% 91% 90% 89% 91% 90% 90% 90% 90% 89% 90% 89% 91% 92% 90% 91% 91% 91% 90% 89% 89% 88% 88% 87% 88% 91% 89% 91% 90% 90% 88% 89% 89% 89% 91% 89% 89% 91% 90%) -> (886/1.6k) -> write( 3%)
+    last tile: 9/503/312 (z9 74%) https://onthegomap.github.io/planetiler-demo/#9.5/-36.8791/174.02344
+0:25:14 INF [archive:write] - Finished z9 in 18s cpu:17m42s gc:1s avg:60.3, now starting z10
+0:25:14 INF [archive] -  features: [ 121M   4% 2.5M/s ] 233G  tiles: [ 425k  19k/s ] 1.4G
+    cpus: 59.9 gc:  7% heap: 7.2G/32G direct: 54M postGC: 5.6G
+    read(27% 26%) -> merge(51%) -> (1.3k/1.6k) -> encode(90% 87% 88% 89% 90% 90% 88% 89% 85% 88% 90% 89% 89% 88% 87% 87% 88% 88% 86% 87% 87% 88% 89% 88% 89% 87% 87% 87% 88% 87% 86% 89% 87% 87% 86% 85% 89% 87% 85% 88% 86% 88% 88% 87% 85% 88% 89% 89% 88% 89% 87% 91% 88% 88% 85% 87% 90% 89% 86% 86% 88% 86%) -> (1.5k/1.6k) -> write( 3%)
+    last tile: 10/309/381 (z10 13%) https://onthegomap.github.io/planetiler-demo/#10.5/41.63994/-71.19141
+0:25:24 INF [archive] -  features: [ 141M   4%   2M/s ] 233G  tiles: [ 495k 6.9k/s ] 1.6G
+    cpus: 38.1 gc:  4% heap: 10G/32G direct: 54M postGC: 5.6G
+    read( 6%  6%) -> merge(10%) ->  (0/1.6k) -> encode(54% 56% 56% 55% 60% 53% 92% 56% 54% 54% 55% 56% 56% 55% 55% 56% 57% 53% 56% 56% 54% 56% 54% 54% 53% 55% 52% 55% 54% 55% 56% 55% 55% 55% 52% 54% 54% 56% 56% 56% 55% 55% 57% 56% 81% 55% 56% 56% 55% 58% 56% 90% 52% 51% 54% 55% 56% 55% 54% 56% 55% 54%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 10/172/399 (z10 20%) https://onthegomap.github.io/planetiler-demo/#10.5/36.73875/-119.35547
+0:25:34 INF [archive] -  features: [ 146M   4% 469k/s ] 233G  tiles: [ 945k  44k/s ] 2G
+    cpus: 5.1 gc:  1% heap: 6.6G/32G direct: 54M postGC: 5.8G
+    read( 3%  3%) -> merge( 6%) ->  (7/1.6k) -> encode( 5%  5%  5%  6%  5%  5% 98%  5%  5%  6%  5%  6%  5%  5%  5%  5%  6%  5%  5%  5%  5%  5%  5%  6%  6%  5%  6%  5%  5%  5%  5%  5%  6%  5%  5%  5%  5%  5%  6%  5%  6%  6%  5%  6%  6%  5%  5%  5%  5%  5%  5% 20%  5%  5%  5%  6%  5%  5%  5%  5%  6%  5%) -> (157/1.6k) -> write( 4%)
+    last tile: 10/883/411 (z10 80%) https://onthegomap.github.io/planetiler-demo/#10.5/33.2845/130.60547
+0:25:43 INF [archive:write] - Finished z10 in 30s cpu:16m36s gc:1s avg:33.7, now starting z11
+0:25:44 INF [archive] -  features: [ 180M   5% 3.3M/s ] 233G  tiles: [ 1.6M  71k/s ] 3G
+    cpus: 59.2 gc:  7% heap: 18G/32G direct: 54M postGC: 5G
+    read(30% 28%) -> merge(55%) -> (1k/1.6k) -> encode(85% 84% 88% 88% 87% 84% 87% 88% 87% 89% 87% 88% 88% 87% 89% 87% 89% 86% 88% 88% 88% 87% 87% 84% 86% 84% 88% 87% 87% 88% 87% 87% 84% 86% 87% 84% 86% 82% 86% 87% 83% 87% 86% 83% 82% 86% 87% 87% 87% 85% 86% 87% 86% 87% 83% 85% 85% 87% 85% 88% 86% 88%) -> (1.2k/1.6k) -> write( 7%)
+    last tile: 11/563/766 (z11 13%) https://onthegomap.github.io/planetiler-demo/#11.5/41.17862/-80.94727
+0:25:54 INF [archive] -  features: [ 211M   6%   3M/s ] 233G  tiles: [ 2.9M 129k/s ] 4G
+    cpus: 41.7 gc:  5% heap: 6.9G/32G direct: 54M postGC: 6.7G
+    read(13% 13%) -> merge(26%) ->  (9/1.6k) -> encode(61% 63% 60% 59% 60% 60% 59% 59% 61% 60% 58% 64% 61% 62% 59% 61% 60% 57% 84% 60% 60% 59% 59% 60% 59% 60% 58% 59% 61% 61% 60% 60% 61% 60% 60% 94% 61% 60% 82% 58% 58% 62% 61% 58% 60% 60% 60% 87% 59% 58% 59% 58% 60% 59% 62% 59% 60% 83% 59% 58% 60% 58%) -> (720/1.6k) -> write( 8%)
+    last tile: 11/1161/1038 (z11 51%) https://onthegomap.github.io/planetiler-demo/#11.5/-2.54798/24.16992
+0:26:04 INF [archive] -  features: [ 262M   8% 5.1M/s ] 233G  tiles: [ 3.9M  93k/s ] 5.7G
+    cpus: 58.9 gc:  8% heap: 21G/32G direct: 54M postGC: 5.9G
+    read(39% 36%) -> merge(76%) -> (1.4k/1.6k) -> encode(85% 88% 87% 86% 86% 86% 87% 88% 86% 87% 87% 84% 86% 86% 87% 85% 87% 88% 86% 87% 87% 86% 87% 87% 86% 87% 87% 86% 87% 87% 87% 87% 87% 87% 87% 86% 88% 87% 86% 87% 87% 86% 86% 86% 86% 87% 86% 87% 86% 87% 86% 86% 88% 87% 83% 86% 86% 87% 87% 86% 85% 85%) -> (1.6k/1.6k) -> write(11%)
+    last tile: 11/1147/611 (z11 85%) https://onthegomap.github.io/planetiler-demo/#11.5/58.49366/21.70898
+0:26:07 INF [archive:write] - Finished z11 in 23s cpu:20m9s gc:2s avg:51.7, now starting z12
+0:26:14 INF [archive] -  features: [ 325M  10% 6.2M/s ] 233G  tiles: [ 7.4M 350k/s ] 7.6G
+    cpus: 59.2 gc:  9% heap: 11G/32G direct: 54M postGC: 7.7G
+    read(40% 35%) -> merge(68%) -> (363/1.6k) -> encode(87% 87% 87% 86% 88% 88% 86% 87% 88% 86% 86% 87% 85% 88% 88% 87% 86% 87% 87% 87% 88% 89% 86% 87% 88% 88% 87% 87% 87% 86% 88% 87% 87% 88% 87% 87% 87% 87% 88% 88% 87% 88% 87% 87% 87% 87% 87% 87% 87% 87% 88% 87% 87% 86% 87% 88% 87% 86% 88% 88% 87% 88%) -> (582/1.6k) -> write(18%)
+    last tile: 12/936/1848 (z12 19%) https://onthegomap.github.io/planetiler-demo/#12.5/17.26672/-97.69043
+0:26:24 INF [archive] -  features: [ 393M  12% 6.7M/s ] 233G  tiles: [  13M 607k/s ] 9.2G
+    cpus: 54.6 gc:  9% heap: 11G/32G direct: 54M postGC: 5.7G
+    read(42% 38%) -> merge(76%) -> (165/1.6k) -> encode(79% 82% 78% 79% 77% 80% 80% 78% 79% 80% 78% 78% 78% 80% 79% 80% 78% 80% 78% 79% 78% 78% 78% 78% 78% 77% 80% 78% 79% 78% 81% 78% 77% 79% 78% 80% 78% 80% 79% 77% 79% 78% 78% 79% 81% 80% 79% 80% 78% 78% 78% 79% 78% 79% 80% 79% 79% 78% 77% 78% 79% 79%) -> (807/1.6k) -> write(19%)
+    last tile: 12/3819/2099 (z12 74%) https://onthegomap.github.io/planetiler-demo/#12.5/-4.52167/155.69824
+0:26:34 INF [archive] -  features: [ 465M  14% 7.1M/s ] 233G  tiles: [  15M 160k/s ] 11G
+    cpus: 53 gc:  8% heap: 11G/32G direct: 54M postGC: 5.6G
+    read(48% 42%) -> merge(87%) ->  (0/1.6k) -> encode(76% 76% 77% 77% 76% 77% 77% 78% 77% 77% 77% 77% 76% 76% 76% 75% 75% 76% 75% 77% 77% 77% 76% 76% 75% 76% 76% 75% 77% 77% 74% 77% 77% 77% 77% 77% 75% 76% 78% 76% 78% 74% 76% 77% 77% 77% 77% 77% 76% 77% 76% 76% 76% 75% 78% 75% 76% 78% 76% 76% 79% 77%) -> (85/1.6k) -> write(18%)
+    last tile: 12/2402/1688 (z12 84%) https://onthegomap.github.io/planetiler-demo/#12.5/30.10711/31.15723
+0:26:45 INF [archive] -  features: [ 531M  16% 6.5M/s ] 233G  tiles: [  15M  21k/s ] 13G
+    cpus: 60.6 gc:  9% heap: 15G/32G direct: 54M postGC: 8G
+    read(50% 46%) -> merge(89%) -> (867/1.6k) -> encode(90% 89% 90% 89% 89% 90% 90% 90% 90% 89% 87% 88% 89% 89% 90% 88% 90% 89% 88% 89% 90% 88% 88% 89% 90% 88% 89% 88% 90% 89% 88% 89% 88% 90% 90% 89% 89% 90% 89% 88% 88% 89% 89% 88% 88% 88% 90% 87% 90% 88% 89% 90% 90% 89% 86% 89% 88% 90% 89% 89% 89% 90%) -> (1.1k/1.6k) -> write(10%)
+    last tile: 12/2193/1101 (z12 85%) https://onthegomap.github.io/planetiler-demo/#12.5/63.64625/12.78809
+0:26:48 INF [archive:write] - Finished z12 in 41s cpu:38m27s gc:3s avg:56.7, now starting z13
+0:26:55 INF [archive] -  features: [ 565M  17% 3.4M/s ] 233G  tiles: [  25M   1M/s ] 14G
+    cpus: 57.6 gc:  8% heap: 19G/32G direct: 54M postGC: 6.5G
+    read(26% 22%) -> merge(43%) -> (1.4k/1.6k) -> encode(86% 85% 86% 86% 87% 86% 86% 84% 82% 86% 84% 84% 86% 84% 82% 86% 86% 85% 86% 86% 84% 82% 85% 85% 83% 85% 85% 84% 85% 85% 85% 85% 84% 84% 85% 86% 86% 85% 85% 85% 84% 86% 85% 85% 85% 85% 86% 85% 86% 84% 86% 84% 86% 85% 84% 83% 84% 85% 85% 83% 86% 85%) -> (1.6k/1.6k) -> write(25%)
+    last tile: 13/2205/3026 (z13 13%) https://onthegomap.github.io/planetiler-demo/#13.5/42.47209/-83.07861
+0:27:05 INF [archive] -  features: [ 586M  18%   2M/s ] 233G  tiles: [  25M 6.8k/s ] 14G
+    cpus: 60.4 gc:  8% heap: 5.9G/32G direct: 54M postGC: 5.5G
+    read( 8%  7%) -> merge(12%) -> (1.3k/1.6k) -> encode(92% 92% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 91% 91% 91% 92% 92% 90% 92% 91% 91% 92% 92% 92% 92% 90% 90% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 90% 91% 92% 92% 92% 90% 92% 92%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/2476/3028 (z13 13%) https://onthegomap.github.io/planetiler-demo/#13.5/42.40723/-71.16943
+0:27:15 INF [archive] -  features: [ 606M  18% 1.9M/s ] 233G  tiles: [  26M 118k/s ] 15G
+    cpus: 60.6 gc:  7% heap: 8.7G/32G direct: 54M postGC: 8.4G
+    read(15% 14%) -> merge(24%) -> (1.3k/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.6k/1.6k) -> write( 6%)
+    last tile: 13/4061/2638 (z13 15%) https://onthegomap.github.io/planetiler-demo/#13.5/53.78767/-1.51611
+0:27:25 INF [archive] -  features: [ 618M  19% 1.1M/s ] 233G  tiles: [  26M 1.4k/s ] 15G
+    cpus: 60.6 gc:  7% heap: 16G/32G direct: 54M postGC: 6.1G
+    read( 6%  6%) -> merge( 9%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 91% 93% 93% 93% 93% 93% 91% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 91% 91% 93% 92% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 91% 92% 92% 93% 90% 91% 93% 93% 93% 92% 93% 93% 91% 92% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4065/2745 (z13 15%) https://onthegomap.github.io/planetiler-demo/#13.5/50.91689/-1.34033
+0:27:35 INF [archive] -  features: [ 631M  19% 1.2M/s ] 233G  tiles: [  26M   5k/s ] 15G
+    cpus: 60.6 gc:  7% heap: 12G/32G direct: 54M postGC: 7.5G
+    read( 7%  6%) -> merge(11%) -> (1.4k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4063/2893 (z13 15%) https://onthegomap.github.io/planetiler-demo/#13.5/46.63435/-1.42822
+0:27:45 INF [archive] -  features: [ 647M  19% 1.5M/s ] 233G  tiles: [  27M  70k/s ] 15G
+    cpus: 60.9 gc:  5% heap: 23G/32G direct: 54M postGC: 8.9G
+    read( 4%  4%) -> merge( 8%) -> (417/1.6k) -> encode(95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 93% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 95% 94% 95% 95% 95% 95% 95% 95% 95% 95% 94% 95% 95% 95%) -> (821/1.6k) -> write( 1%)
+    last tile: 13/3883/3138 (z13 16%) https://onthegomap.github.io/planetiler-demo/#13.5/38.73694/-9.33838
+0:27:55 INF [archive] -  features: [ 659M  20% 1.2M/s ] 233G  tiles: [  27M  20k/s ] 15G
+    cpus: 60.4 gc:  8% heap: 11G/32G direct: 54M postGC: 6.2G
+    read( 9%  8%) -> merge(16%) -> (1.3k/1.6k) -> encode(91% 92% 91% 92% 92% 91% 92% 92% 91% 92% 90% 92% 91% 91% 92% 91% 91% 92% 92% 91% 92% 92% 91% 92% 92% 92% 92% 92% 92% 90% 92% 92% 91% 92% 92% 90% 91% 92% 92% 91% 90% 92% 92% 92% 92% 91% 92% 92% 92% 92% 91% 92% 92% 92% 92% 91% 92% 92% 91% 92% 92% 92%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/3732/3677 (z13 16%) https://onthegomap.github.io/planetiler-demo/#13.5/18.0832/-15.97412
+0:28:05 INF [archive] -  features: [ 671M  20% 1.1M/s ] 233G  tiles: [  27M  13k/s ] 15G
+    cpus: 60.6 gc:  6% heap: 22G/32G direct: 54M postGC: 7G
+    read( 2%  2%) -> merge( 3%) -> (381/1.6k) -> encode(94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94%) -> (985/1.6k) -> write( 1%)
+    last tile: 13/3785/3878 (z13 17%) https://onthegomap.github.io/planetiler-demo/#13.5/9.51408/-13.64502
+0:28:15 INF [archive] -  features: [ 683M  20% 1.2M/s ] 233G  tiles: [  28M  92k/s ] 15G
+    cpus: 60.4 gc:  8% heap: 12G/32G direct: 54M postGC: 6.5G
+    read(11% 10%) -> merge(19%) -> (1k/1.6k) -> encode(90% 91% 90% 91% 91% 88% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 89% 90% 91% 91% 91% 90% 91% 89% 90% 91% 91% 91% 90% 91% 91% 91% 90% 91% 91% 91% 90% 91% 91% 90% 91% 91% 91% 91% 91% 91%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/2413/3083 (z13 18%) https://onthegomap.github.io/planetiler-demo/#13.5/40.59727/-73.93799
+0:28:25 INF [archive] -  features: [ 707M  21% 2.3M/s ] 233G  tiles: [  28M 6.7k/s ] 16G
+    cpus: 60.4 gc:  7% heap: 21G/32G direct: 54M postGC: 5.3G
+    read(15% 13%) -> merge(26%) -> (1.4k/1.6k) -> encode(92% 92% 91% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 93% 92% 92% 92% 92% 91% 92% 92% 93% 91% 92% 92% 92% 93% 92% 92% 92% 92% 92% 91% 93% 92% 92% 92% 92% 92% 90% 90% 92% 90% 92% 91% 90% 92% 92% 93% 90% 92% 91% 92% 92% 92% 92% 93% 92% 92% 91% 92%) -> (1.5k/1.6k) -> write( 2%)
+    last tile: 13/2136/3106 (z13 18%) https://onthegomap.github.io/planetiler-demo/#13.5/39.82541/-86.11084
+0:28:35 INF [archive] -  features: [ 725M  22% 1.8M/s ] 233G  tiles: [  29M   7k/s ] 16G
+    cpus: 60.3 gc:  8% heap: 8.2G/32G direct: 54M postGC: 7.8G
+    read( 9%  9%) -> merge(15%) -> (1.3k/1.6k) -> encode(92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 91% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/2222/3555 (z13 18%) https://onthegomap.github.io/planetiler-demo/#13.5/23.09994/-82.33154
+0:28:45 INF [archive] -  features: [ 739M  22% 1.3M/s ] 233G  tiles: [  29M  16k/s ] 16G
+    cpus: 60.3 gc:  7% heap: 19G/32G direct: 54M postGC: 5.7G
+    read( 5%  5%) -> merge( 9%) -> (870/1.6k) -> encode(92% 93% 93% 92% 92% 92% 92% 92% 90% 93% 92% 91% 92% 92% 92% 91% 93% 92% 92% 93% 92% 92% 91% 92% 92% 93% 93% 90% 93% 93% 92% 90% 92% 92% 92% 92% 93% 92% 92% 92% 92% 92% 92% 92% 93% 92% 93% 93% 93% 93% 92% 92% 92% 92% 93% 90% 92% 92% 92% 90% 92% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/2393/3846 (z13 19%) https://onthegomap.github.io/planetiler-demo/#13.5/10.89804/-74.81689
+0:28:55 INF [archive] -  features: [ 755M  23% 1.5M/s ] 233G  tiles: [  30M  84k/s ] 16G
+    cpus: 55.5 gc:  6% heap: 6.8G/32G direct: 54M postGC: 6.2G
+    read(14% 12%) -> merge(24%) -> (1.4k/1.6k) -> encode(84% 84% 84% 92% 84% 81% 82% 83% 83% 83% 83% 83% 83% 83% 90% 83% 83% 82% 83% 83% 83% 92% 83% 89% 85% 82% 84% 81% 86% 82% 84% 83% 83% 83% 84% 83% 84% 84% 85% 83% 81% 83% 82% 83% 83% 81% 84% 83% 92% 83% 85% 81% 84% 91% 83% 83% 81% 84% 89% 83% 84% 87%) -> (1.6k/1.6k) -> write( 3%)
+    last tile: 13/1317/3167 (z13 20%) https://onthegomap.github.io/planetiler-demo/#13.5/37.73597/-122.10205
+0:29:05 INF [archive] -  features: [ 765M  23%   1M/s ] 233G  tiles: [  30M 2.4k/s ] 16G
+    cpus: 60.3 gc:  8% heap: 8.1G/32G direct: 54M postGC: 7.8G
+    read( 3%  3%) -> merge( 5%) -> (1.2k/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/1430/3312 (z13 20%) https://onthegomap.github.io/planetiler-demo/#13.5/32.52829/-117.13623
+0:29:15 INF [archive] -  features: [ 781M  23% 1.5M/s ] 233G  tiles: [  30M  15k/s ] 17G
+    cpus: 51.7 gc:  4% heap: 14G/32G direct: 54M postGC: 6.1G
+    read( 4%  3%) -> merge( 7%) -> (395/1.6k) -> encode(81% 85% 85% 81% 76% 78% 75% 75% 83% 77% 78% 79% 80% 77% 77% 79% 79% 80% 77% 75% 94% 77% 76% 77% 79% 83% 81% 79% 79% 77% 84% 80% 85% 83% 78% 77% 78% 83% 85% 79% 77% 75% 77% 84% 80% 80% 77% 77% 78% 77% 78% 82% 79% 80% 86% 79% 77% 80% 87% 75% 83% 81%) -> (733/1.6k) -> write( 3%)
+    last tile: 13/1869/3366 (z13 20%) https://onthegomap.github.io/planetiler-demo/#13.5/30.50548/-97.84424
+0:29:25 INF [archive] -  features: [ 805M  24% 2.4M/s ] 233G  tiles: [  30M  26k/s ] 17G
+    cpus: 60.6 gc:  8% heap: 16G/32G direct: 54M postGC: 8.6G
+    read(19% 16%) -> merge(31%) -> (1.3k/1.6k) -> encode(91% 91% 91% 91% 89% 91% 91% 90% 91% 91% 91% 91% 91% 90% 90% 91% 91% 89% 91% 90% 91% 88% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 89% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 90% 90% 91% 91% 91% 91% 91% 91% 91% 90% 92% 91% 91% 90% 90% 92% 91%) -> (1.6k/1.6k) -> write( 5%)
+    last tile: 13/1716/2761 (z13 21%) https://onthegomap.github.io/planetiler-demo/#13.5/50.47149/-104.56787
+0:29:35 INF [archive] -  features: [ 838M  25% 3.2M/s ] 233G  tiles: [  42M 1.2M/s ] 18G
+    cpus: 52.8 gc:  6% heap: 8.6G/32G direct: 54M postGC: 8.4G
+    read(10%  9%) -> merge(23%) -> (191/1.6k) -> encode(82% 79% 81% 80% 78% 79% 80% 85% 80% 80% 80% 82% 80% 79% 81% 79% 81% 79% 80% 80% 81% 78% 79% 79% 80% 81% 79% 78% 78% 79% 80% 79% 78% 79% 78% 80% 82% 86% 80% 82% 79% 78% 79% 80% 81% 79% 78% 77% 78% 80% 79% 81% 82% 80% 80% 79% 79% 79% 82% 80% 77% 79%) -> (474/1.6k) -> write(18%)
+    last tile: 13/2548/5620 (z13 46%) https://onthegomap.github.io/planetiler-demo/#13.5/-55.4913/-68.00537
+0:29:45 INF [archive] -  features: [ 851M  26% 1.3M/s ] 233G  tiles: [  43M  59k/s ] 18G
+    cpus: 60.6 gc:  8% heap: 11G/32G direct: 54M postGC: 11G
+    read(11% 10%) -> merge(18%) -> (671/1.6k) -> encode(90% 89% 90% 87% 88% 90% 85% 85% 85% 88% 90% 90% 89% 86% 86% 86% 86% 86% 80% 87% 89% 88% 86% 90% 86% 89% 86% 85% 89% 90% 90% 86% 83% 85% 87% 89% 89% 88% 84% 90% 85% 88% 87% 88% 85% 83% 89% 87% 85% 85% 86% 90% 90% 84% 90% 88% 84% 87% 85% 86% 84% 88%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/3040/4647 (z13 47%) https://onthegomap.github.io/planetiler-demo/#13.5/-23.54384/-46.38428
+0:29:55 INF [archive] -  features: [ 866M  26% 1.5M/s ] 233G  tiles: [  43M  60k/s ] 19G
+    cpus: 51.3 gc:  6% heap: 20G/32G direct: 54M postGC: 6.1G
+    read(11% 10%) -> merge(19%) -> (1k/1.6k) -> encode(77% 79% 73% 81% 74% 74% 75% 74% 75% 81% 76% 78% 80% 93% 80% 73% 76% 75% 77% 76% 73% 75% 76% 94% 73% 84% 83% 89% 76% 77% 75% 76% 82% 74% 80% 75% 76% 82% 74% 74% 75% 74% 77% 74% 79% 79% 75% 73% 74% 77% 83% 75% 93% 74% 78% 77% 76% 78% 85% 74% 78% 88%) -> (1.6k/1.6k) -> write( 4%)
+    last tile: 13/2258/4118 (z13 48%) https://onthegomap.github.io/planetiler-demo/#13.5/-0.98872/-80.74951
+0:30:05 INF [archive] -  features: [ 881M  26% 1.4M/s ] 233G  tiles: [  44M  35k/s ] 19G
+    cpus: 46.6 gc:  7% heap: 23G/32G direct: 54M postGC: 6.9G
+    read( 3%  2%) -> merge( 5%) ->  (0/1.6k) -> encode(63% 72% 67% 63% 77% 56% 66% 67% 52% 60% 55% 64% 91% 81% 58% 63% 61% 91% 91% 93% 85% 59% 72% 62% 93% 76% 61% 65% 93% 56% 68% 73% 63% 65% 61% 91% 60% 54% 92% 75% 63% 81% 63% 59% 56% 57% 92% 61% 82% 64% 58% 63% 93% 63% 59% 61% 60% 85% 89% 60% 65% 60%) -> (1.6k/1.6k) -> write( 5%)
+    last tile: 13/3216/4181 (z13 49%) https://onthegomap.github.io/planetiler-demo/#13.5/-3.75463/-38.6499
+0:30:15 INF [archive] -  features: [ 885M  27% 391k/s ] 233G  tiles: [  45M 108k/s ] 19G
+    cpus: 22.9 gc:  3% heap: 20G/32G direct: 54M postGC: 7.7G
+    read( 6%  5%) -> merge(13%) -> (995/1.6k) -> encode(62% 24% 21% 74% 59% 22% 21% 20% 21% 21% 21% 24% 96% 79% 21% 42% 21% 47% 73% 70% 19% 32% 21% 21% 93% 21% 22% 21% 35% 21% 21% 35% 37% 29% 21% 53% 28% 21% 36% 21% 42% 21% 79% 20% 21% 21% 21% 73% 27% 21% 21% 79% 34% 36% 24% 20% 21% 41% 24% 21% 21% 21%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/4568/4242 (z13 50%) https://onthegomap.github.io/planetiler-demo/#13.5/-6.42448/20.76416
+0:30:25 INF [archive] -  features: [ 899M  27% 1.3M/s ] 233G  tiles: [  45M  42k/s ] 19G
+    cpus: 60.4 gc:  7% heap: 5.6G/32G direct: 54M postGC: 5.1G
+    read( 4%  3%) -> merge( 7%) -> (381/1.6k) -> encode(93% 93% 93% 92% 93% 92% 91% 93% 93% 93% 91% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 91% 93% 91% 92% 93% 93% 92% 93% 93% 92% 92% 90% 93% 93% 93% 92% 90% 90% 92% 93% 93% 93% 93% 93% 93% 92% 92% 92% 93% 93% 91% 93% 92% 92% 92% 91%) -> (1.2k/1.6k) -> write( 2%)
+    last tile: 13/4635/4914 (z13 51%) https://onthegomap.github.io/planetiler-demo/#13.5/-33.81566/23.7085
+0:30:35 INF [archive] -  features: [ 910M  27% 1.1M/s ] 233G  tiles: [  45M  31k/s ] 19G
+    cpus: 60.5 gc:  7% heap: 8.4G/32G direct: 54M postGC: 7G
+    read(11%  9%) -> merge(18%) -> (1.2k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 90% 92% 93% 92% 92% 92% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 92% 93% 92% 93% 92% 93% 93% 93% 93% 92% 92% 93% 93% 93% 92% 93% 91% 93% 93% 93% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4722/4361 (z13 51%) https://onthegomap.github.io/planetiler-demo/#13.5/-11.58767/27.53174
+0:30:45 INF [archive] -  features: [ 921M  28%   1M/s ] 233G  tiles: [  45M   6k/s ] 19G
+    cpus: 60.6 gc:  6% heap: 18G/32G direct: 54M postGC: 7.7G
+    read( 4%  4%) -> merge( 8%) -> (1.1k/1.6k) -> encode(94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 93% 94% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4753/4153 (z13 51%) https://onthegomap.github.io/planetiler-demo/#13.5/-2.52604/28.89404
+0:30:55 INF [archive] -  features: [ 933M  28% 1.1M/s ] 233G  tiles: [  46M 1.7k/s ] 19G
+    cpus: 60.4 gc:  6% heap: 6.8G/32G direct: 54M postGC: 5.2G
+    read( 7%  6%) -> merge(11%) -> (1.2k/1.6k) -> encode(93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 94% 93% 91% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 92% 91% 91% 93% 93% 93% 93% 91% 93% 93% 93% 93% 93% 93% 93% 93% 91% 93% 93% 93% 92% 93% 91% 93% 93% 93% 92% 93% 91% 93% 93% 92% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4935/4126 (z13 51%) https://onthegomap.github.io/planetiler-demo/#13.5/-1.34021/36.89209
+0:31:05 INF [archive] -  features: [ 942M  28% 946k/s ] 233G  tiles: [  46M 2.5k/s ] 19G
+    cpus: 60.4 gc:  6% heap: 17G/32G direct: 54M postGC: 6.6G
+    read( 0%  1%) -> merge( 1%) -> (1k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4987/4252 (z13 52%) https://onthegomap.github.io/planetiler-demo/#13.5/-6.86098/39.17725
+0:31:15 INF [archive] -  features: [ 959M  29% 1.6M/s ] 233G  tiles: [  53M 704k/s ] 20G
+    cpus: 47.6 gc:  5% heap: 13G/32G direct: 54M postGC: 5.9G
+    read(15% 13%) -> merge(29%) -> (984/1.6k) -> encode(73% 69% 69% 71% 69% 74% 84% 68% 71% 74% 70% 69% 72% 71% 69% 70% 68% 73% 71% 80% 68% 72% 69% 69% 79% 71% 66% 73% 73% 81% 71% 72% 71% 72% 84% 69% 68% 74% 70% 68% 76% 67% 77% 68% 75% 70% 69% 70% 83% 72% 68% 69% 71% 69% 78% 71% 72% 71% 73% 80% 75% 66%) -> (1.2k/1.6k) -> write( 7%)
+    last tile: 13/6382/4117 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-0.94478/100.48096
+0:31:25 INF [archive] -  features: [ 967M  29% 801k/s ] 233G  tiles: [  53M 3.2k/s ] 20G
+    cpus: 60.1 gc: 10% heap: 20G/32G direct: 54M postGC: 8.2G
+    read( 4%  4%) -> merge( 8%) -> (1.3k/1.6k) -> encode(90% 90% 89% 88% 87% 86% 90% 89% 86% 89% 85% 90% 86% 86% 89% 89% 86% 90% 89% 87% 87% 87% 88% 89% 89% 89% 89% 88% 90% 86% 89% 89% 87% 87% 86% 90% 89% 85% 89% 89% 89% 87% 89% 89% 89% 88% 88% 87% 83% 86% 86% 89% 86% 88% 89% 86% 89% 88% 89% 89% 88% 89%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/6526/4240 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-6.33714/106.80908
+0:31:35 INF [archive] -  features: [ 975M  29% 737k/s ] 233G  tiles: [  53M  225/s ] 20G
+    cpus: 60.1 gc:  8% heap: 21G/32G direct: 54M postGC: 8.2G
+    read( 2%  2%) -> merge( 3%) -> (1k/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91%) -> (1.3k/1.6k) -> write( 0%)
+    last tile: 13/6567/4249 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-6.73008/108.61084
+0:31:45 INF [archive] -  features: [ 983M  29% 828k/s ] 233G  tiles: [  53M   1k/s ] 20G
+    cpus: 60.2 gc:  8% heap: 23G/32G direct: 54M postGC: 6.4G
+    read( 5%  5%) -> merge( 8%) -> (1.2k/1.6k) -> encode(91% 92% 89% 92% 92% 91% 91% 92% 91% 89% 89% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 90% 91% 91% 92% 91% 90% 91% 90% 91% 92% 91% 91% 92% 91% 91% 91% 92% 91% 91% 92% 92% 89% 92% 91% 91% 91% 91% 90% 91% 91% 92% 91% 91% 91% 92% 89% 92% 92% 91% 92% 91%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/6632/4270 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-7.64566/111.46729
+0:31:55 INF [archive] -  features: [ 992M  30% 937k/s ] 233G  tiles: [  53M 2.6k/s ] 20G
+    cpus: 60.3 gc:  8% heap: 19G/32G direct: 54M postGC: 7.5G
+    read( 4%  5%) -> merge( 6%) -> (954/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.5k/1.6k) -> write( 0%)
+    last tile: 13/6703/4172 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-3.35989/114.5874
+0:32:06 INF [archive] -  features: [   1B  30% 855k/s ] 233G  tiles: [  53M 5.2k/s ] 20G
+    cpus: 60.1 gc:  9% heap: 24G/32G direct: 54M postGC: 6.7G
+    read( 4%  4%) -> merge( 7%) -> (1.3k/1.6k) -> encode(91% 90% 90% 90% 90% 90% 90% 90% 87% 90% 90% 90% 90% 90% 90% 91% 90% 90% 90% 90% 90% 89% 90% 89% 90% 90% 90% 90% 87% 90% 89% 90% 90% 89% 90% 90% 90% 90% 90% 90% 90% 90% 89% 88% 90% 91% 90% 90% 88% 88% 90% 90% 90% 91% 90% 90% 90% 89% 90% 88% 89% 90%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/6660/4260 (z13 73%) https://onthegomap.github.io/planetiler-demo/#13.5/-7.2099/112.69775
+0:32:16 INF [archive] -  features: [   1B  31% 1.5M/s ] 233G  tiles: [  54M 105k/s ] 20G
+    cpus: 59.2 gc:  6% heap: 20G/32G direct: 54M postGC: 8G
+    read( 7%  6%) -> merge(12%) -> (462/1.6k) -> encode(94% 91% 90% 90% 93% 90% 94% 91% 91% 92% 91% 94% 93% 91% 94% 94% 94% 90% 94% 90% 92% 91% 92% 92% 93% 91% 91% 91% 93% 91% 92% 94% 91% 92% 90% 94% 91% 91% 94% 91% 93% 91% 91% 93% 94% 91% 93% 91% 90% 92% 92% 94% 91% 94% 90% 90% 91% 91% 91% 90% 91% 92%) -> (1.3k/1.6k) -> write( 5%)
+    last tile: 13/7734/4311 (z13 75%) https://onthegomap.github.io/planetiler-demo/#13.5/-9.42739/159.89502
+0:32:26 INF [archive] -  features: [   1B  31%   1M/s ] 233G  tiles: [  55M  78k/s ] 20G
+    cpus: 60.2 gc:  8% heap: 20G/32G direct: 54M postGC: 8.1G
+    read( 9%  9%) -> merge(14%) -> (1.1k/1.6k) -> encode(91% 91% 91% 88% 88% 91% 91% 91% 91% 91% 89% 91% 90% 91% 91% 91% 89% 91% 91% 88% 90% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 88% 91% 91% 88% 89% 91% 91% 88% 91% 91% 91% 89% 91% 89% 91% 91% 91% 89% 89% 89% 91% 91% 91% 91%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/7186/3243 (z13 76%) https://onthegomap.github.io/planetiler-demo/#13.5/35.04798/135.81299
+0:32:36 INF [archive] -  features: [   1B  31%   1M/s ] 233G  tiles: [  55M 2.1k/s ] 20G
+    cpus: 60.5 gc:  7% heap: 19G/32G direct: 54M postGC: 7.6G
+    read( 2%  2%) -> merge( 4%) -> (1.3k/1.6k) -> encode(93% 90% 88% 90% 93% 92% 92% 93% 90% 92% 93% 93% 93% 92% 92% 93% 92% 92% 92% 88% 92% 93% 92% 93% 93% 93% 92% 92% 92% 92% 92% 93% 92% 91% 89% 90% 93% 90% 93% 92% 92% 92% 92% 93% 92% 92% 93% 92% 91% 91% 90% 92% 92% 93% 92% 90% 92% 93% 93% 92% 92% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/7284/3108 (z13 76%) https://onthegomap.github.io/planetiler-demo/#13.5/39.75788/140.11963
+0:32:46 INF [archive] -  features: [   1B  32% 1.6M/s ] 233G  tiles: [  56M 173k/s ] 21G
+    cpus: 60.4 gc:  8% heap: 21G/32G direct: 54M postGC: 8.1G
+    read(16% 14%) -> merge(23%) -> (1.3k/1.6k) -> encode(90% 91% 92% 91% 92% 90% 91% 91% 91% 92% 91% 90% 89% 91% 89% 91% 89% 91% 91% 90% 91% 92% 91% 91% 91% 91% 91% 91% 91% 91% 90% 90% 89% 92% 90% 91% 91% 91% 91% 89% 89% 91% 91% 91% 89% 92% 91% 91% 91% 91% 91% 91% 90% 91% 92% 91% 89% 92% 90% 90% 91% 91%) -> (1.6k/1.6k) -> write(10%)
+    last tile: 13/6186/3509 (z13 80%) https://onthegomap.github.io/planetiler-demo/#13.5/24.94622/91.86768
+0:32:56 INF [archive] -  features: [   1B  32% 1.9M/s ] 233G  tiles: [  57M  27k/s ] 21G
+    cpus: 60.6 gc:  7% heap: 23G/32G direct: 54M postGC: 8.5G
+    read( 9%  8%) -> merge(14%) -> (1k/1.6k) -> encode(89% 92% 92% 93% 92% 92% 89% 90% 93% 92% 92% 93% 93% 92% 93% 88% 92% 93% 92% 93% 90% 92% 92% 93% 93% 93% 90% 92% 92% 92% 92% 90% 92% 93% 92% 92% 92% 92% 90% 93% 93% 93% 92% 93% 92% 92% 93% 92% 93% 90% 93% 92% 92% 92% 92% 93% 92% 93% 92% 92% 93% 90%) -> (1.1k/1.6k) -> write( 5%)
+    last tile: 13/7151/3231 (z13 80%) https://onthegomap.github.io/planetiler-demo/#13.5/35.47856/134.2749
+0:33:06 INF [archive] -  features: [   1B  33% 1.7M/s ] 233G  tiles: [  57M  19k/s ] 21G
+    cpus: 60.5 gc:  8% heap: 16G/32G direct: 54M postGC: 8.3G
+    read(12% 11%) -> merge(19%) -> (1.3k/1.6k) -> encode(90% 90% 92% 91% 91% 91% 89% 90% 90% 90% 90% 90% 91% 91% 91% 91% 91% 90% 91% 91% 89% 89% 91% 91% 91% 91% 91% 91% 91% 90% 91% 90% 91% 91% 91% 92% 92% 92% 91% 91% 91% 91% 92% 92% 90% 90% 91% 92% 92% 89% 91% 92% 91% 90% 91% 91% 91% 91% 91% 91% 90% 91%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/6840/3716 (z13 81%) https://onthegomap.github.io/planetiler-demo/#13.5/16.44662/120.60791
+0:33:16 INF [archive] -  features: [   1B  33% 879k/s ] 233G  tiles: [  57M 1.2k/s ] 21G
+    cpus: 60.1 gc:  8% heap: 20G/32G direct: 54M postGC: 7.4G
+    read( 3%  3%) -> merge( 4%) -> (1k/1.6k) -> encode(90% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 89% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 90% 91% 91% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 90% 91% 90% 91% 91% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/6850/3761 (z13 81%) https://onthegomap.github.io/planetiler-demo/#13.5/14.54105/121.04736
+0:33:26 INF [archive] -  features: [ 1.1B  34% 1.7M/s ] 233G  tiles: [  57M  28k/s ] 22G
+    cpus: 60.6 gc:  7% heap: 19G/32G direct: 54M postGC: 5.5G
+    read( 6%  6%) -> merge(12%) -> (622/1.6k) -> encode(91% 92% 93% 93% 91% 93% 93% 93% 93% 93% 93% 93% 93% 92% 92% 93% 91% 93% 93% 93% 91% 93% 92% 91% 92% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 91% 93% 92% 93% 91% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 90% 93% 93% 93% 93% 91%) -> (1.4k/1.6k) -> write( 1%)
+    last tile: 13/6572/3747 (z13 81%) https://onthegomap.github.io/planetiler-demo/#13.5/15.13576/108.83057
+0:33:36 INF [archive] -  features: [ 1.1B  34% 1.4M/s ] 233G  tiles: [  57M  23k/s ] 22G
+    cpus: 60.4 gc:  8% heap: 24G/32G direct: 54M postGC: 8G
+    read(10%  9%) -> merge(19%) -> (1.2k/1.6k) -> encode(92% 92% 92% 91% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92%) -> (1.4k/1.6k) -> write( 2%)
+    last tile: 13/5915/3939 (z13 81%) https://onthegomap.github.io/planetiler-demo/#13.5/6.86098/79.9585
+0:33:46 INF [archive] -  features: [ 1.1B  34% 1.4M/s ] 233G  tiles: [  58M  17k/s ] 22G
+    cpus: 60.1 gc:  8% heap: 10G/32G direct: 54M postGC: 6.5G
+    read( 6%  6%) -> merge(12%) -> (1.2k/1.6k) -> encode(91% 91% 91% 91% 90% 91% 91% 91% 91% 89% 91% 89% 91% 91% 89% 91% 91% 91% 91% 89% 91% 91% 91% 91% 90% 91% 91% 89% 91% 91% 91% 91% 91% 91% 91% 89% 91% 91% 91% 89% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 91% 89% 91% 91% 92% 91% 91% 91%) -> (1.5k/1.6k) -> write( 2%)
+    last tile: 13/5920/3796 (z13 82%) https://onthegomap.github.io/planetiler-demo/#13.5/13.04737/80.17822
+0:33:56 INF [archive] -  features: [ 1.1B  35%   1M/s ] 233G  tiles: [  58M 5.2k/s ] 22G
+    cpus: 60.5 gc:  6% heap: 12G/32G direct: 54M postGC: 7.6G
+    read( 6%  6%) -> merge(11%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/6031/3456 (z13 82%) https://onthegomap.github.io/planetiler-demo/#13.5/27.03955/85.05615
+0:34:06 INF [archive] -  features: [ 1.1B  35% 1.3M/s ] 233G  tiles: [  58M 4.1k/s ] 22G
+    cpus: 60.4 gc:  7% heap: 7.8G/32G direct: 54M postGC: 6.3G
+    read( 6%  6%) -> merge( 9%) -> (1k/1.6k) -> encode(90% 92% 92% 90% 92% 92% 91% 92% 92% 92% 92% 92% 92% 91% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 91% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 93% 92% 92% 92% 92% 92% 92% 92% 92% 90%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/6036/3438 (z13 82%) https://onthegomap.github.io/planetiler-demo/#13.5/27.74188/85.27588
+0:34:16 INF [archive] -  features: [ 1.1B  36% 1.9M/s ] 233G  tiles: [  58M  38k/s ] 23G
+    cpus: 60.6 gc:  8% heap: 17G/32G direct: 54M postGC: 9.3G
+    read( 9%  8%) -> merge(17%) -> (1k/1.6k) -> encode(92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 91% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 91% 92% 92% 91% 92% 92% 92% 92% 92% 91%) -> (1.6k/1.6k) -> write( 5%)
+    last tile: 13/5358/3499 (z13 82%) https://onthegomap.github.io/planetiler-demo/#13.5/25.34402/55.48096
+0:34:26 INF [archive] -  features: [ 1.2B  36% 1.2M/s ] 233G  tiles: [  58M  40k/s ] 23G
+    cpus: 60.5 gc:  7% heap: 15G/32G direct: 54M postGC: 7.3G
+    read( 8%  7%) -> merge(15%) -> (1.2k/1.6k) -> encode(93% 93% 91% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 92% 92% 91% 93% 93% 93% 92% 93% 92% 93% 93% 93% 92% 93% 93% 93% 92% 93% 93% 91% 93% 93% 93% 93% 93% 91% 93% 93% 92% 93% 91% 92% 93% 93% 93% 92% 92% 93% 92% 92% 93% 93% 93%) -> (1.6k/1.6k) -> write( 3%)
+    last tile: 13/4813/3984 (z13 83%) https://onthegomap.github.io/planetiler-demo/#13.5/4.89394/31.53076
+0:34:36 INF [archive] -  features: [ 1.2B  36%   1M/s ] 233G  tiles: [  58M  832/s ] 23G
+    cpus: 60.3 gc:  7% heap: 17G/32G direct: 54M postGC: 8.5G
+    read( 3%  3%) -> merge( 6%) -> (952/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4784/4061 (z13 83%) https://onthegomap.github.io/planetiler-demo/#13.5/1.51594/30.25635
+0:34:46 INF [archive] -  features: [ 1.2B  37% 964k/s ] 233G  tiles: [  59M  12k/s ] 23G
+    cpus: 60.5 gc:  7% heap: 6.1G/32G direct: 54M postGC: 5.9G
+    read( 7%  6%) -> merge(12%) -> (1.4k/1.6k) -> encode(92% 91% 89% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 89% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 90% 92% 92% 92% 92% 92% 92% 90% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 90% 92%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/4197/3902 (z13 83%) https://onthegomap.github.io/planetiler-demo/#13.5/8.47237/4.46045
+0:34:56 INF [archive] -  features: [ 1.2B  37% 890k/s ] 233G  tiles: [  59M 1.7k/s ] 23G
+    cpus: 60.4 gc:  6% heap: 19G/32G direct: 54M postGC: 6.7G
+    read( 3%  3%) -> merge( 5%) -> (1.1k/1.6k) -> encode(93% 93% 94% 94% 94% 93% 94% 93% 94% 94% 94% 94% 94% 93% 94% 93% 94% 93% 94% 93% 94% 92% 94% 94% 94% 93% 93% 93% 94% 93% 94% 93% 94% 94% 93% 93% 94% 94% 93% 93% 94% 94% 94% 94% 94% 93% 93% 93% 94% 94% 93% 93% 94% 94% 93% 94% 93% 93% 94% 93% 94% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4351/3860 (z13 83%) https://onthegomap.github.io/planetiler-demo/#13.5/10.2933/11.22803
+0:35:06 INF [archive] -  features: [ 1.2B  37% 1.1M/s ] 233G  tiles: [  59M  19k/s ] 23G
+    cpus: 60.4 gc:  7% heap: 12G/32G direct: 54M postGC: 8.2G
+    read( 7%  7%) -> merge(12%) -> (1.2k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 92% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/4182/3101 (z13 84%) https://onthegomap.github.io/planetiler-demo/#13.5/39.99395/3.80127
+0:35:16 INF [archive] -  features: [ 1.2B  38% 1.7M/s ] 233G  tiles: [  59M  18k/s ] 23G
+    cpus: 60.3 gc:  7% heap: 10G/32G direct: 54M postGC: 10G
+    read( 8%  7%) -> merge(12%) -> (874/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 93% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 93% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.2k/1.6k) -> write( 2%)
+    last tile: 13/4881/3339 (z13 84%) https://onthegomap.github.io/planetiler-demo/#13.5/31.52236/34.51904
+0:35:26 INF [archive] -  features: [ 1.2B  38%   2M/s ] 233G  tiles: [  59M  21k/s ] 24G
+    cpus: 60.6 gc:  7% heap: 15G/32G direct: 54M postGC: 7.8G
+    read(15% 14%) -> merge(26%) -> (1.4k/1.6k) -> encode(90% 92% 92% 92% 92% 92% 90% 90% 92% 92% 90% 91% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 92% 91% 90% 92% 92% 90% 92% 91% 91% 92% 92% 92% 92% 90% 92% 92% 90% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 90% 92% 91%) -> (1.5k/1.6k) -> write( 4%)
+    last tile: 13/4953/2560 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/55.76421/37.68311
+0:35:36 INF [archive] -  features: [ 1.3B  39% 2.5M/s ] 233G  tiles: [  59M  11k/s ] 24G
+    cpus: 60.5 gc:  8% heap: 9.7G/32G direct: 54M postGC: 6.5G
+    read(15% 14%) -> merge(23%) -> (1.3k/1.6k) -> encode(91% 92% 90% 91% 91% 91% 91% 92% 91% 91% 92% 90% 91% 91% 90% 90% 91% 92% 91% 90% 91% 90% 92% 92% 91% 91% 91% 92% 91% 91% 90% 92% 92% 91% 92% 92% 91% 91% 91% 90% 92% 91% 91% 92% 91% 90% 91% 90% 91% 91% 92% 91% 91% 92% 91% 92% 91% 91% 90% 92% 91% 91%) -> (1.6k/1.6k) -> write( 4%)
+    last tile: 13/4825/2882 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/46.96526/32.05811
+0:35:46 INF [archive] -  features: [ 1.3B  40% 1.6M/s ] 233G  tiles: [  59M 7.3k/s ] 25G
+    cpus: 60.5 gc:  7% heap: 15G/32G direct: 54M postGC: 8.4G
+    read(10% 10%) -> merge(16%) -> (1.4k/1.6k) -> encode(93% 92% 93% 93% 93% 92% 92% 93% 93% 92% 92% 92% 92% 93% 93% 93% 92% 92% 93% 93% 92% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 92% 92% 92% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 91% 93% 93% 93% 92% 93% 92% 92% 92% 93%) -> (1.6k/1.6k) -> write( 2%)
+    last tile: 13/4457/2920 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/45.81348/15.88623
+0:35:56 INF [archive] -  features: [ 1.3B  40% 1.6M/s ] 233G  tiles: [  59M 1.5k/s ] 25G
+    cpus: 60.5 gc:  7% heap: 15G/32G direct: 54M postGC: 6.6G
+    read( 9%  9%) -> merge(14%) -> (1.4k/1.6k) -> encode(92% 92% 92% 92% 90% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 92% 91% 91% 92% 92% 92% 91% 92% 90% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 90% 91% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 90% 92% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4357/2928 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/45.56791/11.4917
+0:36:06 INF [archive] -  features: [ 1.3B  41% 1.5M/s ] 233G  tiles: [  59M 2.8k/s ] 25G
+    cpus: 60.4 gc:  7% heap: 20G/32G direct: 54M postGC: 8.8G
+    read( 9%  8%) -> merge(14%) -> (1.4k/1.6k) -> encode(92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4231/3005 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/43.14909/5.95459
+0:36:16 INF [archive] -  features: [ 1.3B  41%   1M/s ] 233G  tiles: [  59M 1.8k/s ] 25G
+    cpus: 60.5 gc:  5% heap: 19G/32G direct: 54M postGC: 6.8G
+    read( 6%  6%) -> merge(11%) -> (1.4k/1.6k) -> encode(93% 93% 92% 92% 94% 93% 93% 94% 94% 92% 94% 93% 94% 94% 94% 93% 93% 94% 94% 94% 94% 94% 93% 94% 94% 93% 94% 92% 94% 93% 92% 94% 94% 94% 92% 94% 94% 91% 94% 94% 94% 94% 94% 93% 94% 94% 93% 94% 94% 94% 94% 92% 94% 94% 92% 93% 93% 94% 94% 94% 91% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4205/2981 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/43.91372/4.81201
+0:36:26 INF [archive] -  features: [ 1.3B  41% 1.1M/s ] 233G  tiles: [  59M  765/s ] 25G
+    cpus: 60.6 gc:  6% heap: 13G/32G direct: 54M postGC: 7.8G
+    read( 7%  7%) -> merge(10%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4098/2925 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/45.66013/0.10986
+0:36:36 INF [archive] -  features: [ 1.3B  42%   1M/s ] 233G  tiles: [  59M   1k/s ] 25G
+    cpus: 60.6 gc:  6% heap: 10G/32G direct: 54M postGC: 5.8G
+    read( 7%  6%) -> merge(10%) -> (1.4k/1.6k) -> encode(93% 94% 93% 93% 94% 94% 92% 91% 93% 94% 93% 93% 91% 94% 94% 94% 93% 91% 94% 94% 93% 93% 94% 94% 94% 94% 94% 94% 93% 93% 94% 91% 94% 93% 93% 93% 94% 93% 93% 93% 94% 93% 93% 94% 93% 94% 93% 91% 93% 93% 93% 94% 94% 93% 91% 94% 93% 93% 93% 93% 93% 91%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4236/2822 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/48.73445/6.17432
+0:36:46 INF [archive] -  features: [ 1.4B  42% 1.6M/s ] 233G  tiles: [  59M 1.2k/s ] 25G
+    cpus: 60.7 gc:  6% heap: 16G/32G direct: 54M postGC: 7.5G
+    read( 9%  9%) -> merge(14%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.4k/1.6k) -> write( 1%)
+    last tile: 13/4325/2853 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/47.82791/10.08545
+0:36:56 INF [archive] -  features: [ 1.4B  43% 1.3M/s ] 233G  tiles: [  59M  711/s ] 26G
+    cpus: 60.4 gc:  7% heap: 13G/32G direct: 54M postGC: 5.2G
+    read( 9%  8%) -> merge(13%) -> (1.5k/1.6k) -> encode(93% 93% 92% 91% 93% 93% 93% 93% 91% 92% 92% 93% 93% 92% 92% 92% 92% 92% 92% 93% 90% 93% 92% 93% 92% 93% 92% 92% 92% 92% 92% 92% 93% 93% 92% 93% 92% 93% 93% 92% 93% 92% 91% 93% 92% 93% 93% 92% 92% 91% 90% 92% 92% 91% 93% 92% 90% 93% 92% 90% 92% 90%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4343/2783 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/49.85215/10.87646
+0:37:06 INF [archive] -  features: [ 1.4B  43% 1.3M/s ] 233G  tiles: [  59M  665/s ] 26G
+    cpus: 60.5 gc:  7% heap: 14G/32G direct: 54M postGC: 6.9G
+    read( 7%  7%) -> merge(11%) -> (1.4k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4246/2713 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/51.79503/6.61377
+0:37:16 INF [archive] -  features: [ 1.4B  43% 923k/s ] 233G  tiles: [  59M  179/s ] 26G
+    cpus: 60.6 gc:  6% heap: 18G/32G direct: 54M postGC: 7.7G
+    read( 4%  4%) -> merge( 6%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4229/2743 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/50.97226/5.8667
+0:37:27 INF [archive] -  features: [ 1.4B  44%   1M/s ] 233G  tiles: [  59M  686/s ] 26G
+    cpus: 60.5 gc:  6% heap: 23G/32G direct: 54M postGC: 5.4G
+    read( 7%  6%) -> merge(10%) -> (1.4k/1.6k) -> encode(93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 92% 93% 92% 93% 93% 93% 93% 93% 91% 93% 93% 93% 91% 93% 93% 93% 93% 93% 93% 93% 91% 92% 93% 93% 93% 93% 93% 93% 93% 91% 93% 93% 93% 93% 92% 93% 93% 92% 93% 93% 92% 93% 93% 91% 91% 93%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4169/2752 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/50.72254/3.22998
+0:37:37 INF [archive] -  features: [ 1.4B  44%   1M/s ] 233G  tiles: [  59M  640/s ] 26G
+    cpus: 60.6 gc:  6% heap: 13G/32G direct: 54M postGC: 6.3G
+    read( 6%  5%) -> merge( 9%) -> (1.2k/1.6k) -> encode(94% 94% 94% 94% 94% 93% 94% 94% 93% 93% 93% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 93% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 93% 94% 93% 94% 94% 94% 94% 94% 94% 94% 94% 93% 94% 94% 94% 94%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4138/2745 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/50.91689/1.86768
+0:37:47 INF [archive] -  features: [ 1.4B  44% 967k/s ] 233G  tiles: [  59M  614/s ] 26G
+    cpus: 60.5 gc:  7% heap: 21G/32G direct: 54M postGC: 7.7G
+    read( 6%  5%) -> merge( 9%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 92% 93% 93% 93% 92% 93% 93% 92% 93% 93% 92% 93% 93% 93% 93% 92% 92% 92% 92% 93% 92% 93% 93% 93% 93% 92% 92% 93% 93% 93% 92% 93% 93% 92% 92% 92% 93% 93% 93% 93% 93% 92% 93% 93% 92% 93% 92% 93% 93% 93% 93% 92% 92% 92% 92% 92% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4211/2723 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/51.52241/5.07568
+0:37:57 INF [archive] -  features: [ 1.4B  44% 984k/s ] 233G  tiles: [  59M 2.3k/s ] 26G
+    cpus: 60.5 gc:  7% heap: 9.5G/32G direct: 54M postGC: 8.1G
+    read( 5%  5%) -> merge( 8%) -> (1.3k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93%) -> (1.6k/1.6k) -> write( 0%)
+    last tile: 13/4245/2661 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/53.18629/6.56982
+0:38:07 INF [archive] -  features: [ 1.4B  45% 1.5M/s ] 233G  tiles: [  60M 2.8k/s ] 26G
+    cpus: 60.5 gc:  7% heap: 9.1G/32G direct: 54M postGC: 5.8G
+    read(10% 10%) -> merge(14%) -> (1.4k/1.6k) -> encode(93% 92% 91% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 91% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 89% 92% 92% 92% 92% 90% 92% 92% 92% 92% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 91% 91% 92% 91% 92% 92% 92% 91% 92% 92% 92% 92% 93% 92% 92% 92% 91% 91%) -> (1.5k/1.6k) -> write( 1%)
+    last tile: 13/4392/2705 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/52.01193/13.02979
+0:38:17 INF [archive] -  features: [ 1.5B  45% 1.6M/s ] 233G  tiles: [  60M 1.6k/s ] 26G
+    cpus: 60.5 gc:  7% heap: 21G/32G direct: 54M postGC: 7.7G
+    read( 9%  8%) -> merge(13%) -> (1.4k/1.6k) -> encode(93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 93% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4537/2714 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/51.76784/19.40186
+0:38:27 INF [archive] -  features: [ 1.5B  46% 1.8M/s ] 233G  tiles: [  60M   2k/s ] 27G
+    cpus: 60.5 gc:  8% heap: 18G/32G direct: 54M postGC: 6.2G
+    read(10% 10%) -> merge(15%) -> (1.4k/1.6k) -> encode(90% 90% 90% 92% 92% 90% 92% 92% 92% 92% 92% 92% 92% 91% 92% 92% 91% 90% 92% 92% 92% 92% 92% 92% 92% 92% 90% 92% 91% 92% 92% 92% 92% 92% 92% 91% 92% 92% 92% 91% 92% 92% 91% 92% 92% 92% 91% 92% 90% 92% 92% 92% 92% 92% 92% 92% 92% 91% 92% 90% 92% 92%) -> (1.6k/1.6k) -> write( 1%)
+    last tile: 13/4506/2663 (z13 85%) https://onthegomap.github.io/planetiler-demo/#13.5/53.13359/18.03955
+0:38:37 INF [archive] -  features: [ 1.5B  47% 2.9M/s ] 233G  tiles: [  60M  35k/s ] 27G
+    cpus: 60.6 gc:  8% heap: 9.1G/32G direct: 54M postGC: 7.4G
+    read(17% 16%) -> merge(28%) -> (1.4k/1.6k) -> encode(92% 92% 90% 90% 91% 90% 90% 90% 90% 92% 92% 91% 92% 90% 92% 91% 91% 91% 92% 91% 90% 91% 90% 90% 92% 91% 92% 91% 92% 92% 91% 90% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 91% 90% 91% 91% 90% 91% 91% 91% 91% 92% 90% 92% 91% 91% 91% 91% 91% 89% 91%) -> (1.6k/1.6k) -> write( 7%)
+    last tile: 13/4645/2510 (z13 86%) https://onthegomap.github.io/planetiler-demo/#13.5/56.98091/24.14795
+0:38:47 INF [archive] -  features: [ 1.5B  48% 3.4M/s ] 233G  tiles: [  61M  68k/s ] 28G
+    cpus: 60.5 gc:  7% heap: 8.3G/32G direct: 54M postGC: 8.1G
+    read(10%  9%) -> merge(18%) ->  (3/1.6k) -> encode(92% 92% 92% 92% 92% 91% 92% 92% 92% 90% 92% 92% 90% 92% 92% 92% 92% 91% 92% 92% 91% 92% 91% 92% 90% 92% 92% 92% 91% 92% 92% 92% 92% 92% 92% 92% 90% 92% 91% 91% 90% 92% 92% 92% 92% 92% 92% 92% 92% 92% 91% 91% 91% 90% 92% 92% 92% 91% 92% 92% 91% 92%) -> (1.5k/1.6k) -> write(11%)
+    last tile: 13/6059/2755 (z13 87%) https://onthegomap.github.io/planetiler-demo/#13.5/50.63901/86.28662
+0:38:49 INF [archive:write] - Finished z13 in 12m1s cpu:11h49m34s gc:50s avg:59.1, now starting z14
+0:38:57 INF [archive] -  features: [ 1.6B  50% 7.5M/s ] 233G  tiles: [ 100M 3.9M/s ] 30G
+    cpus: 35.1 gc:  3% heap: 19G/32G direct: 54M postGC: 5.3G
+    read(40% 33%) -> merge(87%) -> (34/1.6k) -> encode(50% 51% 50% 51% 50% 52% 51% 51% 51% 50% 50% 50% 50% 49% 50% 51% 51% 52% 50% 51% 49% 51% 50% 50% 52% 51% 49% 50% 50% 52% 51% 52% 51% 51% 51% 50% 49% 51% 50% 51% 51% 50% 50% 51% 51% 50% 51% 51% 50% 50% 51% 51% 51% 51% 51% 50% 50% 49% 51% 50% 50% 50%) -> (129/1.6k) -> write(57%)
+    last tile: 14/4593/5708 (z14 13%) https://onthegomap.github.io/planetiler-demo/#14.5/47.80578/-79.0686
+0:39:07 INF [archive] -  features: [ 1.7B  53% 8.4M/s ] 233G  tiles: [ 105M 490k/s ] 32G
+    cpus: 37.9 gc:  5% heap: 12G/32G direct: 54M postGC: 6.1G
+    read(53% 46%) -> merge(93%) ->  (0/1.6k) -> encode(54% 54% 55% 54% 54% 56% 56% 53% 54% 55% 55% 56% 55% 54% 53% 54% 54% 55% 55% 55% 55% 55% 55% 55% 55% 56% 53% 55% 54% 54% 54% 56% 55% 55% 54% 53% 54% 54% 55% 55% 54% 53% 56% 54% 56% 55% 53% 53% 53% 54% 55% 54% 55% 54% 52% 53% 56% 55% 54% 54% 54% 54%) -> (26/1.6k) -> write(25%)
+    last tile: 14/8077/5440 (z14 15%) https://onthegomap.github.io/planetiler-demo/#14.5/51.61119/-2.51587
+0:39:17 INF [archive] -  features: [ 1.8B  55% 8.6M/s ] 233G  tiles: [ 112M 663k/s ] 34G
+    cpus: 34.9 gc:  4% heap: 19G/32G direct: 54M postGC: 6.7G
+    read(51% 44%) -> merge(96%) ->  (1/1.6k) -> encode(50% 50% 49% 50% 50% 52% 51% 50% 50% 50% 50% 50% 51% 51% 51% 49% 52% 52% 49% 48% 51% 51% 49% 49% 52% 49% 50% 50% 51% 51% 49% 50% 50% 51% 51% 52% 50% 49% 51% 50% 51% 49% 51% 50% 51% 50% 49% 49% 51% 50% 51% 51% 52% 50% 52% 49% 51% 51% 50% 52% 50% 50%) -> (21/1.6k) -> write(23%)
+    last tile: 14/5658/6768 (z14 18%) https://onthegomap.github.io/planetiler-demo/#14.5/29.83111/-55.66772
+0:39:27 INF [archive] -  features: [ 1.9B  58% 8.7M/s ] 233G  tiles: [ 114M 227k/s ] 36G
+    cpus: 38 gc:  5% heap: 11G/32G direct: 54M postGC: 6.7G
+    read(53% 46%) -> merge(95%) ->  (0/1.6k) -> encode(56% 55% 54% 56% 54% 54% 55% 54% 54% 55% 55% 55% 54% 53% 55% 53% 56% 55% 56% 55% 56% 55% 53% 55% 55% 56% 54% 56% 54% 55% 56% 54% 54% 56% 57% 54% 55% 56% 54% 55% 55% 54% 56% 54% 55% 54% 53% 55% 56% 55% 55% 54% 56% 54% 53% 56% 54% 54% 54% 54% 56% 55%) -> (20/1.6k) -> write(16%)
+    last tile: 14/4696/7360 (z14 18%) https://onthegomap.github.io/planetiler-demo/#14.5/17.96828/-76.80542
+0:39:37 INF [archive] -  features: [   2B  61% 8.5M/s ] 233G  tiles: [ 119M 461k/s ] 38G
+    cpus: 40.1 gc:  4% heap: 19G/32G direct: 54M postGC: 7.2G
+    read(55% 47%) -> merge(94%) ->  (0/1.6k) -> encode(58% 58% 58% 60% 59% 58% 56% 59% 57% 59% 58% 57% 57% 58% 58% 58% 58% 56% 58% 59% 57% 57% 58% 57% 58% 58% 60% 57% 59% 59% 57% 59% 58% 57% 59% 59% 58% 57% 60% 58% 56% 59% 58% 59% 58% 58% 59% 59% 58% 59% 59% 59% 59% 58% 57% 59% 58% 59% 58% 59% 59% 59%) -> (98/1.6k) -> write(26%)
+    last tile: 14/3912/6521 (z14 20%) https://onthegomap.github.io/planetiler-demo/#14.5/34.42504/-94.03198
+0:39:47 INF [archive] -  features: [   2B  63%   8M/s ] 233G  tiles: [ 137M 1.7M/s ] 41G
+    cpus: 48 gc:  5% heap: 12G/32G direct: 54M postGC: 4.2G
+    read(47% 41%) -> merge(87%) ->  (0/1.6k) -> encode(69% 69% 70% 70% 70% 71% 70% 70% 68% 71% 65% 71% 70% 69% 70% 67% 70% 69% 70% 71% 71% 69% 69% 71% 69% 71% 71% 69% 71% 69% 71% 70% 69% 70% 70% 70% 70% 71% 70% 69% 68% 70% 69% 68% 69% 69% 70% 71% 70% 71% 69% 70% 68% 67% 69% 71% 69% 71% 70% 68% 69% 70%) -> (15/1.6k) -> write(55%)
+    last tile: 14/3856/9822 (z14 28%) https://onthegomap.github.io/planetiler-demo/#14.5/-33.69692/-95.26245
+0:39:57 INF [archive] -  features: [ 2.1B  65% 7.9M/s ] 233G  tiles: [ 173M 3.6M/s ] 42G
+    cpus: 33.3 gc:  4% heap: 8G/32G direct: 54M postGC: 6.1G
+    read(45% 37%) -> merge(93%) -> (125/1.6k) -> encode(48% 48% 49% 47% 48% 48% 48% 48% 47% 49% 48% 47% 48% 48% 48% 48% 49% 46% 48% 49% 48% 47% 48% 46% 48% 47% 47% 48% 49% 48% 48% 48% 47% 48% 48% 48% 47% 49% 47% 48% 47% 47% 47% 46% 49% 48% 48% 47% 48% 48% 48% 48% 48% 47% 47% 47% 49% 49% 47% 49% 47% 48%) -> (234/1.6k) -> write(44%)
+    last tile: 14/5922/9022 (z14 48%) https://onthegomap.github.io/planetiler-demo/#14.5/-17.94738/-49.86694
+0:40:07 INF [archive] -  features: [ 2.2B  68% 9.1M/s ] 233G  tiles: [ 181M 809k/s ] 44G
+    cpus: 34.4 gc:  4% heap: 13G/32G direct: 54M postGC: 6.8G
+    read(50% 37%) -> merge(94%) ->  (0/1.6k) -> encode(50% 50% 50% 51% 51% 49% 49% 51% 50% 50% 48% 49% 49% 49% 50% 50% 49% 50% 50% 50% 50% 49% 49% 50% 51% 49% 49% 49% 51% 50% 49% 48% 51% 49% 49% 49% 50% 49% 50% 49% 50% 50% 47% 49% 51% 51% 49% 50% 50% 49% 49% 50% 50% 49% 50% 49% 50% 49% 49% 50% 50% 47%) -> (24/1.6k) -> write(32%)
+    last tile: 14/9977/8505 (z14 52%) https://onthegomap.github.io/planetiler-demo/#14.5/-6.87189/39.23218
+0:40:17 INF [archive] -  features: [ 2.3B  71% 8.8M/s ] 233G  tiles: [ 209M 2.8M/s ] 45G
+    cpus: 22 gc:  2% heap: 12G/32G direct: 54M postGC: 7.2G
+    read(46% 35%) -> merge(97%) ->  (0/1.6k) -> encode(30% 32% 30% 29% 30% 31% 32% 33% 31% 30% 30% 30% 31% 30% 32% 31% 32% 31% 32% 32% 31% 31% 30% 30% 31% 32% 30% 31% 30% 31% 30% 31% 32% 29% 31% 30% 30% 31% 31% 32% 30% 30% 30% 32% 33% 30% 30% 30% 31% 30% 31% 30% 34% 30% 30% 31% 30% 32% 31% 31% 31% 31%) -> (43/1.6k) -> write(26%)
+    last tile: 14/13378/8510 (z14 73%) https://onthegomap.github.io/planetiler-demo/#14.5/-6.98095/113.96118
+0:40:23 WAR [archive:encode] - {x=14553 y=6450 z=14} 1312kb uncompressed
+0:40:27 INF [archive] -  features: [ 2.4B  73%   8M/s ] 233G  tiles: [ 222M 1.2M/s ] 47G
+    cpus: 37.9 gc:  4% heap: 19G/32G direct: 55M postGC: 8.8G
+    read(56% 45%) -> merge(94%) -> (736/1.6k) -> encode(55% 53% 55% 55% 55% 53% 56% 56% 55% 56% 56% 56% 56% 54% 55% 57% 54% 53% 55% 54% 55% 56% 54% 55% 55% 53% 55% 54% 55% 56% 55% 55% 54% 54% 55% 57% 56% 56% 55% 55% 55% 53% 55% 54% 55% 55% 53% 54% 55% 55% 54% 55% 54% 54% 54% 55% 58% 56% 55% 54% 55% 55%) -> (910/1.6k) -> write(38%)
+    last tile: 14/14281/4417 (z14 79%) https://onthegomap.github.io/planetiler-demo/#14.5/63.53387/133.80249
+0:40:33 WAR [archive:encode] - {x=13722 y=7013 z=14} 1078kb uncompressed
+0:40:37 INF [archive] -  features: [ 2.5B  76% 8.7M/s ] 233G  tiles: [ 226M 389k/s ] 49G
+    cpus: 45.9 gc:  6% heap: 8.5G/32G direct: 55M postGC: 7.7G
+    read(58% 51%) -> merge(91%) ->  (0/1.6k) -> encode(67% 67% 67% 66% 68% 66% 65% 65% 65% 68% 67% 64% 66% 66% 67% 65% 65% 67% 65% 67% 68% 66% 65% 66% 68% 66% 65% 68% 64% 66% 67% 65% 67% 65% 66% 65% 66% 66% 65% 68% 66% 65% 66% 66% 65% 64% 64% 67% 66% 66% 64% 66% 66% 67% 65% 66% 67% 66% 65% 64% 66% 66%) -> (107/1.6k) -> write(38%)
+    last tile: 14/12835/8000 (z14 81%) https://onthegomap.github.io/planetiler-demo/#14.5/4.20399/102.03003
+0:40:47 INF [archive] -  features: [ 2.6B  78% 8.7M/s ] 233G  tiles: [ 229M 321k/s ] 52G
+    cpus: 39.4 gc:  4% heap: 20G/32G direct: 55M postGC: 8.1G
+    read(58% 49%) -> merge(94%) ->  (7/1.6k) -> encode(56% 56% 57% 58% 57% 57% 58% 57% 57% 56% 57% 56% 56% 57% 57% 58% 59% 58% 58% 58% 58% 56% 58% 57% 58% 57% 57% 57% 60% 58% 57% 56% 57% 58% 59% 57% 57% 56% 56% 57% 56% 57% 56% 57% 56% 57% 58% 58% 57% 57% 57% 55% 57% 58% 57% 58% 58% 58% 57% 58% 58% 57%) -> (87/1.6k) -> write(31%)
+    last tile: 14/10533/6451 (z14 82%) https://onthegomap.github.io/planetiler-demo/#14.5/35.68407/51.44897
+0:40:57 INF [archive] -  features: [ 2.7B  81%   9M/s ] 233G  tiles: [ 233M 342k/s ] 54G
+    cpus: 37.3 gc:  4% heap: 22G/32G direct: 55M postGC: 8.1G
+    read(54% 48%) -> merge(95%) ->  (0/1.6k) -> encode(54% 54% 53% 55% 55% 54% 53% 53% 55% 53% 55% 54% 53% 54% 54% 53% 55% 53% 53% 53% 55% 54% 53% 54% 54% 56% 54% 52% 54% 53% 53% 54% 56% 52% 52% 52% 53% 54% 54% 55% 57% 54% 55% 53% 55% 54% 54% 53% 53% 54% 55% 53% 54% 55% 55% 54% 54% 54% 53% 54% 54% 55%) -> (75/1.6k) -> write(33%)
+    last tile: 14/9474/6207 (z14 84%) https://onthegomap.github.io/planetiler-demo/#14.5/39.91816/28.17993
+0:41:07 INF [archive] -  features: [ 2.7B  84% 8.7M/s ] 233G  tiles: [ 234M 168k/s ] 56G
+    cpus: 41.2 gc:  4% heap: 21G/32G direct: 55M postGC: 8.5G
+    read(59% 50%) -> merge(95%) ->  (0/1.6k) -> encode(59% 59% 59% 60% 61% 60% 59% 60% 60% 60% 60% 59% 59% 59% 60% 59% 60% 60% 59% 61% 60% 61% 60% 61% 59% 60% 60% 60% 62% 59% 58% 60% 58% 59% 60% 59% 59% 60% 58% 61% 59% 61% 60% 60% 59% 60% 60% 61% 58% 60% 60% 60% 60% 60% 59% 59% 59% 59% 59% 61% 59% 61%) -> (51/1.6k) -> write(29%)
+    last tile: 14/9458/6106 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/41.59901/27.82837
+0:41:17 INF [archive] -  features: [ 2.8B  86% 8.2M/s ] 233G  tiles: [ 235M  40k/s ] 58G
+    cpus: 34 gc:  4% heap: 12G/32G direct: 55M postGC: 8.8G
+    read(60% 51%) -> merge(96%) ->  (0/1.6k) -> encode(49% 48% 48% 49% 50% 49% 48% 49% 48% 48% 49% 49% 50% 49% 49% 48% 49% 48% 48% 49% 48% 49% 48% 50% 48% 49% 50% 48% 48% 48% 48% 48% 50% 48% 48% 48% 48% 49% 49% 49% 48% 47% 49% 49% 48% 50% 50% 49% 48% 48% 48% 48% 49% 49% 48% 49% 48% 48% 49% 50% 48% 49%) -> (113/1.6k) -> write(13%)
+    last tile: 14/8291/6118 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/41.40154/2.18628
+0:41:17 WAR [archive:encode] - {x=8290 y=6119 z=14} 1067kb uncompressed
+0:41:17 WAR [archive:encode] - {x=8290 y=6118 z=14} 1081kb uncompressed
+0:41:27 INF [archive] -  features: [ 2.9B  89% 8.4M/s ] 233G  tiles: [ 235M  17k/s ] 60G
+    cpus: 31 gc:  3% heap: 21G/32G direct: 55M postGC: 8.6G
+    read(59% 51%) -> merge(96%) ->  (0/1.6k) -> encode(44% 45% 44% 45% 45% 44% 45% 44% 44% 44% 44% 44% 45% 44% 44% 45% 45% 45% 44% 44% 44% 44% 44% 44% 44% 45% 44% 44% 44% 45% 44% 44% 45% 44% 45% 45% 44% 44% 44% 43% 44% 44% 44% 43% 44% 44% 45% 45% 45% 44% 44% 44% 44% 45% 45% 44% 44% 44% 44% 44% 44% 45%) -> (22/1.6k) -> write(10%)
+    last tile: 14/8587/5662 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/48.4802/8.69019
+0:41:37 INF [archive] -  features: [   3B  91% 8.5M/s ] 233G  tiles: [ 235M 9.3k/s ] 62G
+    cpus: 26.7 gc:  3% heap: 12G/32G direct: 55M postGC: 8.6G
+    read(60% 51%) -> merge(97%) ->  (0/1.6k) -> encode(37% 37% 38% 38% 37% 38% 38% 38% 38% 37% 38% 37% 38% 38% 37% 38% 37% 37% 38% 37% 38% 37% 38% 37% 38% 38% 38% 38% 37% 38% 37% 38% 37% 37% 38% 38% 38% 37% 37% 38% 37% 37% 37% 37% 37% 37% 37% 39% 38% 37% 37% 38% 37% 38% 38% 37% 38% 37% 38% 37% 37% 37%) -> (25/1.6k) -> write( 7%)
+    last tile: 14/8213/5586 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/49.5751/0.47241
+0:41:47 INF [archive] -  features: [ 3.1B  94% 8.4M/s ] 233G  tiles: [ 235M  26k/s ] 63G
+    cpus: 27.2 gc:  3% heap: 21G/32G direct: 55M postGC: 8.7G
+    read(60% 50%) -> merge(97%) ->  (1/1.6k) -> encode(39% 40% 38% 39% 38% 37% 38% 38% 38% 39% 40% 38% 39% 38% 38% 38% 38% 38% 38% 38% 39% 39% 38% 37% 38% 38% 37% 39% 39% 38% 39% 39% 38% 39% 38% 39% 39% 39% 38% 39% 39% 39% 39% 39% 39% 39% 39% 38% 38% 37% 39% 39% 38% 38% 39% 38% 38% 39% 38% 38% 41% 39%) -> (34/1.6k) -> write( 8%)
+    last tile: 14/8719/5587 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/49.56085/11.59058
+0:41:57 INF [archive] -  features: [ 3.2B  96% 8.5M/s ] 233G  tiles: [ 236M  68k/s ] 65G
+    cpus: 33.6 gc:  4% heap: 20G/32G direct: 55M postGC: 9.2G
+    read(57% 49%) -> merge(96%) ->  (0/1.6k) -> encode(47% 49% 48% 48% 48% 49% 49% 48% 49% 48% 48% 48% 49% 48% 48% 47% 48% 48% 49% 49% 49% 48% 49% 48% 49% 49% 48% 49% 49% 48% 48% 49% 47% 48% 47% 48% 47% 50% 49% 48% 49% 48% 48% 48% 49% 49% 48% 47% 50% 48% 48% 48% 48% 47% 48% 48% 49% 48% 47% 48% 49% 48%) -> (34/1.6k) -> write(15%)
+    last tile: 14/8671/4757 (z14 85%) https://onthegomap.github.io/planetiler-demo/#14.5/60.00448/10.53589
+0:42:07 INF [archive] -  features: [ 3.2B  99%   8M/s ] 233G  tiles: [ 240M 384k/s ] 68G
+    cpus: 49.9 gc:  5% heap: 13G/32G direct: 55M postGC: 6.9G
+    read(53% 47%) -> merge(89%) -> (1.3k/1.6k) -> encode(72% 71% 73% 72% 73% 73% 73% 73% 72% 72% 72% 72% 72% 72% 74% 72% 72% 72% 73% 72% 73% 73% 73% 74% 71% 72% 73% 73% 73% 73% 73% 72% 72% 72% 73% 73% 72% 73% 70% 72% 71% 73% 72% 73% 73% 73% 73% 72% 73% 73% 73% 72% 72% 72% 71% 71% 72% 72% 72% 73% 72% 72%) -> (1.6k/1.6k) -> write(55%)
+    last tile: 14/11679/4326 (z14 87%) https://onthegomap.github.io/planetiler-demo/#14.5/64.41118/76.62964
+0:42:12 INF [archive:write] - Finished z14 in 3m24s cpu:2h2m35s gc:8s avg:36.1
+0:42:12 INF [archive:write] - Building directories with 14068 entries per leaf, attempt 1...
+0:42:17 INF [archive] -  features: [ 3.3B 100% 3.6M/s ] 233G  tiles: [ 270M 2.9M/s ] 69G
+    cpus: 14.5 gc:  1% heap: 13G/32G direct: 55M postGC: 7.4G
+    read( -%  -%) -> merge( -%) ->  (0/1.6k) -> encode( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/1.6k) -> write(84%)
+    last tile: 14/16383/0 (z14 100%) https://onthegomap.github.io/planetiler-demo/#14.5/85.05018/179.98901
+0:42:20 INF [archive:write] - Built directories with 3501 leaves, 16482B root directory
+0:42:20 INF [archive:write] - Building directories with 16881 entries per leaf, attempt 2...
+0:42:27 INF [archive] -  features: [ 3.3B 100%    0/s ] 233G  tiles: [ 270M    0/s ] 69G
+    cpus: 1 gc:  0% heap: 16G/32G direct: 55M postGC: 7.4G
+    read( -%  -%) -> merge( -%) ->  (0/1.6k) -> encode( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/1.6k) -> write(100%)
+    last tile: 14/16383/0 (z14 100%) https://onthegomap.github.io/planetiler-demo/#14.5/85.05018/179.98901
+0:42:28 INF [archive:write] - Built directories with 2917 leaves, 14103B root directory
+0:42:28 INF [archive:write] - Writing metadata and leaf directories...
+0:42:28 INF [archive:write] - Writing header...
+0:42:28 INF [archive:write] - # addressed tiles: 270241884
+0:42:28 INF [archive:write] - # of tile entries: 49239843
+0:42:28 INF [archive:write] - # of tile contents: 40212255
+0:42:28 INF [archive:write] - Root directory: 14kB
+0:42:28 INF [archive:write] - # leaves: 2917
+0:42:28 INF [archive:write] - Leaf directories: 87MB
+0:42:28 INF [archive:write] - Avg leaf size: 29kB
+0:42:28 INF [archive:write] - Total dir bytes: 87MB
+0:42:28 INF [archive:write] - Average bytes per addressed tile: 0.32288937121234695
+0:42:28 INF [archive] -  features: [ 3.3B 100%    0/s ] 233G  tiles: [ 270M    0/s ] 69G
+    cpus: 1.3 gc:  0% heap: 17G/32G direct: 141M postGC: 7.4G
+    read( -%  -%) -> merge( -%) ->  (0/1.6k) -> encode( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/1.6k) -> write( -%)
+    last tile: 14/16383/0 (z14 100%) https://onthegomap.github.io/planetiler-demo/#14.5/85.05018/179.98901
+0:42:28 DEB [archive] - Tile stats:
+0:42:28 DEB [archive] - Biggest tiles (gzipped)
+1. 14/14553/6450 (751k) https://onthegomap.github.io/planetiler-demo/#14.5/35.70192/139.77905 (poi:988k)
+2. 14/8290/6118 (675k) https://onthegomap.github.io/planetiler-demo/#14.5/41.40154/2.16431 (poi:536k)
+3. 14/8290/6119 (661k) https://onthegomap.github.io/planetiler-demo/#14.5/41.38505/2.16431 (poi:611k)
+4. 14/13722/7013 (616k) https://onthegomap.github.io/planetiler-demo/#14.5/25.05574/121.51978 (poi:684k)
+5. 14/6437/8362 (592k) https://onthegomap.github.io/planetiler-demo/#14.5/-3.74367/-38.55103 (building:605k)
+6. 14/7990/6392 (591k) https://onthegomap.github.io/planetiler-demo/#14.5/36.73008/-4.42749 (building:380k)
+7. 14/13722/7014 (587k) https://onthegomap.github.io/planetiler-demo/#14.5/25.03584/121.51978 (poi:625k)
+8. 14/14552/6450 (578k) https://onthegomap.github.io/planetiler-demo/#14.5/35.70192/139.75708 (poi:746k)
+9. 14/6435/8361 (573k) https://onthegomap.github.io/planetiler-demo/#14.5/-3.72175/-38.59497 (building:710k)
+10. 14/6436/8361 (558k) https://onthegomap.github.io/planetiler-demo/#14.5/-3.72175/-38.573 (building:607k)
+0:42:28 INF [archive] - Other tiles with large layers
+14/8414/5384 (313k) https://onthegomap.github.io/planetiler-demo/#14.5/52.36889/4.88892 (housenumber:313k)
+14/3411/6216 (333k) https://onthegomap.github.io/planetiler-demo/#14.5/39.76632/-105.04028 (landcover:333k)
+10/236/413 (176k) https://onthegomap.github.io/planetiler-demo/#10.5/32.69474/-96.85547 (landuse:176k)
+13/1596/3157 (337k) https://onthegomap.github.io/planetiler-demo/#13.5/38.08269/-109.84131 (mountain_peak:337k)
+5/5/11 (143k) https://onthegomap.github.io/planetiler-demo/#5.5/44.9512/-118.125 (park:143k)
+3/5/3 (558k) https://onthegomap.github.io/planetiler-demo/#3.5/20.48995/67.5 (place:558k)
+12/3229/2032 (313k) https://onthegomap.github.io/planetiler-demo/#12.5/1.36218/103.84277 (transportation:313k)
+14/9618/6751 (179k) https://onthegomap.github.io/planetiler-demo/#14.5/30.15463/31.34399 (transportation_name:179k)
+12/3415/1774 (166k) https://onthegomap.github.io/planetiler-demo/#12.5/23.36242/120.19043 (water:166k)
+0:42:28 DEB [archive] - Max tile sizes
+                      z0    z1    z2    z3    z4    z5    z6    z7    z8    z9   z10   z11   z12   z13   z14   all
+           boundary 5.4k   37k   43k   25k   19k   24k   18k   14k   14k   28k   23k   17k   31k   18k  9.4k   43k
+          landcover 1.5k   982    8k  4.6k  3.2k   31k   17k  271k  333k  235k  153k  175k  166k  111k  333k  333k
+              place  51k  144k  545k  558k  352k  183k  109k   58k   41k   52k   62k   69k   50k  122k  221k  558k
+              water 8.4k  4.1k   10k    9k   14k   13k   89k  113k  126k  109k  132k   94k  166k  115k   91k  166k
+         water_name 4.5k   15k   22k   14k   12k  7.4k    5k  4.7k   12k  8.6k  5.6k  3.8k  3.1k  9.4k   29k   29k
+           waterway    0     0     0   546  3.7k  1.6k   17k   13k  9.8k   28k   20k   16k   59k   75k   88k   88k
+            landuse    0     0     0     0  2.6k  1.5k   32k   66k  125k  113k  176k  129k   63k  124k   47k  176k
+               park    0     0     0     0   54k  143k   98k   76k   71k   82k   90k   55k   47k   19k   50k  143k
+     transportation    0     0     0     0   60k  107k   62k  122k   88k  135k   91k   67k  313k  187k  128k  313k
+transportation_name    0     0     0     0     0     0   34k   20k   19k   15k   37k   22k   33k   27k  179k  179k
+      mountain_peak    0     0     0     0     0     0     0   12k   12k   10k   10k  9.5k  9.4k  337k  234k  337k
+    aerodrome_label    0     0     0     0     0     0     0     0  4.1k  2.8k  3.9k  2.9k  2.7k  2.7k  2.7k  4.1k
+            aeroway    0     0     0     0     0     0     0     0     0     0   16k   25k   35k   31k   18k   35k
+                poi    0     0     0     0     0     0     0     0     0     0     0   175   35k   17k  988k  988k
+           building    0     0     0     0     0     0     0     0     0     0     0     0     0  141k  710k  710k
+        housenumber    0     0     0     0     0     0     0     0     0     0     0     0     0     0  313k  313k
+          full tile  71k  200k  623k  591k  401k  349k  270k  396k  370k  343k  272k  204k  378k  341k  1.3M  1.3M
+            gzipped  44k  117k  332k  315k  238k  204k  171k  284k  268k  250k  182k  141k  188k  227k  751k  751k
+0:42:28 DEB [archive] -    Max tile: 1.3M (gzipped: 751k)
+0:42:28 DEB [archive] -    Avg tile: 98k (gzipped: 64k) using weighted average based on OSM traffic
+0:42:28 DEB [archive] -     # tiles: 270,241,884
+0:42:28 DEB [archive] -  # features: 3,334,440,734
+0:42:28 INF [archive] - Finished in 17m55s cpu:15h47m51s gc:1m7s avg:52.9
+0:42:28 INF [archive] -   read    2x(18% 3m12s wait:13m23s done:17s)
+0:42:28 INF [archive] -   merge   1x(33% 5m55s wait:10m22s done:17s)
+0:42:28 INF [archive] -   encode 62x(79% 14m15s block:4s wait:2m6s done:17s)
+0:42:28 INF [archive] -   write   1x(8% 1m30s wait:15m54s done:17s)
+0:42:28 INF - Finished in 42m28s cpu:36h48m20s gc:2m17s avg:52
+0:42:28 INF - FINISHED!
+0:42:28 INF -
+0:42:28 INF - ----------------------------------------
+0:42:28 INF - data errors:
+0:42:28 INF - 	render_snap_fix_input	21,335,233
+0:42:28 INF - 	merge_snap_fix_input	21,223
+0:42:28 INF - 	feature_polygon_osm_invalid_multipolygon_empty_after_fix	273
+0:42:28 INF - 	omt_park_area_osm_invalid_multipolygon_empty_after_fix	26
+0:42:28 INF - 	feature_centroid_if_convex_osm_invalid_multipolygon_empty_after_fix	19
+0:42:28 INF - 	feature_point_on_surface_osm_invalid_multipolygon_empty_after_fix	5
+0:42:28 INF - 	omt_place_island_poly_osm_invalid_multipolygon_empty_after_fix	3
+0:42:28 INF - 	feature_centroid_osm_invalid_multipolygon_empty_after_fix	2
+0:42:28 INF - 	merge_snap_fix_input2	1
+0:42:28 INF - 	merge_snap_fix_input3	1
+0:42:28 INF - ----------------------------------------
+0:42:28 INF - 	overall          42m28s cpu:36h48m20s gc:2m17s avg:52
+0:42:28 INF - 	lake_centerlines 2s cpu:8s avg:3.2
+0:42:28 INF - 	  read     2x(28% 0.7s done:2s)
+0:42:28 INF - 	  process 62x(0% 0s wait:1s)
+0:42:28 INF - 	  write    2x(0% 0s wait:2s)
+0:42:28 INF - 	water_polygons   38s cpu:18m26s gc:1s avg:29.4
+0:42:28 INF - 	  read     2x(17% 7s wait:10s done:20s)
+0:42:28 INF - 	  process 62x(42% 16s wait:20s)
+0:42:28 INF - 	  write    2x(67% 25s wait:12s)
+0:42:28 INF - 	natural_earth    15s cpu:27s avg:1.7
+0:42:28 INF - 	  read     2x(36% 6s done:10s)
+0:42:28 INF - 	  process 62x(1% 0.1s wait:11s done:4s)
+0:42:28 INF - 	  write    2x(0% 0s wait:12s done:4s)
+0:42:28 INF - 	osm_pass1        1m23s cpu:1h9m56s gc:3s avg:50.3
+0:42:28 INF - 	  read     1x(4% 3s wait:1m done:6s)
+0:42:28 INF - 	  process 63x(77% 1m4s block:12s wait:2s)
+0:42:28 INF - 	osm_pass2        19m32s cpu:18h25m4s gc:54s avg:56.6
+0:42:28 INF - 	  read     1x(0% 3s wait:18m50s done:37s)
+0:42:28 INF - 	  process 62x(87% 16m58s block:7s wait:5s)
+0:42:28 INF - 	  write    2x(44% 8m32s wait:10m23s)
+0:42:28 INF - 	boundaries       13s cpu:16s avg:1.3
+0:42:28 INF - 	agg_stop         0.6s cpu:1s avg:2.4
+0:42:28 INF - 	sort             2m14s cpu:1h5m55s gc:12s avg:29.6
+0:42:28 INF - 	  worker  5x(47% 1m2s wait:37s)
+0:42:28 INF - 	archive          17m55s cpu:15h47m51s gc:1m7s avg:52.9
+0:42:28 INF - 	  read    2x(18% 3m12s wait:13m23s done:17s)
+0:42:28 INF - 	  merge   1x(33% 5m55s wait:10m22s done:17s)
+0:42:28 INF - 	  encode 62x(79% 14m15s block:4s wait:2m6s done:17s)
+0:42:28 INF - 	  write   1x(8% 1m30s wait:15m54s done:17s)
+0:42:28 INF - ----------------------------------------
+0:42:28 INF - 	archive	69GB
+0:42:28 INF - 	features	233GB
