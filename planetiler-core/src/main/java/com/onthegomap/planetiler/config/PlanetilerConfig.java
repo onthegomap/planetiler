@@ -105,7 +105,7 @@ public record PlanetilerConfig(
         Math.max(1, (threads - 16) / 32 + 1));
     int featureProcessThreads =
       arguments.getInteger("process_threads", "number of threads to use when processing input features",
-        Math.max(threads < 4 ? threads : (threads - featureWriteThreads), 1));
+        Math.max(threads < 8 ? threads : (threads - featureWriteThreads), 1));
     Bounds bounds = new Bounds(arguments.bounds("bounds", "bounds"));
     Path polygonFile =
       arguments.file("polygon", "a .poly file that limits output to tiles intersecting the shape", null);
