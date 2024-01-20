@@ -159,10 +159,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .newLine();
+    int threads = config.threads();
 
     if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
       // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
-      int parseThreads = Math.max(1, config.threads() - 1);
+      int parseThreads = Math.max(1, threads < 8 ? threads : (threads - 1));
       pass1Phaser.registerWorkers(parseThreads);
       var parallelPipeline = pipeline
         .fromGenerator("read", osmBlockSource::forEachBlock)
@@ -174,7 +175,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       // If the node location writer requires sequential writes, then the reader hands off the block to workers
       // and a handle that the result will go on to the single-threaded writer, and the writer emits new nodes when
       // they are ready
-      int parseThreads = Math.max(1, config.threads() - 2);
+      int parseThreads = Math.max(1, threads < 8 ? threads : (threads - 2));
       int pendingBlocks = parseThreads * 2;
       // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
       // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
