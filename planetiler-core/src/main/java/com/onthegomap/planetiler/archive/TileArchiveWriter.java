@@ -91,7 +91,7 @@ public class TileArchiveWriter {
     int chunksToRead = Math.max(1, features.chunksToRead());
     int readThreads = Math.min(config.featureReadThreads(), chunksToRead);
     int threads = config.threads();
-    int processThreads = threads < 8 ? threads : threads - readThreads;
+    int processThreads = threads < 8 ? threads : (threads - readThreads);
     int tileWriteThreads = config.tileWriteThreads();
 
     // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
