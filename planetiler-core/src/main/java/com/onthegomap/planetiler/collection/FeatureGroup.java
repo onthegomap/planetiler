@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -449,28 +450,47 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       if (layerStats != null) {
         tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
       }
-      List<VectorTile.Feature> items = new ArrayList<>(entries.size());
+      List<VectorTile.Feature> items = new ArrayList<>();
       String currentLayer = null;
+      Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
       for (SortableFeature entry : entries) {
         var feature = decodeVectorTileFeature(entry);
         String layer = feature.layer();
 
         if (currentLayer == null) {
           currentLayer = layer;
+          layerFeatures.put(currentLayer, items);
         } else if (!currentLayer.equals(layer)) {
-          postProcessAndAddLayerFeatures(tile, currentLayer, items);
           currentLayer = layer;
-          items.clear();
+          items = new ArrayList<>();
+          layerFeatures.put(layer, items);
         }
 
         items.add(feature);
       }
-      postProcessAndAddLayerFeatures(tile, currentLayer, items);
+      // first post-process entire tile by invoking postProcessTileFeatures to allow for post-processing that combines
+      // features across different layers, infers new layers, or removes layers
+      try {
+        var initialFeatures = layerFeatures;
+        layerFeatures = profile.postProcessTileFeatures(tileCoord, layerFeatures);
+        if (layerFeatures == null) {
+          layerFeatures = initialFeatures;
+        }
+      } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
+        handlePostProcessFailure(e, "entire tile");
+      }
+      // then let profiles post-process each layer in isolation with postProcessLayerFeatures
+      for (var entry : layerFeatures.entrySet()) {
+        postProcessAndAddLayerFeatures(tile, entry.getKey(), entry.getValue());
+      }
       return tile;
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
       List<VectorTile.Feature> features) {
+      if (features == null || features.isEmpty()) {
+        return;
+      }
       try {
         List<VectorTile.Feature> postProcessed = profile
           .postProcessLayerFeatures(layer, tileCoord.z(), features);
@@ -482,19 +502,23 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         // also remove points more than --max-point-buffer pixels outside the tile if the
         // user has requested a narrower buffer than the profile provides by default
       } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
-        // failures in tile post-processing happen very late so err on the side of caution and
-        // log failures, only throwing when it's a fatal error
-        if (e instanceof GeometryException geoe) {
-          geoe.log(stats, "postprocess_layer",
-            "Caught error postprocessing features for " + layer + " layer on " + tileCoord, config.logJtsExceptions());
-        } else if (e instanceof Error err) {
-          LOGGER.error("Caught fatal error postprocessing features {} {}", layer, tileCoord, e);
-          throw err;
-        } else {
-          LOGGER.error("Caught error postprocessing features {} {}", layer, tileCoord, e);
-        }
+        handlePostProcessFailure(e, layer);
       }
       encoder.addLayerFeatures(layer, features);
+    }
+
+    private void handlePostProcessFailure(Throwable e, String entity) {
+      // failures in tile post-processing happen very late so err on the side of caution and
+      // log failures, only throwing when it's a fatal error
+      if (e instanceof GeometryException geoe) {
+        geoe.log(stats, "postprocess_layer",
+          "Caught error postprocessing features for " + entity + " on " + tileCoord, config.logJtsExceptions());
+      } else if (e instanceof Error err) {
+        LOGGER.error("Caught fatal error postprocessing features {} {}", entity, tileCoord, e);
+        throw err;
+      } else {
+        LOGGER.error("Caught error postprocessing features {} {}", entity, tileCoord, e);
+      }
     }
 
     void add(SortableFeature entry) {

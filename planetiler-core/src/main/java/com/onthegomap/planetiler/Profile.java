@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler;
 
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
@@ -103,11 +104,38 @@ public interface Profile {
    * @return the new list of output features or {@code null} to not change anything. Set any elements of the list to
    *         {@code null} if they should be ignored.
    * @throws GeometryException for any recoverable geometric operation failures - the framework will log the error, emit
-   *                           the original input features, and continue processing other tiles
+   *                           the original input features, and continue processing other layers
    */
   default List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTile.Feature> items) throws GeometryException {
     return items;
+  }
+
+  /**
+   * Apply any post-processing to layers in an output tile before writing it to the output.
+   * <p>
+   * This is called before {@link #postProcessLayerFeatures(String, int, List)} gets called for each layer. Use this
+   * method if features in one layer should influence features in another layer, to create new layers from existing
+   * ones, or if you need to remove a layer entirely from the output.
+   * <p>
+   * These transformations may add, remove, or change the tags, geometry, or ordering of output features based on other
+   * features present in this tile. See {@link FeatureMerge} class for a set of common transformations that merge
+   * linestrings/polygons.
+   * <p>
+   * Many threads invoke this method concurrently so ensure thread-safe access to any shared data structures.
+   * <p>
+   * The default implementation passes through input features unaltered
+   *
+   * @param tileCoord the tile being post-processed
+   * @param layers    all the output features in each layer on this tile
+   * @return the new map from layer to features or {@code null} to not change anything. Set any elements of the lists to
+   *         {@code null} if they should be ignored.
+   * @throws GeometryException for any recoverable geometric operation failures - the framework will log the error, emit
+   *                           the original input features, and continue processing other tiles
+   */
+  default Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+    Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
+    return layers;
   }
 
   /**
@@ -158,7 +186,9 @@ public interface Profile {
     return false;
   }
 
-  default Map<String,String> extraArchiveMetadata() { return Map.of(); }
+  default Map<String, String> extraArchiveMetadata() {
+    return Map.of();
+  }
 
   /**
    * Defines whether {@link Wikidata} should fetch wikidata translations for the input element.

@@ -279,7 +279,7 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = VectorTile.decode(bytes).stream()
-        .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
+        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs())).toList();
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
@@ -466,11 +466,32 @@ public class TestUtils {
 
   public record ComparableFeature(
     GeometryComparision geometry,
+    String layer,
     Map<String, Object> attrs
-  ) {}
+  ) {
+
+    @Override
+    public boolean equals(Object o) {
+      return o == this || (o instanceof ComparableFeature other &&
+        geometry.equals(other.geometry) &&
+        attrs.equals(other.attrs) &&
+        (layer == null || other.layer == null || Objects.equals(layer, other.layer)));
+    }
+
+    @Override
+    public int hashCode() {
+      int result = geometry.hashCode();
+      result = 31 * result + attrs.hashCode();
+      return result;
+    }
+  }
+
+  public static ComparableFeature feature(Geometry geom, String layer, Map<String, Object> attrs) {
+    return new ComparableFeature(new NormGeometry(geom), layer, attrs);
+  }
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
-    return new ComparableFeature(new NormGeometry(geom), attrs);
+    return new ComparableFeature(new NormGeometry(geom), null, attrs);
   }
 
   public static Map<String, Object> toMap(FeatureCollector.Feature feature, int zoom) {
