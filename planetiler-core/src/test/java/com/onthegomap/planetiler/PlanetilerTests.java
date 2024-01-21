@@ -1316,9 +1316,9 @@ class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
-
-  @Test
-  void postProcessTileFeatures() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void postProcessTileFeatures(boolean postProcessLayersToo) throws Exception {
     double y = 0.5 + Z15_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1327,25 +1327,40 @@ class PlanetilerTests {
     double lng2 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 10d / 256);
 
     List<SimpleFeature> features1 = List.of(
-      newReaderFeature(newPoint(lng1, lat), Map.of("layer", "a")),
-      newReaderFeature(newPoint(lng2, lat), Map.of("layer", "b"))
+      newReaderFeature(newPoint(lng1, lat), Map.of("from", "a")),
+      newReaderFeature(newPoint(lng2, lat), Map.of("from", "b"))
     );
+    var testProfile = new Profile.NullProfile() {
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        features.point(sourceFeature.getString("from"))
+          .inheritAttrFromSource("from")
+          .setMinZoom(15);
+      }
+
+      @Override
+      public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+        Map<String, List<VectorTile.Feature>> layers) {
+        List<VectorTile.Feature> features = new ArrayList<>();
+        features.addAll(layers.get("a"));
+        features.addAll(layers.get("b"));
+        return Map.of("c", features);
+      }
+
+      @Override
+      public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
+        return postProcessLayersToo ? items.reversed() : items;
+      }
+    };
     var results = run(
       Map.of("threads", "1", "maxzoom", "15"),
       (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features1),
-      new TestProfile(
-        (in, features) -> features.point(in.getString("layer")).inheritAttrFromSource("layer").setMinZoom(15),
-        null,
-        // merge features from layers a and b into c (and remove a/b)
-        (tile, layers) -> Map.of("c", Stream.concat(
-          layers.get("a").stream(),
-          layers.get("b").stream()
-        ).toList())));
+      testProfile);
 
     assertSubmap(sortListValues(Map.of(
       TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
-        feature(newPoint(64, 128), "c", Map.of("layer", "a")),
-        feature(newPoint(74, 128), "c", Map.of("layer", "b"))
+        feature(newPoint(64, 128), "c", Map.of("from", "a")),
+        feature(newPoint(74, 128), "c", Map.of("from", "b"))
       )
     )), sortListValues(results.tiles));
   }
