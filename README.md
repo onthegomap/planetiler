@@ -162,7 +162,7 @@ consider [contributing](#contributing) your change back for others to use!
 
 Some example runtimes for the OpenMapTiles profile (excluding downloading resources):
 
-| Input                                          | Version | Machine                         | Time                      | output size  | Logs                                                                                                           |
+|                     Input                      | Version |             Machine             |           Time            | output size  |                                                      Logs                                                      |
 |------------------------------------------------|---------|---------------------------------|---------------------------|--------------|----------------------------------------------------------------------------------------------------------------|
 | s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 22m cpu:44h34m  avg:120   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180.txt)                                                         |
 | s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 42m cpu:42m28s avg:52     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb.txt)                                                               |
@@ -172,7 +172,7 @@ Some example runtimes for the OpenMapTiles profile (excluding downloading resour
 
 Merging nearby buildings at z13 is very expensive, when run with `--building-merge-z13=false`:
 
-| Input                                          | Version | Machine                         | Time                     | output size  | Logs                                                                                                                                                       |
+|                     Input                      | Version |             Machine             |           Time           | output size  |                                                                            Logs                                                                            |
 |------------------------------------------------|---------|---------------------------------|--------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 17m cpu:26h54m avg:92    | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180-no-z13-building-merge.txt)                                                                               |
 | s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 29m cpu:23h57 avg:50     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb-no-z13-building-merge.txt)                                                                                     |
