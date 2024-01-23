@@ -1316,6 +1316,55 @@ class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void postProcessTileFeatures(boolean postProcessLayersToo) throws Exception {
+    double y = 0.5 + Z15_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z15_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 10d / 256);
+
+    List<SimpleFeature> features1 = List.of(
+      newReaderFeature(newPoint(lng1, lat), Map.of("from", "a")),
+      newReaderFeature(newPoint(lng2, lat), Map.of("from", "b"))
+    );
+    var testProfile = new Profile.NullProfile() {
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        features.point(sourceFeature.getString("from"))
+          .inheritAttrFromSource("from")
+          .setMinZoom(15);
+      }
+
+      @Override
+      public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+        Map<String, List<VectorTile.Feature>> layers) {
+        List<VectorTile.Feature> features = new ArrayList<>();
+        features.addAll(layers.get("a"));
+        features.addAll(layers.get("b"));
+        return Map.of("c", features);
+      }
+
+      @Override
+      public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
+        return postProcessLayersToo ? items.reversed() : items;
+      }
+    };
+    var results = run(
+      Map.of("threads", "1", "maxzoom", "15"),
+      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features1),
+      testProfile);
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
+        feature(newPoint(64, 128), "c", Map.of("from", "a")),
+        feature(newPoint(74, 128), "c", Map.of("from", "b"))
+      )
+    )), sortListValues(results.tiles));
+  }
+
   @Test
   void testMergeLineStringsIgnoresRoundingIntersections() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
@@ -1681,6 +1730,12 @@ class PlanetilerTests {
       throws GeometryException;
   }
 
+  private interface TilePostprocessFunction {
+
+    Map<String, List<VectorTile.Feature>> process(TileCoord tileCoord, Map<String, List<VectorTile.Feature>> layers)
+      throws GeometryException;
+  }
+
   private record PlanetilerResults(
     Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata, int tileDataCount
   ) {}
@@ -1692,7 +1747,8 @@ class PlanetilerTests {
     @Override String version,
     BiConsumer<SourceFeature, FeatureCollector> processFeature,
     Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
-    LayerPostprocessFunction postprocessLayerFeatures
+    LayerPostprocessFunction postprocessLayerFeatures,
+    TilePostprocessFunction postprocessTileFeatures
   ) implements Profile {
 
     TestProfile(
@@ -1701,8 +1757,16 @@ class PlanetilerTests {
       LayerPostprocessFunction postprocessLayerFeatures
     ) {
       this(TEST_PROFILE_NAME, TEST_PROFILE_DESCRIPTION, TEST_PROFILE_ATTRIBUTION, TEST_PROFILE_VERSION, processFeature,
-        preprocessOsmRelation,
-        postprocessLayerFeatures);
+        preprocessOsmRelation, postprocessLayerFeatures, null);
+    }
+
+    TestProfile(
+      BiConsumer<SourceFeature, FeatureCollector> processFeature,
+      Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
+      TilePostprocessFunction postprocessTileFeatures
+    ) {
+      this(TEST_PROFILE_NAME, TEST_PROFILE_DESCRIPTION, TEST_PROFILE_ATTRIBUTION, TEST_PROFILE_VERSION, processFeature,
+        preprocessOsmRelation, null, postprocessTileFeatures);
     }
 
     static TestProfile processSourceFeatures(BiConsumer<SourceFeature, FeatureCollector> processFeature) {
@@ -1712,7 +1776,7 @@ class PlanetilerTests {
     @Override
     public List<OsmRelationInfo> preprocessOsmRelation(
       OsmElement.Relation relation) {
-      return preprocessOsmRelation.apply(relation);
+      return preprocessOsmRelation == null ? null : preprocessOsmRelation.apply(relation);
     }
 
     @Override
@@ -1726,7 +1790,13 @@ class PlanetilerTests {
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
       List<VectorTile.Feature> items) throws GeometryException {
-      return postprocessLayerFeatures.process(layer, zoom, items);
+      return postprocessLayerFeatures == null ? null : postprocessLayerFeatures.process(layer, zoom, items);
+    }
+
+    @Override
+    public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+      Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
+      return postprocessTileFeatures == null ? null : postprocessTileFeatures.process(tileCoord, layers);
     }
   }
 
