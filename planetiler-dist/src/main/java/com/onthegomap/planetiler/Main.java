@@ -2,9 +2,9 @@ package com.onthegomap.planetiler;
 
 import static java.util.Map.entry;
 
-import com.onthegomap.planetiler.archive.TileCopy;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
+import com.onthegomap.planetiler.copy.TileCopy;
 import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.custommap.validator.SchemaValidator;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;

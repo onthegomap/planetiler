@@ -267,11 +267,11 @@ public record TileArchiveConfig(
   public enum Format {
     MBTILES("mbtiles",
       false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
-      false, TileOrder.TMS),
-    PMTILES("pmtiles", false, false, TileOrder.HILBERT),
+      false, false, TileOrder.TMS),
+    PMTILES("pmtiles", false, false, false, TileOrder.HILBERT),
 
     // should be before PBF in order to avoid collisions
-    FILES("files", true, true, TileOrder.TMS) {
+    FILES("files", true, true, true, TileOrder.TMS) {
       @Override
       boolean isUriSupported(URI uri) {
         final String path = uri.getPath();
@@ -280,25 +280,28 @@ public record TileArchiveConfig(
       }
     },
 
-    CSV("csv", true, true, TileOrder.TMS),
+    CSV("csv", true, true, false, TileOrder.TMS),
     /** identical to {@link Format#CSV} - except for the column separator */
-    TSV("tsv", true, true, TileOrder.TMS),
+    TSV("tsv", true, true, false, TileOrder.TMS),
 
-    PROTO("proto", true, true, TileOrder.TMS),
+    PROTO("proto", true, true, false, TileOrder.TMS),
     /** identical to {@link Format#PROTO} */
-    PBF("pbf", true, true, TileOrder.TMS),
+    PBF("pbf", true, true, false, TileOrder.TMS),
 
-    JSON("json", true, true, TileOrder.TMS);
+    JSON("json", true, true, false, TileOrder.TMS);
 
     private final String id;
     private final boolean supportsAppend;
     private final boolean supportsConcurrentWrites;
+    private final boolean supportsConcurrentReads;
     private final TileOrder order;
 
-    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites, TileOrder order) {
+    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites, boolean supportsConcurrentReads,
+      TileOrder order) {
       this.id = id;
       this.supportsAppend = supportsAppend;
       this.supportsConcurrentWrites = supportsConcurrentWrites;
+      this.supportsConcurrentReads = supportsConcurrentReads;
       this.order = order;
     }
 
@@ -316,6 +319,10 @@ public record TileArchiveConfig(
 
     public boolean supportsConcurrentWrites() {
       return supportsConcurrentWrites;
+    }
+
+    public boolean supportsConcurrentReads() {
+      return supportsConcurrentReads;
     }
 
     boolean isUriSupported(URI uri) {

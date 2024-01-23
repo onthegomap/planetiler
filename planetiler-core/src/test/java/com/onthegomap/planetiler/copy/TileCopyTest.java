@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.archive;
+package com.onthegomap.planetiler.copy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -55,7 +55,7 @@ class TileCopyTest {
       "output", archiveOutPath.toString()
     )).orElse(Arguments.of(arguments));
 
-    new TileCopy(TileCopy.TileCopyConfig.fromArguments(args)).run();
+    new TileCopy(TileCopyConfig.fromArguments(args)).run();
 
     if (archiveDataOut.contains("{")) {
       final List<String> expectedLines = Arrays.stream(archiveDataOut.split("\n")).toList();
@@ -142,28 +142,30 @@ class TileCopyTest {
           "csv to json - use fallback metadata",
           ARCHIVE_0_CSV_COMPRESSION_NONE,
           ARCHIVE_0_JSON_BASE.formatted(
-            "{\"name\":\"unknown\",\"format\":\"pbf\",\"json\":\"{\\\"vector_layers\\\":[]}\",\"compression\":\"none\"}"),
+            "{\"name\":\"unknown\",\"format\":\"pbf\",\"minzoom\":\"0\",\"maxzoom\":\"14\",\"json\":\"{\\\"vector_layers\\\":[]}\",\"compression\":\"none\"}"),
           Map.of("out_tile_compression", "none")
         ),
         argsOf(
           "csv to json - use external metadata",
           ARCHIVE_0_CSV_COMPRESSION_NONE,
-          ARCHIVE_0_JSON_BASE.formatted("{\"name\":\"blub\",\"compression\":\"none\"}"),
+          ARCHIVE_0_JSON_BASE
+            .formatted("{\"name\":\"blub\",\"compression\":\"none\",\"minzoom\":\"0\",\"maxzoom\":\"14\"}"),
           Map.of("out_tile_compression", "none", "in_metadata", "blub")
         ),
         argsOf(
           "csv to json - null handling",
           replaceBase64(ARCHIVE_0_CSV_COMPRESSION_NONE, ""),
-          replaceBase64(ARCHIVE_0_JSON_BASE.formatted("{\"name\":\"blub\",\"compression\":\"gzip\"}"), "null")
+          replaceBase64(ARCHIVE_0_JSON_BASE
+            .formatted("{\"name\":\"blub\",\"compression\":\"gzip\",\"minzoom\":\"0\",\"maxzoom\":\"14\"}"), "null")
             .replace(",\"encodedData\":\"null\"", ""),
-          Map.of("in_metadata", "blub")
+          Map.of("in_metadata", "blub", "skip_empty", "false")
         ),
         argsOf(
           "json to csv - null handling",
           replaceBase64(ARCHIVE_0_JSON_BASE.formatted("null"), "null")
             .replace(",\"encodedData\":\"null\"", ""),
           replaceBase64(ARCHIVE_0_CSV_COMPRESSION_NONE, ""),
-          Map.of()
+          Map.of("skip_empty", "false")
         ),
         argsOf(
           "csv to csv - empty skipping on",
@@ -187,6 +189,52 @@ class TileCopyTest {
             1,2,3,AQ==
             """,
           Map.of("skip_empty", "false", "out_tile_compression", "none")
+        ),
+        argsOf(
+          "tiles in order",
+          """
+            1,2,3,AQ==
+            0,0,0,AA==
+            """,
+          """
+            1,2,3,AQ==
+            0,0,0,AA==
+            """,
+          Map.of("out_tile_compression", "none")
+        ),
+        argsOf(
+          "tiles re-order",
+          """
+            0,0,1,AQ==
+            0,0,0,AA==
+            """,
+          """
+            0,0,0,AA==
+            0,0,1,AQ==
+            """,
+          Map.of("out_tile_compression", "none", "scan_tiles_in_order", "false", "filter_maxzoom", "1")
+        ),
+        argsOf(
+          "filter min zoom",
+          """
+            0,0,0,AA==
+            0,0,1,AQ==
+            """,
+          """
+            0,0,1,AQ==
+            """,
+          Map.of("out_tile_compression", "none", "filter_minzoom", "1")
+        ),
+        argsOf(
+          "filter max zoom",
+          """
+            0,0,1,AQ==
+            0,0,0,AA==
+            """,
+          """
+            0,0,0,AA==
+            """,
+          Map.of("out_tile_compression", "none", "filter_maxzoom", "0")
         )
       );
     }

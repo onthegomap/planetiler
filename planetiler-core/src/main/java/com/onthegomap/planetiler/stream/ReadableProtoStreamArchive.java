@@ -125,7 +125,7 @@ public class ReadableProtoStreamArchive extends ReadableStreamArchive<StreamArch
 
   private TileCompression deserializeTileCompression(StreamArchiveProto.TileCompression s) {
     return switch (s) {
-      case TILE_COMPRESSION_UNSPECIFIED, UNRECOGNIZED -> TileCompression.UNKNWON;
+      case TILE_COMPRESSION_UNSPECIFIED, UNRECOGNIZED -> TileCompression.UNKNOWN;
       case TILE_COMPRESSION_GZIP -> TileCompression.GZIP;
       case TILE_COMPRESSION_NONE -> TileCompression.NONE;
     };

@@ -45,11 +45,17 @@ public class Arguments {
 
   private final UnaryOperator<String> provider;
   private final Supplier<? extends Collection<String>> keys;
+  private final String logKeyPrefix;
   private boolean silent = false;
 
-  private Arguments(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys) {
+  private Arguments(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys, String logKeyPrefix) {
     this.provider = provider;
     this.keys = keys;
+    this.logKeyPrefix = logKeyPrefix;
+  }
+
+  private Arguments(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys) {
+    this(provider, keys, "");
   }
 
   /**
@@ -65,7 +71,7 @@ public class Arguments {
   }
 
   static Arguments fromJvmProperties(UnaryOperator<String> getter, Supplier<? extends Collection<String>> keys) {
-    return fromPrefixed(getter, keys, "planetiler", ".", false);
+    return fromPrefixed(getter, keys, "planetiler", ".", false, "");
   }
 
   /**
@@ -81,7 +87,7 @@ public class Arguments {
   }
 
   static Arguments fromEnvironment(UnaryOperator<String> getter, Supplier<Set<String>> keys) {
-    return fromPrefixed(getter, keys, "PLANETILER", "_", true);
+    return fromPrefixed(getter, keys, "PLANETILER", "_", true, "");
   }
 
   /**
@@ -213,21 +219,22 @@ public class Arguments {
   }
 
   private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
-    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
+    UnaryOperator<String> forward, UnaryOperator<String> reverse, String logKeyPrefix) {
     Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
       String reversed = reverse.apply(key);
       return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
     }).toList();
-    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
+    return new Arguments(key -> provider.apply(forward.apply(key)), keys, logKeyPrefix);
   }
 
   private static Arguments fromPrefixed(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys,
-    String prefix, String separator, boolean uppperCase) {
+    String prefix, String separator, boolean uppperCase, String logKeyPrefix) {
     var prefixRegex = Pattern.compile("^" + Pattern.quote(normalize(prefix + separator, separator, uppperCase)),
       Pattern.CASE_INSENSITIVE);
     return from(provider, keys,
       key -> normalize(prefix + separator + key, separator, uppperCase),
-      key -> normalize(prefixRegex.matcher(key).replaceFirst(""))
+      key -> normalize(prefixRegex.matcher(key).replaceFirst("")),
+      logKeyPrefix
     );
   }
 
@@ -262,7 +269,8 @@ public class Arguments {
       () -> Stream.concat(
         other.keys.get().stream(),
         keys.get().stream()
-      ).distinct().toList()
+      ).distinct().toList(),
+      other.logKeyPrefix
     );
     if (silent) {
       result.silence();
@@ -307,7 +315,7 @@ public class Arguments {
 
   protected void logArgValue(String key, String description, Object result) {
     if (!silent && LOGGER.isDebugEnabled()) {
-      LOGGER.debug("argument: {}={} ({})", key.replaceFirst("\\|.*$", ""), result, description);
+      LOGGER.debug("argument: {}{}={} ({})", logKeyPrefix, key.replaceFirst("\\|.*$", ""), result, description);
     }
   }
 
@@ -532,7 +540,7 @@ public class Arguments {
    * Returns a new arguments instance that translates requests for a {@code "key"} to {@code "prefix_key"}.
    */
   public Arguments withPrefix(String prefix) {
-    return fromPrefixed(provider, keys, prefix, "_", false);
+    return fromPrefixed(provider, keys, prefix, "_", false, logKeyPrefix + prefix + "_");
   }
 
   /** Returns a view of this instance, that only supports requests for {@code allowedKeys}. */
