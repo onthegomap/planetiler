@@ -86,6 +86,17 @@ class FeatureCollectorTest {
   }
 
   @Test
+  void testOmit() {
+    var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of(
+      "key", "val"
+    )));
+    var point = collector.point("layername");
+    assertFeatures(14, List.of(Map.of("_layer", "layername")), collector);
+    point.omit();
+    assertFeatures(14, List.of(), collector);
+  }
+
+  @Test
   void testAttrWithMinzoom() {
     var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of(
       "key", "val"

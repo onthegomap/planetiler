@@ -797,6 +797,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
+    /** Omit this feature from the output */
+    public Feature omit() {
+      output.remove(this);
+      return this;
+    }
+
     @Override
     public String toString() {
       return "Feature{" +

@@ -83,6 +83,7 @@ public class Planetiler {
   private final Path multipolygonPath;
   private final Path featureDbPath;
   private final boolean downloadSources;
+  private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
   private Profile profile = null;
@@ -117,6 +118,8 @@ public class Planetiler {
     tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
+    refreshSources =
+      arguments.getBoolean("refresh_sources", "download new version of source files if they have changed", false);
     fetchOsmTileStats =
       arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", downloadSources);
     nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
@@ -891,11 +894,13 @@ public class Planetiler {
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
+    boolean refresh =
+      arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
-    if (downloadSources) {
+    if (downloadSources || refresh) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
-      if (!Files.exists(path) && url != null) {
+      if ((!Files.exists(path) || refresh) && url != null) {
         toDownload.add(new ToDownload(name, url, path));
       }
     }
