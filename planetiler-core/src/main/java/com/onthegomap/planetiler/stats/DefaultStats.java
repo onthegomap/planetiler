@@ -6,7 +6,7 @@ package com.onthegomap.planetiler.stats;
 public class DefaultStats {
   private DefaultStats() {}
 
-  private static Stats defaultValue = null;
+  private static Stats defaultValue = Stats.inMemory();
 
   public static Stats get() {
     return defaultValue;

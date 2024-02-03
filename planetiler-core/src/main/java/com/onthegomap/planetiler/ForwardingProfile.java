@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler;
 
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
@@ -20,7 +21,8 @@ import java.util.function.Consumer;
  * <li>{@link FeatureProcessor} to handle features from a particular source (added through
  * {@link #registerSourceHandler(String, FeatureProcessor)})</li>
  * <li>{@link FinishHandler} to be notified whenever we finish processing each source</li>
- * <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the output tile</li>
+ * <li>{@link LayerPostProcesser} to post-process features in a layer before rendering the output tile</li>
+ * <li>{@link TilePostProcessor} to post-process features in a tile before rendering the output tile</li>
  * </ul>
  * See {@code OpenMapTilesProfile} for a full implementation using this framework.
  */
@@ -35,8 +37,10 @@ public abstract class ForwardingProfile implements Profile {
   private final List<OsmRelationPreprocessor> osmRelationPreprocessors = new ArrayList<>();
   /** Handlers that get a callback when each source is finished reading. */
   private final List<FinishHandler> finishHandlers = new ArrayList<>();
-  /** Map from layer name to its handler if it implements {@link FeaturePostProcessor}. */
-  private final Map<String, List<FeaturePostProcessor>> postProcessors = new HashMap<>();
+  /** Map from layer name to its handler if it implements {@link LayerPostProcesser}. */
+  private final Map<String, List<LayerPostProcesser>> layerPostProcessors = new HashMap<>();
+  /** List of handlers that implement {@link TilePostProcessor}. */
+  private final List<TilePostProcessor> tilePostProcessors = new ArrayList<>();
   /** Map from source ID to its handler if it implements {@link FeatureProcessor}. */
   private final Map<String, List<FeatureProcessor>> sourceElementProcessors = new HashMap<>();
 
@@ -53,7 +57,7 @@ public abstract class ForwardingProfile implements Profile {
 
   /**
    * Call {@code handler} for different events based on which interfaces {@code handler} implements:
-   * {@link OsmRelationPreprocessor}, {@link FinishHandler}, or {@link FeaturePostProcessor}.
+   * {@link OsmRelationPreprocessor}, {@link FinishHandler}, {@link TilePostProcessor} or {@link LayerPostProcesser}.
    */
   public void registerHandler(Handler handler) {
     this.handlers.add(handler);
@@ -69,9 +73,12 @@ public abstract class ForwardingProfile implements Profile {
     if (handler instanceof FinishHandler finishHandler) {
       finishHandlers.add(finishHandler);
     }
-    if (handler instanceof FeaturePostProcessor postProcessor) {
-      postProcessors.computeIfAbsent(postProcessor.name(), name -> new ArrayList<>())
+    if (handler instanceof LayerPostProcesser postProcessor) {
+      layerPostProcessors.computeIfAbsent(postProcessor.name(), name -> new ArrayList<>())
         .add(postProcessor);
+    }
+    if (handler instanceof TilePostProcessor postProcessor) {
+      tilePostProcessors.add(postProcessor);
     }
   }
 
@@ -129,14 +136,28 @@ public abstract class ForwardingProfile implements Profile {
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items)
     throws GeometryException {
     // delegate feature post-processing to each layer, if it implements FeaturePostProcessor
-    List<FeaturePostProcessor> handlers = postProcessors.get(layer);
+    List<LayerPostProcesser> postProcessers = layerPostProcessors.get(layer);
     List<VectorTile.Feature> result = items;
-    if (handlers != null) {
-      for (FeaturePostProcessor handler : handlers) {
+    if (postProcessers != null) {
+      for (var handler : postProcessers) {
         var thisResult = handler.postProcess(zoom, result);
         if (thisResult != null) {
           result = thisResult;
         }
+      }
+    }
+    return result;
+  }
+
+  @Override
+  public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+    Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
+    var result = layers;
+    for (TilePostProcessor postProcessor : tilePostProcessors) {
+      // TODO catch failures to isolate from other tile postprocessors?
+      var thisResult = postProcessor.postProcessTile(tileCoord, result);
+      if (thisResult != null) {
+        result = thisResult;
       }
     }
     return result;
@@ -217,16 +238,36 @@ public abstract class ForwardingProfile implements Profile {
     List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
   }
 
-  /** Handlers should implement this interface to post-process vector tile features before emitting an output tile. */
-  public interface FeaturePostProcessor extends HandlerForLayer {
+  /** Handlers should implement this interface to post-process vector tile features before emitting an output layer. */
+  public interface LayerPostProcesser extends HandlerForLayer {
 
     /**
-     * Apply any post-processing to features in this output layer of a tile before writing it to the output file.
+     * Apply any post-processing to features in this output layer of a tile before writing it to the output archive.
      *
      * @throws GeometryException if the input elements cannot be deserialized, or output elements cannot be serialized
      * @see Profile#postProcessLayerFeatures(String, int, List)
      */
     List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException;
+  }
+
+  /** @deprecated use {@link LayerPostProcesser} or {@link TilePostProcessor} instead */
+  @Deprecated(forRemoval = true)
+  public interface FeaturePostProcessor extends LayerPostProcesser {}
+
+  /**
+   * Handlers should implement this interface to post-process all features in a vector tile before writing to an
+   * archive.
+   */
+  public interface TilePostProcessor extends Handler {
+
+    /**
+     * Apply any post-processing to features in layers in this output tile before writing it to the output archive.
+     *
+     * @throws GeometryException if the input elements cannot be deserialized, or output elements cannot be serialized
+     * @see Profile#postProcessTileFeatures(TileCoord, Map)
+     */
+    Map<String, List<VectorTile.Feature>> postProcessTile(TileCoord tileCoord,
+      Map<String, List<VectorTile.Feature>> layers) throws GeometryException;
   }
 
   /** Handlers should implement this interface to process input features from a given source ID. */
