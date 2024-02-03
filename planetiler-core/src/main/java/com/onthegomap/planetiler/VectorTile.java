@@ -43,6 +43,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -987,6 +988,20 @@ public class VectorTile {
       return Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
     }
 
+
+    /**
+     * Returns the coordinate of the first point in this geometry in tile pixel coordinates from (0,0) at the top left
+     * to (256,256) at the bottom right.
+     */
+    public CoordinateXY firstCoordinate() {
+      if (commands.length < 3) {
+        return null;
+      }
+      double factor = 1 << scale;
+      double x = zigZagDecode(commands[1]) * SIZE / EXTENT / factor;
+      double y = zigZagDecode(commands[2]) * SIZE / EXTENT / factor;
+      return new CoordinateXY(x, y);
+    }
   }
 
   /**

@@ -633,6 +633,65 @@ class VectorTileTest {
       }));
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "0,0",
+    "1,1",
+    "-10,-1",
+    "300.25,200.75",
+  })
+  void firstCoordinateOfPoint(double x, double y) {
+    for (int scale = 0; scale < 10; scale++) {
+      assertEquals(new CoordinateXY(x, y), VectorTile.encodeGeometry(newPoint(x, y), scale).firstCoordinate(),
+        "scale=" + scale);
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0",
+    "1,1",
+    "-10,-1",
+    "300.25,200.75",
+  })
+  void firstCoordinateOfMultiPoint(double x, double y) {
+    for (int scale = 0; scale < 10; scale++) {
+      assertEquals(new CoordinateXY(x, y),
+        VectorTile.encodeGeometry(newMultiPoint(newPoint(x, y), newPoint(0, 0)), scale).firstCoordinate(),
+        "scale=" + scale);
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0",
+    "1,1",
+    "-10,-1",
+    "300.25,200.75",
+  })
+  void firstCoordinateOfLine(double x, double y) {
+    for (int scale = 0; scale < 10; scale++) {
+      assertEquals(new CoordinateXY(x, y),
+        VectorTile.encodeGeometry(newLineString(x, y, x + 1, y + 1), scale).firstCoordinate(),
+        "scale=" + scale);
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0",
+    "1,1",
+    "-10,-1",
+    "300.25,200.75",
+  })
+  void firstCoordinateOfPolygon(double x, double y) {
+    for (int scale = 0; scale < 10; scale++) {
+      assertEquals(new CoordinateXY(x, y),
+        VectorTile.encodeGeometry(newPolygon(x, y, x + 1, y, x + 1, y + 1, x, y + 1, x, y), scale).firstCoordinate(),
+        "scale=" + scale);
+    }
+  }
+
   private static void assertArrayEquals(int[] a, int[] b) {
     assertEquals(
       IntStream.of(a).boxed().toList(),
