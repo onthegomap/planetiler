@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -130,7 +132,7 @@ class ForwardingProfileTests {
   }
 
   @Test
-  void testFeaturePostProcessor() throws GeometryException {
+  void testLayerPostProcesser() throws GeometryException {
     VectorTile.Feature feature = new VectorTile.Feature(
       "layer",
       1,
@@ -140,7 +142,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("layer", 0, List.of(feature)));
 
     // ignore null response
-    profile.registerHandler(new ForwardingProfile.FeaturePostProcessor() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return null;
@@ -154,7 +156,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
 
     // empty list removes
-    profile.registerHandler(new ForwardingProfile.FeaturePostProcessor() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return List.of();
@@ -170,7 +172,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("b", 0, List.of(feature)));
 
     // 2 handlers for same layer run one after another
-    var skip1 = new ForwardingProfile.FeaturePostProcessor() {
+    var skip1 = new ForwardingProfile.LayerPostProcesser() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return items.stream().skip(1).toList();
@@ -183,7 +185,7 @@ class ForwardingProfileTests {
     };
     profile.registerHandler(skip1);
     profile.registerHandler(skip1);
-    profile.registerHandler(new ForwardingProfile.FeaturePostProcessor() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return null; // ensure that returning null after initial post-processors run keeps the postprocessed result
@@ -198,5 +200,64 @@ class ForwardingProfileTests {
       profile.postProcessLayerFeatures("b", 0, List.of(feature, feature, feature, feature)));
     assertEquals(List.of(feature, feature, feature, feature),
       profile.postProcessLayerFeatures("c", 0, List.of(feature, feature, feature, feature)));
+  }
+
+  @Test
+  void testTilePostProcesser() throws GeometryException {
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "layer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(Map.of("layer", List.of(feature)), profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of(
+      "layer", List.of(feature)
+    )));
+
+    // ignore null response
+    profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> null);
+    assertEquals(Map.of("a", List.of(feature)),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
+
+    // empty map removes
+    profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> Map.of());
+    assertEquals(Map.of(),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
+    // also touches elements in another layer
+    assertEquals(Map.of(),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("b", List.of(feature))));
+  }
+
+  @Test
+  void testStackedTilePostProcessors() throws GeometryException {
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "layer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    var skip1 = new ForwardingProfile.TilePostProcessor() {
+      @Override
+      public Map<String, List<VectorTile.Feature>> postProcessTile(TileCoord tileCoord,
+        Map<String, List<VectorTile.Feature>> layers) {
+        Map<String, List<VectorTile.Feature>> result = new HashMap<>();
+        for (var key : layers.keySet()) {
+          result.put(key, layers.get(key).stream().skip(1).toList());
+        }
+        return result;
+      }
+    };
+    profile.registerHandler(skip1);
+    profile.registerHandler(skip1);
+    profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> {
+      // ensure that returning null after initial post-processors run keeps the postprocessed result
+      return null;
+    });
+    assertEquals(Map.of("b", List.of(feature, feature)),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0),
+        Map.of("b", List.of(feature, feature, feature, feature))));
+    assertEquals(Map.of("c", List.of(feature, feature)),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0),
+        Map.of("c", List.of(feature, feature, feature, feature))));
   }
 }
