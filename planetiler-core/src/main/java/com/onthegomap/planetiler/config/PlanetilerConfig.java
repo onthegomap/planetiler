@@ -167,7 +167,7 @@ public record PlanetilerConfig(
         "Planetiler downloader (https://github.com/onthegomap/planetiler)"),
       arguments.getDuration("http_timeout", "Timeout to use when downloading files over HTTP", "30s"),
       arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 1),
-      arguments.getDuration("http_retry_wait", "How long (in milliseconds) to wait before retrying HTTP request", "5s"),
+      arguments.getDuration("http_retry_wait", "How long to wait before retrying HTTP request", "5s"),
       arguments.getLong("download_chunk_size_mb", "Size of file chunks to download in parallel in megabytes", 100),
       arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
       Parse.bandwidth(arguments.getString("download_max_bandwidth",
