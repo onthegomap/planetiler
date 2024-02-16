@@ -317,6 +317,14 @@ public class Wikidata {
           LOGGER.error("sparql query failed, exhausted retries: " + e);
           throw e;
         }
+        if (e.getMessage() != null && e.getMessage().contains("GOAWAY")) {
+          try {
+            LOGGER.debug("GOAWAY received, waiting {} ms to give server some room", config.httpRetryWait());
+            Thread.sleep(config.httpRetryWait());
+          } catch (InterruptedException e2) {
+            Thread.currentThread().interrupt();
+          }
+        }
       }
     }
 
