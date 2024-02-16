@@ -300,10 +300,15 @@ public class Wikidata {
       .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
       .build();
 
-    InputStream response = null;
-    for (int i = 0; i <= config.httpRetries() && response == null; i++) {
+    LongObjectMap<Map<String, String>> result = null;
+    for (int i = 0; i <= config.httpRetries() && result == null; i++) {
       try {
-        response = client.send(request);
+        var response = client.send(request);
+        if (response != null) {
+          try (var bis = new BufferedInputStream(response)) {
+            result = parseResults(bis);
+          }
+        }
       } catch (IOException e) {
         boolean lastTry = i == config.httpRetries();
         if (!lastTry) {
@@ -312,13 +317,12 @@ public class Wikidata {
           LOGGER.error("sparql query failed, exhausted retries: " + e);
           throw e;
         }
+        Thread.sleep(config.httpRetryWait());
       }
     }
 
-    if (response != null) {
-      try (var bis = new BufferedInputStream(response)) {
-        return parseResults(bis);
-      }
+    if (result != null) {
+      return result;
     } else {
       throw new IllegalStateException("No response or exception"); // should never happen
     }
