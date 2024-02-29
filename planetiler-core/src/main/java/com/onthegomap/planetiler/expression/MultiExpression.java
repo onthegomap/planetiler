@@ -148,6 +148,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
     return new MultiExpression<>(
       expressions.stream()
         .map(entry -> entry(fn.apply(entry.result), entry.expression))
+        .filter(entry -> entry.result != null)
         .toList()
     );
   }
