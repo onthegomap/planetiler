@@ -268,7 +268,7 @@ public class FileUtils {
    * @throws UncheckedIOException if an IO exception occurs
    */
   public static void safeCopy(InputStream inputStream, Path destPath) {
-    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, WRITE)) {
       int totalSize = 0;
 
       int nBytes;
