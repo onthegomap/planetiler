@@ -86,7 +86,7 @@
   <modules>
     <module>planetiler-core</module>
     <!-- TODO replace with planetiler-openmaptiles/submodule.pom.xml when this is fixed: https://github.com/dependabot/dependabot-core/issues/9193 -->
-    <module>submodule.pom.xml</module>
+    <module>planetiler-openmaptiles.pom.xml</module>
     <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
