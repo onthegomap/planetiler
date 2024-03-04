@@ -284,10 +284,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       if (source instanceof OsmSourceFeature osmSourceFeature) {
         long osmId = osmSourceFeature.originalElement().id();
         this.id = switch (osmSourceFeature.originalElement()) {
-          case OsmElement.Node node -> node.id() * 10 + 1;
-          case OsmElement.Way way -> way.id() * 10 + 2;
-          case OsmElement.Relation relation -> relation.id() * 10 + 3;
-          default -> osmId * 10;
+          case OsmElement.Node node -> node.id() * 3;
+          case OsmElement.Way way -> way.id() * 3 + 1;
+          case OsmElement.Relation relation -> relation.id() * 3 + 2;
+          default -> osmId;
         };
       } else {
         this.id = source.id();
