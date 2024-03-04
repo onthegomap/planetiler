@@ -3,36 +3,36 @@
 
 version: 2
 updates:
-  - package-ecosystem: maven
-    directory: "/"
-    open-pull-requests-limit: 1
-    schedule:
-      interval: daily
-      time: "04:30"
-      timezone: America/New_York
-    labels:
-      - dependencies
-    ignore:
-      - dependency-name: "com.google.protobuf:protobuf-java"
-        versions: [ "3.23.3" ]
-  - package-ecosystem: maven
-    # workaround for non-standard pom.xml filename (https://github.com/dependabot/dependabot-core/issues/4425)
-    directory: "/.github/planetiler-examples-dependabot"
-    open-pull-requests-limit: 1
-    schedule:
-      interval: daily
-      time: "04:30"
-      timezone: America/New_York
-    labels:
-      - dependencies
-    ignore:
-      - dependency-name: "com.onthegomap.planetiler:*"
-  - package-ecosystem: github-actions
-    directory: "/"
-    open-pull-requests-limit: 1
-    schedule:
-      interval: daily
-      time: "04:30"
-      timezone: America/New_York
-    labels:
-      - dependencies
+- package-ecosystem: maven
+  directory: "/"
+  open-pull-requests-limit: 1
+  schedule:
+    interval: daily
+    time: "04:25"
+    timezone: America/New_York
+  labels:
+  - dependencies
+  ignore:
+  - dependency-name: "com.google.protobuf:protobuf-java"
+    versions: [ "3.23.3" ]
+- package-ecosystem: maven
+  # workaround for non-standard pom.xml filename (https://github.com/dependabot/dependabot-core/issues/4425)
+  directory: "/.github/planetiler-examples-dependabot"
+  open-pull-requests-limit: 1
+  schedule:
+    interval: daily
+    time: "04:30"
+    timezone: America/New_York
+  labels:
+  - dependencies
+  ignore:
+  - dependency-name: "com.onthegomap.planetiler:*"
+- package-ecosystem: github-actions
+  directory: "/"
+  open-pull-requests-limit: 1
+  schedule:
+    interval: daily
+    time: "04:30"
+    timezone: America/New_York
+  labels:
+  - dependencies
