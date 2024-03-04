@@ -653,4 +653,28 @@ class FeatureCollectorTest {
       )
     ), collector);
   }
+
+  @Test
+  void testOsmFeat() throws GeometryException {
+    var pointSourceFeature = newReaderFeature(newPoint(0, 0), Map.of());
+    assertEquals(0, pointSourceFeature.area());
+    assertEquals(0, pointSourceFeature.length());
+
+    var fc = factory.get(pointSourceFeature);
+    fc.line("layer").setZoomRange(0, 10);
+    fc.polygon("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to line/polygon");
+    fc.point("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+    for (int i = 0; i < 3; i++) {
+      assertTrue(iter.hasNext(), "item " + i);
+      var item = iter.next();
+      assertEquals(GeometryType.POINT, item.getGeometryType());
+      assertEquals(newPoint(0.5, 0.5), item.getGeometry());
+    }
+
+    assertFalse(iter.hasNext());
+  }
 }

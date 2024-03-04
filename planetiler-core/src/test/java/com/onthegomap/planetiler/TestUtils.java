@@ -279,7 +279,9 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = VectorTile.decode(bytes).stream()
-        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs())).toList();
+        .map(
+          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs()).withId(feature.id()))
+        .toList();
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
@@ -467,12 +469,21 @@ public class TestUtils {
   public record ComparableFeature(
     GeometryComparision geometry,
     String layer,
-    Map<String, Object> attrs
+    Map<String, Object> attrs,
+    Long id
   ) {
+    ComparableFeature(
+      GeometryComparision geometry,
+      String layer,
+      Map<String, Object> attrs
+    ) {
+      this(geometry, layer, attrs, null);
+    }
 
     @Override
     public boolean equals(Object o) {
       return o == this || (o instanceof ComparableFeature other &&
+        (id == null || other.id == null || id.equals(other.id)) &&
         geometry.equals(other.geometry) &&
         attrs.equals(other.attrs) &&
         (layer == null || other.layer == null || Objects.equals(layer, other.layer)));
@@ -483,6 +494,10 @@ public class TestUtils {
       int result = geometry.hashCode();
       result = 31 * result + attrs.hashCode();
       return result;
+    }
+
+    ComparableFeature withId(long id) {
+      return new ComparableFeature(geometry, layer, attrs, id);
     }
   }
 
