@@ -466,8 +466,9 @@ value: "${ 8 * 24 - 2 }"
 
 #### Inline Script Contexts
 
-Scripts are parsed and evaluated inside a "context" that defines the variables available to that script. Contexts are
-nested, so each child context can also access the variables from its parent.
+Scripts are parsed and evaluated inside a "context" that defines the variables available to that script.
+
+**_Notice_**: Contexts are nested, so each child context can also access the variables from its parent.
 
 ##### 1. Root Context
 
@@ -477,7 +478,8 @@ Available variables:
 ##### 2. Process Feature Context
 
 Context available when processing an input feature, for example testing whether to include it from `include_when`.
-Available variables:
+
+Additional variables, on top of the root context:
 - `feature.tags` - map with key/value tags from the input feature
 - `feature.id` - numeric ID of the input feature
 - `feature.source` - string source ID this feature came from
@@ -490,14 +492,18 @@ Available variables:
 
 ##### 3. Post-Match Context
 
-Context available after a feature has matched, for example computing an attribute value. Adds variables:
+Context available after a feature has matched, for example computing an attribute value.
+
+Additional variables, on top of the process feature context:
 - `match_key` - string tag that triggered a match to include the feature in this layer
 - `match_value` - the tag value associated with that key
 
 ##### 4. Configure Attribute Context
 
 Context available after the value of an attribute has been computed, for example: set min zoom to render an
-attribute. Adds variables:
+attribute.
+
+Additional variable, on top of the post-match context:
 - `value` the value that was computed for this key
 
 For example:
