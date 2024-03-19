@@ -470,10 +470,12 @@ Scripts are parsed and evaluated inside a "context" that defines the variables a
 nested, so each child context can also access the variables from its parent.
 
 ##### 1. Root Context
+
 Available variables:
 - `args` - a map from [argument](#arguments) name to value, see also [built-in arguments](#built-in-arguments) that are always available.
 
 ##### 2. Process Feature Context
+
 Context available when processing an input feature, for example testing whether to include it from `include_when`.
 Available variables:
 - `feature.tags` - map with key/value tags from the input feature
@@ -487,11 +489,13 @@ Available variables:
 - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
 
 ##### 3. Post-Match Context
+
 Context available after a feature has matched, for example computing an attribute value. Adds variables:
 - `match_key` - string tag that triggered a match to include the feature in this layer
 - `match_value` - the tag value associated with that key
 
 ##### 4. Configure Attribute Context
+
 Context available after the value of an attribute has been computed, for example: set min zoom to render an
 attribute. Adds variables:
 - `value` the value that was computed for this key
