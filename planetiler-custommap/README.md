@@ -132,7 +132,7 @@ to `france.osm.pbf`. Planetiler searches for argument values in this order:
 3. Environmental variables with "PLANETILER_" prefix: `PLANETILER_AREA=france java ...`
 4. Default value from the config
 
-Argument values are available from the [`args` variable](#root-context) in
+Argument values are available from the [`args` variable](#1-root-context) in
 an [inline script expression](#inline-script-expression) or the [`arg_value` expression](#argument-value-expression).
 
 ### Built-in arguments
@@ -601,7 +601,7 @@ include_when:
 
 When a feature matches a boolean expression in the `include_when` field, the first key that triggered the match is
 available to other expressions as `match_key` and its value is available as `match_value`
-(See [Post-Match Context](#post-match-context)):
+(See [Post-Match Context](#3-post-match-context)):
 
 ```yaml
 include_when:
