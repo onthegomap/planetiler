@@ -57,8 +57,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     this.bytesWritten = bytesWritten;
   }
 
-  private static Directories makeDirectoriesWithLeaves(List<Pmtiles.Entry> subEntries, int leafSize, int attemptNum)
-    throws IOException {
+  private static Directories makeDirectoriesWithLeaves(List<Pmtiles.Entry> subEntries, int leafSize, int attemptNum) {
     LOGGER.info("Building directories with {} entries per leaf, attempt {}...", leafSize, attemptNum);
     ArrayList<Pmtiles.Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
@@ -91,9 +90,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    *
    * @param entries a sorted ObjectArrayList of all entries in the tileset.
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
-   * @throws IOException if compression fails
    */
-  static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
+  static Directories makeDirectories(List<Pmtiles.Entry> entries) {
     int maxEntriesRootOnly = 16384;
     int attemptNum = 1;
     if (entries.size() < maxEntriesRootOnly) {
@@ -302,6 +300,9 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       long offset;
       OptionalLong tileDataHashOpt = encodingResult.tileDataHash();
       var data = encodingResult.tileData();
+      if (data == null) {
+        return;
+      }
       TileCoord coord = encodingResult.coord();
 
       long tileId = coord.hilbertEncoded();

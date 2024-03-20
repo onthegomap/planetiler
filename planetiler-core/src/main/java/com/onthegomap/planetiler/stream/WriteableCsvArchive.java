@@ -11,11 +11,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Base64;
-import java.util.HexFormat;
-import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 /**
  * Writes tile data into a CSV file (or pipe).
@@ -67,31 +63,16 @@ import java.util.stream.Stream;
  */
 public final class WriteableCsvArchive extends WriteableStreamArchive {
 
-  static final String OPTION_COLUMN_SEPARATOR = "column_separator";
-  static final String OPTION_LINE_SEPARTATOR = "line_separator";
-  static final String OPTION_BINARY_ENCODING = "binary_encoding";
-
   private final String columnSeparator;
   private final String lineSeparator;
   private final Function<byte[], String> tileDataEncoder;
 
   private WriteableCsvArchive(TileArchiveConfig.Format format, Path p, StreamArchiveConfig config) {
     super(p, config);
-    final String defaultColumnSeparator = switch (format) {
-      case CSV -> "','";
-      case TSV -> "'\\t'";
-      default -> throw new IllegalArgumentException("supported formats are csv and tsv but got " + format.id());
-    };
-    this.columnSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
-      OPTION_COLUMN_SEPARATOR, "column separator", defaultColumnSeparator, List.of(",", " "));
-    this.lineSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
-      OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
-    final BinaryEncoding binaryEncoding = BinaryEncoding.fromId(config.moreOptions().getString(OPTION_BINARY_ENCODING,
-      "binary (tile) data encoding - one of " + BinaryEncoding.ids(), "base64"));
-    this.tileDataEncoder = switch (binaryEncoding) {
-      case BASE64 -> Base64.getEncoder()::encodeToString;
-      case HEX -> HexFormat.of()::formatHex;
-    };
+    this.columnSeparator = StreamArchiveUtils.csvOptionColumnSeparator(config.formatOptions(), format);
+    this.lineSeparator = StreamArchiveUtils.csvOptionLineSeparator(config.formatOptions(), format);
+    final CsvBinaryEncoding binaryEncoding = StreamArchiveUtils.csvOptionBinaryEncoding(config.formatOptions());
+    this.tileDataEncoder = binaryEncoding::encode;
   }
 
   public static WriteableCsvArchive newWriteToFile(TileArchiveConfig.Format format, Path path,
@@ -131,7 +112,8 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
     @Override
     public void write(TileEncodingResult encodingResult) {
       final TileCoord coord = encodingResult.coord();
-      final String tileDataEncoded = tileDataEncoder.apply(encodingResult.tileData());
+      final byte[] data = encodingResult.tileData();
+      final String tileDataEncoded = data == null ? "" : tileDataEncoder.apply(encodingResult.tileData());
       try {
         // x | y | z | encoded data
         writer.write("%d%s%d%s%d%s%s%s".formatted(coord.x(), columnSeparator, coord.y(), columnSeparator, coord.z(),
@@ -148,34 +130,6 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
-    }
-  }
-
-  private enum BinaryEncoding {
-
-    BASE64("base64"),
-    HEX("hex");
-
-    private final String id;
-
-    private BinaryEncoding(String id) {
-      this.id = id;
-    }
-
-    static List<String> ids() {
-      return Stream.of(BinaryEncoding.values()).map(BinaryEncoding::id).toList();
-    }
-
-    static BinaryEncoding fromId(String id) {
-      return Stream.of(BinaryEncoding.values())
-        .filter(de -> de.id().equals(id))
-        .findFirst()
-        .orElseThrow(() -> new IllegalArgumentException(
-          "unexpected binary encoding - expected one of " + ids() + " but got " + id));
-    }
-
-    String id() {
-      return id;
     }
   }
 }

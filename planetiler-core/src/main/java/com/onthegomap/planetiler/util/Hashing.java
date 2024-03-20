@@ -61,6 +61,9 @@ public final class Hashing {
    */
   public static long fnv1a64(long initHash, byte... data) {
     long hash = initHash;
+    if (data == null) {
+      return hash;
+    }
     for (byte datum : data) {
       hash ^= (datum & 0xff);
       hash *= FNV1_PRIME_64;

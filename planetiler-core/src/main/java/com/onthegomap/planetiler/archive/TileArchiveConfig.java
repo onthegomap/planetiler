@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -158,14 +159,13 @@ public record TileArchiveConfig(
   /**
    * Returns the local <b>base</b> path for this archive, for which directories should be pre-created for.
    */
-  public Path getLocalBasePath() {
+  Path getLocalBasePath() {
     Path p = getLocalPath();
     if (format() == Format.FILES) {
       p = FilesArchiveUtils.cleanBasePath(p);
     }
     return p;
   }
-
 
   /**
    * Deletes the archive if possible.
@@ -187,7 +187,7 @@ public record TileArchiveConfig(
    * @param p path to the archive
    * @return {@code true} if the archive already exists, {@code false} otherwise.
    */
-  public boolean exists(Path p) {
+  private boolean exists(Path p) {
     if (p == null) {
       return false;
     }
@@ -229,14 +229,49 @@ public record TileArchiveConfig(
     };
   }
 
+  public void setup(boolean force, boolean append, int tileWriteThreads) {
+    if (append) {
+      if (!format().supportsAppend()) {
+        throw new IllegalArgumentException("cannot append to " + format().id());
+      }
+      if (!exists()) {
+        throw new IllegalArgumentException(uri() + " must exist when appending");
+      }
+    } else if (force) {
+      delete();
+    } else if (exists()) {
+      throw new IllegalArgumentException(uri() + " already exists, use the --force argument to overwrite or --append.");
+    }
+
+    if (tileWriteThreads > 1) {
+      if (!format().supportsConcurrentWrites()) {
+        throw new IllegalArgumentException(format() + " doesn't support concurrent writes");
+      }
+      IntStream.range(1, tileWriteThreads)
+        .mapToObj(this::getPathForMultiThreadedWriter)
+        .forEach(p -> {
+          if (!append && force) {
+            FileUtils.delete(p);
+          }
+          if (append && !exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
+          } else if (!append && exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
+          }
+        });
+    }
+
+    FileUtils.createParentDirectories(getLocalBasePath());
+  }
+
   public enum Format {
     MBTILES("mbtiles",
       false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
-      false, TileOrder.TMS),
-    PMTILES("pmtiles", false, false, TileOrder.HILBERT),
+      false, false, TileOrder.TMS),
+    PMTILES("pmtiles", false, false, false, TileOrder.HILBERT),
 
     // should be before PBF in order to avoid collisions
-    FILES("files", true, true, TileOrder.TMS) {
+    FILES("files", true, true, true, TileOrder.TMS) {
       @Override
       boolean isUriSupported(URI uri) {
         final String path = uri.getPath();
@@ -245,25 +280,28 @@ public record TileArchiveConfig(
       }
     },
 
-    CSV("csv", true, true, TileOrder.TMS),
+    CSV("csv", true, true, false, TileOrder.TMS),
     /** identical to {@link Format#CSV} - except for the column separator */
-    TSV("tsv", true, true, TileOrder.TMS),
+    TSV("tsv", true, true, false, TileOrder.TMS),
 
-    PROTO("proto", true, true, TileOrder.TMS),
+    PROTO("proto", true, true, false, TileOrder.TMS),
     /** identical to {@link Format#PROTO} */
-    PBF("pbf", true, true, TileOrder.TMS),
+    PBF("pbf", true, true, false, TileOrder.TMS),
 
-    JSON("json", true, true, TileOrder.TMS);
+    JSON("json", true, true, false, TileOrder.TMS);
 
     private final String id;
     private final boolean supportsAppend;
     private final boolean supportsConcurrentWrites;
+    private final boolean supportsConcurrentReads;
     private final TileOrder order;
 
-    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites, TileOrder order) {
+    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites, boolean supportsConcurrentReads,
+      TileOrder order) {
       this.id = id;
       this.supportsAppend = supportsAppend;
       this.supportsConcurrentWrites = supportsConcurrentWrites;
+      this.supportsConcurrentReads = supportsConcurrentReads;
       this.order = order;
     }
 
@@ -281,6 +319,10 @@ public record TileArchiveConfig(
 
     public boolean supportsConcurrentWrites() {
       return supportsConcurrentWrites;
+    }
+
+    public boolean supportsConcurrentReads() {
+      return supportsConcurrentReads;
     }
 
     boolean isUriSupported(URI uri) {

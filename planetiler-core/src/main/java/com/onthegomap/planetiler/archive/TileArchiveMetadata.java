@@ -170,6 +170,11 @@ public record TileArchiveMetadata(
       maxzoom, json, others, tileCompression);
   }
 
+  public TileArchiveMetadata withTileCompression(TileCompression tileCompression) {
+    return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, minzoom,
+      maxzoom, json, others, tileCompression);
+  }
+
   /*
    * few workarounds to make collect unknown fields to others work,
    * because @JsonAnySetter does not yet work on constructor/creator arguments

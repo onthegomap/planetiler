@@ -2,8 +2,10 @@ package com.onthegomap.planetiler.util;
 
 import java.io.Closeable;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Spliterators;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -56,4 +58,42 @@ public interface CloseableIterator<T> extends Closeable, Iterator<T> {
       }
     };
   }
+
+  default CloseableIterator<T> filter(Predicate<T> predicate) {
+    final var parent = this;
+    return new CloseableIterator<>() {
+      private T nextValue;
+
+      @Override
+      public void close() {
+        parent.close();
+      }
+
+      @Override
+      public boolean hasNext() {
+        if (nextValue != null) {
+          return true;
+        }
+        while (parent.hasNext()) {
+          final T parentNext = parent.next();
+          if (predicate.test(parentNext)) {
+            nextValue = parentNext;
+            break;
+          }
+        }
+        return nextValue != null;
+      }
+
+      @Override
+      public T next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        final T returnValue = nextValue;
+        nextValue = null;
+        return returnValue;
+      }
+    };
+  }
+
 }

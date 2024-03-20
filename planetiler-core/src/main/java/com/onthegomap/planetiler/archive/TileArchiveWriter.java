@@ -261,7 +261,7 @@ public class TileArchiveWriter {
      * To optimize emitting many identical consecutive tiles (like large ocean areas), memoize output to avoid
      * recomputing if the input hasn't changed.
      */
-    byte[] lastBytes = null, lastEncoded = null;
+    byte[] lastBytes = null;
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
     List<TileSizeStats.LayerStats> lastLayerStats = null;
@@ -276,24 +276,22 @@ public class TileArchiveWriter {
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
-        byte[] bytes, encoded;
+        byte[] bytes;
         List<TileSizeStats.LayerStats> layerStats;
         Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
-          encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
           layerStats = lastLayerStats;
           memoizedTiles.inc();
         } else {
           VectorTile tile = tileFeatures.getVectorTile(layerAttrStatsUpdater);
           if (skipFilled && (lastIsFill = tile.containsOnlyFills())) {
-            encoded = null;
             layerStats = null;
             bytes = null;
           } else {
             var proto = tile.toProto();
-            encoded = proto.toByteArray();
+            var encoded = proto.toByteArray();
             bytes = switch (config.tileCompression()) {
               case GZIP -> gzip(encoded);
               case NONE -> encoded;
@@ -307,7 +305,6 @@ public class TileArchiveWriter {
             }
           }
           lastLayerStats = layerStats;
-          lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
           if (archive.deduplicates() && tile.likelyToBeDuplicated() && bytes != null) {
@@ -326,7 +323,6 @@ public class TileArchiveWriter {
             new TileEncodingResult(
               tileFeatures.tileCoord(),
               bytes,
-              encoded.length,
               tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
               layerStatsRows
             )

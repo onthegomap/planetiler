@@ -21,7 +21,7 @@ message InitializationEntry {
 }
 
 message FinishEntry {
-  Metadata metadata = 1;
+  optional Metadata metadata = 1;
 }
 
 message Metadata {
@@ -32,10 +32,10 @@ message Metadata {
   string version = 4;
   string type = 5;
   string format = 6;
-  Envelope bounds = 7;
-  Coordinate center = 8;
-  int32 min_zoom = 9;
-  int32 max_zoom = 10;
+  optional Envelope bounds = 7;
+  optional Coordinate center = 8;
+  optional int32 min_zoom = 9;
+  optional int32 max_zoom = 10;
   repeated VectorLayer vector_layers = 11;
   map<string, string> others = 12;
   TileCompression tile_compression = 13;
@@ -51,15 +51,15 @@ message Envelope {
 message Coordinate {
   double x = 1;
   double y = 2;
-  double z = 3;
+  optional double z = 3;
 }
 
 message VectorLayer {
   string id = 1;
   map<string, FieldType> fields = 2;
   string description = 3;
-  int32 min_zoom = 4;
-  int32 max_zoom = 5;
+  optional int32 min_zoom = 4;
+  optional int32 max_zoom = 5;
 
   enum FieldType {
     FIELD_TYPE_UNSPECIFIED = 0;
