@@ -6,6 +6,8 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
@@ -59,7 +61,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * @return a feature that can be configured further.
    */
   public Feature geometry(String layer, Geometry geometry) {
-    Feature feature = new Feature(layer, geometry, source.id());
+    Feature feature = new Feature(layer, geometry, source);
     output.add(feature);
     return feature;
   }
@@ -81,7 +83,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
       e.log(stats, "feature_point", "Error getting point geometry for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -101,7 +103,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
       e.log(stats, "feature_line", "Error constructing line for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -121,7 +123,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
       e.log(stats, "feature_polygon", "Error constructing polygon for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -136,7 +138,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -153,7 +155,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -169,7 +171,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
       e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -191,7 +193,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.innermostPoint(tolerance));
     } catch (GeometryException e) {
       e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return new Feature(layer, EMPTY_GEOM, source);
     }
   }
 
@@ -275,11 +277,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     private String numPointsAttr = null;
 
-    private Feature(String layer, Geometry geom, long id) {
+    private Feature(String layer, Geometry geom, SourceFeature source) {
       this.layer = layer;
       this.geom = geom;
       this.geometryType = GeometryType.typeOf(geom);
-      this.id = id;
+      if (source instanceof OsmSourceFeature osmSourceFeature) {
+        long osmId = osmSourceFeature.originalElement().id();
+        this.id = switch (osmSourceFeature.originalElement()) {
+          case OsmElement.Node node -> node.id() * 10 + 1;
+          case OsmElement.Way way -> way.id() * 10 + 2;
+          case OsmElement.Relation relation -> relation.id() * 10 + 3;
+          default -> osmId * 10;
+        };
+      } else {
+        this.id = source.id();
+      }
       if (geometryType == GeometryType.POINT) {
         minPixelSizeAtMaxZoom = 0;
         defaultMinPixelSize = 0;
