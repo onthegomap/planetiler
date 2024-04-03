@@ -266,6 +266,7 @@ public class TileArchiveWriter {
     boolean lastIsFill = false;
     List<TileSizeStats.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
+    var layerStatsSerializer = TileSizeStats.newThreadLocalSerializer();
 
     var tileStatsUpdater = tileStats.threadLocalUpdater();
     var layerAttrStatsUpdater = layerAttrStats.handlerForThread();
@@ -320,7 +321,7 @@ public class TileArchiveWriter {
         if ((!skipFilled || !lastIsFill) && bytes != null) {
           tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
           List<String> layerStatsRows = config.outputLayerStats() ?
-            TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+            layerStatsSerializer.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
             List.of();
           result.add(
             new TileEncodingResult(
