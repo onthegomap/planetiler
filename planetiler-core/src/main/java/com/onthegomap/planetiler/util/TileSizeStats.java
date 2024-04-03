@@ -38,7 +38,7 @@ import vector_tile.VectorTileProto;
  * Utilities for extracting tile and layer size summaries from encoded vector tiles.
  * <p>
  * {@link #computeTileStats(VectorTileProto.Tile)} extracts statistics about each layer in a tile and
- * {@link #formatOutputRows(TileCoord, int, List)} formats them as row of a TSV file to write.
+ * {@link TsvSerializer formats them as row of a TSV file to write.
  * <p>
  * To generate a tsv.gz file with stats for each tile, you can add {@code --output-layerstats} option when generating an
  * archive, or run the following an existing archive:
@@ -52,13 +52,11 @@ import vector_tile.VectorTileProto;
 public class TileSizeStats {
 
   private static final int BATCH_SIZE = 1_000;
-  private static final CsvMapper MAPPER = new CsvMapper();
-  private static final CsvSchema SCHEMA = MAPPER
+  private static final CsvSchema SCHEMA = new CsvMapper()
     .schemaFor(OutputRow.class)
     .withoutHeader()
     .withColumnSeparator('\t')
     .withLineSeparator("\n");
-  private static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
 
   /** Returns the default path that a layerstats file should go relative to an existing archive. */
   public static Path getDefaultLayerstatsPath(Path archive) {
@@ -120,6 +118,7 @@ public class TileSizeStats {
         List<LayerStats> layerStats = null;
 
         var updater = tileStats.threadLocalUpdater();
+        var layerStatsSerializer = TileSizeStats.newThreadLocalSerializer();
         for (var batch : prev) {
           List<String> lines = new ArrayList<>(batch.tiles.size());
           for (var tile : batch.tiles) {
@@ -130,7 +129,7 @@ public class TileSizeStats {
               layerStats = computeTileStats(decoded);
             }
             updater.recordTile(tile.coord(), zipped.length, layerStats);
-            lines.addAll(TileSizeStats.formatOutputRows(tile.coord(), zipped.length, layerStats));
+            lines.addAll(layerStatsSerializer.formatOutputRows(tile.coord(), zipped.length, layerStats));
           }
           batch.stats.complete(lines);
         }
@@ -161,28 +160,32 @@ public class TileSizeStats {
     stats.printSummary();
   }
 
-  /** Returns the TSV rows to output for all the layers in a tile. */
-  public static List<String> formatOutputRows(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats)
-    throws IOException {
-    int hilbert = tileCoord.hilbertEncoded();
-    List<String> result = new ArrayList<>(layerStats.size());
-    for (var layer : layerStats) {
-      result.add(lineToString(new OutputRow(
-        tileCoord.z(),
-        tileCoord.x(),
-        tileCoord.y(),
-        hilbert,
-        archivedBytes,
-        layer.layer,
-        layer.layerBytes,
-        layer.layerFeatures,
-        layer.layerGeometries,
-        layer.layerAttrBytes,
-        layer.layerAttrKeys,
-        layer.layerAttrValues
-      )));
-    }
-    return result;
+  /** Returns a {@link TsvSerializer} that can be used by a single thread to convert to CSV rows. */
+  public static TsvSerializer newThreadLocalSerializer() {
+    // CsvMapper is not entirely thread safe, and can end up with a BufferRecycler memory leak when writeValueAsString
+    // is called billions of times from multiple threads, so we generate a new instance per serializing thread
+    ObjectWriter writer = new CsvMapper().writer(SCHEMA);
+    return (tileCoord, archivedBytes, layerStats) -> {
+      int hilbert = tileCoord.hilbertEncoded();
+      List<String> result = new ArrayList<>(layerStats.size());
+      for (var layer : layerStats) {
+        result.add(writer.writeValueAsString(new OutputRow(
+          tileCoord.z(),
+          tileCoord.x(),
+          tileCoord.y(),
+          hilbert,
+          archivedBytes,
+          layer.layer,
+          layer.layerBytes,
+          layer.layerFeatures,
+          layer.layerGeometries,
+          layer.layerAttrBytes,
+          layer.layerAttrKeys,
+          layer.layerAttrValues
+        )));
+      }
+      return result;
+    };
   }
 
   /**
@@ -193,11 +196,6 @@ public class TileSizeStats {
     return new OutputStreamWriter(
       new FastGzipOutputStream(new BufferedOutputStream(Files.newOutputStream(path,
         StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE))));
-  }
-
-  /** Returns {@code output} encoded as a TSV row string. */
-  public static String lineToString(OutputRow output) throws IOException {
-    return WRITER.writeValueAsString(output);
   }
 
   /** Returns the header row for the output TSV file. */
@@ -238,6 +236,14 @@ public class TileSizeStats {
     }
     result.sort(Comparator.naturalOrder());
     return result;
+  }
+
+  @FunctionalInterface
+  public interface TsvSerializer {
+
+    /** Returns the TSV rows to output for all the layers in a tile. */
+    List<String> formatOutputRows(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats)
+      throws IOException;
   }
 
   /** Model for the data contained in each row in the TSV. */
