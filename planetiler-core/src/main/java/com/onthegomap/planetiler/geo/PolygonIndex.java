@@ -57,11 +57,29 @@ public class PolygonIndex<T> {
     return postFilterContaining(point, items);
   }
 
+  /** Returns the data associated with all polygons containing {@code point}. */
+  public List<T> getIntersecting(Geometry geom) {
+    build();
+    List<?> items = index.query(geom.getEnvelopeInternal());
+    return postFilterIntersecting(geom, items);
+  }
+
   private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
-      if (item instanceof GeomWithData<?> value && value.poly.contains(point)) {
-        @SuppressWarnings("unchecked") T t = (T) value.data;
+      if (item instanceof GeomWithData<?>(var poly,var data) && poly.contains(point)) {
+        @SuppressWarnings("unchecked") T t = (T) data;
+        result.add(t);
+      }
+    }
+    return result;
+  }
+
+  private List<T> postFilterIntersecting(Geometry geom, List<?> items) {
+    List<T> result = new ArrayList<>(items.size());
+    for (Object item : items) {
+      if (item instanceof GeomWithData<?>(var poly,var data) && poly.intersects(geom)) {
+        @SuppressWarnings("unchecked") T t = (T) data;
         result.add(t);
       }
     }
