@@ -67,8 +67,8 @@ public class PolygonIndex<T> {
   private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
-      if (item instanceof GeomWithData<?> value && value.poly.contains(point)) {
-        @SuppressWarnings("unchecked") T t = (T) value.data;
+      if (item instanceof GeomWithData<?>(var poly,var data) && poly.contains(point)) {
+        @SuppressWarnings("unchecked") T t = (T) data;
         result.add(t);
       }
     }
@@ -78,8 +78,8 @@ public class PolygonIndex<T> {
   private List<T> postFilterIntersecting(Geometry geom, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
-      if (item instanceof GeomWithData<?> value && value.poly.intersects(geom)) {
-        @SuppressWarnings("unchecked") T t = (T) value.data;
+      if (item instanceof GeomWithData<?>(var poly,var data) && poly.intersects(geom)) {
+        @SuppressWarnings("unchecked") T t = (T) data;
         result.add(t);
       }
     }
