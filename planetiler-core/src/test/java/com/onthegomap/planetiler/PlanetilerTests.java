@@ -1053,6 +1053,7 @@ class PlanetilerTests {
           rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 14, "outer"));
           rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 15, null)); // missing
           rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 16, "inner")); // incorrect
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 14, "outer")); // duplicate
         }),
         with(new OsmElement.Relation(18), rel -> {
           rel.setTag("type", "relation");
