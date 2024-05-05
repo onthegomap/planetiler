@@ -556,6 +556,8 @@ class ConfiguredFeatureTest {
     "${feature.osm_user_id}|4",
     "${feature.osm_version}|5",
     "${feature.osm_user_name}|user",
+    "${feature.osm_type}|node",
+    "${feature.osm_type.charAt(0)}|n",
     "${coalesce(feature.source_layer, 'missing')}|missing",
     "{match: {test: {natural: water}}}|test",
     "{match: {test: {natural: not_water}}}|null",
