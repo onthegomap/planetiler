@@ -347,6 +347,7 @@ public class Contexts {
     private static final String FEATURE_OSM_TIMESTAMP = "feature.osm_timestamp";
     private static final String FEATURE_OSM_USER_ID = "feature.osm_user_id";
     private static final String FEATURE_OSM_USER_NAME = "feature.osm_user_name";
+    private static final String FEATURE_OSM_TYPE = "feature.osm_type";
 
     public static ScriptEnvironment<ProcessFeature> description(Root root) {
       return root.description()
@@ -360,7 +361,8 @@ public class Contexts {
           Decls.newVar(FEATURE_OSM_VERSION, Decls.Int),
           Decls.newVar(FEATURE_OSM_TIMESTAMP, Decls.Int),
           Decls.newVar(FEATURE_OSM_USER_ID, Decls.Int),
-          Decls.newVar(FEATURE_OSM_USER_NAME, Decls.String)
+          Decls.newVar(FEATURE_OSM_USER_NAME, Decls.String),
+          Decls.newVar(FEATURE_OSM_TYPE, Decls.String)
         );
     }
 
@@ -373,7 +375,11 @@ public class Contexts {
           case FEATURE_SOURCE -> feature.getSource();
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());
           default -> {
-            OsmElement.Info info = feature instanceof OsmSourceFeature osm ? osm.originalElement().info() : null;
+            OsmElement elem = feature instanceof OsmSourceFeature osm ? osm.originalElement() : null;
+            if (FEATURE_OSM_TYPE.equals(key)) {
+              yield elem == null ? null : elem.type().name().toLowerCase();
+            }
+            OsmElement.Info info = elem != null ? elem.info() : null;
             yield info == null ? null : switch (key) {
               case FEATURE_OSM_CHANGESET -> info.changeset();
               case FEATURE_OSM_VERSION -> info.version();

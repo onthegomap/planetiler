@@ -24,6 +24,8 @@ public interface OsmElement extends WithTags {
 
   int cost();
 
+  Type type();
+
   enum Type {
     NODE,
     WAY,
@@ -40,6 +42,11 @@ public interface OsmElement extends WithTags {
     @Override
     public int cost() {
       return 1 + tags.size() + (info == null ? 0 : Info.COST);
+    }
+
+    @Override
+    public Type type() {
+      return null;
     }
   }
 
@@ -118,6 +125,11 @@ public interface OsmElement extends WithTags {
     }
 
     @Override
+    public Type type() {
+      return Type.NODE;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == this) {
         return true;
@@ -170,6 +182,11 @@ public interface OsmElement extends WithTags {
     public int cost() {
       return 1 + tags.size() + nodes.size() + (info == null ? 0 : Info.COST);
     }
+
+    @Override
+    public Type type() {
+      return Type.WAY;
+    }
   }
 
   /** An ordered list of nodes, ways, and other relations. */
@@ -197,6 +214,11 @@ public interface OsmElement extends WithTags {
     @Override
     public int cost() {
       return 1 + tags.size() + members.size() * 3 + (info == null ? 0 : Info.COST);
+    }
+
+    @Override
+    public Type type() {
+      return Type.RELATION;
     }
 
     /**

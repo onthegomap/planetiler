@@ -136,6 +136,11 @@ public class SimpleFeature extends SourceFeature {
         }
 
         @Override
+        public Type type() {
+          return isPoint() ? Type.NODE : Type.WAY;
+        }
+
+        @Override
         public Map<String, Object> tags() {
           return tags();
         }
