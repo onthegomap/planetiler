@@ -7,7 +7,7 @@ on:
   workflow_run:
     workflows: [ "Performance" ]
     types:
-      - completed
+    - completed
 
 jobs:
   updatepr:
@@ -16,75 +16,61 @@ jobs:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 5
     steps:
-      # report status back to pull request
-      - uses: haya14busa/action-workflow_run-status@v1
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: 'Download branch build info'
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: ${{ github.event.workflow_run.workflow_id }}
-          run_id: ${{ github.event.workflow_run.id }}
-          name: build-info
-          path: build-info
-      - name: 'Get build info'
-        id: build_info
-        run: echo "::set-output name=pr_number::$(cat build-info/pull_request_number)"
-      - name: 'Build comment-body'
-        run: |
-          cat build-info/branchlogs.txt | sed -n '/^.*Tile stats/,$p' > branchsummary.txt
-          cat build-info/branchlogs.txt | sed -n '/^.*Exception in thread/,$p' >> branchsummary.txt
-          cat build-info/baselogs.txt | sed -n '/^.*Tile stats:/,$p' > basesummary.txt
-          cat build-info/baselogs.txt | sed -n '/^.*Exception in thread/,$p' >> basesummary.txt
+    # report status back to pull request
+    - uses: haya14busa/action-workflow_run-status@v1
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: 'Download branch build info'
+      uses: dawidd6/action-download-artifact@v3
+      with:
+        workflow: ${{ github.event.workflow_run.workflow_id }}
+        run_id: ${{ github.event.workflow_run.id }}
+        name: build-info
+        path: build-info
+    - name: 'Get build info'
+      id: build_info
+      run: echo "::set-output name=pr_number::$(cat build-info/pull_request_number)"
+    - name: 'Build comment-body'
+      run: |
+        cat build-info/branchlogs.txt | sed -n '/^.*Tile stats/,/\tfeatures\t/p' > branchsummary.txt
+        cat build-info/branchlogs.txt | sed -n '/^.*Exception in thread/,$p' >> branchsummary.txt
+        cat build-info/baselogs.txt | sed -n '/^.*Tile stats/,/\tfeatures\t/p' > basesummary.txt
+        cat build-info/baselogs.txt | sed -n '/^.*Exception in thread/,$p' >> basesummary.txt
 
-          cat << EOF > comment-body.txt
-          <table>
-          <thead>
-          <tr>
-          <th>Base $(cat build-info/base_sha)</th>
-          <th>This Branch $(cat build-info/branch_sha)</th>
-          </tr>
-          </thead>
-          <tr>
-          <td>
+        cat << EOF > comment-body.txt
+        <table>
+        <thead>
+        <tr>
+        <th>This Branch $(cat build-info/branch_sha)</th>
+        <th>Base $(cat build-info/base_sha)</th>
+        </tr>
+        </thead>
+        <tr>
+        <td>
 
-          \`\`\`
-          $(cat basesummary.txt)
-          \`\`\`
-          </td>
-          <td>
+        \`\`\`
+        $(cat branchsummary.txt)
+        \`\`\`
+        </td>
+        <td>
 
-          \`\`\`
-          $(cat build-info/branchlogs.txt | sed -n '/^.*Tile stats:/,$p')
-          \`\`\`
-          </td>
-          </tr>
-          </table>
+        \`\`\`
+        $(cat basesummary.txt)
+        \`\`\`
+        </td>
+        </tr>
+        </table>
 
-          https://github.com/onthegomap/planetiler/actions/runs/${{ github.event.workflow_run.id }}
+        Full logs: https://github.com/onthegomap/planetiler/actions/runs/${{ github.event.workflow_run.id }}
+        EOF
 
-          <details><summary>ℹ️ <strong>Base Logs $(cat build-info/base_sha)</strong></summary>
+    - name: 'Dump comment body'
+      run: cat comment-body.txt
 
-          \`\`\`
-          $(cat build-info/baselogs.txt)
-          \`\`\`
-          </details>
-
-          <details><summary>ℹ️ <strong>This Branch Logs $(cat build-info/branch_sha)</strong></summary>
-
-          \`\`\`
-          $(cat build-info/branchlogs.txt)
-          \`\`\`
-          </details>
-          EOF
-
-      - name: 'Dump comment body'
-        run: cat comment-body.txt
-
-      - uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          path: comment-body.txt
-          header: performance-tests
-          number: ${{ steps.build_info.outputs.pr_number }}
+    - uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        path: comment-body.txt
+        header: performance-tests
+        number: ${{ steps.build_info.outputs.pr_number }}
