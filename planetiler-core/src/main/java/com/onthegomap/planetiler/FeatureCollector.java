@@ -80,7 +80,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
-      e.log(stats, "feature_point", "Error getting point geometry for " + source.id());
+      e.log(stats, "feature_point", "Error getting point geometry for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -100,7 +100,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
-      e.log(stats, "feature_line", "Error constructing line for " + source.id());
+      e.log(stats, "feature_line", "Error constructing line for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -120,7 +120,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
-      e.log(stats, "feature_polygon", "Error constructing polygon for " + source.id());
+      e.log(stats, "feature_polygon", "Error constructing polygon for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -135,7 +135,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
-      e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
+      e.log(stats, "feature_centroid", "Error getting centroid for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -152,7 +152,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
-      e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source.id());
+      e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -168,7 +168,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
-      e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.id());
+      e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -190,7 +190,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.innermostPoint(tolerance));
     } catch (GeometryException e) {
-      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
+      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -205,7 +205,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
     } catch (GeometryException e) {
-      e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
+      e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source);
       return config.maxzoom();
     }
   }
@@ -217,7 +217,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return source.size() * (256 << zoom);
     } catch (GeometryException e) {
       e.log(stats, "source_feature_pixel_size_at_zoom_failure",
-        "Error getting source feature pixel size at zoom from geometry " + source.id());
+        "Error getting source feature pixel size at zoom from geometry " + source);
       return 0;
     }
   }
