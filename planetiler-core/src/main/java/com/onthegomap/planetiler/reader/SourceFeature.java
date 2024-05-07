@@ -325,4 +325,12 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
     return relationInfos != null && !relationInfos.isEmpty();
   }
 
+  @Override
+  public String toString() {
+    return "Feature[source=" + getSource() +
+      ", source layer=" + getSourceLayer() +
+      ", id=" + id() +
+      ", tags=" + tags + ']';
+  }
+
 }
