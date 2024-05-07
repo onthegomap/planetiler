@@ -158,15 +158,17 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
     @Override
     public void write(TileEncodingResult encodingResult) {
       final TileCoord coord = encodingResult.coord();
-      final StreamArchiveProto.TileEntry tile = StreamArchiveProto.TileEntry.newBuilder()
+      final byte[] data = encodingResult.tileData();
+      StreamArchiveProto.TileEntry.Builder tileBuilder = StreamArchiveProto.TileEntry.newBuilder()
         .setZ(coord.z())
         .setX(coord.x())
-        .setY(coord.y())
-        .setEncodedData(ByteString.copyFrom(encodingResult.tileData()))
-        .build();
+        .setY(coord.y());
+      if (data != null) {
+        tileBuilder = tileBuilder.setEncodedData(ByteString.copyFrom(encodingResult.tileData()));
+      }
 
       final StreamArchiveProto.Entry entry = StreamArchiveProto.Entry.newBuilder()
-        .setTile(tile)
+        .setTile(tileBuilder.build())
         .build();
 
       try {

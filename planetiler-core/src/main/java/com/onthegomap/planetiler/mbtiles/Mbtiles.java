@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveMetadataDeSer;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
@@ -847,7 +848,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
      */
     public TileArchiveMetadata get() {
       Map<String, String> map = new HashMap<>(getAll());
-      return TileArchiveMetadataDeSer.mbtilesMapper().convertValue(map, TileArchiveMetadata.class);
+      var metadata = TileArchiveMetadataDeSer.mbtilesMapper().convertValue(map, TileArchiveMetadata.class);
+      if (metadata.tileCompression() == null) {
+        metadata = metadata.withTileCompression(TileCompression.GZIP);
+      }
+      return metadata;
     }
   }
 }

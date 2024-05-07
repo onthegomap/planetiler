@@ -6,7 +6,6 @@ import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,11 +91,7 @@ public class Verify {
   }
 
   private static List<VectorTile.Feature> decode(byte[] zipped) {
-    try {
-      return VectorTile.decode(gunzip(zipped));
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+    return VectorTile.decode(gunzip(zipped));
   }
 
   /**

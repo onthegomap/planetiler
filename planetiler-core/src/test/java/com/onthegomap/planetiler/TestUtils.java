@@ -80,7 +80,7 @@ public class TestUtils {
 
   public static final TileArchiveMetadata MAX_METADATA_DESERIALIZED =
     new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
-      new Coordinate(1.3, 3.7, 1.0), 2, 3,
+      new Coordinate(1.3, 3.7, 1.0), 0, 8,
       TileArchiveMetadata.TileArchiveMetadataJson.create(
         List.of(
           new LayerAttrStats.VectorLayer("vl0",
@@ -102,8 +102,8 @@ public class TestUtils {
       "version":"version",
       "type":"type",
       "format":"format",
-      "minzoom":"2",
-      "maxzoom":"3",
+      "minzoom":"0",
+      "maxzoom":"8",
       "compression":"gzip",
       "bounds":"0,2,1,3",
       "center":"1.3,3.7,1",
@@ -294,7 +294,9 @@ public class TestUtils {
   }
 
   public static Set<Tile> getTiles(ReadableTileArchive db) {
-    return db.getAllTiles().stream().collect(Collectors.toSet());
+    try (var t = db.getAllTiles(); var s = t.stream()) {
+      return s.collect(Collectors.toUnmodifiableSet());
+    }
   }
 
   public static int getTilesDataCount(Mbtiles db) throws SQLException {
@@ -770,7 +772,7 @@ public class TestUtils {
       if (!failures.isEmpty()) {
         fail(String.join(System.lineSeparator(), failures));
       }
-    } catch (GeometryException | IOException e) {
+    } catch (GeometryException e) {
       fail(e);
     }
   }

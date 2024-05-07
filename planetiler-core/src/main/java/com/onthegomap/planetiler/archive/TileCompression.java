@@ -54,10 +54,5 @@ public enum TileCompression {
     public TileCompression deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
       return findById(p.getValueAsString()).orElse(TileCompression.UNKNOWN);
     }
-
-    @Override
-    public TileCompression getNullValue(DeserializationContext ctxt) {
-      return TileCompression.GZIP;
-    }
   }
 }

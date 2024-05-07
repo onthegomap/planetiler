@@ -28,8 +28,8 @@ import org.locationtech.jts.geom.Envelope;
 
 class WriteableProtoStreamArchiveTest {
 
-  private static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, null);
-  private static final TileArchiveMetadata maxMetadataIn =
+  static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, null);
+  static final TileArchiveMetadata maxMetadataDeserialized =
     new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
       new Coordinate(1.3, 3.7, 1.0), 2, 3,
       TileArchiveMetadata.TileArchiveMetadataJson.create(
@@ -45,7 +45,7 @@ class WriteableProtoStreamArchiveTest {
       ),
       Map.of("a", "b", "c", "d"),
       TileCompression.GZIP);
-  private static final StreamArchiveProto.Metadata maxMetadataOut = StreamArchiveProto.Metadata.newBuilder()
+  static final StreamArchiveProto.Metadata maxMetadataSerialized = StreamArchiveProto.Metadata.newBuilder()
     .setName("name").setDescription("description").setAttribution("attribution").setVersion("version")
     .setType("type").setFormat("format")
     .setBounds(StreamArchiveProto.Envelope.newBuilder().setMinX(0).setMaxX(1).setMinY(2).setMaxY(3).build())
@@ -64,10 +64,10 @@ class WriteableProtoStreamArchiveTest {
     .setTileCompression(StreamArchiveProto.TileCompression.TILE_COMPRESSION_GZIP)
     .build();
 
-  private static final TileArchiveMetadata minMetadataIn =
-    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null,
+  static final TileArchiveMetadata minMetadataDeserialized =
+    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, Map.of(),
       TileCompression.NONE);
-  private static final StreamArchiveProto.Metadata minMetadataOut = StreamArchiveProto.Metadata.newBuilder()
+  static final StreamArchiveProto.Metadata minMetadataSerialized = StreamArchiveProto.Metadata.newBuilder()
     .setTileCompression(StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE)
     .build();
 
@@ -83,12 +83,12 @@ class WriteableProtoStreamArchiveTest {
         tileWriter.write(tile0);
         tileWriter.write(tile1);
       }
-      archive.finish(minMetadataIn);
+      archive.finish(minMetadataDeserialized);
     }
 
     try (InputStream in = Files.newInputStream(csvFile)) {
       assertEquals(
-        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(minMetadataOut)),
+        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(minMetadataSerialized)),
         readAllEntries(in)
       );
     }
@@ -119,12 +119,12 @@ class WriteableProtoStreamArchiveTest {
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(tile4);
       }
-      archive.finish(maxMetadataIn);
+      archive.finish(maxMetadataDeserialized);
     }
 
     try (InputStream in = Files.newInputStream(csvFilePrimary)) {
       assertEquals(
-        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(maxMetadataOut)),
+        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(maxMetadataSerialized)),
         readAllEntries(in)
       );
     }
