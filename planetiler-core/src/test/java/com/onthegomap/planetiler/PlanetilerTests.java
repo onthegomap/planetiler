@@ -2248,6 +2248,49 @@ class PlanetilerTests {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4"
+  })
+  void testPlanetilerRunnerParquet(String args) throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+
+    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=" + tempDir.resolve("data")).split("\\s+")))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.polygon("buildings")
+            .setZoomRange(0, 14)
+            .setMinPixelSize(0)
+            .setAttr("id", source.getString("id"));
+        }
+      })
+      .addParquetSource("parquet", TestUtils.pathToResource("parquet").resolve("boston.parquet"))
+      .setOutput(mbtiles)
+      .run();
+
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      Set<String> uniqueIds = new HashSet<>();
+      long featureCount = 0;
+      var tileMap = TestUtils.getTileMap(db);
+      for (int z = 14; z >= 11; z--) {
+        var coord = TileCoord.aroundLngLat(-71.07448, 42.35626, z);
+        assertTrue(tileMap.containsKey(coord), "contain " + coord);
+      }
+      for (var tile : tileMap.values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+          featureCount++;
+          uniqueIds.add((String) feature.attrs().get("id"));
+        }
+      }
+
+      assertTrue(featureCount > 0);
+      assertEquals(3, uniqueIds.size());
+    }
+  }
+
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)

@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
+import com.onthegomap.planetiler.examples.overture.OvertureBasemap;
 import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.util.CompareArchives;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -54,6 +55,8 @@ public class Main {
     entry("example-bikeroutes", BikeRouteOverlay::main),
     entry("example-toilets", ToiletsOverlay::main),
     entry("example-toilets-lowlevel", ToiletsOverlayLowLevelApi::main),
+    entry("example-overture", OvertureBasemap::main),
+    entry("overture", OvertureBasemap::main),
 
     entry("example-qa", OsmQaTiles::main),
     entry("osm-qa", OsmQaTiles::main),

@@ -13,9 +13,11 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.parquet.ParquetReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -39,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -469,6 +472,51 @@ public class Planetiler {
         config, profile, stats, keepUnzipped)));
   }
 
+
+  /**
+   * Adds a new <a href="https://github.com/opengeospatial/geoparquet">geoparquet</a> source that will be processed when
+   * {@link #run()} is called.
+   *
+   * @param name             string to use in stats and logs to identify this stage
+   * @param pattern          path to the geoparquet file to read, possibly including
+   *                         {@linkplain FileSystem#getPathMatcher(String) glob patterns}
+   * @param hivePartitioning Set to true to parse extra feature tags from the file path, for example
+   *                         {@code {them="buildings", type="part"}} from
+   *                         {@code base/theme=buildings/type=part/file.parquet}
+   * @param getId            function that extracts a unique vector tile feature ID from each input feature, string or
+   *                         binary features will be hashed to a {@code long}.
+   * @param getLayer         function that extracts {@link SourceFeature#getSourceLayer()} from the properties of each
+   *                         input feature
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   */
+  public Planetiler addParquetSource(String name, Path pattern, boolean hivePartitioning,
+    Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
+    // TODO handle auto-downloading
+    Path path = getPath(name, "parquet", pattern, null, true);
+    return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> {
+      var sourcePaths = FileUtils.walkPathWithPattern(path).stream().filter(Files::isRegularFile).toList();
+      new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning).process(sourcePaths, featureGroup,
+        config);
+    }));
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, Path, boolean, Function, Function)} using the default layer and ID
+   * extractors.
+   */
+  public Planetiler addParquetSource(String name, Path pattern, boolean hivePartitioning) {
+    return addParquetSource(name, pattern, hivePartitioning, null, null);
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, Path, boolean, Function, Function)} without hive partitioning and using
+   * the default layer and ID extractors.
+   */
+  public Planetiler addParquetSource(String name, Path pattern) {
+    return addParquetSource(name, pattern, false);
+  }
+
   /**
    * Adds a new stage that will be invoked when {@link #run()} is called.
    *
@@ -770,7 +818,7 @@ public class Planetiler {
       for (var inputPath : inputPaths) {
         if (inputPath.freeAfterReading()) {
           LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
-          FileUtils.delete(inputPath.path());
+          inputPath.delete();
         }
       }
 
@@ -810,7 +858,7 @@ public class Planetiler {
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {
-        writePhase.addDisk(input.path, -FileUtils.size(input.path), "delete " + input.id + " source after reading");
+        writePhase.addDisk(input.path, -input.size(), "delete " + input.id + " source after reading");
       }
     }
 
@@ -893,18 +941,23 @@ public class Planetiler {
   }
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
+    return getPath(name, type, defaultPath, defaultUrl);
+  }
+
+  private Path getPath(String name, String type, Path defaultPath, String defaultUrl, boolean wildcard) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
     boolean refresh =
       arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
+    var inputPath = new InputPath(name, path, freeAfterReading, wildcard);
+    inputPaths.add(inputPath);
     if (downloadSources || refresh) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
-      if ((!Files.exists(path) || refresh) && url != null) {
-        toDownload.add(new ToDownload(name, url, path));
+      if ((refresh || inputPath.isEmpty()) && url != null) {
+        toDownload.add(new ToDownload(name, url, path, wildcard));
       }
     }
-    inputPaths.add(new InputPath(name, path, freeAfterReading));
     return path;
   }
 
@@ -922,7 +975,7 @@ public class Planetiler {
 
   private void ensureInputFilesExist() {
     for (InputPath inputPath : inputPaths) {
-      if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
+      if (profile.caresAboutSource(inputPath.id) && inputPath.isEmpty()) {
         throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
       }
     }
@@ -935,7 +988,24 @@ public class Planetiler {
     }
   }
 
-  private record ToDownload(String id, String url, Path path) {}
+  private record ToDownload(String id, String url, Path path, boolean wildcard) {}
 
-  private record InputPath(String id, Path path, boolean freeAfterReading) {}
+  private record InputPath(String id, Path path, boolean freeAfterReading, boolean wildcard) {
+
+    public boolean isEmpty() {
+      return wildcard ? FileUtils.walkPathWithPattern(path).isEmpty() : !Files.exists(path);
+    }
+
+    public long size() {
+      return wildcard ? FileUtils.size(FileUtils.getPatternBase(path)) : FileUtils.fileSize(path);
+    }
+
+    public void delete() {
+      if (wildcard) {
+        FileUtils.delete(FileUtils.getPatternBase(path));
+      } else {
+        FileUtils.delete(path);
+      }
+    }
+  }
 }

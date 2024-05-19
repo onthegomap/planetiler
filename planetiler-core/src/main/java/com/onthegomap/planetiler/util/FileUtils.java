@@ -12,6 +12,7 @@ import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -22,6 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -41,6 +43,7 @@ public class FileUtils {
   private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
+  private static final Pattern GLOB_PATTERN = Pattern.compile("[?*{\\[].*$");
 
   private FileUtils() {}
 
@@ -49,7 +52,7 @@ public class FileUtils {
     return StreamSupport.stream(fileSystem.getRootDirectories().spliterator(), false)
       .flatMap(rootDirectory -> {
         try {
-          return Files.walk(rootDirectory);
+          return Files.walk(rootDirectory, FileVisitOption.FOLLOW_LINKS);
         } catch (IOException e) {
           LOGGER.error("Unable to walk " + rootDirectory + " in " + fileSystem, e);
           return Stream.empty();
@@ -82,9 +85,9 @@ public class FileUtils {
             .toList();
         }
       } else if (Files.isDirectory(basePath)) {
-        try (var walk = Files.walk(basePath)) {
+        try (var walk = Files.walk(basePath, FileVisitOption.FOLLOW_LINKS)) {
           return walk
-            .filter(path -> matcher.matches(path.getFileName()))
+            .filter(path -> matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path)))
             .flatMap(path -> {
               if (FileUtils.hasExtension(path, "zip")) {
                 return walkZipFile.apply(path).stream();
@@ -109,7 +112,40 @@ public class FileUtils {
    * @param pattern  pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
    */
   public static List<Path> walkPathWithPattern(Path basePath, String pattern) {
-    return walkPathWithPattern(basePath, pattern, zipPath -> List.of(zipPath));
+    return walkPathWithPattern(basePath, pattern, List::of);
+  }
+
+  /**
+   * Returns list of paths matching {@param pathWithPattern} where {@param pathWithPattern} can contain glob patterns.
+   *
+   * @param pathWithPattern path that can contain glob patterns
+   */
+  public static List<Path> walkPathWithPattern(Path pathWithPattern) {
+    var parsed = parsePattern(pathWithPattern);
+    return parsed.pattern == null ? List.of(parsed.base) : walkPathWithPattern(parsed.base, parsed.pattern, List::of);
+  }
+
+
+  /**
+   * Returns list of base of {@param pathWithPattern} before any glob patterns.
+   */
+  public static Path getPatternBase(Path pathWithPattern) {
+    return parsePattern(pathWithPattern).base;
+  }
+
+  static BaseWithPattern parsePattern(Path pattern) {
+    String string = pattern.toString();
+    var matcher = GLOB_PATTERN.matcher(string);
+    if (!matcher.find()) {
+      return new BaseWithPattern(pattern, null);
+    }
+    matcher.reset();
+    String base = matcher.replaceAll("");
+    int idx = base.lastIndexOf(pattern.getFileSystem().getSeparator());
+    if (idx > 0) {
+      base = base.substring(0, idx);
+    }
+    return new BaseWithPattern(Path.of(base), string.substring(idx + 1));
   }
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
@@ -383,4 +419,6 @@ public class FileUtils {
       throw new UncheckedIOException(e);
     }
   }
+
+  record BaseWithPattern(Path base, String pattern) {}
 }
