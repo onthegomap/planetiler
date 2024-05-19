@@ -30,7 +30,6 @@ class GlobTest {
     var separator = FileSystems.getDefault().getSeparator();
     input = input.replace("/", separator);
     base = base == null ? "" : base.replace("/", separator);
-    pattern = pattern == null ? null : pattern.replace("/", separator);
     assertEquals(
       new Glob(Path.of(base), pattern),
       Glob.parse(input)
@@ -50,11 +49,10 @@ class GlobTest {
   @Test
   void testResolve() {
     var base = Glob.of(Path.of("a", "b"));
-    var separator = base.base().getFileSystem().getSeparator();
     assertEquals(new Glob(Path.of("a", "b", "c"), null), base.resolve("c"));
     assertEquals(new Glob(Path.of("a", "b", "c", "d"), null), base.resolve("c", "d"));
-    assertEquals(new Glob(Path.of("a", "b"), "*" + separator + "d"), base.resolve("*", "d"));
-    assertEquals(new Glob(tmpDir, String.join(separator, "*", "*", "c.txt")),
+    assertEquals(new Glob(Path.of("a", "b"), "*/d"), base.resolve("*", "d"));
+    assertEquals(new Glob(tmpDir, "*/*/c.txt"),
       Glob.of(tmpDir).resolve("*", "*", "c.txt"));
   }
 
