@@ -43,6 +43,7 @@ class GlobTest {
     FileUtils.createParentDirectories(path);
     Files.writeString(path, "test");
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "*", "c.txt").find());
+    System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt"));
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("*", "*", "c.txt").find());
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "b", "c.txt").find());
   }
@@ -54,6 +55,8 @@ class GlobTest {
     assertEquals(new Glob(Path.of("a", "b", "c"), null), base.resolve("c"));
     assertEquals(new Glob(Path.of("a", "b", "c", "d"), null), base.resolve("c", "d"));
     assertEquals(new Glob(Path.of("a", "b"), "*" + separator + "d"), base.resolve("*", "d"));
+    assertEquals(new Glob(tmpDir, String.join(separator, "*", "*", "c.txt")),
+      Glob.of(tmpDir).resolve("*", "*", "c.txt"));
   }
 
   @Test
