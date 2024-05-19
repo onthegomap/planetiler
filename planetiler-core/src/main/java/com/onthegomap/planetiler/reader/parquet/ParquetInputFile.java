@@ -45,8 +45,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Reads {@link SourceFeature SourceFeatures} from a single <a
- * href="https://github.com/opengeospatial/geoparquet/blob/main/format-specs/geoparquet.md>geoparquet</a> file.
+ * Reads {@link SourceFeature SourceFeatures} from a single
+ * <a href="https://github.com/opengeospatial/geoparquet/blob/main/format-specs/geoparquet.md">geoparquet</a> file.
  */
 public class ParquetInputFile {
 

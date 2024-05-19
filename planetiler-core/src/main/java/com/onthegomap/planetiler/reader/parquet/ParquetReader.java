@@ -26,8 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Reads {@link SourceFeature SourceFeatures} from one or more <a
- * href="https://github.com/opengeospatial/geoparquet/blob/main/format-specs/geoparquet.md>geoparquet</a> files.
+ * Reads {@link SourceFeature SourceFeatures} from one or more
+ * <a href="https://github.com/opengeospatial/geoparquet/blob/main/format-specs/geoparquet.md">geoparquet</a> files.
  * <p>
  * If files don't contain geoparquet metadata then try to get geometry from "geometry" "wkb_geometry" or "wkt_geometry"
  * fields.
