@@ -85,12 +85,7 @@ public class FileUtils {
       } else if (Files.isDirectory(basePath)) {
         try (var walk = Files.walk(basePath, FileVisitOption.FOLLOW_LINKS)) {
           return walk
-            .filter(path -> {
-              System.err.println(
-                "  " + basePath + " " + pattern + " " + basePath.relativize(path) + " " +
-                  matcher.matches(basePath.relativize(path)));
-              return matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path));
-            })
+            .filter(path -> matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path)))
             .flatMap(path -> {
               if (FileUtils.hasExtension(path, "zip")) {
                 return walkZipFile.apply(path).stream();

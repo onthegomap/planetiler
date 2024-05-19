@@ -20,7 +20,7 @@ public record Glob(Path base, String pattern) {
 
   /** Resolves a subdirectory using parts separated by the platform file separator. */
   public Glob resolve(String... subPath) {
-    String separator = base.getFileSystem().getSeparator();
+    String separator = "/";
     if (pattern != null) {
       return new Glob(base, pattern + separator + String.join(separator, subPath));
     } else if (subPath == null || subPath.length == 0) {

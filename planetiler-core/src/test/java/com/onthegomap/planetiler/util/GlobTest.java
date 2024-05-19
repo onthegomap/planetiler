@@ -42,18 +42,7 @@ class GlobTest {
     var path = tmpDir.resolve("a").resolve("b").resolve("c.txt");
     FileUtils.createParentDirectories(path);
     Files.writeString(path, "test");
-    var sep = path.getFileSystem().getSeparator();
-    System.err.println("============");
-    System.err.println(
-      path.getFileSystem().getPathMatcher("glob:*" + sep + "*" + sep + "c.txt").matches(Path.of("a", "b", "c.txt")));
-    System.err.println(path.getFileSystem().getPathMatcher("glob:." + sep + "*" + sep + "*" + sep + "c.txt")
-      .matches(Path.of("a", "b", "c.txt")));
-    System.err.println(path.getFileSystem().getPathMatcher("glob:*/*/c.txt").matches(Path.of("a", "b", "c.txt")));
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "*", "c.txt").find());
-    System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt"));
-    System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt").find()); // nope
-    System.err.println(Glob.of(tmpDir).resolve("**", "c.txt").find()); // ok
-    System.err.println(Glob.of(tmpDir).resolve("*", "b", "c.txt").find()); // nada
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("*", "*", "c.txt").find());
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "b", "c.txt").find());
   }
