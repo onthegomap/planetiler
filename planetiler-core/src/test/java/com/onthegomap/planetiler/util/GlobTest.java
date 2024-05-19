@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -42,6 +43,9 @@ class GlobTest {
     var path = tmpDir.resolve("a").resolve("b").resolve("c.txt");
     FileUtils.createParentDirectories(path);
     Files.writeString(path, "test");
+    var sep = path.getFileSystem().getSeparator();
+    assertTrue(
+      path.getFileSystem().getPathMatcher("*" + sep + "*" + sep + "c.txt").matches(Path.of("a", "b", "c.txt")));
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "*", "c.txt").find());
     System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt"));
     System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt").find()); // nope
