@@ -89,6 +89,7 @@ class ParquetInputFileTest {
   }
 
   @TestFactory
+  @SuppressWarnings("java:S5961")
   List<DynamicTest> testReadAllDataTypes() {
 
     /*

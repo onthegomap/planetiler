@@ -495,10 +495,9 @@ public class Planetiler {
     for (var path : paths) {
       inputPaths.add(new InputPath(name, path, false));
     }
-    return addStage(name, "Process features in " + paths, ifSourceUsed(name, () -> {
-      new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning).process(paths, featureGroup,
-        config);
-    }));
+    return addStage(name, "Process features in " + paths,
+      ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
+        .process(paths, featureGroup, config)));
   }
 
   /**

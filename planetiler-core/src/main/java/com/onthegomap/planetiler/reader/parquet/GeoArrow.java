@@ -20,6 +20,8 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
  * coordinate lists to JTS geometries.
  */
 class GeoArrow {
+  private GeoArrow() {}
+
   // TODO create packed coordinate arrays while reading parquet values to avoid creating so many intermediate objects
   static MultiPolygon multipolygon(List<List<List<Object>>> list) {
     return GeoUtils.createMultiPolygon(map(list, GeoArrow::polygon));

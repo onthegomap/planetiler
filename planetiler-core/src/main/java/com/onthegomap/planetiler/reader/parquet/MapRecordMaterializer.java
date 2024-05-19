@@ -345,7 +345,9 @@ public class MapRecordMaterializer extends RecordMaterializer<Map<String, Object
     }
 
     @Override
-    public void end() {}
+    public void end() {
+      // don't need to do anything
+    }
   }
 
   private abstract static class Primitive extends PrimitiveConverter {

@@ -8,6 +8,8 @@ import org.apache.parquet.hadoop.metadata.ColumnPath;
  * their constructors are package-private.
  */
 public class Filters {
+  private Filters() {}
+
   public static Operators.DoubleColumn doubleColumn(List<String> parts) {
     return new Operators.DoubleColumn(ColumnPath.get(parts.toArray(String[]::new)));
   }
