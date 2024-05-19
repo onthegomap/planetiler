@@ -941,7 +941,7 @@ public class Planetiler {
   }
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
-    return getPath(name, type, defaultPath, defaultUrl);
+    return getPath(name, type, defaultPath, defaultUrl, false);
   }
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl, boolean wildcard) {
