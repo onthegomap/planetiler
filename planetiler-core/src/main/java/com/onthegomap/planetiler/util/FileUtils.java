@@ -87,7 +87,8 @@ public class FileUtils {
           return walk
             .filter(path -> {
               System.err.println(
-                "  " + basePath + " " + basePath.relativize(path) + " " + matcher.matches(basePath.relativize(path)));
+                "  " + basePath + " " + pattern + " " + basePath.relativize(path) + " " +
+                  matcher.matches(basePath.relativize(path)));
               return matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path));
             })
             .flatMap(path -> {
