@@ -18,6 +18,7 @@ The `planetiler-core` module includes the following software:
     , [EPSG](https://github.com/geotools/geotools/blob/main/licenses/EPSG.md))
   - org.msgpack:msgpack-core (Apache license)
   - org.xerial:sqlite-jdbc (Apache license)
+  - org.xerial.snappy:snappy-java (Apache license)
   - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
   - com.google.guava:guava (Apache license)
   - com.google.protobuf:protobuf-java (BSD 3-Clause License)
@@ -29,6 +30,7 @@ The `planetiler-core` module includes the following software:
   - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
   - org.tukaani:xz (public domain)
+  - blue.strategic.parquet:parquet-floor (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
