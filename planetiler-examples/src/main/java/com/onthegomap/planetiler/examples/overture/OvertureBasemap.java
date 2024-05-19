@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.util.Glob;
 import java.nio.file.Path;
 
 /**
@@ -51,11 +52,11 @@ public class OvertureBasemap implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
-    Path input = args.inputFile("base", "overture base directory", Path.of("data", "overture"));
+    Path base = args.inputFile("base", "overture base directory", Path.of("data", "overture"));
     Planetiler.create(args)
       .setProfile(new OvertureBasemap())
       .addParquetSource("overture-buildings",
-        input.resolve(Path.of("*", "type=building", "*.parquet")),
+        Glob.of(base).resolve("*", "type=building", "*.parquet").find(),
         true, // hive-partitioning
         fields -> fields.get("id"), // hash the ID field to generate unique long IDs
         fields -> fields.get("type")) // extract "type={}" from the filename to get layer

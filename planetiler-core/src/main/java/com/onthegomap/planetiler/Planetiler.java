@@ -478,8 +478,7 @@ public class Planetiler {
    * {@link #run()} is called.
    *
    * @param name             string to use in stats and logs to identify this stage
-   * @param pattern          path to the geoparquet file to read, possibly including
-   *                         {@linkplain FileSystem#getPathMatcher(String) glob patterns}
+   * @param paths            paths to the geoparquet files to read.
    * @param hivePartitioning Set to true to parse extra feature tags from the file path, for example
    *                         {@code {them="buildings", type="part"}} from
    *                         {@code base/theme=buildings/type=part/file.parquet}
@@ -490,31 +489,32 @@ public class Planetiler {
    * @return this runner instance for chaining
    * @see GeoPackageReader
    */
-  public Planetiler addParquetSource(String name, Path pattern, boolean hivePartitioning,
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning,
     Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
     // TODO handle auto-downloading
-    Path path = getPath(name, "parquet", pattern, null, true);
-    return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> {
-      var sourcePaths = FileUtils.walkPathWithPattern(path).stream().filter(Files::isRegularFile).toList();
-      new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning).process(sourcePaths, featureGroup,
+    for (var path : paths) {
+      inputPaths.add(new InputPath(name, path, false));
+    }
+    return addStage(name, "Process features in " + paths, ifSourceUsed(name, () -> {
+      new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning).process(paths, featureGroup,
         config);
     }));
   }
 
   /**
-   * Alias for {@link #addParquetSource(String, Path, boolean, Function, Function)} using the default layer and ID
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} using the default layer and ID
    * extractors.
    */
-  public Planetiler addParquetSource(String name, Path pattern, boolean hivePartitioning) {
-    return addParquetSource(name, pattern, hivePartitioning, null, null);
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning) {
+    return addParquetSource(name, paths, hivePartitioning, null, null);
   }
 
   /**
-   * Alias for {@link #addParquetSource(String, Path, boolean, Function, Function)} without hive partitioning and using
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} without hive partitioning and using
    * the default layer and ID extractors.
    */
-  public Planetiler addParquetSource(String name, Path pattern) {
-    return addParquetSource(name, pattern, false);
+  public Planetiler addParquetSource(String name, List<Path> paths) {
+    return addParquetSource(name, paths, false);
   }
 
   /**
@@ -818,7 +818,7 @@ public class Planetiler {
       for (var inputPath : inputPaths) {
         if (inputPath.freeAfterReading()) {
           LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
-          inputPath.delete();
+          FileUtils.delete(inputPath.path());
         }
       }
 
@@ -858,7 +858,7 @@ public class Planetiler {
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {
-        writePhase.addDisk(input.path, -input.size(), "delete " + input.id + " source after reading");
+        writePhase.addDisk(input.path, -FileUtils.size(input.path), "delete " + input.id + " source after reading");
       }
     }
 
@@ -941,23 +941,18 @@ public class Planetiler {
   }
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
-    return getPath(name, type, defaultPath, defaultUrl, false);
-  }
-
-  private Path getPath(String name, String type, Path defaultPath, String defaultUrl, boolean wildcard) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
     boolean refresh =
       arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
-    var inputPath = new InputPath(name, path, freeAfterReading, wildcard);
-    inputPaths.add(inputPath);
     if (downloadSources || refresh) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
-      if ((refresh || inputPath.isEmpty()) && url != null) {
-        toDownload.add(new ToDownload(name, url, path, wildcard));
+      if ((!Files.exists(path) || refresh) && url != null) {
+        toDownload.add(new ToDownload(name, url, path));
       }
     }
+    inputPaths.add(new InputPath(name, path, freeAfterReading));
     return path;
   }
 
@@ -975,7 +970,7 @@ public class Planetiler {
 
   private void ensureInputFilesExist() {
     for (InputPath inputPath : inputPaths) {
-      if (profile.caresAboutSource(inputPath.id) && inputPath.isEmpty()) {
+      if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
         throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
       }
     }
@@ -988,24 +983,7 @@ public class Planetiler {
     }
   }
 
-  private record ToDownload(String id, String url, Path path, boolean wildcard) {}
+  private record ToDownload(String id, String url, Path path) {}
 
-  private record InputPath(String id, Path path, boolean freeAfterReading, boolean wildcard) {
-
-    public boolean isEmpty() {
-      return wildcard ? FileUtils.walkPathWithPattern(path).isEmpty() : !Files.exists(path);
-    }
-
-    public long size() {
-      return wildcard ? FileUtils.size(FileUtils.getPatternBase(path)) : FileUtils.fileSize(path);
-    }
-
-    public void delete() {
-      if (wildcard) {
-        FileUtils.delete(FileUtils.getPatternBase(path));
-      } else {
-        FileUtils.delete(path);
-      }
-    }
-  }
+  private record InputPath(String id, Path path, boolean freeAfterReading) {}
 }

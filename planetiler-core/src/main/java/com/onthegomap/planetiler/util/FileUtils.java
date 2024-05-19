@@ -23,7 +23,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -43,7 +42,6 @@ public class FileUtils {
   private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
-  private static final Pattern GLOB_PATTERN = Pattern.compile("[?*{\\[].*$");
 
   private FileUtils() {}
 
@@ -115,38 +113,6 @@ public class FileUtils {
     return walkPathWithPattern(basePath, pattern, List::of);
   }
 
-  /**
-   * Returns list of paths matching {@param pathWithPattern} where {@param pathWithPattern} can contain glob patterns.
-   *
-   * @param pathWithPattern path that can contain glob patterns
-   */
-  public static List<Path> walkPathWithPattern(Path pathWithPattern) {
-    var parsed = parsePattern(pathWithPattern);
-    return parsed.pattern == null ? List.of(parsed.base) : walkPathWithPattern(parsed.base, parsed.pattern, List::of);
-  }
-
-
-  /**
-   * Returns list of base of {@param pathWithPattern} before any glob patterns.
-   */
-  public static Path getPatternBase(Path pathWithPattern) {
-    return parsePattern(pathWithPattern).base;
-  }
-
-  static BaseWithPattern parsePattern(Path pattern) {
-    String string = pattern.toString();
-    var matcher = GLOB_PATTERN.matcher(string);
-    if (!matcher.find()) {
-      return new BaseWithPattern(pattern, null);
-    }
-    matcher.reset();
-    String base = matcher.replaceAll("");
-    int idx = base.lastIndexOf(pattern.getFileSystem().getSeparator());
-    if (idx > 0) {
-      base = base.substring(0, idx);
-    }
-    return new BaseWithPattern(Path.of(base), string.substring(idx + 1));
-  }
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
   public static boolean hasExtension(Path path, String extension) {
@@ -419,6 +385,4 @@ public class FileUtils {
       throw new UncheckedIOException(e);
     }
   }
-
-  record BaseWithPattern(Path base, String pattern) {}
 }

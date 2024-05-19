@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.Bounds;
-import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Glob;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,7 +28,7 @@ import org.locationtech.jts.geom.Envelope;
 class ParquetInputFileTest {
 
   static List<Path> bostons() {
-    return FileUtils.walkPathWithPattern(TestUtils.pathToResource("parquet").resolve("boston*.parquet"));
+    return Glob.of(TestUtils.pathToResource("parquet")).resolve("boston*.parquet").find();
   }
 
   @ParameterizedTest

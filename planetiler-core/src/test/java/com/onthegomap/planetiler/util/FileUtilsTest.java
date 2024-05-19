@@ -8,7 +8,6 @@ import com.onthegomap.planetiler.TestUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,8 +17,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 class FileUtilsTest {
 
@@ -123,7 +120,7 @@ class FileUtilsTest {
       matchingPaths.stream().sorted().toList()
     );
 
-    matchingPaths = FileUtils.walkPathWithPattern(parent.resolve("*.txt"));
+    matchingPaths = Glob.of(parent).resolve("*.txt").find();
 
     assertEquals(
       txtFiles.stream().sorted().toList(),
@@ -152,7 +149,7 @@ class FileUtilsTest {
       FileUtils.walkPathWithPattern(parent, "*.zip", mockWalkZipFile));
 
 
-    assertEquals(List.of(zipFile), FileUtils.walkPathWithPattern(parent.resolve("*.zip")));
+    assertEquals(List.of(zipFile), Glob.of(parent).resolve("*.zip").find());
   }
 
   @Test
@@ -165,7 +162,7 @@ class FileUtilsTest {
       List.of("/shapefile/stations.shp", "/shapefile/stations.shx"),
       matchingPaths.stream().map(Path::toString).sorted().toList());
 
-    matchingPaths = FileUtils.walkPathWithPattern(zipPath.resolve("stations.sh[px]"));
+    matchingPaths = Glob.of(zipPath).resolve("stations.sh[px]").find();
 
     assertEquals(
       List.of("/shapefile/stations.shp", "/shapefile/stations.shx"),
@@ -177,39 +174,5 @@ class FileUtilsTest {
     Path path = tmpDir.resolve("toExpand");
     FileUtils.setLength(path, 1000);
     assertEquals(1000, Files.size(path));
-  }
-
-  @ParameterizedTest
-  @CsvSource(value = {
-    "a/b/c; a/b/c;",
-    "a/b/*; a/b; *",
-    "a/*/b; a; */b",
-    "*/b/*; ; */b/*",
-    "/*/test; /; */test",
-    "a/b={c,d}/other; a; b={c,d}/other",
-    "./a/b=?/other; ./a; b=?/other",
-  }, delimiter = ';')
-  void testParsePathWithPattern(String input, String base, String pattern) {
-    var separator = FileSystems.getDefault().getSeparator();
-    input = input.replace("/", separator);
-    base = base == null ? "" : base.replace("/", separator);
-    pattern = pattern == null ? null : pattern.replace("/", separator);
-    assertEquals(
-      new FileUtils.BaseWithPattern(
-        Path.of(base),
-        pattern
-      ),
-      FileUtils.parsePattern(Path.of(input))
-    );
-  }
-
-  @Test
-  void testWalkPathWithPattern() throws IOException {
-    var path = tmpDir.resolve("a").resolve("b").resolve("c.txt");
-    FileUtils.createParentDirectories(path);
-    Files.writeString(path, "test");
-    assertEquals(List.of(path), FileUtils.walkPathWithPattern(tmpDir.resolve(Path.of("a", "*", "c.txt"))));
-    assertEquals(List.of(path), FileUtils.walkPathWithPattern(tmpDir.resolve(Path.of("*", "*", "c.txt"))));
-    assertEquals(List.of(path), FileUtils.walkPathWithPattern(tmpDir.resolve(Path.of("a", "b", "c.txt"))));
   }
 }

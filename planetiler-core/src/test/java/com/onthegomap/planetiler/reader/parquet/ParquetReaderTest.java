@@ -15,7 +15,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.Parse;
 import java.nio.file.Path;
 import java.util.List;
@@ -32,7 +32,7 @@ class ParquetReaderTest {
   private final Stats stats = Stats.inMemory();
 
   static List<Path> bostons() {
-    return FileUtils.walkPathWithPattern(TestUtils.pathToResource("parquet").resolve("boston*.parquet"));
+    return Glob.of(TestUtils.pathToResource("parquet")).resolve("boston*.parquet").find();
   }
 
   @ParameterizedTest

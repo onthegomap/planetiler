@@ -2266,7 +2266,7 @@ class PlanetilerTests {
             .setAttr("id", source.getString("id"));
         }
       })
-      .addParquetSource("parquet", TestUtils.pathToResource("parquet").resolve("boston.parquet"))
+      .addParquetSource("parquet", List.of(TestUtils.pathToResource("parquet").resolve("boston.parquet")))
       .setOutput(mbtiles)
       .run();
 
