@@ -44,6 +44,8 @@ class GlobTest {
     Files.writeString(path, "test");
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "*", "c.txt").find());
     System.err.println(Glob.of(tmpDir).resolve("*", "*", "c.txt"));
+    System.err.println(Glob.of(tmpDir).resolve("**", "c.txt"));
+    System.err.println(Glob.of(tmpDir).resolve("*", "b", "c.txt"));
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("*", "*", "c.txt").find());
     assertEquals(List.of(path), Glob.of(tmpDir).resolve("a", "b", "c.txt").find());
   }
