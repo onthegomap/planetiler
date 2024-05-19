@@ -86,7 +86,8 @@ public class FileUtils {
         try (var walk = Files.walk(basePath, FileVisitOption.FOLLOW_LINKS)) {
           return walk
             .filter(path -> {
-              System.err.println("  " + basePath + " " + basePath.relativize(path) + " " + matcher.matches(basePath.relativize(path));
+              System.err.println(
+                "  " + basePath + " " + basePath.relativize(path) + " " + matcher.matches(basePath.relativize(path)));
               return matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path));
             })
             .flatMap(path -> {
