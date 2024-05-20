@@ -266,7 +266,7 @@ public class ParquetInputFile {
             throw new UncheckedIOException(e);
           }
           MessageColumnIO columnIO = columnIOFactory.getColumnIO(schema);
-          var recordReader = columnIO.getRecordReader(group, new MapRecordMaterializer(schema), filter);
+          var recordReader = columnIO.getRecordReader(group, new ParquetRecordConverter(schema), filter);
           long total = group.getRowCount();
           return Iterators.filter(new Iterator<>() {
             long i = 0;

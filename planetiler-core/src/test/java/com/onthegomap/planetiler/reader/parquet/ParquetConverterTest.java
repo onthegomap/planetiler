@@ -255,7 +255,7 @@ class ParquetConverterTest {
 
   @Test
   void testOptionalMissing() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .optional(PrimitiveType.PrimitiveTypeName.INT32).named("value")
       .named("message"));
     var rootConverter = materializer.getRootConverter();
@@ -266,7 +266,7 @@ class ParquetConverterTest {
 
   @Test
   void testListFromSimpleRepeatedElement() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .repeated(PrimitiveType.PrimitiveTypeName.INT32).named("value")
       .named("message"));
 
@@ -290,7 +290,7 @@ class ParquetConverterTest {
 
   @Test
   void testListFromListElementStructs() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .requiredList().optionalElement(PrimitiveType.PrimitiveTypeName.INT32).named("value")
       .named("message"));
 
@@ -321,7 +321,7 @@ class ParquetConverterTest {
 
   @Test
   void testListRepeatedAtTopAndBottomLevel() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .list(Type.Repetition.REPEATED).element(PrimitiveType.PrimitiveTypeName.INT32, Type.Repetition.REPEATED)
       .named("value")
       .named("message"));
@@ -349,7 +349,7 @@ class ParquetConverterTest {
 
   @Test
   void testNestedList() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .optionalList()
       .optionalListElement()
       .optionalElement(PrimitiveType.PrimitiveTypeName.INT32)
@@ -415,7 +415,7 @@ class ParquetConverterTest {
 
   @Test
   void testMapConverter() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .optionalMap()
       .key(PrimitiveType.PrimitiveTypeName.INT32)
       .optionalValue(PrimitiveType.PrimitiveTypeName.INT64)
@@ -483,7 +483,7 @@ class ParquetConverterTest {
 
   @Test
   void testRepeatedMap() {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .map(Type.Repetition.REPEATED)
       .key(PrimitiveType.PrimitiveTypeName.INT32)
       .optionalValue(PrimitiveType.PrimitiveTypeName.INT64)
@@ -507,7 +507,7 @@ class ParquetConverterTest {
 
   private void testPrimitive(PrimitiveType.PrimitiveTypeName type, Consumer<PrimitiveConverter> consumer,
     Object expected) {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .required(type).named("value")
       .named("message"));
     var rootConverter = materializer.getRootConverter();
@@ -524,7 +524,7 @@ class ParquetConverterTest {
 
   private void testAnnotatedPrimitive(PrimitiveType.PrimitiveTypeName type, LogicalTypeAnnotation annotation,
     int length, Consumer<PrimitiveConverter> consumer, Object expected) {
-    var materializer = new MapRecordMaterializer(Types.buildMessage()
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
       .required(type).as(annotation).length(length).named("value")
       .named("message"));
     var rootConverter = materializer.getRootConverter();

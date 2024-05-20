@@ -48,12 +48,12 @@ import org.apache.parquet.schema.Type;
  * <a href="https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#nested-types">list and map nested
  * types</a> into java {@link List Lists} and {@link Map Maps}.
  */
-public class MapRecordMaterializer extends RecordMaterializer<Map<String, Object>> {
+public class ParquetRecordConverter extends RecordMaterializer<Map<String, Object>> {
 
   private final StructConverter root;
   private Map<String, Object> map;
 
-  MapRecordMaterializer(MessageType schema) {
+  ParquetRecordConverter(MessageType schema) {
     root = new StructConverter(null, schema) {
       @Override
       public void start() {
