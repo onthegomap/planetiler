@@ -41,7 +41,7 @@ public class OvertureBasemap implements Profile {
   public String attribution() {
     return """
       <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
-      <a href="https://docs.overturemaps.org/attribution/" target="_blank">&copy; Overture Foundation</a>
+      <a href="https://docs.overturemaps.org/attribution/" target="_blank">&copy; Overture Maps Foundation</a>
       """
       .replace("\n", " ")
       .trim();
