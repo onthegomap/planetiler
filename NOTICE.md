@@ -67,5 +67,5 @@ The `planetiler-core` module includes the following software:
 | OSM Lakelines              | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright)               | yes             | no               |
 | OSM Water Polygons         | [acknowledgement](https://osmdata.openstreetmap.de/info/license.html), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes             | yes              |
 | Wikidata name translations | [CCO](https://www.wikidata.org/wiki/Wikidata:Licensing)                                                                              | no              | no               |
-| Overture Maps              | [Various](https://docs.overturemaps.org/attribution/)                                                                                | no              | yes              |
+| Overture Maps              | [Various](https://docs.overturemaps.org/attribution)                                                                                 | no              | yes              |
 
