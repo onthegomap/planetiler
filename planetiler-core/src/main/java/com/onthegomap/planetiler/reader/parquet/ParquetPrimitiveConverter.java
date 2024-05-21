@@ -23,16 +23,12 @@ import org.apache.parquet.schema.LogicalTypeAnnotation;
 
 class ParquetPrimitiveConverter extends PrimitiveConverter {
 
-  private final ParquetRecordConverter.StructConverter parent;
-  private final boolean repeated;
-  private final String fieldOnParent;
+  private final ParquetRecordConverter.Context context;
   private Dictionary dictionary;
   private final IntConsumer dictionaryHandler;
 
   ParquetPrimitiveConverter(ParquetRecordConverter.Context context) {
-    this.parent = context.parent();
-    this.repeated = context.repeated();
-    this.fieldOnParent = context.fieldOnParent();
+    this.context = context;
     this.dictionaryHandler =
       switch (context.type().asPrimitiveType().getPrimitiveTypeName()) {
         case INT64 -> idx -> addLong(dictionary.decodeToLong(idx));
@@ -103,7 +99,7 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
   };
 
   void add(Object value) {
-    parent.current.add(fieldOnParent, value, repeated);
+    context.accept(value);
   }
 
 
