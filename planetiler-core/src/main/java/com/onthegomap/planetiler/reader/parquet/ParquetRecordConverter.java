@@ -1,45 +1,16 @@
 package com.onthegomap.planetiler.reader.parquet;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Period;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.function.IntConsumer;
-import java.util.function.LongFunction;
 import java.util.stream.IntStream;
-import org.apache.parquet.column.Dictionary;
-import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.Converter;
 import org.apache.parquet.io.api.GroupConverter;
-import org.apache.parquet.io.api.PrimitiveConverter;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.DecimalLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.EnumLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.IntervalLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.JsonLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.StringLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
-import org.apache.parquet.schema.LogicalTypeAnnotation.UUIDLogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 
@@ -179,7 +150,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   }
 
 
-  private static class StructConverter extends GroupConverter {
+  static class StructConverter extends GroupConverter {
 
     final StructConverter parent;
     final boolean repeated;
@@ -230,107 +201,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
           case null, default -> new StructConverter(this, type.asGroupType());
         };
       }
-      var primitiveType = type.asPrimitiveType().getPrimitiveTypeName();
-      return switch (primitiveType) {
-        case BOOLEAN -> new Primitive(this, fieldOnParent, type, repeated) {
-          @Override
-          public void addBoolean(boolean value) {
-            add(value);
-          }
-        };
-        case INT64, INT32 -> {
-          LongFunction<Object> remapper = switch (type.getLogicalTypeAnnotation()) {
-            case null -> null;
-            case IntLogicalTypeAnnotation x -> null;
-            case DecimalLogicalTypeAnnotation decimal -> {
-              double multiplier = Math.pow(10, -decimal.getScale());
-              yield (value -> value * multiplier);
-            }
-            case DateLogicalTypeAnnotation date -> LocalDate::ofEpochDay;
-            case TimeLogicalTypeAnnotation time -> {
-              var unit = getUnit(time.getUnit());
-              yield value -> LocalTime.ofNanoOfDay(Duration.of(value, unit).toNanos());
-            }
-            case TimestampLogicalTypeAnnotation time -> {
-              var unit = getUnit(time.getUnit());
-              yield value -> Instant.ofEpochMilli(Duration.of(value, unit).toMillis());
-            }
-            default ->
-              throw new UnsupportedOperationException("Unsupported logical type for " + primitiveType + ": " + logical);
-          };
-          yield new Primitive(this, fieldOnParent, type, repeated) {
-            @Override
-            public void addLong(long value) {
-              add(remapper == null ? value : remapper.apply(value));
-            }
-
-            @Override
-            public void addInt(int value) {
-              add(remapper == null ? value : remapper.apply(value));
-            }
-          };
-        }
-        case INT96 -> new Primitive(this, fieldOnParent, type, repeated) {
-          @Override
-          public void addBinary(Binary value) {
-            var buf = value.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
-            LocalTime timeOfDay = LocalTime.ofNanoOfDay(buf.getLong());
-            LocalDate day = LocalDate.ofEpochDay(buf.getInt() - 2440588L);
-            add(LocalDateTime.of(day, timeOfDay).toInstant(ZoneOffset.UTC));
-          }
-        };
-        case FLOAT -> new Primitive(this, fieldOnParent, type, repeated) {
-          @Override
-          public void addFloat(float value) {
-            add((double) value);
-          }
-        };
-        case DOUBLE -> new Primitive(this, fieldOnParent, type, repeated) {
-          @Override
-          public void addDouble(double value) {
-            add(value);
-          }
-        };
-        case FIXED_LEN_BYTE_ARRAY, BINARY -> {
-          Function<Binary, Object> remapper = switch (type.getLogicalTypeAnnotation()) {
-            case UUIDLogicalTypeAnnotation uuid -> binary -> {
-              ByteBuffer byteBuffer = binary.toByteBuffer();
-              long msb = byteBuffer.getLong();
-              long lsb = byteBuffer.getLong();
-              return new UUID(msb, lsb);
-            };
-            case IntervalLogicalTypeAnnotation interval -> binary -> {
-              ByteBuffer byteBuffer = binary.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
-              int months = byteBuffer.getInt();
-              int days = byteBuffer.getInt();
-              int millis = byteBuffer.getInt();
-              return new Interval(Period.ofMonths(months).plusDays(days), Duration.ofMillis(millis));
-            };
-            case DecimalLogicalTypeAnnotation decimal -> {
-              int scale = -decimal.getScale();
-              yield binary -> new BigDecimal(new BigInteger(binary.getBytes()), scale).doubleValue();
-            }
-            case StringLogicalTypeAnnotation string -> Binary::toStringUsingUTF8;
-            case EnumLogicalTypeAnnotation string -> Binary::toStringUsingUTF8;
-            case JsonLogicalTypeAnnotation json -> Binary::toStringUsingUTF8;
-            case null, default -> Binary::getBytes;
-          };
-          yield new Primitive(this, fieldOnParent, type, repeated) {
-            @Override
-            public void addBinary(Binary value) {
-              add(remapper.apply(value));
-            }
-          };
-        }
-      };
-    }
-
-    private static ChronoUnit getUnit(LogicalTypeAnnotation.TimeUnit unit) {
-      return switch (unit) {
-        case MILLIS -> ChronoUnit.MILLIS;
-        case MICROS -> ChronoUnit.MICROS;
-        case NANOS -> ChronoUnit.NANOS;
-      };
+      return ParquetPrimitiveConverter.of(new Context(this, fieldOnParent, type, repeated));
     }
 
     @Override
@@ -350,50 +221,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
   }
 
-  private abstract static class Primitive extends PrimitiveConverter {
-
-    private final StructConverter parent;
-    private final boolean repeated;
-    private final String fieldOnParent;
-    private Dictionary dictionary;
-    private final IntConsumer dictionaryHandler;
-
-    public Primitive(StructConverter parent, String fieldOnParent, Type type, boolean repeated) {
-      this.parent = parent;
-      this.repeated = repeated;
-      this.fieldOnParent = fieldOnParent;
-      this.dictionaryHandler =
-        switch (type.asPrimitiveType().getPrimitiveTypeName()) {
-          case INT64 -> idx -> addLong(dictionary.decodeToLong(idx));
-          case INT32 -> idx -> addInt(dictionary.decodeToInt(idx));
-          case BOOLEAN -> idx -> addBoolean(dictionary.decodeToBoolean(idx));
-          case FLOAT -> idx -> addFloat(dictionary.decodeToFloat(idx));
-          case DOUBLE -> idx -> addDouble(dictionary.decodeToDouble(idx));
-          case BINARY, FIXED_LEN_BYTE_ARRAY, INT96 -> idx -> addBinary(dictionary.decodeToBinary(idx));
-        };
-    }
-
-    void add(Object value) {
-      parent.current.add(fieldOnParent, value, repeated);
-    }
-
-    @Override
-    public void addValueFromDictionary(int dictionaryId) {
-      dictionaryHandler.accept(dictionaryId);
-    }
-
-    @Override
-    public void setDictionary(Dictionary dictionary) {
-      this.dictionary = dictionary;
-    }
-
-    @Override
-    public boolean hasDictionarySupport() {
-      return true;
-    }
-  }
-
-  private interface Group {
+  interface Group {
     // TODO handle repeated when processing schema, not elements
     void add(Object key, Object value, boolean repeated);
 
@@ -514,4 +342,11 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       throw new UnsupportedOperationException();
     }
   }
+
+  record Context(
+    ParquetRecordConverter.StructConverter parent,
+    String fieldOnParent,
+    Type type,
+    boolean repeated
+  ) {}
 }
