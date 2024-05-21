@@ -55,22 +55,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       super(context);
     }
 
-    private boolean onlyField(Type type, String name) {
-      return !type.isPrimitive() && type.asGroupType().getFieldCount() == 1 &&
-        type.asGroupType().getFieldName(0).equalsIgnoreCase(name);
-    }
-
     @Override
-    protected Converter makeConverter(Context childContext) {
-      if (context.getFieldCount() == 1) {
-        Type type = childContext.type;
-        // TODO field on parent, and move onlyField to Context?
-        if ((type.getName().equalsIgnoreCase("list") || type.getName().equalsIgnoreCase("array")) &&
-          onlyField(type, "element")) {
-          return new ListElementConverter(childContext.hoist());
-        }
+    protected Converter makeConverter(Context child) {
+      if ((child.named("list") || child.named("array")) && child.onlyField("element")) {
+        return new ListElementConverter(child.hoist());
       }
-      return super.makeConverter(childContext);
+      return super.makeConverter(child);
     }
 
     @Override
@@ -105,16 +95,16 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
 
     @Override
-    protected Converter makeConverter(Context childContext) {
+    protected Converter makeConverter(Context child) {
       if (context.getFieldCount() == 1) {
-        Type type = childContext.type;
+        Type type = child.type;
         String onlyFieldName = type.getName().toLowerCase(Locale.ROOT);
         if (!type.isPrimitive() && type.asGroupType().getFieldCount() == 2 &&
           (onlyFieldName.equals("key_value") || onlyFieldName.equals("map"))) {
-          return new MapEntryConverter(childContext.repeated(false));
+          return new MapEntryConverter(child.repeated(false));
         }
       }
-      return super.makeConverter(childContext);
+      return super.makeConverter(child);
     }
 
     @Override
@@ -160,46 +150,29 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       }
     }
 
-    protected Converter makeConverter(Context childContext) {
-      Type type = childContext.type;
+    protected Converter makeConverter(Context child) {
+      Type type = child.type;
       LogicalTypeAnnotation logical = type.getLogicalTypeAnnotation();
       if (!type.isPrimitive()) {
         return switch (logical) {
-          case LogicalTypeAnnotation.ListLogicalTypeAnnotation list ->
-            //message root {
-            //  optional group value (LIST) { <<--
-            //    repeated group list {
-            //      optional <type> element;
-            //    }
-            //  }
-            //}
-
+          case LogicalTypeAnnotation.ListLogicalTypeAnnotation ignored ->
             // If the repeated field is not a group, then its type is the element type and elements are required.
             // If the repeated field is a group with multiple fields, then its type is the element type and elements are required.
             // If the repeated field is a group with one field and is named either array or uses the LIST-annotated group's name with _tuple appended then the repeated type is the element type and elements are required.
             // Otherwise, the repeated field's type is the element type with the repeated field's repetition.
-            new ListConverter(childContext);
-          case LogicalTypeAnnotation.MapLogicalTypeAnnotation m ->
-            //message root {
-            //  optional group value (MAP) {
-            //    repeated group key_value {
-            //      required int32 key;
-            //      optional int64 value;
-            //    }
-            //  }
-            //}
-
+            new ListConverter(child);
+          case LogicalTypeAnnotation.MapLogicalTypeAnnotation ignored ->
             // The outer-most level must be a group annotated with MAP that contains a single field named key_value. The repetition of this level must be either optional or required and determines whether the list is nullable.
             // The middle level, named key_value, must be a repeated group with a key field for map keys and, optionally, a value field for map values.
             // The key field encodes the map's key type. This field must have repetition required and must always be present.
             // The value field encodes the map's value type and repetition. This field can be required, optional, or omitted.
-            new MapConverter(childContext);
-          case LogicalTypeAnnotation.MapKeyValueTypeAnnotation m ->
-            new MapConverter(childContext);
-          case null, default -> new StructConverter(childContext);
+            new MapConverter(child);
+          case LogicalTypeAnnotation.MapKeyValueTypeAnnotation ignored ->
+            new MapConverter(child);
+          case null, default -> new StructConverter(child);
         };
       }
-      return ParquetPrimitiveConverter.of(childContext);
+      return ParquetPrimitiveConverter.of(child);
     }
 
     @Override
@@ -378,6 +351,15 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
     public Context repeated(boolean newRepeated) {
       return new Context(parent, fieldOnParent, type, newRepeated);
+    }
+
+    public boolean named(String name) {
+      return type.getName().equalsIgnoreCase(name);
+    }
+
+    private boolean onlyField(String name) {
+      return !type.isPrimitive() && type.asGroupType().getFieldCount() == 1 &&
+        type.asGroupType().getFieldName(0).equalsIgnoreCase(name);
     }
   }
 }
