@@ -67,6 +67,18 @@ public class ParquetReader {
     this.hivePartitioning = hivePartitioning;
   }
 
+  static Map<String, Object> getHivePartitionFields(Path path) {
+    Map<String, Object> fields = new HashMap<>();
+    for (var part : path) {
+      var string = part.toString();
+      if (string.contains("=")) {
+        var parts = string.split("=");
+        fields.put(parts[0], parts[1]);
+      }
+    }
+    return fields.isEmpty() ? null : fields;
+  }
+
   public void process(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage(sourceName);
     var inputFiles = sourcePath.stream()
@@ -176,18 +188,6 @@ public class ParquetReader {
       layer = layerGenerator.apply(fields == null ? Map.of() : fields) instanceof Object o ? o.toString() : layer;
     }
     return layer;
-  }
-
-  static Map<String, Object> getHivePartitionFields(Path path) {
-    Map<String, Object> fields = new HashMap<>();
-    for (var part : path) {
-      var string = part.toString();
-      if (string.contains("=")) {
-        var parts = string.split("=");
-        fields.put(parts[0], parts[1]);
-      }
-    }
-    return fields.isEmpty() ? null : fields;
   }
 
   private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,

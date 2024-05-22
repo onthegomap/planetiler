@@ -3,11 +3,9 @@ package com.onthegomap.planetiler.reader.parquet;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.reader.WithTags;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -18,15 +16,15 @@ import org.locationtech.jts.geom.Puntal;
  */
 public class ParquetFeature extends SourceFeature {
 
-  private final Function<WithTags, Geometry> geometryParser;
+  private final GeometryReader geometryParser;
   private final Path filename;
   private Geometry latLon;
   private Geometry world;
 
-  ParquetFeature(String source, String sourceLayer, Path filename,
-    long id, Function<WithTags, Geometry> getGeometry, Map<String, Object> tags) {
+  ParquetFeature(String source, String sourceLayer, Path filename, long id, GeometryReader geometryParser,
+    Map<String, Object> tags) {
     super(tags, source, sourceLayer, List.of(), id);
-    this.geometryParser = getGeometry;
+    this.geometryParser = geometryParser;
     this.filename = filename;
   }
 
@@ -36,7 +34,7 @@ public class ParquetFeature extends SourceFeature {
 
   @Override
   public Geometry latLonGeometry() throws GeometryException {
-    return latLon == null ? latLon = geometryParser.apply(this) : latLon;
+    return latLon == null ? latLon = geometryParser.readPrimaryGeometry(this) : latLon;
   }
 
   @Override

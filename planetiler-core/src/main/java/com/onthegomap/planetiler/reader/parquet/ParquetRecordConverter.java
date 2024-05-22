@@ -23,7 +23,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   private Map<String, Object> map;
 
   ParquetRecordConverter(MessageType schema) {
-    root = new StructConverter(new Context(schema)) {
+    root = new StructConverter(new ParquetConverterContext(schema)) {
       @Override
       public void start() {
         var group = new MapGroup(schema.getFieldCount());
@@ -49,14 +49,21 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   }
 
 
+  interface Group {
+    // TODO handle repeated when processing schema, not elements
+    void add(Object key, Object value, boolean repeated);
+
+    Object value();
+  }
+
   private static class ListConverter extends StructConverter {
 
-    ListConverter(Context context) {
+    ListConverter(ParquetConverterContext context) {
       super(context);
     }
 
     @Override
-    protected Converter makeConverter(Context child) {
+    protected Converter makeConverter(ParquetConverterContext child) {
       if ((child.named("list") || child.named("array")) && child.onlyField("element")) {
         return new ListElementConverter(child.hoist());
       }
@@ -70,10 +77,9 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
   }
 
-
   private static class ListElementConverter extends StructConverter {
 
-    ListElementConverter(Context context) {
+    ListElementConverter(ParquetConverterContext context) {
       super(context);
     }
 
@@ -90,12 +96,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
   private static class MapConverter extends StructConverter {
 
-    MapConverter(Context context) {
+    MapConverter(ParquetConverterContext context) {
       super(context);
     }
 
     @Override
-    protected Converter makeConverter(Context child) {
+    protected Converter makeConverter(ParquetConverterContext child) {
       if (context.getFieldCount() == 1) {
         Type type = child.type;
         String onlyFieldName = type.getName().toLowerCase(Locale.ROOT);
@@ -117,7 +123,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   private static class MapEntryConverter extends StructConverter {
     MapEntryGroup entry;
 
-    MapEntryConverter(Context context) {
+    MapEntryConverter(ParquetConverterContext context) {
       super(context);
     }
 
@@ -134,13 +140,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
   }
 
-
   static class StructConverter extends GroupConverter {
 
-    final Context context;
+    final ParquetConverterContext context;
     private final Converter[] converters;
 
-    StructConverter(Context context) {
+    StructConverter(ParquetConverterContext context) {
       this.context = context;
       int count = context.type.asGroupType().getFieldCount();
       converters = new Converter[count];
@@ -149,7 +154,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       }
     }
 
-    protected Converter makeConverter(Context child) {
+    protected Converter makeConverter(ParquetConverterContext child) {
       Type type = child.type;
       LogicalTypeAnnotation logical = type.getLogicalTypeAnnotation();
       if (!type.isPrimitive()) {
@@ -187,15 +192,8 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
     @Override
     public void end() {
-      // don't need to do anything
+      // by default, don't need to do anything
     }
-  }
-
-  interface Group {
-    // TODO handle repeated when processing schema, not elements
-    void add(Object key, Object value, boolean repeated);
-
-    Object value();
   }
 
   private static class MapGroup implements Group {
@@ -203,11 +201,11 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     private final Map<Object, Object> map;
 
     MapGroup() {
-      map = new HashMap<>();
+      this(10);
     }
 
     MapGroup(int size) {
-      map = HashMap.newHashMap(size);
+      map = HashMap.newHashMap(size * 2);
     }
 
     @Override
@@ -313,90 +311,4 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
   }
 
-  static final class Context {
-    Group current;
-
-    private final Context parent;
-    private final String fieldOnParent;
-    private final Type type;
-    private final boolean repeated;
-
-    Context(
-      Context parent,
-      String fieldOnParent,
-      Type type,
-      boolean repeated
-    ) {
-      this.parent = parent;
-      this.fieldOnParent = fieldOnParent;
-      this.type = type;
-      this.repeated = repeated;
-    }
-
-    public Context(Context newParent, Type type) {
-      this(newParent, type.getName(), type, type.isRepetition(Type.Repetition.REPEATED));
-    }
-
-    public Context(MessageType schema) {
-      this(null, schema);
-    }
-
-    public Context field(int i) {
-      return new Context(this, type.asGroupType().getType(i));
-    }
-
-    public Context hoist() {
-      return new Context(parent, parent.fieldOnParent, type, repeated);
-    }
-
-    public void acceptCurrentValue() {
-      accept(current.value());
-    }
-
-    public void accept(Object value) {
-      parent.current.add(fieldOnParent, value, repeated);
-    }
-
-    public int getFieldCount() {
-      return type.asGroupType().getFieldCount();
-    }
-
-    public void accept(Object k, Object v) {
-      parent.current.add(k, v, repeated);
-    }
-
-    public Context repeated(boolean newRepeated) {
-      return new Context(parent, fieldOnParent, type, newRepeated);
-    }
-
-    public boolean named(String name) {
-      return type.getName().equalsIgnoreCase(name);
-    }
-
-    private boolean onlyField(String name) {
-      return !type.isPrimitive() && type.asGroupType().getFieldCount() == 1 &&
-        type.asGroupType().getFieldName(0).equalsIgnoreCase(name);
-    }
-
-    public String fieldOnParent() {
-      return fieldOnParent;
-    }
-
-    public Type type() {
-      return type;
-    }
-
-    public boolean repeated() {
-      return repeated;
-    }
-
-    @Override
-    public String toString() {
-      return "Context[" +
-        "parent=" + parent + ", " +
-        "fieldOnParent=" + fieldOnParent + ", " +
-        "type=" + type + ", " +
-        "repeated=" + repeated + ']';
-    }
-  }
 }

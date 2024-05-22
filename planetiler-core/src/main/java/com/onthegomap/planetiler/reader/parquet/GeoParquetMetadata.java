@@ -40,10 +40,16 @@ public record GeoParquetMetadata(
   private static final ObjectMapper mapper =
     new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-  public ColumnMetadata primaryColumnMetadata() {
-    return Objects.requireNonNull(columns.get(primaryColumn),
-      "No geoparquet metadata for primary column " + primaryColumn);
-  }
+  public record CoveringBbox(
+    List<String> xmin,
+    List<String> ymin,
+    List<String> xmax,
+    List<String> ymax
+  ) {}
+
+  public record Covering(
+    CoveringBbox bbox
+  ) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   public record ColumnMetadata(
@@ -137,16 +143,10 @@ public record GeoParquetMetadata(
     }
   }
 
-  public record CoveringBbox(
-    List<String> xmin,
-    List<String> ymin,
-    List<String> xmax,
-    List<String> ymax
-  ) {}
-
-  public record Covering(
-    CoveringBbox bbox
-  ) {}
+  public ColumnMetadata primaryColumnMetadata() {
+    return Objects.requireNonNull(columns.get(primaryColumn),
+      "No geoparquet metadata for primary column " + primaryColumn);
+  }
 
 
   /**

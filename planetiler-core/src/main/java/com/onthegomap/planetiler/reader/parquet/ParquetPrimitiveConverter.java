@@ -14,33 +14,45 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.function.IntConsumer;
 import java.util.function.LongFunction;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.PrimitiveType;
 
+/**
+ * Converts typed primitive values from parquet records to java objects:
+ *
+ * <ul>
+ * <li>{@link PrimitiveType.PrimitiveTypeName#FLOAT} -> {@link Float}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#DOUBLE} -> {@link Double}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#INT32} -> {@link Integer}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#INT64} -> {@link Long}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#BOOLEAN} -> {@link Boolean}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#INT96} -> {@link Instant}
+ * <li>{@link LogicalTypeAnnotation.DateLogicalTypeAnnotation} -> {@link LocalDate}
+ * <li>{@link LogicalTypeAnnotation.TimeLogicalTypeAnnotation} -> {@link LocalTime}
+ * <li>{@link LogicalTypeAnnotation.TimestampLogicalTypeAnnotation} -> {@link Instant}
+ * <li>{@link LogicalTypeAnnotation.UUIDLogicalTypeAnnotation} -> {@link UUID}
+ * <li>{@link LogicalTypeAnnotation.DecimalLogicalTypeAnnotation} -> {@link Double}
+ * <li>{@link LogicalTypeAnnotation.StringLogicalTypeAnnotation} -> {@link String}
+ * <li>{@link LogicalTypeAnnotation.JsonLogicalTypeAnnotation} -> {@link String}
+ * <li>{@link LogicalTypeAnnotation.EnumLogicalTypeAnnotation} -> {@link String}
+ * <li>{@link PrimitiveType.PrimitiveTypeName#BINARY} -> {@code byte[]}
+ * </ul>
+ */
 class ParquetPrimitiveConverter extends PrimitiveConverter {
-
-  private final ParquetRecordConverter.Context context;
+  private final PrimitiveType.PrimitiveTypeName primitiveType;
+  private final ParquetConverterContext context;
   private Dictionary dictionary;
-  private final IntConsumer dictionaryHandler;
 
-  ParquetPrimitiveConverter(ParquetRecordConverter.Context context) {
+  ParquetPrimitiveConverter(ParquetConverterContext context) {
     this.context = context;
-    this.dictionaryHandler =
-      switch (context.type().asPrimitiveType().getPrimitiveTypeName()) {
-        case INT64 -> idx -> addLong(dictionary.decodeToLong(idx));
-        case INT32 -> idx -> addInt(dictionary.decodeToInt(idx));
-        case BOOLEAN -> idx -> addBoolean(dictionary.decodeToBoolean(idx));
-        case FLOAT -> idx -> addFloat(dictionary.decodeToFloat(idx));
-        case DOUBLE -> idx -> addDouble(dictionary.decodeToDouble(idx));
-        case BINARY, FIXED_LEN_BYTE_ARRAY, INT96 -> idx -> addBinary(dictionary.decodeToBinary(idx));
-      };
+    this.primitiveType = context.type.asPrimitiveType().getPrimitiveTypeName();
   }
 
-  static ParquetPrimitiveConverter of(ParquetRecordConverter.Context context) {
+  static ParquetPrimitiveConverter of(ParquetConverterContext context) {
     var primitiveType = context.type().asPrimitiveType().getPrimitiveTypeName();
     return switch (primitiveType) {
       case FLOAT, DOUBLE, BOOLEAN -> new ParquetPrimitiveConverter(context);
@@ -72,13 +84,13 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
         return LocalDateTime.of(day, timeOfDay).toInstant(ZoneOffset.UTC);
       });
       case FIXED_LEN_BYTE_ARRAY, BINARY -> switch (context.type().getLogicalTypeAnnotation()) {
-        case LogicalTypeAnnotation.UUIDLogicalTypeAnnotation uuid -> new BinaryConverer(context, binary -> {
+        case LogicalTypeAnnotation.UUIDLogicalTypeAnnotation ignored -> new BinaryConverer(context, binary -> {
           ByteBuffer byteBuffer = binary.toByteBuffer();
           long msb = byteBuffer.getLong();
           long lsb = byteBuffer.getLong();
           return new UUID(msb, lsb);
         });
-        case LogicalTypeAnnotation.IntervalLogicalTypeAnnotation interval -> new BinaryConverer(context, binary -> {
+        case LogicalTypeAnnotation.IntervalLogicalTypeAnnotation ignored -> new BinaryConverer(context, binary -> {
           ByteBuffer byteBuffer = binary.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
           int months = byteBuffer.getInt();
           int days = byteBuffer.getInt();
@@ -90,18 +102,28 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
           yield new BinaryConverer(context,
             binary -> new BigDecimal(new BigInteger(binary.getBytes()), scale).doubleValue());
         }
-        case LogicalTypeAnnotation.StringLogicalTypeAnnotation string -> new StringConverter(context);
-        case LogicalTypeAnnotation.EnumLogicalTypeAnnotation string -> new StringConverter(context);
-        case LogicalTypeAnnotation.JsonLogicalTypeAnnotation json -> new StringConverter(context);
+        case LogicalTypeAnnotation.StringLogicalTypeAnnotation ignored ->
+          new BinaryConverer(context, Binary::toStringUsingUTF8);
+        case LogicalTypeAnnotation.EnumLogicalTypeAnnotation ignored ->
+          new BinaryConverer(context, Binary::toStringUsingUTF8);
+        case LogicalTypeAnnotation.JsonLogicalTypeAnnotation ignores ->
+          new BinaryConverer(context, Binary::toStringUsingUTF8);
         case null, default -> new ParquetPrimitiveConverter(context);
       };
     };
-  };
+  }
+
+  private static ChronoUnit getUnit(LogicalTypeAnnotation.TimeUnit unit) {
+    return switch (unit) {
+      case MILLIS -> ChronoUnit.MILLIS;
+      case MICROS -> ChronoUnit.MICROS;
+      case NANOS -> ChronoUnit.NANOS;
+    };
+  }
 
   void add(Object value) {
     context.accept(value);
   }
-
 
   @Override
   public void addFloat(float value) {
@@ -134,8 +156,15 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
   }
 
   @Override
-  public void addValueFromDictionary(int dictionaryId) {
-    dictionaryHandler.accept(dictionaryId);
+  public void addValueFromDictionary(int idx) {
+    switch (primitiveType) {
+      case INT64 -> addLong(dictionary.decodeToLong(idx));
+      case INT32 -> addInt(dictionary.decodeToInt(idx));
+      case BOOLEAN -> addBoolean(dictionary.decodeToBoolean(idx));
+      case FLOAT -> addFloat(dictionary.decodeToFloat(idx));
+      case DOUBLE -> addDouble(dictionary.decodeToDouble(idx));
+      case BINARY, FIXED_LEN_BYTE_ARRAY, INT96 -> addBinary(dictionary.decodeToBinary(idx));
+    }
   }
 
   @Override
@@ -148,20 +177,11 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
     return true;
   }
 
-
-  private static ChronoUnit getUnit(LogicalTypeAnnotation.TimeUnit unit) {
-    return switch (unit) {
-      case MILLIS -> ChronoUnit.MILLIS;
-      case MICROS -> ChronoUnit.MICROS;
-      case NANOS -> ChronoUnit.NANOS;
-    };
-  }
-
   private static class BinaryConverer extends ParquetPrimitiveConverter {
 
     private final Function<Binary, ?> remapper;
 
-    BinaryConverer(ParquetRecordConverter.Context context, Function<Binary, ?> remapper) {
+    BinaryConverer(ParquetConverterContext context, Function<Binary, ?> remapper) {
       super(context);
       this.remapper = remapper;
     }
@@ -172,17 +192,11 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
     }
   }
 
-  private static class StringConverter extends BinaryConverer {
-    StringConverter(ParquetRecordConverter.Context context) {
-      super(context, Binary::toStringUsingUTF8);
-    }
-  }
-
 
   private static class IntegerConverter extends ParquetPrimitiveConverter {
     private final LongFunction<?> remapper;
 
-    IntegerConverter(ParquetRecordConverter.Context context, LongFunction<?> remapper) {
+    IntegerConverter(ParquetConverterContext context, LongFunction<?> remapper) {
       super(context);
       this.remapper = remapper;
     }

@@ -51,9 +51,9 @@ public class ParquetInputFile {
   private final long count;
   private final int blockCount;
   private final GeometryReader geometryReader;
+  private final Map<String, Object> extraFields;
   private Envelope postFilterBounds = null;
   private boolean outOfBounds = false;
-  private final Map<String, Object> extraFields;
 
   public ParquetInputFile(String source, String layer, Path path) {
     this(source, layer, path, null, Bounds.WORLD, null, null);
@@ -110,19 +110,6 @@ public class ParquetInputFile {
     return FilterCompat.isFilteringRequired(filter);
   }
 
-  public interface BlockReader extends Iterable<Block>, Closeable {
-
-    @Override
-    default void close() throws IOException {}
-  }
-
-  public interface Block extends Iterable<ParquetFeature> {
-
-    Path getFileName();
-
-    String layer();
-  }
-
   public BlockReader get() {
     if (outOfBounds) {
       return Collections::emptyIterator;
@@ -133,7 +120,6 @@ public class ParquetInputFile {
     return () -> IntStream.range(0, metadata.getBlocks().size()).mapToObj(blockIndex -> {
       long blockHash = Hashing.fnv1a64(fileHash, ByteBuffer.allocate(4).putInt(blockIndex).array());
       // happens in reader thread
-      // TODO read smaller set of rows to reduce memory usage
       return (Block) new Block() {
         @Override
         public Path getFileName() {
@@ -190,7 +176,7 @@ public class ParquetInputFile {
                 path,
                 idGenerator != null ? idGenerator.applyAsLong(item) :
                   Hashing.fnv1a64(blockHash, ByteBuffer.allocate(8).putLong(i).array()),
-                geometryReader::readPrimaryGeometry,
+                geometryReader,
                 item
               );
 
@@ -225,6 +211,19 @@ public class ParquetInputFile {
 
   public long getBlockCount() {
     return blockCount;
+  }
+
+  public interface BlockReader extends Iterable<Block>, Closeable {
+
+    @Override
+    default void close() throws IOException {}
+  }
+
+  public interface Block extends Iterable<ParquetFeature> {
+
+    Path getFileName();
+
+    String layer();
   }
 
 }

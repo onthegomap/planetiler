@@ -1,17 +1,18 @@
 package com.onthegomap.planetiler.reader.parquet;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Decodes geometries from a parquet record based on the {@link GeoParquetMetadata} provided.
+ */
 class GeometryReader {
-  private static final Logger LOGGER = LoggerFactory.getLogger(GeometryReader.class);
   private final Map<String, FunctionThatThrows<Object, Geometry>> converters = new HashMap<>();
   private final String geometryColumn;
 
@@ -41,24 +42,22 @@ class GeometryReader {
     }
   }
 
-  Geometry readPrimaryGeometry(WithTags tags) {
+  Geometry readPrimaryGeometry(WithTags tags) throws GeometryException {
     return readGeometry(tags, geometryColumn);
   }
 
-  Geometry readGeometry(WithTags tags, String column) {
+  Geometry readGeometry(WithTags tags, String column) throws GeometryException {
     var value = tags.getTag(column);
     var converter = converters.get(column);
     if (value == null) {
-      LOGGER.warn("Missing {} column", column);
-      return GeoUtils.EMPTY_GEOMETRY;
+      throw new GeometryException("no_parquet_column", "Missing geometry column column " + column);
     } else if (converter == null) {
-      throw new IllegalArgumentException("No geometry converter for " + column);
+      throw new GeometryException("no_converter", "No geometry converter for " + column);
     }
     try {
       return converter.apply(value);
     } catch (Exception e) {
-      LOGGER.warn("Error reading geometry {}", column, e);
-      return GeoUtils.EMPTY_GEOMETRY;
+      throw new GeometryException("error_reading", "Error reading " + column, e);
     }
   }
 }

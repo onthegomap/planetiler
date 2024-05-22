@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.io.IOException;
 import java.util.List;
@@ -233,7 +234,7 @@ class GeoParquetMetadataTest {
   }
 
   @Test
-  void testGeometryReaderFromMetadata() throws IOException {
+  void testGeometryReaderFromMetadata() throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage()
         .required(PrimitiveType.PrimitiveTypeName.BINARY)
@@ -247,7 +248,7 @@ class GeoParquetMetadataTest {
   }
 
   @Test
-  void testGeometryReaderFromMetadataDifferentName() throws IOException {
+  void testGeometryReaderFromMetadataDifferentName() throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage()
         .required(PrimitiveType.PrimitiveTypeName.BINARY)
@@ -271,7 +272,7 @@ class GeoParquetMetadataTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"wkb_geometry", "geometry"})
-  void testReadWKBGeometryNoMetadata(String name) throws IOException {
+  void testReadWKBGeometryNoMetadata(String name) throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage()
         .required(PrimitiveType.PrimitiveTypeName.BINARY)
@@ -285,7 +286,7 @@ class GeoParquetMetadataTest {
   }
 
   @Test
-  void testReadWKTGeometryNoMetadata() throws IOException {
+  void testReadWKTGeometryNoMetadata() throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage()
         .required(PrimitiveType.PrimitiveTypeName.BINARY)
@@ -299,7 +300,7 @@ class GeoParquetMetadataTest {
   }
 
   @TestFactory
-  void testReadGeoArrowPoint() throws IOException {
+  void testReadGeoArrowPoint() throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage().named("root"),
       Map.of("geo", """
@@ -319,7 +320,7 @@ class GeoParquetMetadataTest {
   }
 
   @TestFactory
-  void testReadGeoArrowMultiPoint() throws IOException {
+  void testReadGeoArrowMultiPoint() throws IOException, GeometryException {
     var parsed = GeoParquetMetadata.parse(new FileMetaData(
       Types.buildMessage().named("root"),
       Map.of("geo", """
