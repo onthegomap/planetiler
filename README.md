@@ -334,6 +334,8 @@ Planetiler is made possible by these awesome open source projects:
   Google's [Common Expression Language](https://github.com/google/cel-spec) that powers dynamic expressions embedded in
   schema config files.
 - [PMTiles](https://github.com/protomaps/PMTiles) optimized tile storage format
+- [Apache Parquet](https://github.com/apache/parquet-mr) to support reading geoparquet files in java (with dependencies
+  minimized by [parquet-floor](https://github.com/strategicblue/parquet-floor))
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

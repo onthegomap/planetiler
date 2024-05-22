@@ -17,6 +17,8 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -27,6 +29,7 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
+import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 /**
@@ -40,8 +43,9 @@ public class GeoUtils {
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
   public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
-  public static final WKBReader WKB_READER = new WKBReader(JTS_FACTORY);
+
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
+  public static final CoordinateSequence EMPTY_COORDINATE_SEQUENCE = new PackedCoordinateSequence.Double(0, 2, 0);
   public static final Point EMPTY_POINT = JTS_FACTORY.createPoint();
   public static final LineString EMPTY_LINE = JTS_FACTORY.createLineString();
   public static final Polygon EMPTY_POLYGON = JTS_FACTORY.createPolygon();
@@ -247,11 +251,11 @@ public class GeoUtils {
     return JTS_FACTORY.createPoint(coord);
   }
 
-  public static Geometry createMultiLineString(List<LineString> lineStrings) {
+  public static MultiLineString createMultiLineString(List<LineString> lineStrings) {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
 
-  public static Geometry createMultiPolygon(List<Polygon> polygon) {
+  public static MultiPolygon createMultiPolygon(List<Polygon> polygon) {
     return JTS_FACTORY.createMultiPolygon(polygon.toArray(EMPTY_POLYGON_ARRAY));
   }
 
@@ -370,7 +374,7 @@ public class GeoUtils {
     return new PackedCoordinateSequence.Double(coords, 2, 0);
   }
 
-  public static Geometry createMultiPoint(List<Point> points) {
+  public static MultiPoint createMultiPoint(List<Point> points) {
     return JTS_FACTORY.createMultiPoint(points.toArray(EMPTY_POINT_ARRAY));
   }
 
@@ -546,6 +550,14 @@ public class GeoUtils {
     double worldPixels = worldGeometrySize * 256;
     return Math.clamp((int) Math.ceil(Math.log(minPixelSize / worldPixels) / LOG2), 0,
       PlanetilerConfig.MAX_MAXZOOM);
+  }
+
+  public static WKBReader wkbReader() {
+    return new WKBReader(JTS_FACTORY);
+  }
+
+  public static WKTReader wktReader() {
+    return new WKTReader(JTS_FACTORY);
   }
 
   /** Helper class to sort polygons by area of their outer shell. */

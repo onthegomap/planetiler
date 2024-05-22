@@ -172,6 +172,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
           }
         }
         if (geometryColumn >= 0) {
+          var wkbReader = GeoUtils.wkbReader();
           while (rs.next()) {
             byte[] geometry = rs.getBytes(geometryColumn + 1);
             if (geometry == null) {
@@ -179,7 +180,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
             }
 
             // create the feature and pass to next stage
-            Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
+            Geometry latLonGeometry = wkbReader.read(geometry);
             SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(column.length - 1),
               sourceName, table, ++id);
             for (int c = 0; c < column.length; c++) {

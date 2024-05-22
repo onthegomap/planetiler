@@ -12,6 +12,7 @@ import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -49,7 +50,7 @@ public class FileUtils {
     return StreamSupport.stream(fileSystem.getRootDirectories().spliterator(), false)
       .flatMap(rootDirectory -> {
         try {
-          return Files.walk(rootDirectory);
+          return Files.walk(rootDirectory, FileVisitOption.FOLLOW_LINKS);
         } catch (IOException e) {
           LOGGER.error("Unable to walk " + rootDirectory + " in " + fileSystem, e);
           return Stream.empty();
@@ -82,9 +83,9 @@ public class FileUtils {
             .toList();
         }
       } else if (Files.isDirectory(basePath)) {
-        try (var walk = Files.walk(basePath)) {
+        try (var walk = Files.walk(basePath, FileVisitOption.FOLLOW_LINKS)) {
           return walk
-            .filter(path -> matcher.matches(path.getFileName()))
+            .filter(path -> matcher.matches(path.getFileName()) || matcher.matches(basePath.relativize(path)))
             .flatMap(path -> {
               if (FileUtils.hasExtension(path, "zip")) {
                 return walkZipFile.apply(path).stream();
@@ -109,8 +110,9 @@ public class FileUtils {
    * @param pattern  pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
    */
   public static List<Path> walkPathWithPattern(Path basePath, String pattern) {
-    return walkPathWithPattern(basePath, pattern, zipPath -> List.of(zipPath));
+    return walkPathWithPattern(basePath, pattern, List::of);
   }
+
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
   public static boolean hasExtension(Path path, String extension) {

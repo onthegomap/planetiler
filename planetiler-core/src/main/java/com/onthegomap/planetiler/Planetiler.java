@@ -13,9 +13,11 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.parquet.ParquetReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -39,9 +41,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -467,6 +472,53 @@ public class Planetiler {
     return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
       .process(name, path, keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup,
         config, profile, stats, keepUnzipped)));
+  }
+
+
+  /**
+   * Adds a new <a href="https://github.com/opengeospatial/geoparquet">geoparquet</a> source that will be processed when
+   * {@link #run()} is called.
+   *
+   * @param name             string to use in stats and logs to identify this stage
+   * @param paths            paths to the geoparquet files to read.
+   * @param hivePartitioning Set to true to parse extra feature tags from the file path, for example
+   *                         {@code {them="buildings", type="part"}} from
+   *                         {@code base/theme=buildings/type=part/file.parquet}
+   * @param getId            function that extracts a unique vector tile feature ID from each input feature, string or
+   *                         binary features will be hashed to a {@code long}.
+   * @param getLayer         function that extracts {@link SourceFeature#getSourceLayer()} from the properties of each
+   *                         input feature
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning,
+    Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
+    // TODO handle auto-downloading
+    for (var path : paths) {
+      inputPaths.add(new InputPath(name, path, false));
+    }
+    var separator = Pattern.quote(paths.isEmpty() ? "/" : paths.getFirst().getFileSystem().getSeparator());
+    String prefix = StringUtils.getCommonPrefix(paths.stream().map(Path::toString).toArray(String[]::new))
+      .replaceAll(separator + "[^" + separator + "]*$", "");
+    return addStage(name, "Process features in " + (prefix.isEmpty() ? (paths.size() + " files") : prefix),
+      ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
+        .process(paths, featureGroup, config)));
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} using the default layer and ID
+   * extractors.
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning) {
+    return addParquetSource(name, paths, hivePartitioning, null, null);
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} without hive partitioning and using
+   * the default layer and ID extractors.
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths) {
+    return addParquetSource(name, paths, false);
   }
 
   /**

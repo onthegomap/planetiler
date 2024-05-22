@@ -154,12 +154,24 @@
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
       <exclusions>
-      <exclusion>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-nop</artifactId>
-      </exclusion>
-    </exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-nop</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
+    <!-- Pin transitive snappy dependency to more recent version without vulnerability -->
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+      <version>1.1.10.5</version>
+    </dependency>
+    <dependency>
+      <groupId>blue.strategic.parquet</groupId>
+      <artifactId>parquet-floor</artifactId>
+      <version>1.41</version>
+    </dependency>
+
   </dependencies>
 
   <build>

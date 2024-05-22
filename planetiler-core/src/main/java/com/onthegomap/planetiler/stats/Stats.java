@@ -94,10 +94,15 @@ public interface Stats extends AutoCloseable {
       LogUtil.setStage(name);
     }
     var timer = timers().startTimer(name, log);
-    return () -> {
-      timer.stop();
-      if (log) {
-        LogUtil.clearStage();
+    return new Timers.Finishable() {
+      @Override
+      public void stop() {
+        timer.stop();
+      }
+
+      @Override
+      public ProcessTime elapsed() {
+        return timer.elapsed();
       }
     };
   }
