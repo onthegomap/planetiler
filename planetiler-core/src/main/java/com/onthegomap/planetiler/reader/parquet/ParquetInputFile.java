@@ -110,6 +110,10 @@ public class ParquetInputFile {
     return FilterCompat.isFilteringRequired(filter);
   }
 
+  public boolean isOutOfBounds() {
+    return outOfBounds;
+  }
+
   public BlockReader get() {
     if (outOfBounds) {
       return Collections::emptyIterator;

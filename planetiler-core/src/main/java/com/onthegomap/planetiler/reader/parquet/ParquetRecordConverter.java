@@ -23,7 +23,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   private Map<String, Object> map;
 
   ParquetRecordConverter(MessageType schema) {
-    root = new StructConverter(new ParquetConverterContext(schema)) {
+    root = new StructConverter(new Context(schema)) {
       @Override
       public void start() {
         var group = new MapGroup(schema.getFieldCount());
@@ -58,12 +58,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
   private static class ListConverter extends StructConverter {
 
-    ListConverter(ParquetConverterContext context) {
+    ListConverter(Context context) {
       super(context);
     }
 
     @Override
-    protected Converter makeConverter(ParquetConverterContext child) {
+    protected Converter makeConverter(Context child) {
       if ((child.named("list") || child.named("array")) && child.onlyField("element")) {
         return new ListElementConverter(child.hoist());
       }
@@ -79,7 +79,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
   private static class ListElementConverter extends StructConverter {
 
-    ListElementConverter(ParquetConverterContext context) {
+    ListElementConverter(Context context) {
       super(context);
     }
 
@@ -96,12 +96,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
   private static class MapConverter extends StructConverter {
 
-    MapConverter(ParquetConverterContext context) {
+    MapConverter(Context context) {
       super(context);
     }
 
     @Override
-    protected Converter makeConverter(ParquetConverterContext child) {
+    protected Converter makeConverter(Context child) {
       if (context.getFieldCount() == 1) {
         Type type = child.type;
         String onlyFieldName = type.getName().toLowerCase(Locale.ROOT);
@@ -123,7 +123,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   private static class MapEntryConverter extends StructConverter {
     MapEntryGroup entry;
 
-    MapEntryConverter(ParquetConverterContext context) {
+    MapEntryConverter(Context context) {
       super(context);
     }
 
@@ -142,10 +142,10 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
   static class StructConverter extends GroupConverter {
 
-    final ParquetConverterContext context;
+    final Context context;
     private final Converter[] converters;
 
-    StructConverter(ParquetConverterContext context) {
+    StructConverter(Context context) {
       this.context = context;
       int count = context.type.asGroupType().getFieldCount();
       converters = new Converter[count];
@@ -154,7 +154,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       }
     }
 
-    protected Converter makeConverter(ParquetConverterContext child) {
+    protected Converter makeConverter(Context child) {
       Type type = child.type;
       LogicalTypeAnnotation logical = type.getLogicalTypeAnnotation();
       if (!type.isPrimitive()) {
@@ -311,4 +311,81 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
   }
 
+  /** Constructs java objects from parquet records at read-time. */
+  static final class Context {
+
+    final Context parent;
+    final String fieldOnParent;
+    final Type type;
+    final boolean repeated;
+    private final int fieldCount;
+    Group current;
+
+    Context(Context parent, String fieldOnParent, Type type, boolean repeated) {
+      this.parent = parent;
+      this.fieldOnParent = fieldOnParent;
+      this.type = type;
+      this.repeated = repeated;
+      this.fieldCount = type.isPrimitive() ? 0 : type.asGroupType().getFieldCount();
+    }
+
+    public Context(Context newParent, Type type) {
+      this(newParent, type.getName(), type, type.isRepetition(Type.Repetition.REPEATED));
+    }
+
+    public Context(MessageType schema) {
+      this(null, schema);
+    }
+
+    public Context field(int i) {
+      return new Context(this, type.asGroupType().getType(i));
+    }
+
+    /** Returns a new context that flattens-out this level of the hierarchy and writes values into the parent field. */
+    public Context hoist() {
+      return new Context(parent, parent.fieldOnParent, type, repeated);
+    }
+
+    public void acceptCurrentValue() {
+      accept(current.value());
+    }
+
+    public void accept(Object value) {
+      parent.current.add(fieldOnParent, value, repeated);
+    }
+
+    public int getFieldCount() {
+      return fieldCount;
+    }
+
+    public void accept(Object k, Object v) {
+      parent.current.add(k, v, repeated);
+    }
+
+    public Context repeated(boolean newRepeated) {
+      return new Context(parent, fieldOnParent, type, newRepeated);
+    }
+
+    public boolean named(String name) {
+      return type.getName().equalsIgnoreCase(name);
+    }
+
+    boolean onlyField(String name) {
+      return !type.isPrimitive() && fieldCount == 1 &&
+        type.asGroupType().getFieldName(0).equalsIgnoreCase(name);
+    }
+
+    public Type type() {
+      return type;
+    }
+
+    @Override
+    public String toString() {
+      return "Context[" +
+        "parent=" + parent + ", " +
+        "fieldOnParent=" + fieldOnParent + ", " +
+        "type=" + type + ", " +
+        "repeated=" + repeated + ']';
+    }
+  }
 }

@@ -44,7 +44,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -495,7 +497,10 @@ public class Planetiler {
     for (var path : paths) {
       inputPaths.add(new InputPath(name, path, false));
     }
-    return addStage(name, "Process features in " + paths,
+    var separator = Pattern.quote(paths.isEmpty() ? "/" : paths.getFirst().getFileSystem().getSeparator());
+    String prefix = StringUtils.getCommonPrefix(paths.stream().map(Path::toString).toArray(String[]::new))
+      .replaceAll(separator + "[^" + separator + "]*$", "");
+    return addStage(name, "Process features in " + (prefix.isEmpty() ? (paths.size() + " files") : prefix),
       ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
         .process(paths, featureGroup, config)));
   }

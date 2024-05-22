@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.reader.parquet;
 
+import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -87,7 +89,9 @@ public class ParquetReader {
         var hivePartitionFields = hivePartitioning ? getHivePartitionFields(path) : null;
         String layer = getLayerName(path);
         return new ParquetInputFile(sourceName, layer, path, null, config.bounds(), hivePartitionFields, idGenerator);
-      }).toList();
+      })
+      .filter(file -> !file.isOutOfBounds())
+      .toList();
     // don't show % complete on features when a filter is present because to determine total # elements would
     // take an expensive initial query, and % complete on blocks gives a good enough proxy
     long featureCount = inputFiles.stream().anyMatch(ParquetInputFile::hasFilter) ? 0 :
@@ -165,6 +169,20 @@ public class ParquetReader {
 
     pipeline.awaitAndLog(loggers, config.logInterval());
 
+    if (LOGGER.isInfoEnabled()) {
+      var format = Format.defaultInstance();
+      long count = featuresRead.get();
+      var elapsed = timer.elapsed();
+      LOGGER.info("Processed {} parquet features ({}/s, {} blocks, {} files) in {}",
+        format.integer(count),
+        format.numeric(count * NANOSECONDS_PER_SECOND / elapsed.wall().toNanos()),
+        format.integer(blocksRead.get()),
+        format.integer(inputFiles.size()),
+        elapsed
+      );
+    }
+    timer.stop();
+
     // hook for profile to do any post-processing after this source is read
     try (
       var threadLocalWriter = writer.writerForThread();
@@ -174,11 +192,6 @@ public class ParquetReader {
     } catch (IOException e) {
       LOGGER.warn("Error closing writer", e);
     }
-
-    LOGGER.atInfo().setMessage("Processed {} parquet features")
-      .addArgument(() -> Format.defaultInstance().integer(featuresRead.get()))
-      .log();
-    timer.stop();
   }
 
   private String getLayerName(Path path) {

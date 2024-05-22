@@ -44,15 +44,15 @@ import org.apache.parquet.schema.PrimitiveType;
  */
 class ParquetPrimitiveConverter extends PrimitiveConverter {
   private final PrimitiveType.PrimitiveTypeName primitiveType;
-  private final ParquetConverterContext context;
+  private final ParquetRecordConverter.Context context;
   private Dictionary dictionary;
 
-  ParquetPrimitiveConverter(ParquetConverterContext context) {
+  ParquetPrimitiveConverter(ParquetRecordConverter.Context context) {
     this.context = context;
     this.primitiveType = context.type.asPrimitiveType().getPrimitiveTypeName();
   }
 
-  static ParquetPrimitiveConverter of(ParquetConverterContext context) {
+  static ParquetPrimitiveConverter of(ParquetRecordConverter.Context context) {
     var primitiveType = context.type().asPrimitiveType().getPrimitiveTypeName();
     return switch (primitiveType) {
       case FLOAT, DOUBLE, BOOLEAN -> new ParquetPrimitiveConverter(context);
@@ -181,7 +181,7 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
 
     private final Function<Binary, ?> remapper;
 
-    BinaryConverer(ParquetConverterContext context, Function<Binary, ?> remapper) {
+    BinaryConverer(ParquetRecordConverter.Context context, Function<Binary, ?> remapper) {
       super(context);
       this.remapper = remapper;
     }
@@ -196,7 +196,7 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
   private static class IntegerConverter extends ParquetPrimitiveConverter {
     private final LongFunction<?> remapper;
 
-    IntegerConverter(ParquetConverterContext context, LongFunction<?> remapper) {
+    IntegerConverter(ParquetRecordConverter.Context context, LongFunction<?> remapper) {
       super(context);
       this.remapper = remapper;
     }
