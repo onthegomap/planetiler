@@ -50,7 +50,7 @@ public class ParquetInputFile {
   private final String layer;
   private final long count;
   private final int blockCount;
-  private final GeometryReader geometryReader;
+  final GeometryReader geometryReader;
   private final Map<String, Object> extraFields;
   private Envelope postFilterBounds = null;
   private boolean outOfBounds = false;
@@ -177,7 +177,6 @@ public class ParquetInputFile {
               var feature = new ParquetFeature(
                 source,
                 layer,
-                path,
                 idGenerator != null ? idGenerator.applyAsLong(item) :
                   Hashing.fnv1a64(blockHash, ByteBuffer.allocate(8).putLong(i).array()),
                 geometryReader,
