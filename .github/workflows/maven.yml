@@ -57,10 +57,10 @@ jobs:
     # Skip spotless since that gets checked in a separate task
     - name: Build with mvnw (linux/mac)
       if: ${{ !contains(matrix.os, 'windows') }}
-      run: ./mvnw ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
+      run: ./mvnw ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress verify jib:buildTar --file pom.xml
     - name: Build with mvnw.cmd (windows)
       if: ${{ contains(matrix.os, 'windows') }}
-      run: mvnw.cmd ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
+      run: mvnw.cmd ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress verify jib:buildTar --file pom.xml
       shell: cmd
 
   examples:
