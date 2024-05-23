@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.reader.parquet;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
@@ -17,24 +16,20 @@ import org.locationtech.jts.geom.Puntal;
 public class ParquetFeature extends SourceFeature {
 
   private final GeometryReader geometryParser;
-  private final Path filename;
+  private final Object rawGeometry;
   private Geometry latLon;
   private Geometry world;
 
-  ParquetFeature(String source, String sourceLayer, Path filename, long id, GeometryReader geometryParser,
+  ParquetFeature(String source, String sourceLayer, long id, GeometryReader geometryParser,
     Map<String, Object> tags) {
     super(tags, source, sourceLayer, List.of(), id);
     this.geometryParser = geometryParser;
-    this.filename = filename;
-  }
-
-  public Path getFilename() {
-    return filename;
+    this.rawGeometry = tags.remove(geometryParser.geometryColumn);
   }
 
   @Override
   public Geometry latLonGeometry() throws GeometryException {
-    return latLon == null ? latLon = geometryParser.readPrimaryGeometry(this) : latLon;
+    return latLon == null ? latLon = geometryParser.parseGeometry(rawGeometry, geometryParser.geometryColumn) : latLon;
   }
 
   @Override
