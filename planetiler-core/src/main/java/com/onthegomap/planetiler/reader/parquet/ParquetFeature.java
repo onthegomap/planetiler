@@ -3,7 +3,9 @@ package com.onthegomap.planetiler.reader.parquet;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.Struct;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
@@ -20,6 +22,7 @@ public class ParquetFeature extends SourceFeature {
   private final Path filename;
   private Geometry latLon;
   private Geometry world;
+  private Struct struct = null;
 
   ParquetFeature(String source, String sourceLayer, Path filename, long id, GeometryReader geometryParser,
     Map<String, Object> tags) {
@@ -68,6 +71,47 @@ public class ParquetFeature extends SourceFeature {
     } catch (GeometryException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private Struct cachedStruct() {
+    return struct != null ? struct : (struct = Struct.of(tags()));
+  }
+
+  @Override
+  public Struct getStruct(String key) {
+    return cachedStruct().get(key);
+  }
+
+  @Override
+  public Struct getStruct(Object key, Object... others) {
+    return cachedStruct().get(key, others);
+  }
+
+  @Override
+  public Object getTag(String key) {
+    var value = tags().get(key);
+    if (value == null) {
+      String[] parts = key.split("\\.");
+      if (parts.length > 1) {
+        Object[] rest = Arrays.copyOfRange(parts, 1, parts.length);
+        value = getStruct(parts[0], rest).rawValue();
+      }
+    }
+    return value;
+  }
+
+  @Override
+  public Object getTag(String key, Object defaultValue) {
+    var value = getTag(key);
+    if (value == null) {
+      value = defaultValue;
+    }
+    return value;
+  }
+
+  @Override
+  public boolean hasTag(String key) {
+    return super.hasTag(key) || getTag(key) != null;
   }
 
   @Override

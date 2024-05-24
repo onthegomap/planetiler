@@ -16,7 +16,25 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Wrapper for a value that could either be a primitive, list, or map of nested primitives.
+ * <p>
+ * The APIs are meant to be forgiving, so if you access field a.b.c but "a" is missing from the top-level struct it will
+ * just return {@link #NULL} instead of throwing an exception.
+ * <p>
+ * Values are also coerced to other datatypes when possible, for example:
+ * <ul>
+ * <li>calling {@link #asLong()} or {@link #asDouble()} on a string will attempt to parse that string to a number
+ * <li>calling {@link #get(Object)} on a string will attempt to parse it as JSON and traverse nested data
+ * <li>calling {@link #asLong()} on an {@link Instant} will return milliseconds since epoch
+ * <li>calling {@link #asLong()} on an {@link LocalDate} will return epoch day
+ * <li>calling {@link #asLong()} on an {@link LocalTime} will return millisecond of the day
+ * <li>calling {@link #asString()} on anything will return a string representation of it
+ * <li>calling {@link #asJson()} will return a json representation of the underlying value
+ * </ul>
+ */
 public interface Struct {
+  /** Returns a new struct that wraps a primitive java value, or nested {@link List} or {@link Map} of values. */
   static Struct of(Object o) {
     return switch (o) {
       case null -> NULL;
@@ -50,6 +68,37 @@ public interface Struct {
     };
   }
 
+  /**
+   * Returns the nested field of a map struct, an element of an array if {@code key} is numeric, or {@link #NULL} when
+   * called on a primitive value.
+   */
+  default Struct get(Object key) {
+    return NULL;
+  }
+
+  /** Shortcut for calling {@link #get(Object)} multiple times to query a value several layers deep. */
+  default Struct get(Object first, Object... others) {
+    Struct struct = first instanceof Number n ? get(n.intValue()) : get(first.toString());
+    for (Object other : others) {
+      struct = other instanceof Number n ? struct.get(n.intValue()) : struct.get(other.toString());
+      if (struct.isNull()) {
+        return Struct.NULL;
+      }
+    }
+    return struct;
+  }
+
+  /** When this is map, returns a map from key to value struct, otherwise an empty map. */
+  default Map<Object, Struct> asMap() {
+    return Map.of();
+  }
+
+  /** Returns this struct, or {@code fallback} when {@link #NULL} */
+  default Struct orElse(Object fallback) {
+    return this;
+  }
+
+  /** A missing or empty value. */
   Struct NULL = new Struct() {
     @Override
     public Object rawValue() {
@@ -85,63 +134,76 @@ public interface Struct {
     public boolean isNull() {
       return true;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj == NULL;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
   };
 
-  default Struct orElse(Object fallback) {
-    return this;
-  }
-
-  default Struct get(String key) {
-    return NULL;
-  }
-
-  default Struct get(Object first, Object... others) {
-    Struct struct = first instanceof Number n ? get(n.intValue()) : get(first.toString());
-    for (Object other : others) {
-      struct = other instanceof Number n ? struct.get(n.intValue()) : struct.get(other.toString());
-      if (struct.isNull()) {
-        return NULL;
-      }
-    }
-    return struct;
-  }
-
-  default Map<Object, Struct> asMap() {
-    return Map.of();
-  }
-
+  /** Returns the nth element of a list, or {@link #NULL} when not a list or {@code index} is out of bounds. */
   default Struct get(int index) {
     return NULL;
   }
 
+  /**
+   * Returns the list of nested structs in a list, a list of this single element when this is a primitive, or empty list
+   * when {@link #NULL}.
+   */
   default List<Struct> asList() {
     return List.of(this);
   }
 
+  /**
+   * Returns the {@link Number#intValue()} for numeric values, millisecond value for time types, or attempts to parse as
+   * a number when this is a string.
+   */
   default Integer asInt() {
     return null;
   }
 
+  /**
+   * Returns the {@link Number#longValue()} for numeric values, millisecond value for time types, or attempts to parse
+   * as a number when this is a string.
+   */
   default Long asLong() {
     return null;
   }
 
-  default Boolean asBoolean() {
-    return null;
-  }
-
-  default String asString() {
-    return rawValue() == null ? null : rawValue().toString();
-  }
-
+  /**
+   * Returns the {@link Number#doubleValue()} ()} for numeric values, millisecond value for time types, or attempts to
+   * parse as a double when this is a string.
+   */
   default Double asDouble() {
     return null;
   }
 
+  /**
+   * Returns boolean value of this element, or true for "1", "true", "yes" and false for "0", "false", "no".
+   */
+  default Boolean asBoolean() {
+    return null;
+  }
+
+  /** Returns a string representation of this value (use {@link #asJson()} for json string). */
+  default String asString() {
+    return rawValue() == null ? null : rawValue().toString();
+  }
+
+
+  /**
+   * Returns an {@link Instant} parsed from milliseconds since epoch, or a string with an ISO-8601 encoded time string.
+   */
   default Instant asTimestamp() {
     return null;
   }
 
+  /** Returns a byte array value or bytes from a UTF8-encoded string. */
   default byte[] asBytes() {
     return null;
   }
@@ -150,16 +212,33 @@ public interface Struct {
     return false;
   }
 
+  /** Returns true if this is a map with nested key/value pairs, false for lists or primitives. */
   default boolean isStruct() {
     return false;
   }
 
+  /** Returns the raw primitive, {@link List} or {@link Map} value, with all nested {@link Struct Structs} unwrapped. */
   Object rawValue();
 
+  /**
+   * Attempts to marshal this value into a typed java class or record using
+   * <a href="https://github.com/FasterXML/jackson-databind">jackson-databind</a>.
+   * <p>
+   * For example:
+   * {@snippet : java
+   * record Point(double x, double y) {}
+   * var point = Struct.of(Map.of(
+   *   "x", 1.5,
+   *   "y", 2
+   * )).as(Point.class);
+   * System.out.println(point); // "Point[x=1.5, y=2.0]"
+   * }
+   */
   default <T> T as(Class<T> clazz) {
     return JsonConversion.convertValue(rawValue(), clazz);
   }
 
+  /** Returns a JSON string representation of the raw value wrapped by this struct. */
   default String asJson() {
     return JsonConversion.writeValueAsString(rawValue());
   }
@@ -196,6 +275,16 @@ public interface Struct {
     public String toString() {
       return asString();
     }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o || (o instanceof PrimitiveStruct<?> that && value.equals(that.value));
+    }
+
+    @Override
+    public int hashCode() {
+      return value.hashCode();
+    }
   }
 
   class Numeric extends PrimitiveStruct<Number> {
@@ -229,6 +318,7 @@ public interface Struct {
       return raw;
     }
   }
+
   class BooleanStruct extends PrimitiveStruct<Boolean> {
 
     BooleanStruct(boolean value) {
@@ -240,6 +330,7 @@ public interface Struct {
       return value == Boolean.TRUE;
     }
   }
+
   class StringStruct extends PrimitiveStruct<String> {
     private Struct struct = null;
 
@@ -287,7 +378,7 @@ public interface Struct {
     }
 
     @Override
-    public Struct get(String key) {
+    public Struct get(Object key) {
       return parseJson().get(key);
     }
 
@@ -309,7 +400,13 @@ public interface Struct {
     public byte[] asBytes() {
       return value.getBytes(StandardCharsets.UTF_8);
     }
+
+    @Override
+    public <T> T as(Class<T> clazz) {
+      return JsonConversion.readValue(value, clazz);
+    }
   }
+
   class BinaryStruct extends PrimitiveStruct<byte[]> {
 
     BinaryStruct(byte[] value) {
@@ -326,6 +423,7 @@ public interface Struct {
       return value;
     }
   }
+
   class InstantStruct extends PrimitiveStruct<Instant> {
 
     InstantStruct(Instant value) {
@@ -352,6 +450,7 @@ public interface Struct {
       return (double) value.toEpochMilli();
     }
   }
+
   class LocalTimeStruct extends PrimitiveStruct<LocalTime> {
 
     LocalTimeStruct(LocalTime value) {
@@ -378,6 +477,7 @@ public interface Struct {
       return DateTimeFormatter.ISO_LOCAL_TIME.format(value);
     }
   }
+
   class LocalDateStruct extends PrimitiveStruct<LocalDate> {
 
     LocalDateStruct(LocalDate value) {
@@ -412,7 +512,7 @@ public interface Struct {
     }
 
     @Override
-    public Struct get(String key) {
+    public Struct get(Object key) {
       return value.getOrDefault(key, NULL);
     }
 
@@ -448,5 +548,12 @@ public interface Struct {
     public Struct get(int index) {
       return index < value.size() && index >= 0 ? value.get(index) : NULL;
     }
+
+    @Override
+    public Struct get(Object key) {
+      return key instanceof Number n ? get(n.intValue()) : NULL;
+    }
   }
+
+
 }

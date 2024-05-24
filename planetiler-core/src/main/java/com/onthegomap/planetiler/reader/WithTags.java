@@ -2,7 +2,9 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
@@ -113,26 +115,32 @@ public interface WithTags {
     tags().put(key, value);
   }
 
-
+  /** Returns a {@link Struct} wrapper for a field, which can be a primitive or nested list/map. */
   default Struct getStruct(String key) {
     return Struct.of(getTag(key));
   }
 
-  default Struct getStruct(String key, String... others) {
-    Struct struct = getStruct(key);
-    for (String other : others) {
-      struct = struct.get(other);
-      if (struct.isNull()) {
-        return Struct.NULL;
-      }
-    }
-    return struct;
+  /**
+   * Shortcut for calling {@link Struct#get(Object)} multiple times to get a deeply nested value.
+   * <p>
+   * Arguments can be strings to get values out of maps, or integers to get an element at a certain index out of a list.
+   */
+  default Struct getStruct(Object key, Object... others) {
+    Struct struct = getStruct(Objects.toString(key));
+    return struct.get(others[0], Arrays.copyOfRange(others, 1, others.length));
   }
 
+  /**
+   * Attempts to marshal the properties on this feature into a typed java class or record using
+   * <a href="https://github.com/FasterXML/jackson-databind">jackson-databind</a>.
+   */
   default <T> T as(Class<T> clazz) {
     return JsonConversion.convertValue(tags(), clazz);
   }
 
+  /**
+   * Serializes the properties on this feature as a JSON object.
+   */
   default String asJson() {
     return JsonConversion.writeValueAsString(tags());
   }

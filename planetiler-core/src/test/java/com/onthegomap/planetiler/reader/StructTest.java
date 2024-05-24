@@ -258,10 +258,13 @@ class StructTest {
 
   @Test
   void testJsonStringToStruct() {
+    record Inner(int b) {}
+    record Outer(List<Inner> a) {}
     var struct = Struct.of("""
       {"a":[{"b":1}]}
       """);
     assertEquals(1, struct.get("a", 0, "b").asInt());
+    assertEquals(new Outer(List.of(new Inner(1))), struct.as(Outer.class));
   }
 
   @Test
