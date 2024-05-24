@@ -6,6 +6,7 @@ import java.util.Map;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
+
   static WithTags from(Map<String, Object> tags) {
     return new OfMap(tags);
   }
@@ -77,8 +78,8 @@ public interface WithTags {
   }
 
   /**
-   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and {@code
-   * true} otherwise.
+   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and
+   * {@code true} otherwise.
    */
   default boolean getBoolean(String key) {
     return Parse.bool(getTag(key));
@@ -110,6 +111,30 @@ public interface WithTags {
 
   default void setTag(String key, Object value) {
     tags().put(key, value);
+  }
+
+
+  default Struct getStruct(String key) {
+    return Struct.of(getTag(key));
+  }
+
+  default Struct getStruct(String key, String... others) {
+    Struct struct = getStruct(key);
+    for (String other : others) {
+      struct = struct.get(other);
+      if (struct.isNull()) {
+        return Struct.NULL;
+      }
+    }
+    return struct;
+  }
+
+  default <T> T as(Class<T> clazz) {
+    return JsonConversion.convertValue(tags(), clazz);
+  }
+
+  default String asJson() {
+    return JsonConversion.writeValueAsString(tags());
   }
 
   record OfMap(@Override Map<String, Object> tags) implements WithTags {}
