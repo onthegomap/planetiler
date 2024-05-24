@@ -1,8 +1,6 @@
 package com.onthegomap.planetiler.reader.parquet;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.TestUtils;
@@ -37,10 +35,12 @@ class ParquetInputFileTest {
   void testReadBoston(Path path) {
     for (int i = 0; i < 3; i++) {
       Set<Object> ids = new HashSet<>();
-      for (var block : new ParquetInputFile("parquet", "layer", path)
-        .get()) {
+      var file = new ParquetInputFile("parquet", "layer", path);
+      for (var block : file.get()) {
         for (var item : block) {
           ids.add(item.getString("id"));
+          assertFalse(item.hasTag(file.geometryReader.geometryColumn));
+          assertNull(item.getTag(file.geometryReader.geometryColumn));
         }
       }
       assertEquals(3, ids.size(), "iter " + i);

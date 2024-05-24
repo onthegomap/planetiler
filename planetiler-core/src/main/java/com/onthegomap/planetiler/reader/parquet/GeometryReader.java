@@ -13,8 +13,9 @@ import org.locationtech.jts.geom.Geometry;
  * Decodes geometries from a parquet record based on the {@link GeoParquetMetadata} provided.
  */
 class GeometryReader {
+
   private final Map<String, FunctionThatThrows<Object, Geometry>> converters = new HashMap<>();
-  private final String geometryColumn;
+  final String geometryColumn;
 
   GeometryReader(GeoParquetMetadata geoparquet) {
     this.geometryColumn = geoparquet.primaryColumn();
@@ -37,7 +38,6 @@ class GeometryReader {
         case "point", "geoarrow.point" -> GeoArrow::point;
         default -> throw new IllegalArgumentException("Unhandled type: " + columnInfo.encoding());
       };
-
       converters.put(column, converter);
     }
   }
@@ -47,7 +47,10 @@ class GeometryReader {
   }
 
   Geometry readGeometry(WithTags tags, String column) throws GeometryException {
-    var value = tags.getTag(column);
+    return parseGeometry(tags.getTag(column), column);
+  }
+
+  Geometry parseGeometry(Object value, String column) throws GeometryException {
     var converter = converters.get(column);
     if (value == null) {
       throw new GeometryException("no_parquet_column", "Missing geometry column column " + column);

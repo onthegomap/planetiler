@@ -48,6 +48,19 @@
       <artifactId>planetiler-examples</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+    <!-- Add sources to the jar to improve IDE experience when using jar with deps -->
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-core</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.locationtech.jts</groupId>
+      <artifactId>jts-core</artifactId>
+      <version>${jts.version}</version>
+      <classifier>sources</classifier>
+    </dependency>
   </dependencies>
 
   <build>
