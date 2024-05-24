@@ -7,12 +7,18 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.UncheckedIOException;
 
-public class JsonConversion {
+/**
+ * Utilities for converting between JSON strings and java objects using Jackson utilities.
+ * <p>
+ * {@link ObjectMapper} are expensive to construct, but not thread safe, so this class reuses the same object mapper
+ * within each thread but does not share between threads.
+ */
+class JsonConversion {
+  private JsonConversion() {}
 
   private static final ThreadLocal<ObjectMapper> MAPPERS = ThreadLocal.withInitial(() -> JsonMapper.builder()
     .addModule(
-      new JavaTimeModule()
-        .addSerializer(Struct.class, new StructSerializer())
+      new JavaTimeModule().addSerializer(Struct.class, new StructSerializer())
     )
     .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
     .build());

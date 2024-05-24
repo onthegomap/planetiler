@@ -225,12 +225,9 @@ public interface Struct {
    * <a href="https://github.com/FasterXML/jackson-databind">jackson-databind</a>.
    * <p>
    * For example:
-   * {@snippet : java
+   * {@snippet :
    * record Point(double x, double y) {}
-   * var point = Struct.of(Map.of(
-   *   "x", 1.5,
-   *   "y", 2
-   * )).as(Point.class);
+   * var point = Struct.of(Map.of("x", 1.5, "y", 2)).as(Point.class);
    * System.out.println(point); // "Point[x=1.5, y=2.0]"
    * }
    */
