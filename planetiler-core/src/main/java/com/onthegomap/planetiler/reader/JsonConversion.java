@@ -16,6 +16,7 @@ import java.io.UncheckedIOException;
 class JsonConversion {
   private JsonConversion() {}
 
+  @SuppressWarnings("java:S5164") // ignore not calling remove() on mappers since number of threads is limited
   private static final ThreadLocal<ObjectMapper> MAPPERS = ThreadLocal.withInitial(() -> JsonMapper.builder()
     .addModule(
       new JavaTimeModule().addSerializer(Struct.class, new StructSerializer())

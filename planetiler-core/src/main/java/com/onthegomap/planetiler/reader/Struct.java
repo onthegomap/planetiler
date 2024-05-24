@@ -188,7 +188,7 @@ public interface Struct {
    * Returns boolean value of this element, or true for "1", "true", "yes" and false for "0", "false", "no".
    */
   default Boolean asBoolean() {
-    return null;
+    return false;
   }
 
   /** Returns a string representation of this value (use {@link #asJson()} for json string). */
@@ -205,6 +205,7 @@ public interface Struct {
   }
 
   /** Returns a byte array value or bytes from a UTF8-encoded string. */
+  @SuppressWarnings("java:S1168")
   default byte[] asBytes() {
     return null;
   }
@@ -343,6 +344,7 @@ public interface Struct {
     }
   }
 
+  @SuppressWarnings("java:S2160") // don't need to override equals() for struct since it is derived from value
   class StringStruct extends PrimitiveStruct<String> {
     private Struct struct = null;
 
@@ -528,17 +530,16 @@ public interface Struct {
       var result = value.get(key);
       if (result != null) {
         return result;
-      } else if (key instanceof String s) {
-        if (s.contains(".")) {
-          String[] parts = s.split("\\.", 2);
-          if (parts.length == 2) {
-            String firstPart = parts[0];
-            return firstPart.endsWith("[]") ?
-              get(firstPart.substring(0, firstPart.length() - 2)).flatMap(child -> child.get(parts[1])) :
-              get(firstPart, parts[1]);
-          }
+      } else if (key instanceof String s && s.contains(".")) {
+        String[] parts = s.split("\\.", 2);
+        if (parts.length == 2) {
+          String firstPart = parts[0];
+          return firstPart.endsWith("[]") ?
+            get(firstPart.substring(0, firstPart.length() - 2)).flatMap(child -> child.get(parts[1])) :
+            get(firstPart, parts[1]);
         }
       }
+
       return NULL;
     }
 
