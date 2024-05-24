@@ -4,7 +4,6 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
@@ -86,11 +85,11 @@ public class ParquetFeature extends SourceFeature {
   public Object getTag(String key) {
     var value = tags().get(key);
     if (value == null) {
-      String[] parts = key.split("\\.");
-      if (parts.length > 1) {
-        Object[] rest = Arrays.copyOfRange(parts, 1, parts.length);
-        value = getStruct(parts[0], rest).rawValue();
+      String[] parts = key.split("\\.", 2);
+      if (parts.length == 2) {
+        return getStruct(parts[0]).get(parts[1]).rawValue();
       }
+      return getStruct(parts[0]).rawValue();
     }
     return value;
   }

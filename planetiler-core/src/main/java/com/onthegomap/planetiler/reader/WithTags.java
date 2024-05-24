@@ -8,7 +8,6 @@ import java.util.Objects;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
-
   static WithTags from(Map<String, Object> tags) {
     return new OfMap(tags);
   }
@@ -17,7 +16,21 @@ public interface WithTags {
   Map<String, Object> tags();
 
   default Object getTag(String key) {
-    return tags().get(key);
+    var result = tags().get(key);
+    if (result != null) {
+      return result;
+    } else if (key.contains(".")) {
+      return getDotted(key).rawValue();
+    }
+    return null;
+  }
+
+  private Struct getDotted(String key) {
+    String[] parts = key.split("\\.", 2);
+    if (parts.length == 2) {
+      return getStruct(parts[0]).get(parts[1]);
+    }
+    return getStruct(parts[0]);
   }
 
   default Object getTag(String key, Object defaultValue) {
@@ -29,7 +42,8 @@ public interface WithTags {
   }
 
   default boolean hasTag(String key) {
-    return tags().containsKey(key);
+    var contains = tags().containsKey(key);
+    return contains || (key.contains(".") && !getDotted(key).isNull());
   }
 
   default boolean hasTag(String key, Object value) {

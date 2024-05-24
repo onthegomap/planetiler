@@ -510,7 +510,16 @@ public interface Struct {
 
     @Override
     public Struct get(Object key) {
-      return value.getOrDefault(key, NULL);
+      var result = value.get(key);
+      if (result != null) {
+        return result;
+      } else if (key instanceof String s && s.contains(".")) {
+        String[] parts = s.split("\\.", 2);
+        if (parts.length == 2) {
+          return get(parts[0], parts[1]);
+        }
+      }
+      return NULL;
     }
 
     @Override

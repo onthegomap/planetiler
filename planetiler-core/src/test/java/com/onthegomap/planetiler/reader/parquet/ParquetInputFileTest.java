@@ -199,7 +199,7 @@ class ParquetInputFileTest {
         updateTime.add(item.getStruct("update_time").asTimestamp().toEpochMilli());
       }
     }
-    assertEquals(Set.of(-71.0743637084961, -71.07460021972656, -71.07461547851562), xmins);
+    assertEquals(Set.of(-71.0743637084961, -71.07461547851562, -71.07460021972656), xmins);
     assertEquals(Set.of(1596647976000L, 1624238059000L, 1625971545000L), updateTime);
   }
 }

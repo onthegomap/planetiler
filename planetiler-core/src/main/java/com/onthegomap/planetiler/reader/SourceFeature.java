@@ -78,15 +78,6 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
 
 
   @Override
-  public Object getTag(String key, Object defaultValue) {
-    Object val = tags.get(key);
-    if (val == null) {
-      return defaultValue;
-    }
-    return val;
-  }
-
-  @Override
   public Map<String, Object> tags() {
     return tags;
   }

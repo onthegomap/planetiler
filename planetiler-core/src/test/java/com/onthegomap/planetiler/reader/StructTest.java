@@ -39,6 +39,36 @@ class StructTest {
     assertTrue(struct.getStruct("a", "b", "c", "d").isNull());
   }
 
+
+  @Test
+  void testGetDottedFromStruct() {
+    assertEquals("c", Struct.of(Map.of(
+      "a", Map.of("b", "c")
+    )).get("a.b").asString());
+    assertEquals("c", Struct.of(Map.of(
+      "a.b", "c"
+    )).get("a.b").asString());
+    assertEquals("d", Struct.of(Map.of(
+      "a", Map.of("b.c", "d")
+    )).get("a.b.c").asString());
+    assertNull(Struct.of(Map.of(
+      "a", Map.of("b.c", "d")
+    )).get("a.b.e").asString());
+  }
+
+  @Test
+  void testGetDottedFromWithTags() {
+    assertEquals("c", WithTags.from(Map.of(
+      "a", Map.of("b", "c")
+    )).getStruct("a.b").asString());
+    assertEquals("c", WithTags.from(Map.of(
+      "a", Map.of("b", "c")
+    )).getTag("a.b"));
+    assertTrue(WithTags.from(Map.of(
+      "a", Map.of("b", "c")
+    )).hasTag("a.b"));
+  }
+
   @Test
   void testListGet() {
     var struct = Struct.of(List.of(1, 2, 3));
