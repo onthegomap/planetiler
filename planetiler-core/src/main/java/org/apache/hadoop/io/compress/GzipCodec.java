@@ -8,3 +8,4 @@ import io.airlift.compress.gzip.JdkGzipCodec;
  * compression.
  */
 public class GzipCodec extends JdkGzipCodec {}
+
