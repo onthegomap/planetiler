@@ -69,6 +69,16 @@ class StructTest {
     )).hasTag("a.b"));
   }
 
+
+  @Test
+  void testListQuery() {
+    var struct = Struct.of(Map.of(
+      "a", List.of(Map.of("b", "c"), Map.of("b", "d"))
+    ));
+    assertEquals("d", struct.get("a").flatMap(elem -> elem.get("b")).get(1).asString());
+    assertEquals(Struct.of(List.of("c", "d")), struct.get("a[].b"));
+  }
+
   @Test
   void testListGet() {
     var struct = Struct.of(List.of(1, 2, 3));

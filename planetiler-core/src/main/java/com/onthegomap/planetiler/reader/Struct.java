@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 /**
@@ -238,6 +239,20 @@ public interface Struct {
   /** Returns a JSON string representation of the raw value wrapped by this struct. */
   default String asJson() {
     return JsonConversion.writeValueAsString(rawValue());
+  }
+
+  /**
+   * Returns a new list where each element of this list has been expanded to the list of elements returned by
+   * {@code mapper}.
+   * <p>
+   * Individual items are treated as a list containing just that item.
+   */
+  default Struct flatMap(UnaryOperator<Struct> mapper) {
+    var list = asList().stream()
+      .flatMap(item -> mapper.apply(item).asList().stream())
+      .map(Struct::of)
+      .toList();
+    return list.isEmpty() ? NULL : new ListStruct(list);
   }
 
   class PrimitiveStruct<T> implements Struct {
@@ -513,10 +528,15 @@ public interface Struct {
       var result = value.get(key);
       if (result != null) {
         return result;
-      } else if (key instanceof String s && s.contains(".")) {
-        String[] parts = s.split("\\.", 2);
-        if (parts.length == 2) {
-          return get(parts[0], parts[1]);
+      } else if (key instanceof String s) {
+        if (s.contains(".")) {
+          String[] parts = s.split("\\.", 2);
+          if (parts.length == 2) {
+            String firstPart = parts[0];
+            return firstPart.endsWith("[]") ?
+              get(firstPart.substring(0, firstPart.length() - 2)).flatMap(child -> child.get(parts[1])) :
+              get(firstPart, parts[1]);
+          }
         }
       }
       return NULL;
