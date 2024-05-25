@@ -64,7 +64,8 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
     @Override
     protected Converter makeConverter(Context child) {
-      if ((child.named("list") || child.named("array")) && child.onlyField("element")) {
+      if ((child.named("list") || child.named("array")) &&
+        (child.onlyField("element") || child.onlyField("array_element"))) {
         return new ListElementConverter(child.hoist());
       }
       return super.makeConverter(child);

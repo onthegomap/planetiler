@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -184,5 +185,21 @@ class ParquetInputFileTest {
 
   private static DynamicTest test(Map<String, Object> map, String key, Consumer<Object> test) {
     return dynamicTest(key, () -> test.accept(map.get(key)));
+  }
+
+  @Test
+  void testReadNested() {
+    Set<Object> xmins = new HashSet<>();
+    Set<Long> updateTime = new HashSet<>();
+    for (var block : new ParquetInputFile("parquet", "layer",
+      TestUtils.pathToResource("parquet").resolve("boston.parquet"))
+      .get()) {
+      for (var item : block) {
+        xmins.add(item.getTag("bbox.xmin"));
+        updateTime.add(item.getStruct("update_time").asTimestamp().toEpochMilli());
+      }
+    }
+    assertEquals(Set.of(-71.0743637084961, -71.07461547851562, -71.07460021972656), xmins);
+    assertEquals(Set.of(1596647976000L, 1624238059000L, 1625971545000L), updateTime);
   }
 }

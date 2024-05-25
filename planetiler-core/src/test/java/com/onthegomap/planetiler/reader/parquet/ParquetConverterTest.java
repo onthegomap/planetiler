@@ -320,6 +320,54 @@ class ParquetConverterTest {
   }
 
   @Test
+  void testArray() {
+    var materializer = new ParquetRecordConverter(Types.buildMessage()
+      .requiredGroup().as(LogicalTypeAnnotation.listType())
+      .repeatedGroup()
+      .requiredGroup()
+      .required(PrimitiveType.PrimitiveTypeName.INT32)
+      .named("someField")
+      .named("array_element")
+      .named("array")
+      .named("value")
+      .named("message"));
+
+    var root = materializer.getRootConverter();
+    var value = root.getConverter(0).asGroupConverter();
+    var list = value.getConverter(0).asGroupConverter();
+    var element = list.getConverter(0).asGroupConverter();
+    var field = element.getConverter(0).asPrimitiveConverter();
+    root.start();
+    value.start();
+    value.end();
+    root.end();
+    assertEquals(Map.of("value", List.of()), materializer.getCurrentRecord());
+
+    root.start();
+    value.start();
+
+    list.start();
+    element.start();
+    field.addInt(1);
+    element.end();
+    list.end();
+
+
+    list.start();
+    element.start();
+    field.addInt(2);
+    element.end();
+    list.end();
+    value.end();
+    root.end();
+
+    assertEquals(Map.of("value", List.of(
+      Map.of("someField", 1),
+      Map.of("someField", 2)
+    )), materializer.getCurrentRecord());
+  }
+
+  @Test
   void testListRepeatedAtTopAndBottomLevel() {
     var materializer = new ParquetRecordConverter(Types.buildMessage()
       .list(Type.Repetition.REPEATED).element(PrimitiveType.PrimitiveTypeName.INT32, Type.Repetition.REPEATED)

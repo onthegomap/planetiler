@@ -2,7 +2,9 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
@@ -14,7 +16,21 @@ public interface WithTags {
   Map<String, Object> tags();
 
   default Object getTag(String key) {
-    return tags().get(key);
+    var result = tags().get(key);
+    if (result != null) {
+      return result;
+    } else if (key.contains(".")) {
+      return getDotted(key).rawValue();
+    }
+    return null;
+  }
+
+  private Struct getDotted(String key) {
+    String[] parts = key.split("\\.", 2);
+    if (parts.length == 2) {
+      return getStruct(parts[0]).get(parts[1]);
+    }
+    return getStruct(parts[0]);
   }
 
   default Object getTag(String key, Object defaultValue) {
@@ -26,7 +42,8 @@ public interface WithTags {
   }
 
   default boolean hasTag(String key) {
-    return tags().containsKey(key);
+    var contains = tags().containsKey(key);
+    return contains || (key.contains(".") && !getDotted(key).isNull());
   }
 
   default boolean hasTag(String key, Object value) {
@@ -77,8 +94,8 @@ public interface WithTags {
   }
 
   /**
-   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and {@code
-   * true} otherwise.
+   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and
+   * {@code true} otherwise.
    */
   default boolean getBoolean(String key) {
     return Parse.bool(getTag(key));
@@ -110,6 +127,36 @@ public interface WithTags {
 
   default void setTag(String key, Object value) {
     tags().put(key, value);
+  }
+
+  /** Returns a {@link Struct} wrapper for a field, which can be a primitive or nested list/map. */
+  default Struct getStruct(String key) {
+    return Struct.of(getTag(key));
+  }
+
+  /**
+   * Shortcut for calling {@link Struct#get(Object)} multiple times to get a deeply nested value.
+   * <p>
+   * Arguments can be strings to get values out of maps, or integers to get an element at a certain index out of a list.
+   */
+  default Struct getStruct(Object key, Object... others) {
+    Struct struct = getStruct(Objects.toString(key));
+    return struct.get(others[0], Arrays.copyOfRange(others, 1, others.length));
+  }
+
+  /**
+   * Attempts to marshal the properties on this feature into a typed java class or record using
+   * <a href="https://github.com/FasterXML/jackson-databind">jackson-databind</a>.
+   */
+  default <T> T as(Class<T> clazz) {
+    return JsonConversion.convertValue(tags(), clazz);
+  }
+
+  /**
+   * Serializes the properties on this feature as a JSON object.
+   */
+  default String asJson() {
+    return JsonConversion.writeValueAsString(tags());
   }
 
   record OfMap(@Override Map<String, Object> tags) implements WithTags {}
