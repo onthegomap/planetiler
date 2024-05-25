@@ -160,7 +160,7 @@ class VectorTileTest {
 
     List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
     assertEquals(1, decoded.size());
-    Map<String, Object> decodedAttributes = decoded.getFirst().attrs();
+    Map<String, Object> decodedAttributes = decoded.getFirst().tags();
     assertEquals("value1", decodedAttributes.get("key1"));
     assertEquals(123L, decodedAttributes.get("key2"));
     assertEquals(234.1f, decodedAttributes.get("key3"));
@@ -330,13 +330,13 @@ class VectorTileTest {
     )).encode();
 
     List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
-    assertEquals(attrs1, decoded.get(0).attrs());
+    assertEquals(attrs1, decoded.get(0).tags());
     assertEquals("layer1", decoded.get(0).layer());
 
-    assertEquals(attrs2, decoded.get(1).attrs());
+    assertEquals(attrs2, decoded.get(1).tags());
     assertEquals("layer1", decoded.get(1).layer());
 
-    assertEquals(attrs1, decoded.get(2).attrs());
+    assertEquals(attrs1, decoded.get(2).tags());
     assertEquals("layer2", decoded.get(2).layer());
   }
 

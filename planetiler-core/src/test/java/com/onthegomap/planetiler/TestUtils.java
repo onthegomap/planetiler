@@ -279,7 +279,7 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = VectorTile.decode(bytes).stream()
-        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs())).toList();
+        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags())).toList();
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
@@ -738,7 +738,7 @@ public class TestUtils {
           if (feature.geometry().decode().isWithinDistance(tilePoint, 2)) {
             containedInLayers.add(feature.layer());
             if (layer.equals(feature.layer())) {
-              Map<String, Object> tags = feature.attrs();
+              Map<String, Object> tags = feature.tags();
               containedInLayerFeatures.add(tags.toString());
               if (tags.entrySet().containsAll(attrs.entrySet())) {
                 // found a match

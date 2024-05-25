@@ -95,7 +95,7 @@ class FeatureGroupTest {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
-          .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
+          .add(new Feature(feature.tags(), decodeSilently(feature.geometry())));
       }
     }
     return map;
@@ -109,7 +109,7 @@ class FeatureGroupTest {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
-          .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
+          .add(new Feature(feature.tags(), decodeSilently(feature.geometry())));
       }
     }
     return map;

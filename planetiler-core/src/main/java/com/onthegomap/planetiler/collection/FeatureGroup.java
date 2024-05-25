@@ -202,7 +202,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
       packer.packLong(vectorTileFeature.id());
       packer.packByte(encodeGeomTypeAndScale(vectorTileFeature.geometry()));
-      var attrs = vectorTileFeature.attrs();
+      var attrs = vectorTileFeature.tags();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
         Object value = entry.getValue();
