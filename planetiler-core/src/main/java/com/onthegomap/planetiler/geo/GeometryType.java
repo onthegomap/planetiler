@@ -2,6 +2,10 @@ package com.onthegomap.planetiler.geo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.expression.Expression;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -39,6 +43,39 @@ public enum GeometryType {
       case POLYGON -> POLYGON;
       default -> UNKNOWN;
     };
+  }
+
+  /** Returns the type of a WKB-encoded geometry without needing to deserialize the whole thing. */
+  public static GeometryType fromWKB(byte[] wkb) {
+    var bb = ByteBuffer.wrap(wkb);
+    byte byteOrder = bb.get();
+    int geomType = bb.order(byteOrder == 1 ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN).getInt();
+    return switch (geomType) {
+      case 1, 4 -> GeometryType.POINT;
+      case 2, 5 -> GeometryType.LINE;
+      case 3, 6 -> GeometryType.POLYGON;
+      default -> GeometryType.UNKNOWN;
+    };
+  }
+
+  private static final Pattern TYPE_PATTERN =
+    Pattern.compile("^\\s*(multi)?(point|line|polygon)", Pattern.CASE_INSENSITIVE);
+
+  /** Returns the type of a WKT-encoded geometry without needing to deserialize the whole thing. */
+  public static GeometryType fromWKT(String wkt) {
+    var matcher = TYPE_PATTERN.matcher(wkt);
+    if (matcher.find()) {
+      String group = matcher.group(2);
+      if (group != null) {
+        return switch (group.toLowerCase(Locale.ROOT)) {
+          case "point" -> GeometryType.POINT;
+          case "line" -> GeometryType.LINE;
+          case "polygon" -> GeometryType.POLYGON;
+          default -> GeometryType.UNKNOWN;
+        };
+      }
+    }
+    return GeometryType.UNKNOWN;
   }
 
   public static GeometryType valueOf(byte val) {

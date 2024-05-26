@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader.parquet;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
 import java.util.List;
@@ -21,6 +22,7 @@ public class ParquetFeature extends SourceFeature {
   private Geometry latLon;
   private Geometry world;
   private Struct struct = null;
+  private GeometryType geometryType = null;
 
   ParquetFeature(String source, String sourceLayer, long id, GeometryReader geometryParser,
     Map<String, Object> tags) {
@@ -40,31 +42,39 @@ public class ParquetFeature extends SourceFeature {
       (world = GeoUtils.sortPolygonsByAreaDescending(GeoUtils.latLonToWorldCoords(latLonGeometry())));
   }
 
+  private GeometryType geometryType() {
+    if (geometryType != null) {
+      return geometryType;
+    }
+    geometryType = geometryParser.sniffGeometryType(rawGeometry, geometryParser.geometryColumn);
+    if (geometryType == GeometryType.UNKNOWN) {
+      try {
+        geometryType = switch (latLonGeometry()) {
+          case Puntal ignored -> GeometryType.POINT;
+          case Lineal ignored -> GeometryType.LINE;
+          case Polygonal ignored -> GeometryType.POLYGON;
+          default -> GeometryType.UNKNOWN;
+        };
+      } catch (GeometryException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+    return geometryType;
+  }
+
   @Override
   public boolean isPoint() {
-    try {
-      return latLonGeometry() instanceof Puntal;
-    } catch (GeometryException e) {
-      throw new IllegalStateException(e);
-    }
+    return geometryType() == GeometryType.POINT;
   }
 
   @Override
   public boolean canBePolygon() {
-    try {
-      return latLonGeometry() instanceof Polygonal;
-    } catch (GeometryException e) {
-      throw new IllegalStateException(e);
-    }
+    return geometryType() == GeometryType.POLYGON;
   }
 
   @Override
   public boolean canBeLine() {
-    try {
-      return latLonGeometry() instanceof Lineal;
-    } catch (GeometryException e) {
-      throw new IllegalStateException(e);
-    }
+    return geometryType() == GeometryType.LINE;
   }
 
   private Struct cachedStruct() {
