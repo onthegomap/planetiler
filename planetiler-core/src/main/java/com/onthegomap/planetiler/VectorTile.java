@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
@@ -484,7 +485,7 @@ public class VectorTile {
       if (inFeature != null && inFeature.geometry().commands().length > 0) {
         EncodedFeature outFeature = new EncodedFeature(inFeature);
 
-        for (Map.Entry<String, ?> e : inFeature.attrs().entrySet()) {
+        for (Map.Entry<String, ?> e : inFeature.tags().entrySet()) {
           // skip attribute without value
           if (e.getValue() != null) {
             String key = e.getKey();
@@ -1010,7 +1011,7 @@ public class VectorTile {
    * @param layer    the layer the feature was in
    * @param id       the feature ID
    * @param geometry the encoded feature geometry (decode using {@link VectorGeometry#decode()})
-   * @param attrs    tags for the feature to output
+   * @param tags     tags for the feature to output
    * @param group    grouping key used to limit point density or {@link #NO_GROUP} if not in a group. NOTE: this is only
    *                 populated when this feature was deserialized from {@link FeatureGroup}, not when parsed from a tile
    *                 since vector tile schema does not encode group.
@@ -1019,9 +1020,9 @@ public class VectorTile {
     String layer,
     long id,
     VectorGeometry geometry,
-    Map<String, Object> attrs,
+    Map<String, Object> tags,
     long group
-  ) {
+  ) implements WithTags {
 
     public static final long NO_GROUP = Long.MIN_VALUE;
 
@@ -1054,7 +1055,7 @@ public class VectorTile {
         layer,
         id,
         newGeometry,
-        attrs,
+        tags,
         group
       );
     }
@@ -1065,10 +1066,16 @@ public class VectorTile {
         layer,
         id,
         geometry,
-        Stream.concat(attrs.entrySet().stream(), extraAttrs.entrySet().stream())
+        Stream.concat(tags.entrySet().stream(), extraAttrs.entrySet().stream())
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
         group
       );
+    }
+
+    /** @deprecated use {@link #tags()} instead. */
+    @Deprecated(forRemoval = true)
+    public Map<String, Object> attrs() {
+      return tags;
     }
   }
 
