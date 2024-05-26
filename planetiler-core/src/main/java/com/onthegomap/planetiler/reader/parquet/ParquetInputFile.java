@@ -180,7 +180,9 @@ public class ParquetInputFile {
                 idGenerator != null ? idGenerator.applyAsLong(item) :
                   Hashing.fnv1a64(blockHash, ByteBuffer.allocate(8).putLong(i).array()),
                 geometryReader,
-                item
+                item,
+                path,
+                schema
               );
 
               if (postFilterBounds != null) {

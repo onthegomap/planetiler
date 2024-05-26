@@ -4,8 +4,10 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.apache.parquet.schema.MessageType;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -18,15 +20,29 @@ public class ParquetFeature extends SourceFeature {
 
   private final GeometryReader geometryParser;
   private final Object rawGeometry;
+  private final Path path;
+  private final MessageType schema;
   private Geometry latLon;
   private Geometry world;
   private Struct struct = null;
 
   ParquetFeature(String source, String sourceLayer, long id, GeometryReader geometryParser,
-    Map<String, Object> tags) {
+    Map<String, Object> tags, Path path, MessageType schema) {
     super(tags, source, sourceLayer, List.of(), id);
     this.geometryParser = geometryParser;
     this.rawGeometry = tags.remove(geometryParser.geometryColumn);
+    this.path = path;
+    this.schema = schema;
+  }
+
+  /** Returns the parquet file that this feature was read from. */
+  public Path path() {
+    return path;
+  }
+
+  /** Returns the {@link MessageType} schema of the parquet file that this feature was read from. */
+  public MessageType parquetSchema() {
+    return schema;
   }
 
   @Override
