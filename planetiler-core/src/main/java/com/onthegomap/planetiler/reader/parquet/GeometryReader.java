@@ -2,11 +2,13 @@ package com.onthegomap.planetiler.reader.parquet;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -14,28 +16,45 @@ import org.locationtech.jts.geom.Geometry;
  */
 class GeometryReader {
 
-  private final Map<String, FunctionThatThrows<Object, Geometry>> converters = new HashMap<>();
+  private final Map<String, FormatHandler> converters = new HashMap<>();
   final String geometryColumn;
+
+  private record FormatHandler(
+    FunctionThatThrows<Object, Geometry> parse,
+    Function<Object, GeometryType> sniffType
+  ) {}
+
+  private static <L extends List<?>> FormatHandler arrowHandler(GeometryType type,
+    FunctionThatThrows<L, Geometry> parser) {
+    return new FormatHandler(obj -> obj instanceof List<?> list ? parser.apply((L) list) : null, any -> type);
+  }
 
   GeometryReader(GeoParquetMetadata geoparquet) {
     this.geometryColumn = geoparquet.primaryColumn();
     for (var entry : geoparquet.columns().entrySet()) {
       String column = entry.getKey();
       GeoParquetMetadata.ColumnMetadata columnInfo = entry.getValue();
-      FunctionThatThrows<Object, Geometry> converter = switch (columnInfo.encoding()) {
-        case "WKB" -> obj -> obj instanceof byte[] bytes ? GeoUtils.wkbReader().read(bytes) : null;
-        case "WKT" -> obj -> obj instanceof String string ? GeoUtils.wktReader().read(string) : null;
+      FormatHandler converter = switch (columnInfo.encoding()) {
+        case "WKB" -> new FormatHandler(
+          obj -> obj instanceof byte[] bytes ? GeoUtils.wkbReader().read(bytes) : null,
+          obj -> obj instanceof byte[] bytes ? GeometryType.fromWKB(bytes) : GeometryType.UNKNOWN
+        );
+        case "WKT" -> new FormatHandler(
+          obj -> obj instanceof String string ? GeoUtils.wktReader().read(string) : null,
+          obj -> obj instanceof String string ? GeometryType.fromWKT(string) : GeometryType.UNKNOWN
+        );
         case "multipolygon", "geoarrow.multipolygon" ->
-          obj -> obj instanceof List<?> list ? GeoArrow.multipolygon((List<List<List<Object>>>) list) : null;
+          arrowHandler(GeometryType.POLYGON, GeoArrow::multipolygon);
         case "polygon", "geoarrow.polygon" ->
-          obj -> obj instanceof List<?> list ? GeoArrow.polygon((List<List<Object>>) list) : null;
+          arrowHandler(GeometryType.POLYGON, GeoArrow::polygon);
         case "multilinestring", "geoarrow.multilinestring" ->
-          obj -> obj instanceof List<?> list ? GeoArrow.multilinestring((List<List<Object>>) list) : null;
+          arrowHandler(GeometryType.LINE, GeoArrow::multilinestring);
         case "linestring", "geoarrow.linestring" ->
-          obj -> obj instanceof List<?> list ? GeoArrow.linestring((List<Object>) list) : null;
+          arrowHandler(GeometryType.LINE, GeoArrow::linestring);
         case "multipoint", "geoarrow.multipoint" ->
-          obj -> obj instanceof List<?> list ? GeoArrow.multipoint((List<Object>) list) : null;
-        case "point", "geoarrow.point" -> GeoArrow::point;
+          arrowHandler(GeometryType.POINT, GeoArrow::multipoint);
+        case "point", "geoarrow.point" ->
+          arrowHandler(GeometryType.POINT, GeoArrow::point);
         default -> throw new IllegalArgumentException("Unhandled type: " + columnInfo.encoding());
       };
       converters.put(column, converter);
@@ -58,9 +77,17 @@ class GeometryReader {
       throw new GeometryException("no_converter", "No geometry converter for " + column);
     }
     try {
-      return converter.apply(value);
+      return converter.parse.apply(value);
     } catch (Exception e) {
       throw new GeometryException("error_reading", "Error reading " + column, e);
     }
+  }
+
+  GeometryType sniffGeometryType(Object value, String column) {
+    var converter = converters.get(column);
+    if (value != null && converter != null) {
+      return converter.sniffType.apply(value);
+    }
+    return GeometryType.UNKNOWN;
   }
 }
