@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler;
 
+import com.google.common.collect.Range;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -9,8 +10,10 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
+import com.onthegomap.planetiler.util.RangeMapMap;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -101,6 +104,26 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
       e.log(stats, "feature_line", "Error constructing line for " + source);
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
+
+  /**
+   * Starts building a new partial line feature from {@code start} to {@code end} where 0 is the beginning of the line
+   * and 1 is the end of the line.
+   * <p>
+   * If the source feature cannot be a line, logs an error and returns a feature that can be configured, but won't
+   * actually emit anything to the map.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
+  public Feature partialLine(String layer, double start, double end) {
+    try {
+      return geometry(layer, source.partialLine(start, end));
+    } catch (GeometryException e) {
+      e.log(stats, "feature_partial_line", "Error constructing partial line for " + source);
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -222,6 +245,126 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  private enum PartialOverrideField {
+    OMIT,
+    MINZOOM,
+    MAXZOOM
+  }
+
+  public interface WithZoomRange<T extends WithZoomRange<T>> {
+
+    /**
+     * Sets the zoom range (inclusive) that this feature appears in.
+     * <p>
+     * If not called, then defaults to all zoom levels.
+     */
+    default T setZoomRange(int min, int max) {
+      assert min <= max;
+      return setMinZoom(min).setMaxZoom(max);
+    }
+
+
+    /**
+     * Sets the minimum zoom level (inclusive) that this feature appears in.
+     * <p>
+     * If not called, defaults to minimum zoom-level of the map.
+     */
+    T setMinZoom(int min);
+
+    /**
+     * Sets the maximum zoom level (inclusive) that this feature appears in.
+     * <p>
+     * If not called, defaults to maximum zoom-level of the map.
+     */
+    T setMaxZoom(int max);
+  }
+
+  public interface WithSelf<T extends WithSelf<T>> {
+
+    default T self() {
+      return (T) this;
+    }
+  }
+
+  public interface WithAttrs<T extends WithAttrs<T>> extends WithSelf<T> {
+
+    /** Copies the value for {@code key} attribute from source feature to the output feature. */
+    default T inheritAttrFromSource(String key) {
+      return setAttr(key, collector().source.getTag(key));
+    }
+
+    /**
+     * Sets an attribute on the output feature to either a string, number, boolean, or instance of {@link ZoomFunction}
+     * to change the value for {@code key} by zoom-level.
+     */
+    T setAttr(String key, Object value);
+
+    /**
+     * Sets the value for {@code key} attribute at or above {@code minzoom}. Below {@code minzoom} it will be ignored.
+     * <p>
+     * Replaces all previous value that has been for {@code key} at any zoom level. To have a value that changes at
+     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed
+     * {@link ZoomFunction} value.
+     */
+    default T setAttrWithMinzoom(String key, Object value, int minzoom) {
+      return setAttr(key, ZoomFunction.minZoom(minzoom, value));
+    }
+
+    /**
+     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
+     * size.
+     */
+    default T setAttrWithMinSize(String key, Object value, double minPixelSize) {
+      return setAttrWithMinzoom(key, value, collector().getMinZoomForPixelSize(minPixelSize));
+    }
+
+    /**
+     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
+     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
+     * {@code minPixelSize} pixels in size.
+     * <p>
+     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
+     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
+     * zoom level.
+     */
+    default T setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
+      int minZoomToShowAlways) {
+      return setAttrWithMinzoom(key, value,
+        Math.clamp(collector().getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    /**
+     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
+     * {@code minzoom}.
+     * <p>
+     * Replace values that have already been set.
+     */
+    default T putAttrsWithMinzoom(Map<String, Object> attrs, int minzoom) {
+      for (var entry : attrs.entrySet()) {
+        setAttrWithMinzoom(entry.getKey(), entry.getValue(), minzoom);
+      }
+      return self();
+    }
+
+    /**
+     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature.
+     * <p>
+     * Does not touch attributes that have already been set.
+     * <p>
+     * Values in {@code attrs} can either be the raw value to set, or an instance of {@link ZoomFunction} to change the
+     * value for that attribute by zoom level.
+     */
+    default T putAttrs(Map<String, Object> attrs) {
+      for (var entry : attrs.entrySet()) {
+        setAttr(entry.getKey(), entry.getValue());
+      }
+      return self();
+    }
+
+    /** Returns the {@link FeatureCollector} this feature came from. */
+    FeatureCollector collector();
+  }
+
   /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
@@ -232,6 +375,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  private record PartialOverride(Range<Double> range, Object key, Object value) {}
+
+  /** A fully-configured subset of this line feature with linear-scoped attributes applied to a subset of the range.. */
+  public record RangeWithTags(double start, double end, Geometry geom, Map<String, Object> attrs) {}
+
   /**
    * A builder for an output map feature that contains all the information that will be needed to render vector tile
    * features from the input element.
@@ -239,7 +387,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * Some feature attributes are set globally (like sort key), and some allow the value to change by zoom-level (like
    * tags).
    */
-  public final class Feature {
+  public final class Feature implements WithZoomRange<Feature>, WithAttrs<Feature> {
 
     private static final double DEFAULT_LABEL_GRID_SIZE = 0;
     private static final int DEFAULT_LABEL_GRID_LIMIT = 0;
@@ -260,6 +408,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     private boolean attrsChangeByZoom = false;
     private CacheByZoom<Map<String, Object>> attrCache = null;
+    private CacheByZoom<List<RangeWithTags>> partialRangeCache = null;
 
     private double defaultBufferPixels = 4;
     private ZoomFunction<Number> bufferPixelOverrides;
@@ -274,6 +423,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> pixelTolerance = null;
 
     private String numPointsAttr = null;
+    private List<PartialOverride> partialOverrides = null;
 
     private Feature(String layer, Geometry geom, long id) {
       this.layer = layer;
@@ -335,27 +485,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return setSortKey(FeatureGroup.SORT_KEY_MAX + FeatureGroup.SORT_KEY_MIN - sortKey);
     }
 
-    /**
-     * Sets the zoom range (inclusive) that this feature appears in.
-     * <p>
-     * If not called, then defaults to all zoom levels.
-     */
-    public Feature setZoomRange(int min, int max) {
-      assert min <= max;
-      return setMinZoom(min).setMaxZoom(max);
-    }
-
     /** Returns the minimum zoom level (inclusive) that this feature appears in. */
     public int getMinZoom() {
       return minzoom;
     }
 
-
-    /**
-     * Sets the minimum zoom level (inclusive) that this feature appears in.
-     * <p>
-     * If not called, defaults to minimum zoom-level of the map.
-     */
+    @Override
     public Feature setMinZoom(int min) {
       minzoom = Math.max(min, config.minzoom());
       return this;
@@ -366,11 +501,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return maxzoom;
     }
 
-    /**
-     * Sets the maximum zoom level (inclusive) that this feature appears in.
-     * <p>
-     * If not called, defaults to maximum zoom-level of the map.
-     */
+    @Override
     public Feature setMaxZoom(int max) {
       maxzoom = Math.min(max, config.maxzoom());
       return this;
@@ -695,15 +826,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return attrCache.get(zoom);
     }
 
-    /** Copies the value for {@code key} attribute from source feature to the output feature. */
-    public Feature inheritAttrFromSource(String key) {
-      return setAttr(key, source.getTag(key));
-    }
 
-    /**
-     * Sets an attribute on the output feature to either a string, number, boolean, or instance of {@link ZoomFunction}
-     * to change the value for {@code key} by zoom-level.
-     */
+    @Override
     public Feature setAttr(String key, Object value) {
       if (value instanceof ZoomFunction) {
         attrsChangeByZoom = true;
@@ -714,61 +838,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
-    /**
-     * Sets the value for {@code key} attribute at or above {@code minzoom}. Below {@code minzoom} it will be ignored.
-     * <p>
-     * Replaces all previous value that has been for {@code key} at any zoom level. To have a value that changes at
-     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed
-     * {@link ZoomFunction} value.
-     */
-    public Feature setAttrWithMinzoom(String key, Object value, int minzoom) {
-      return setAttr(key, ZoomFunction.minZoom(minzoom, value));
-    }
-
-    /**
-     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
-     * size.
-     */
-    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize) {
-      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
-    }
-
-    /**
-     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
-     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
-     * {@code minPixelSize} pixels in size.
-     * <p>
-     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
-     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
-     * zoom level.
-     */
-    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
-      int minZoomToShowAlways) {
-      return setAttrWithMinzoom(key, value,
-        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
-    }
-
-    /**
-     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
-     * {@code minzoom}.
-     * <p>
-     * Replace values that have already been set.
-     */
-    public Feature putAttrsWithMinzoom(Map<String, Object> attrs, int minzoom) {
-      for (var entry : attrs.entrySet()) {
-        setAttrWithMinzoom(entry.getKey(), entry.getValue(), minzoom);
-      }
-      return this;
-    }
-
-    /**
-     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature.
-     * <p>
-     * Does not touch attributes that have already been set.
-     * <p>
-     * Values in {@code attrs} can either be the raw value to set, or an instance of {@link ZoomFunction} to change the
-     * value for that attribute by zoom level.
-     */
+    @Override
     public Feature putAttrs(Map<String, Object> attrs) {
       for (Object value : attrs.values()) {
         if (value instanceof ZoomFunction) {
@@ -778,6 +848,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
       this.attrs.putAll(attrs);
       return this;
+    }
+
+    @Override
+    public FeatureCollector collector() {
+      return FeatureCollector.this;
     }
 
     /**
@@ -815,6 +890,164 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
     public double getSourceFeaturePixelSizeAtZoom(int zoom) {
       return getPixelSizeAtZoom(zoom);
+    }
+
+    /**
+     * Returns a {@link Feature.LinearRange} that can be used to configure attributes that apply to only a portion of
+     * this line from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the end.
+     * <p>
+     * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
+     * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
+     * will get merged into a single segment.
+     */
+    public LinearRange linearRange(double start, double end) {
+      return linearRange(Range.closedOpen(start, end));
+    }
+
+    /**
+     * Returns a {@link Feature.LinearRange} that can be used to configure attributes that apply to only a portion of
+     * this line from {@code range.lowerBound} to {@code range.lowerBound} where 0 is the beginning of the line and 1 is
+     * the end.
+     * <p>
+     * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
+     * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
+     * will get merged into a single segment.
+     */
+    public LinearRange linearRange(Range<Double> range) {
+      return new LinearRange(range);
+    }
+
+    /** Returns true if any attributes have been configured over a subset of this line. */
+    public boolean hasLinearRanges() {
+      return partialOverrides != null;
+    }
+
+    /** Computes and returns the linear-scoped attributes of this line, and the geometry they apply to. */
+    public List<RangeWithTags> getLinearRangesAtZoom(int zoom) {
+      if (partialOverrides == null) {
+        return List.of();
+      }
+      if (partialRangeCache == null) {
+        partialRangeCache = CacheByZoom.create(this::computeLinearRangesAtZoom);
+      }
+      return partialRangeCache.get(zoom);
+    }
+
+    private List<RangeWithTags> computeLinearRangesAtZoom(int zoom) {
+      RangeMapMap result = new RangeMapMap(new HashMap<>(attrs));
+      for (var range : partialOverrides) {
+        Object key = range.key;
+        Object value = range.value();
+        if (value instanceof ZoomFunction<?> fn) {
+          value = fn.apply(zoom);
+        }
+        if (range.key == PartialOverrideField.MINZOOM && value instanceof Number n) {
+          if (n.intValue() > zoom) {
+            result.put(range.range, Map.of(PartialOverrideField.OMIT, true));
+          }
+        } else if (range.key == PartialOverrideField.MAXZOOM && value instanceof Number n) {
+          if (n.intValue() < zoom) {
+            result.put(range.range, Map.of(PartialOverrideField.OMIT, true));
+          }
+        } else if (value == null || "".equals(value)) {
+          result.remove(range.range, key);
+        } else {
+          result.put(range.range, Map.of(key, value));
+        }
+      }
+      var result2 = result.result();
+      List<RangeWithTags> result3 = new ArrayList<>(result2.size());
+      for (var item : result2) {
+        if (!Boolean.TRUE.equals(item.value().get(PartialOverrideField.OMIT))) {
+          Map<String, Object> map = new HashMap<>();
+          for (var entry : item.value().entrySet()) {
+            if (entry.getKey() instanceof String s) {
+              map.put(s, entry.getValue());
+            }
+          }
+
+          try {
+            result3.add(new RangeWithTags(
+              item.start(),
+              item.end(),
+              source.partialLine(item.start(), item.end()),
+              map
+            ));
+          } catch (GeometryException e) {
+            throw new IllegalStateException(e);
+          }
+        }
+      }
+      return result3;
+    }
+
+
+    /**
+     * A builder that can be used to configure linear-scoped attributes for a partial segment of a line feature.
+     */
+    public final class LinearRange implements WithZoomRange<LinearRange>, WithAttrs<LinearRange> {
+
+      private final Range<Double> range;
+
+      private LinearRange(Range<Double> range) {
+        this.range = range;
+      }
+
+      private LinearRange set(Object key, Object value) {
+        if (partialOverrides == null) {
+          partialOverrides = new ArrayList<>();
+        }
+        partialOverrides.add(new PartialOverride(range, key, value));
+        return this;
+      }
+
+      @Override
+      public LinearRange setMinZoom(int min) {
+        return set(PartialOverrideField.MINZOOM, min);
+      }
+
+      @Override
+      public LinearRange setMaxZoom(int max) {
+        return set(PartialOverrideField.MAXZOOM, max);
+      }
+
+      @Override
+      public LinearRange setAttr(String key, Object value) {
+        return set(key, value);
+      }
+
+      /** Exclude this segment of the line feature at all zoom levels. */
+      public LinearRange omit() {
+        return set(PartialOverrideField.OMIT, true);
+      }
+
+      /** Returns the full line {@link Feature} that this segment came from. */
+      public Feature entireLine() {
+        return Feature.this;
+      }
+
+      /**
+       * Returns a segment of the full parent line (not the current segment) that can be configured further.
+       *
+       * @see Feature#linearRange(double, double)
+       */
+      public LinearRange linearRange(double start, double end) {
+        return entireLine().linearRange(start, end);
+      }
+
+      /**
+       * Returns a segment of the full parent line (not the current segment) that can be configured further.
+       *
+       * @see Feature#linearRange(Range)
+       */
+      public LinearRange linearRange(Range<Double> range) {
+        return entireLine().linearRange(range);
+      }
+
+      @Override
+      public FeatureCollector collector() {
+        return FeatureCollector.this;
+      }
     }
   }
 }

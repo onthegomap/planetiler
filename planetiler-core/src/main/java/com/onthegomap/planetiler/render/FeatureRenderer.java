@@ -174,10 +174,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
-    String numPointsAttr = feature.getNumPointsAttr();
     for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
       double scale = 1 << z;
-      double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
       double minSize = feature.getMinPixelSizeAtZoom(z) / 256d;
       if (area) {
         // treat minPixelSize as the edge of a square that defines minimum area for features
@@ -187,38 +185,53 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         continue;
       }
 
-      double buffer = feature.getBufferPixelsAtZoom(z) / 256;
-      TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
-
-      // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
-      // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
-      Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
-      TiledGeometry sliced;
-      Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
-      List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
-      try {
-        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
-      } catch (GeometryException e) {
-        try {
-          geom = GeoUtils.fixPolygon(geom);
-          groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
-          sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
-        } catch (GeometryException ex) {
-          ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + z + ": " + feature);
-          // omit from this zoom level, but maybe the next will be better
-          continue;
+      if (feature.hasLinearRanges()) {
+        for (var range : feature.getLinearRangesAtZoom(z)) {
+          if (worldLength * scale * (range.end() - range.start()) >= minSize) {
+            renderLineOrPolygonGeometry(feature, range.geom(), range.attrs(), z, minSize, area);
+          }
         }
+      } else {
+        renderLineOrPolygonGeometry(feature, input, feature.getAttrsAtZoom(z), z, minSize, area);
       }
-      Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
-      if (numPointsAttr != null) {
-        // if profile wants the original number off points that the simplified but untiled geometry started with
-        attrs = new HashMap<>(attrs);
-        attrs.put(numPointsAttr, geom.getNumPoints());
-      }
-      writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
     }
 
     stats.processedElement(area ? "polygon" : "line", feature.getLayer());
+  }
+
+  private void renderLineOrPolygonGeometry(FeatureCollector.Feature feature, Geometry input, Map<String, Object> attrs,
+    int z, double minSize, boolean area) {
+    double scale = 1 << z;
+    double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
+    double buffer = feature.getBufferPixelsAtZoom(z) / 256;
+    TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
+
+    // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
+    // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
+    Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
+    TiledGeometry sliced;
+    Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+    List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
+    try {
+      sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+    } catch (GeometryException e) {
+      try {
+        geom = GeoUtils.fixPolygon(geom);
+        groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
+        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+      } catch (GeometryException ex) {
+        ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + z + ": " + feature);
+        // omit from this zoom level, but maybe the next will be better
+        return;
+      }
+    }
+    String numPointsAttr = feature.getNumPointsAttr();
+    if (numPointsAttr != null) {
+      // if profile wants the original number off points that the simplified but untiled geometry started with
+      attrs = new HashMap<>(attrs);
+      attrs.put(numPointsAttr, geom.getNumPoints());
+    }
+    writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
   }
 
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,

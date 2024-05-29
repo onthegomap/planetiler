@@ -653,4 +653,99 @@ class FeatureCollectorTest {
       )
     ), collector);
   }
+
+  @Test
+  void testPartialLineFeature() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.partialLine("layername", 0.25, 0.5).setAttr("k1", "v1");
+    collector.partialLine("layername", 0.75, 1).setAttr("k2", "v2");
+    assertFeatures(14, List.of(
+      Map.of(
+        "_geom", new RoundGeometry(newLineString(0.25, 0, 0.5, 0)),
+        "k1", "v1",
+        "k2", "<null>"
+      ),
+      Map.of(
+        "_geom", new RoundGeometry(newLineString(0.75, 0, 1, 0)),
+        "k1", "<null>",
+        "k2", "v2"
+      )
+    ), collector);
+  }
+
+  @Test
+  void testLinearReferenceTags() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.1, 0.5).setAttr("k1", "v1")
+      .linearRange(0.3, 0.7).setAttr("k2", "v2")
+      .entireLine().setAttr("k3", "v3");
+
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.1, roundTrip(newLineString(0, 0, 0.1, 0)), Map.of(
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.1, 0.3, roundTrip(newLineString(0.1, 0, 0.3, 0)), Map.of(
+        "k1", "v1",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.3, 0.5, roundTrip(newLineString(0.3, 0, 0.5, 0)), Map.of(
+        "k1", "v1",
+        "k2", "v2",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.5, 0.7, roundTrip(newLineString(0.5, 0, 0.7, 0)), Map.of(
+        "k2", "v2",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.7, 1, roundTrip(newLineString(0.7, 0, 1, 0)), Map.of(
+        "k3", "v3"
+      ))
+    ), feature.getLinearRangesAtZoom(14));
+  }
+
+  @Test
+  void testPartialMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.25, 0.75).setMinZoom(14);
+    assertFeatures(13, List.of(
+      Map.of("_geom", new RoundGeometry(newLineString(0, 0, 1, 0)))
+    ), collector);
+    assertFeatures(14, List.of(
+      Map.of("_geom", new RoundGeometry(newLineString(0, 0, 1, 0)))
+    ), collector);
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(13));
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 1, roundTrip(newLineString(0, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(14));
+  }
+
+  private static Geometry roundTrip(Geometry world) {
+    return GeoUtils.latLonToWorldCoords(GeoUtils.worldToLatLonCoords(world));
+  }
+
+  @Test
+  void testPartialOmit() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.25, 0.75).omit();
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(13));
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(14));
+  }
 }

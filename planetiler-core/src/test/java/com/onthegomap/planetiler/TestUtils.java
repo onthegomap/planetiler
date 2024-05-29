@@ -428,6 +428,24 @@ public class TestUtils {
     }
   }
 
+  public record RoundGeometry(Geometry geom) implements GeometryComparision {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof GeometryComparision that && round(geom).equalsNorm(round(that.geom()));
+    }
+
+    @Override
+    public String toString() {
+      return "Round{" + round(geom).norm() + '}';
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+  }
+
   private record ExactGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
