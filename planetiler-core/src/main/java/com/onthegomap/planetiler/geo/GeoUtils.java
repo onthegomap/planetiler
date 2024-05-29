@@ -31,6 +31,12 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
+import org.locationtech.proj4j.CRSFactory;
+import org.locationtech.proj4j.CoordinateReferenceSystem;
+import org.locationtech.proj4j.CoordinateTransform;
+import org.locationtech.proj4j.CoordinateTransformFactory;
+import org.locationtech.proj4j.ProjCoordinate;
+
 
 /**
  * A collection of utilities for working with JTS data structures and geographic data.
@@ -57,36 +63,51 @@ public class GeoUtils {
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
   private static final double LOG2 = Math.log(2);
+  
+
+  private static final CRSFactory crsFactory = new CRSFactory();
+  private static final CoordinateReferenceSystem epsg3031 = crsFactory.createFromName("EPSG:3031");
+  private static final CoordinateReferenceSystem wgs84 = crsFactory.createFromName("EPSG:4326");
+  private static final CoordinateTransformFactory ctFactory = new CoordinateTransformFactory();
+  private static final CoordinateTransform transformToWGS84 = ctFactory.createTransform(epsg3031, wgs84);
+  private static final CoordinateTransform transformToEPSG3031 = ctFactory.createTransform(wgs84, epsg3031);
+
   /**
-   * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
-   * latitude/longitude coordinates.
+   * Transform EPSG 3031 coordinates to latitude/longitude coordinates.
    */
   private static final GeometryTransformer UNPROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
-        copy.setOrdinate(i, 0, getWorldLon(coords.getX(i)));
-        copy.setOrdinate(i, 1, getWorldLat(coords.getY(i)));
+        ProjCoordinate srcCoord = new ProjCoordinate(coords.getX(i), coords.getY(i));
+        ProjCoordinate destCoord = new ProjCoordinate();
+        transformToWGS84.transform(srcCoord, destCoord);
+        copy.setOrdinate(i, 0, destCoord.x);
+        copy.setOrdinate(i, 1, destCoord.y);
       }
       return copy;
     }
   };
+
   /**
-   * Transform latitude/longitude coordinates to web mercator where top-left corner of the planet is (0,0) and
-   * bottom-right is (1,1).
+   * Transform latitude/longitude coordinates to EPSG 3031.
    */
   private static final GeometryTransformer PROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
-        copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));
-        copy.setOrdinate(i, 1, getWorldY(coords.getY(i)));
+        ProjCoordinate srcCoord = new ProjCoordinate(coords.getX(i), coords.getY(i));
+        ProjCoordinate destCoord = new ProjCoordinate();
+        transformToEPSG3031.transform(srcCoord, destCoord);
+        copy.setOrdinate(i, 0, destCoord.x);
+        copy.setOrdinate(i, 1, destCoord.y);
       }
       return copy;
     }
   };
+    
   private static final double MAX_LAT = getWorldLat(-0.1);
   private static final double MIN_LAT = getWorldLat(1.1);
   // to pack latitude/longitude into a single long, we round them to 31 bits of precision
