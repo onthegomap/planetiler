@@ -1,8 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.Arrays;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -21,14 +19,11 @@ public class LineSplitter {
 
   private final LineString line;
   private double length = 0;
-  private TreeMap<Double, Integer> nodeLocations = null;
-  private final Map<Range, LineString> cache = new HashMap<>();
-
-  private record Range(double lo, double hi) {}
+  private double[] nodeLocations = null;
 
   public LineSplitter(Geometry geom) {
-    if (geom instanceof LineString line) {
-      this.line = line;
+    if (geom instanceof LineString linestring) {
+      this.line = linestring;
     } else {
       throw new IllegalArgumentException("Expected LineString, got " + geom.getGeometryType());
     }
@@ -45,47 +40,53 @@ public class LineSplitter {
     if (start <= 0 && end >= 1) {
       return line;
     }
-    var key = new Range(start, end);
-    if (cache.containsKey(key)) {
-      return cache.get(key);
-    }
     var cs = line.getCoordinateSequence();
     if (nodeLocations == null) {
-      nodeLocations = new TreeMap<>();
+      nodeLocations = new double[cs.size()];
       double x1 = cs.getX(0);
       double y1 = cs.getY(0);
-      nodeLocations.put(0d, 0);
+      nodeLocations[0] = 0d;
       for (int i = 1; i < cs.size(); i++) {
         double x2 = cs.getX(i);
         double y2 = cs.getY(i);
         double dx = x2 - x1;
         double dy = y2 - y1;
         length += Math.sqrt(dx * dx + dy * dy);
-        nodeLocations.put(length, i);
+        nodeLocations[i] = length;
         x1 = x2;
         y1 = y2;
       }
     }
     MutableCoordinateSequence result = new MutableCoordinateSequence();
-    var first = nodeLocations.floorEntry(start * length);
-    var last = nodeLocations.lowerEntry(end * length);
-    addInterpolated(result, cs, first, start * length);
-    for (int i = first.getValue() + 1; i <= last.getValue(); i++) {
+
+    double startPos = start * length;
+    double endPos = end * length;
+    var first = floorIndex(startPos);
+    var last = floorEntry(endPos);
+    addInterpolated(result, cs, first, startPos);
+    for (int i = first + 1; i <= last; i++) {
       result.addPoint(cs.getX(i), cs.getY(i));
     }
-    addInterpolated(result, cs, last, end * length);
+    addInterpolated(result, cs, last, endPos);
 
-    var line = GeoUtils.JTS_FACTORY.createLineString(result);
-    cache.put(key, line);
-    return line;
+    return GeoUtils.JTS_FACTORY.createLineString(result);
+  }
+
+  private int floorIndex(double length) {
+    int idx = Arrays.binarySearch(nodeLocations, length);
+    return idx < 0 ? (-idx - 2) : idx;
+  }
+
+  private int floorEntry(double length) {
+    int idx = Arrays.binarySearch(nodeLocations, length);
+    return idx < 0 ? (-idx - 2) : idx - 1;
   }
 
   private void addInterpolated(MutableCoordinateSequence result, CoordinateSequence cs,
-    Map.Entry<Double, Integer> first, double position) {
-    double startPos = first.getKey();
-    double endPos = nodeLocations.higherKey(startPos);
-    int startIdx = first.getValue();
+    int startIdx, double position) {
     int endIdx = startIdx + 1;
+    double startPos = nodeLocations[startIdx];
+    double endPos = nodeLocations[endIdx];
     double x1 = cs.getX(startIdx);
     double y1 = cs.getY(startIdx);
     double x2 = cs.getX(endIdx);
