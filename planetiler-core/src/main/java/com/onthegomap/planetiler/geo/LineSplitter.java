@@ -62,7 +62,7 @@ public class LineSplitter {
     double startPos = start * length;
     double endPos = end * length;
     var first = floorIndex(startPos);
-    var last = floorEntry(endPos);
+    var last = lowerIndex(endPos);
     addInterpolated(result, cs, first, startPos);
     for (int i = first + 1; i <= last; i++) {
       result.addPoint(cs.getX(i), cs.getY(i));
@@ -77,7 +77,7 @@ public class LineSplitter {
     return idx < 0 ? (-idx - 2) : idx;
   }
 
-  private int floorEntry(double length) {
+  private int lowerIndex(double length) {
     int idx = Arrays.binarySearch(nodeLocations, length);
     return idx < 0 ? (-idx - 2) : idx - 1;
   }
