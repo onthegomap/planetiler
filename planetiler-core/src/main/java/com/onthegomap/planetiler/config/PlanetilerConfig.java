@@ -29,7 +29,7 @@ public record PlanetilerConfig(
   int maxzoomForRendering,
   boolean force,
   boolean append,
-  boolean gzipTempStorage,
+  boolean compressTempStorage,
   boolean mmapTempStorage,
   int sortMaxReaders,
   int sortMaxWriters,
@@ -146,7 +146,8 @@ public record PlanetilerConfig(
         "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
           .filter(TileArchiveConfig.Format::supportsAppend).map(TileArchiveConfig.Format::id).toList(),
         false),
-      arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
+      arguments.getBoolean("compress_temp|gzip_temp",
+        "compress temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
         6),

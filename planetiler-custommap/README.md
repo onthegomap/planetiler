@@ -144,6 +144,7 @@ to regenerate:
 
 cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.properties | to_entries[] | "- `" + .key + "` - " + .value.description' | pbcopy
 -->
+
 - `threads` - Default number of threads to use.
 - `write_threads` - Default number of threads to use when writing temp features
 - `process_threads` - Default number of threads to use when processing input features
@@ -152,7 +153,7 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `maxzoom` - Maximum tile zoom level to emit
 - `render_maxzoom` - Maximum rendering zoom level up to
 - `force` - Overwriting output file and ignore warnings
-- `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
+- `compress_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files
 - `sort_max_readers` - Maximum number of concurrent read threads to use when sorting chunks
 - `sort_max_writers` - Maximum number of concurrent write threads to use when sorting chunks

@@ -190,7 +190,7 @@ public class Contexts {
       argumentValues.put("maxzoom", config.maxzoom());
       argumentValues.put("render_maxzoom", config.maxzoomForRendering());
       argumentValues.put("force", config.force());
-      argumentValues.put("gzip_temp", config.gzipTempStorage());
+      argumentValues.put("compress_temp", config.compressTempStorage());
       argumentValues.put("mmap_temp", config.mmapTempStorage());
       argumentValues.put("sort_max_readers", config.sortMaxReaders());
       argumentValues.put("sort_max_writers", config.sortMaxWriters());
