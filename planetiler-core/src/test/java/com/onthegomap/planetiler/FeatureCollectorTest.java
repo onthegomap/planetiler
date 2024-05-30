@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
+import com.onthegomap.planetiler.reader.Struct;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.Arrays;
@@ -747,5 +748,39 @@ class FeatureCollectorTest {
       new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
       new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
     ), feature.getLinearRangesAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrStruct() {
+    var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of()));
+    collector.point("layername")
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrPartial() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .linearRange(0, 0.5)
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true
+    ), subFeature.attrs());
   }
 }

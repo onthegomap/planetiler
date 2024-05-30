@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.Struct;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
@@ -807,15 +808,22 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private Map<String, Object> computeAttrsAtZoom(int zoom) {
       Map<String, Object> result = new TreeMap<>();
       for (var entry : attrs.entrySet()) {
-        Object value = entry.getValue();
-        if (value instanceof ZoomFunction<?> fn) {
-          value = fn.apply(zoom);
-        }
+        Object value = unwrap(entry.getValue(), zoom);
         if (value != null && !"".equals(value)) {
           result.put(entry.getKey(), value);
         }
       }
       return result;
+    }
+
+    private static Object unwrap(Object object, int zoom) {
+      if (object instanceof ZoomFunction<?> fn) {
+        object = fn.apply(zoom);
+      }
+      if (object instanceof Struct struct) {
+        object = struct.rawValue();
+      }
+      return object;
     }
 
     /** Returns the attribute to put on all output vector tile features at a zoom level. */
@@ -952,8 +960,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, attrs), Partial::merge);
       for (var override : partialOverrides) {
         result.update(override.range(), m -> switch (override) {
-          case Attr attr ->
-            m.withAttr(attr.key, attr.value instanceof ZoomFunction<?> fn ? fn.apply(zoom) : attr.value);
+          case Attr attr -> m.withAttr(attr.key, unwrap(attr.value, zoom));
           case Maxzoom mz -> m.withOmit(mz.maxzoom < zoom);
           case Minzoom mz -> m.withOmit(mz.minzoom > zoom);
           case Omit ignored -> m.withOmit(true);
