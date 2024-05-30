@@ -952,7 +952,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, attrs), Partial::merge);
       for (var override : partialOverrides) {
         result.update(override.range(), m -> switch (override) {
-          case Attr attr -> m.withAttr(attr.key, attr.value);
+          case Attr attr ->
+            m.withAttr(attr.key, attr.value instanceof ZoomFunction<?> fn ? fn.apply(zoom) : attr.value);
           case Maxzoom mz -> m.withOmit(mz.maxzoom < zoom);
           case Minzoom mz -> m.withOmit(mz.minzoom > zoom);
           case Omit ignored -> m.withOmit(true);
