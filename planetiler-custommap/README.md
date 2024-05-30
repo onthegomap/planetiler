@@ -144,7 +144,6 @@ to regenerate:
 
 cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.properties | to_entries[] | "- `" + .key + "` - " + .value.description' | pbcopy
 -->
-
 - `threads` - Default number of threads to use.
 - `write_threads` - Default number of threads to use when writing temp features
 - `process_threads` - Default number of threads to use when processing input features
