@@ -10,10 +10,10 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
-import com.onthegomap.planetiler.util.RangeMapMap;
+import com.onthegomap.planetiler.util.MapUtil;
+import com.onthegomap.planetiler.util.MergingRangeMap;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.Geometry;
  * <p>
  * For example to add a polygon feature for a lake and a center label point with its name:
  * {@snippet :
+ * FeatureCollector featureCollector;
  * featureCollector.polygon("water")
  *   .setAttr("class", "lake");
  * featureCollector.centroid("water_name")
@@ -245,11 +246,13 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  private enum PartialOverrideField {
-    OMIT,
-    MINZOOM,
-    MAXZOOM
+  private sealed interface OverrideCommand {
+    Range<Double> range();
   }
+  private record Minzoom(Range<Double> range, int minzoom) implements OverrideCommand {}
+  private record Maxzoom(Range<Double> range, int maxzoom) implements OverrideCommand {}
+  private record Omit(Range<Double> range) implements OverrideCommand {}
+  private record Attr(Range<Double> range, String key, Object value) implements OverrideCommand {}
 
   public interface WithZoomRange<T extends WithZoomRange<T>> {
 
@@ -423,7 +426,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> pixelTolerance = null;
 
     private String numPointsAttr = null;
-    private List<PartialOverride> partialOverrides = null;
+    private List<OverrideCommand> partialOverrides = null;
 
     private Feature(String layer, Geometry geom, long id) {
       this.layer = layer;
@@ -893,8 +896,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns a {@link Feature.LinearRange} that can be used to configure attributes that apply to only a portion of
-     * this line from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the end.
+     * Returns a {@link LinearRange} that can be used to configure attributes that apply to only a portion of this line
+     * from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the end.
      * <p>
      * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
      * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
@@ -905,9 +908,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns a {@link Feature.LinearRange} that can be used to configure attributes that apply to only a portion of
-     * this line from {@code range.lowerBound} to {@code range.lowerBound} where 0 is the beginning of the line and 1 is
-     * the end.
+     * Returns a {@link LinearRange} that can be used to configure attributes that apply to only a portion of this line
+     * from {@code range.lowerBound} to {@code range.lowerBound} where 0 is the beginning of the line and 1 is the end.
      * <p>
      * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
      * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
@@ -934,51 +936,46 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     private List<RangeWithTags> computeLinearRangesAtZoom(int zoom) {
-      RangeMapMap result = new RangeMapMap(new HashMap<>(attrs));
-      for (var range : partialOverrides) {
-        Object key = range.key;
-        Object value = range.value();
-        if (value instanceof ZoomFunction<?> fn) {
-          value = fn.apply(zoom);
+      record Partial(boolean omit, Map<String, Object> attrs) {
+        Partial withOmit(boolean newValue) {
+          return new Partial(newValue || omit, attrs);
         }
-        if (range.key == PartialOverrideField.MINZOOM && value instanceof Number n) {
-          if (n.intValue() > zoom) {
-            result.put(range.range, Map.of(PartialOverrideField.OMIT, true));
-          }
-        } else if (range.key == PartialOverrideField.MAXZOOM && value instanceof Number n) {
-          if (n.intValue() < zoom) {
-            result.put(range.range, Map.of(PartialOverrideField.OMIT, true));
-          }
-        } else if (value == null || "".equals(value)) {
-          result.remove(range.range, key);
-        } else {
-          result.put(range.range, Map.of(key, value));
+
+        Partial merge(Partial other) {
+          return new Partial(other.omit, MapUtil.merge(attrs, other.attrs));
+        }
+
+        Partial withAttr(String key, Object value) {
+          return new Partial(omit, MapUtil.with(attrs, key, value));
         }
       }
-      var result2 = result.result();
-      List<RangeWithTags> result3 = new ArrayList<>(result2.size());
-      for (var item : result2) {
-        if (!Boolean.TRUE.equals(item.value().get(PartialOverrideField.OMIT))) {
-          Map<String, Object> map = new HashMap<>();
-          for (var entry : item.value().entrySet()) {
-            if (entry.getKey() instanceof String s) {
-              map.put(s, entry.getValue());
-            }
-          }
-
+      MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, attrs), Partial::merge);
+      for (var override : partialOverrides) {
+        result.update(override.range(), m -> switch (override) {
+          case Attr attr -> m.withAttr(attr.key, attr.value);
+          case Maxzoom mz -> m.withOmit(mz.maxzoom < zoom);
+          case Minzoom mz -> m.withOmit(mz.minzoom > zoom);
+          case Omit ignored -> m.withOmit(true);
+        });
+      }
+      var ranges = result.result();
+      List<RangeWithTags> rangesWithGeometries = new ArrayList<>(ranges.size());
+      for (var range : ranges) {
+        var value = range.value();
+        if (!value.omit) {
           try {
-            result3.add(new RangeWithTags(
-              item.start(),
-              item.end(),
-              source.partialLine(item.start(), item.end()),
-              map
+            rangesWithGeometries.add(new RangeWithTags(
+              range.start(),
+              range.end(),
+              source.partialLine(range.start(), range.end()),
+              value.attrs
             ));
           } catch (GeometryException e) {
             throw new IllegalStateException(e);
           }
         }
       }
-      return result3;
+      return rangesWithGeometries;
     }
 
 
@@ -993,32 +990,32 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         this.range = range;
       }
 
-      private LinearRange set(Object key, Object value) {
+      private LinearRange add(OverrideCommand override) {
         if (partialOverrides == null) {
           partialOverrides = new ArrayList<>();
         }
-        partialOverrides.add(new PartialOverride(range, key, value));
+        partialOverrides.add(override);
         return this;
       }
 
       @Override
       public LinearRange setMinZoom(int min) {
-        return set(PartialOverrideField.MINZOOM, min);
+        return add(new Minzoom(range, min));
       }
 
       @Override
       public LinearRange setMaxZoom(int max) {
-        return set(PartialOverrideField.MAXZOOM, max);
+        return add(new Maxzoom(range, max));
       }
 
       @Override
       public LinearRange setAttr(String key, Object value) {
-        return set(key, value);
+        return add(new Attr(range, key, value));
       }
 
       /** Exclude this segment of the line feature at all zoom levels. */
       public LinearRange omit() {
-        return set(PartialOverrideField.OMIT, true);
+        return add(new Omit(range));
       }
 
       /** Returns the full line {@link Feature} that this segment came from. */
