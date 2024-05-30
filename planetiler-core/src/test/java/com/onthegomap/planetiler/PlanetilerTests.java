@@ -2082,6 +2082,7 @@ class PlanetilerTests {
     "",
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
     "--free-osm-after-read",
+    "--compress-temp",
     "--osm-parse-node-bounds",
     "--output-format=pmtiles",
     "--output-format=csv",
