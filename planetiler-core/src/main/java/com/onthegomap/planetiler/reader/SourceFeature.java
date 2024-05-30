@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.LineSplitter;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private double area = Double.NaN;
   private double length = Double.NaN;
   private double size = Double.NaN;
+  private LineSplitter lineSplitter;
 
   /**
    * Constructs a new input feature.
@@ -190,6 +192,27 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
       linearGeometry = computeLine();
     }
     return linearGeometry;
+  }
+
+  /**
+   * Returns a partial line string from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the
+   * end of the line.
+   *
+   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
+   *                           interpreted as a single line (multilinestrings are not allowed).
+   */
+  public final Geometry partialLine(double start, double end) throws GeometryException {
+    Geometry line = line();
+    if (start <= 0 && end >= 1) {
+      return line;
+    } else if (line instanceof LineString lineString) {
+      if (this.lineSplitter == null) {
+        this.lineSplitter = new LineSplitter(lineString);
+      }
+      return lineSplitter.get(start, end);
+    } else {
+      throw new GeometryException("partial_multilinestring", "cannot get partial of a multiline", true);
+    }
   }
 
   /**
