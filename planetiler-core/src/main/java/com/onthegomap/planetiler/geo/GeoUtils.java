@@ -5,7 +5,12 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.DoubleBinaryOperator;
 import java.util.stream.Stream;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -57,6 +62,21 @@ public class GeoUtils {
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
   private static final double LOG2 = Math.log(2);
+  private static final CoordinateReferenceSystem epsg3031;
+  private static final CoordinateReferenceSystem wgs84;
+  private static final MathTransform transformToWGS84;
+  private static final MathTransform transformToEPSG3031;
+  static {
+    try {
+      epsg3031 = CRS.decode("EPSG:3031");
+      wgs84 = CRS.decode("EPSG:4326");
+      transformToWGS84 = CRS.findMathTransform(epsg3031, wgs84);
+      transformToEPSG3031 = CRS.findMathTransform(wgs84, epsg3031);
+    } catch (FactoryException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
    * latitude/longitude coordinates.
@@ -66,8 +86,8 @@ public class GeoUtils {
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
-        copy.setOrdinate(i, 0, getWorldLon(coords.getX(i)));
-        copy.setOrdinate(i, 1, getWorldLat(coords.getY(i)));
+        copy.setOrdinate(i, 0, getWorldLon(coords.getX(i), coords.getY(i)));
+        copy.setOrdinate(i, 1, getWorldLat(coords.getX(i), coords.getY(i)));
       }
       return copy;
     }
@@ -81,14 +101,14 @@ public class GeoUtils {
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
-        copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));
-        copy.setOrdinate(i, 1, getWorldY(coords.getY(i)));
+        copy.setOrdinate(i, 0, getWorldX(coords.getX(i), coords.getY(i)));
+        copy.setOrdinate(i, 1, getWorldY(coords.getX(i), coords.getY(i)));
       }
       return copy;
     }
   };
-  private static final double MAX_LAT = getWorldLat(-0.1);
-  private static final double MIN_LAT = getWorldLat(1.1);
+  private static final double MAX_LAT = 90;
+  private static final double MIN_LAT = -90;
   // to pack latitude/longitude into a single long, we round them to 31 bits of precision
   private static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
   private static final double HALF_QUANTIZED_WORLD_SIZE = QUANTIZED_WORLD_SIZE / 2;
@@ -101,7 +121,7 @@ public class GeoUtils {
   /**
    * Bounds for the entire area of the planet that a web mercator projection covers in latitude/longitude coordinates.
    */
-  public static final Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
+  public static final Envelope WORLD_LAT_LON_BOUNDS = new Envelope(-180, 180, -90, 90);
 
   // should not instantiate
   private GeoUtils() {}
@@ -127,11 +147,7 @@ public class GeoUtils {
    * and bottom-right is (1,1) to latitude/longitude.
    */
   public static Envelope toLatLonBoundsBounds(Envelope worldBounds) {
-    return new Envelope(
-      getWorldLon(worldBounds.getMinX()),
-      getWorldLon(worldBounds.getMaxX()),
-      getWorldLat(worldBounds.getMinY()),
-      getWorldLat(worldBounds.getMaxY()));
+    return convertEnvelope(worldBounds, GeoUtils::getWorldLon, GeoUtils::getWorldLat);
   }
 
   /**
@@ -139,52 +155,73 @@ public class GeoUtils {
    * top-left corner of the planet is (0,0) and bottom-right is (1,1).
    */
   public static Envelope toWorldBounds(Envelope lonLatBounds) {
-    return new Envelope(
-      getWorldX(lonLatBounds.getMinX()),
-      getWorldX(lonLatBounds.getMaxX()),
-      getWorldY(lonLatBounds.getMinY()),
-      getWorldY(lonLatBounds.getMaxY())
-    );
+    return convertEnvelope(lonLatBounds, GeoUtils::getWorldX, GeoUtils::getWorldY);
+  }
+
+  public static Envelope convertEnvelope(Envelope input, DoubleBinaryOperator getX, DoubleBinaryOperator getY) {
+    int samples = 360;
+    var env = new Envelope();
+    for (double xi = 0; xi <= samples; xi++) {
+      double x = xi * (input.getMaxX() - input.getMinX()) / samples + input.getMinX();
+      for (double y : List.of(input.getMinY(), input.getMaxY())) {
+        env.expandToInclude(
+          getX.applyAsDouble(x, y),
+          getY.applyAsDouble(x, y)
+        );
+      }
+    }
+    for (double yi = 0; yi <= samples; yi++) {
+      double y = yi * (input.getMaxY() - input.getMinY()) / samples + input.getMinY();
+      for (double x : List.of(input.getMinX(), input.getMaxX())) {
+        env.expandToInclude(
+          getX.applyAsDouble(x, y),
+          getY.applyAsDouble(x, y)
+        );
+      }
+    }
+    return env;
   }
 
   /**
    * Returns the longitude for a web mercator coordinate {@code x} where 0 is the international date line on the west
    * side, 1 is the international date line on the east side, and 0.5 is the prime meridian.
    */
-  public static double getWorldLon(double x) {
-    return x * 360 - 180;
+  public static double getWorldLon(double x, double y) {
+    double dx = x - 0.5;
+    double dy = y - 0.5;
+    double theta = Math.atan2(dx, dy);
+    return Math.toDegrees(theta);
   }
 
   /**
    * Returns the latitude for a web mercator {@code y} coordinate where 0 is the north edge of the map, 0.5 is the
    * equator, and 1 is the south edge of the map.
    */
-  public static double getWorldLat(double y) {
-    double n = Math.PI - 2 * Math.PI * y;
-    return DEGREES_PER_RADIAN * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  public static double getWorldLat(double x, double y) {
+    double dx = x - 0.5;
+    double dy = y - 0.5;
+    double radius = Math.sqrt(dx * dx + dy * dy);
+    return 180 * radius / 0.5 - 90;
   }
 
   /**
    * Returns the web mercator X coordinate for {@code longitude} where 0 is the international date line on the west
    * side, 1 is the international date line on the east side, and 0.5 is the prime meridian.
    */
-  public static double getWorldX(double longitude) {
-    return (longitude + 180) / 360;
+  public static double getWorldX(double longitude, double latitude) {
+    double theta = Math.toRadians(longitude);
+    double amount = 0.5 * (90 + latitude) / 180;
+    return 0.5 + amount * Math.cos(theta);
   }
 
   /**
    * Returns the web mercator Y coordinate for {@code latitude} where 0 is the north edge of the map, 0.5 is the
    * equator, and 1 is the south edge of the map.
    */
-  public static double getWorldY(double latitude) {
-    if (latitude <= MIN_LAT) {
-      return 1.1;
-    }
-    if (latitude >= MAX_LAT) {
-      return -0.1;
-    }
-    double sin = Math.sin(latitude * RADIANS_PER_DEGREE);
-    return 0.5 - 0.25 * Math.log((1 + sin) / (1 - sin)) / Math.PI;
+  public static double getWorldY(double longitude, double latitude) {
+    double theta = Math.toRadians(longitude);
+    double amount = 0.5 * (90 + latitude) / 180;
+    return 0.5 + amount * Math.sin(theta);
   }
 
   /**
@@ -192,8 +229,8 @@ public class GeoUtils {
    * can be decoded using {@link #decodeWorldX(long)} and {@link #decodeWorldY(long)}.
    */
   public static long encodeFlatLocation(double lon, double lat) {
-    double worldX = getWorldX(lon) + 1;
-    double worldY = getWorldY(lat) + 1;
+    double worldX = getWorldX(lon, lat) + 1;
+    double worldY = getWorldY(lon, lat) + 1;
     long x = (long) (worldX * HALF_QUANTIZED_WORLD_SIZE);
     long y = (long) (worldY * HALF_QUANTIZED_WORLD_SIZE);
     return (x << 32) | (y & LOWER_32_BIT_MASK);

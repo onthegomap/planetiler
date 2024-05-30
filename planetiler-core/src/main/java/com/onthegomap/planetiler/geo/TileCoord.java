@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 import com.onthegomap.planetiler.util.Hilbert;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.List;
 import java.util.Locale;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
@@ -79,8 +80,8 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns the tile containing a latitude/longitude coordinate at a given zoom level. */
   public static TileCoord aroundLngLat(double lng, double lat, int zoom) {
     double factor = 1 << zoom;
-    double x = GeoUtils.getWorldX(lng) * factor;
-    double y = GeoUtils.getWorldY(lat) * factor;
+    double x = GeoUtils.getWorldX(lng, lat) * factor;
+    double y = GeoUtils.getWorldY(lng, lat) * factor;
     return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
   }
 
@@ -130,12 +131,16 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns the latitude/longitude of the northwest corner of this tile. */
   public Envelope getEnvelope() {
     double worldWidthAtZoom = Math.pow(2, z);
-    return new Envelope(
-      GeoUtils.getWorldLon(x / worldWidthAtZoom),
-      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
-      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom),
-      GeoUtils.getWorldLat(y / worldWidthAtZoom)
-    );
+    var env = new Envelope();
+    for (double wx : List.of(x / worldWidthAtZoom, (x + 1) / worldWidthAtZoom)) {
+      for (double wy : List.of((y + 1) / worldWidthAtZoom, y / worldWidthAtZoom)) {
+        env.expandToInclude(
+          GeoUtils.getWorldLon(wx, wy),
+          GeoUtils.getWorldLat(wx, wy)
+        );
+      }
+    }
+    return env;
   }
 
 
@@ -152,8 +157,8 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px tiles). */
   public Coordinate lngLatToTileCoords(double lng, double lat) {
     double factor = 1 << z;
-    double x = GeoUtils.getWorldX(lng) * factor;
-    double y = GeoUtils.getWorldY(lat) * factor;
+    double x = GeoUtils.getWorldX(lng, lat) * factor;
+    double y = GeoUtils.getWorldY(lng, lat) * factor;
     return new CoordinateXY((x - Math.floor(x)) * 256, (y - Math.floor(y)) * 256);
   }
 
@@ -182,12 +187,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   public Envelope bounds() {
-    double worldWidthAtZoom = Math.pow(2, z);
-    return new Envelope(
-      GeoUtils.getWorldLon(x / worldWidthAtZoom),
-      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
-      GeoUtils.getWorldLat(y / worldWidthAtZoom),
-      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom)
-    );
+    return getEnvelope();
   }
 }

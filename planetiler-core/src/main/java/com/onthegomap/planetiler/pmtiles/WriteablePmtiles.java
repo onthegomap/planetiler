@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.function.LongSupplier;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -168,10 +169,9 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       var outputFormat =
         TileArchiveMetadata.MVT_FORMAT.equals(formatString) ? Pmtiles.TileType.MVT : Pmtiles.TileType.UNKNOWN;
 
-      var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
-      var center = tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
-      int zoom = (int) Math.ceil(tileArchiveMetadata.zoom() == null ? GeoUtils.getZoomFromLonLatBounds(bounds) :
-        tileArchiveMetadata.zoom());
+      var bounds = GeoUtils.WORLD_LAT_LON_BOUNDS; // tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
+      var center = new CoordinateXY(0, 0); // tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
+      int zoom = 3;
       int minzoom = tileArchiveMetadata.minzoom() == null ? 0 : tileArchiveMetadata.minzoom();
       int maxzoom =
         tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();

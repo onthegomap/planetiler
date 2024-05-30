@@ -30,7 +30,7 @@ public class Bounds {
   }
 
   public Envelope latLon() {
-    return latLon == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : latLon;
+    return GeoUtils.WORLD_LAT_LON_BOUNDS;// : latLon;
   }
 
   public Envelope world() {
@@ -74,6 +74,7 @@ public class Bounds {
       this.latLon = latLon;
       this.world = GeoUtils.toWorldBounds(latLon);
       this.tileExtents = TileExtents.computeFromWorldBounds(PlanetilerConfig.MAX_MAXZOOM, world, shape);
+      System.err.println(tileExtents);
     }
   }
 
