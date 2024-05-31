@@ -7,10 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleBinaryOperator;
 import java.util.stream.Stream;
-import org.geotools.api.referencing.FactoryException;
-import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
-import org.geotools.api.referencing.operation.MathTransform;
-import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -62,20 +58,6 @@ public class GeoUtils {
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
   private static final double LOG2 = Math.log(2);
-  private static final CoordinateReferenceSystem epsg3031;
-  private static final CoordinateReferenceSystem wgs84;
-  private static final MathTransform transformToWGS84;
-  private static final MathTransform transformToEPSG3031;
-  static {
-    try {
-      epsg3031 = CRS.decode("EPSG:3031");
-      wgs84 = CRS.decode("EPSG:4326");
-      transformToWGS84 = CRS.findMathTransform(epsg3031, wgs84);
-      transformToEPSG3031 = CRS.findMathTransform(wgs84, epsg3031);
-    } catch (FactoryException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
   /**
    * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
@@ -150,6 +132,7 @@ public class GeoUtils {
     return convertEnvelope(worldBounds, GeoUtils::getWorldLon, GeoUtils::getWorldLat);
   }
 
+
   /**
    * Returns a copy of {@code lonLatBounds} transformed from latitude/longitude coordinates to web mercator where
    * top-left corner of the planet is (0,0) and bottom-right is (1,1).
@@ -193,34 +176,48 @@ public class GeoUtils {
     return Math.toDegrees(theta);
   }
 
-  /**
-   * Returns the latitude for a web mercator {@code y} coordinate where 0 is the north edge of the map, 0.5 is the
-   * equator, and 1 is the south edge of the map.
-   */
   public static double getWorldLat(double x, double y) {
     double dx = x - 0.5;
     double dy = y - 0.5;
     double radius = Math.sqrt(dx * dx + dy * dy);
-    return 180 * radius / 0.5 - 90;
+    return 180 * radius / 0.1 - 90;
   }
 
-  /**
-   * Returns the web mercator X coordinate for {@code longitude} where 0 is the international date line on the west
-   * side, 1 is the international date line on the east side, and 0.5 is the prime meridian.
-   */
+  public static double webMercYToLat(double y) {
+    double n = Math.PI - 2 * Math.PI * y;
+    return DEGREES_PER_RADIAN * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  }
+
+  public static double webMercXToLon(double x) {
+    return x * 360 - 180;
+  }
+
+
+  public static double lonToWebMercX(double longitude) {
+    return (longitude + 180) / 360;
+  }
+
+  public static double latToWebMercY(double latitude) {
+    if (latitude <= MIN_LAT) {
+      return 1.1;
+    }
+    if (latitude >= MAX_LAT) {
+      return -0.1;
+    }
+    double sin = Math.sin(latitude * RADIANS_PER_DEGREE);
+    return 0.5 - 0.25 * Math.log((1 + sin) / (1 - sin)) / Math.PI;
+  }
+
+
   public static double getWorldX(double longitude, double latitude) {
     double theta = Math.toRadians(longitude);
-    double amount = 0.5 * (90 + latitude) / 180;
+    double amount = 0.1 * (90 + latitude) / 180;
     return 0.5 + amount * Math.cos(theta);
   }
 
-  /**
-   * Returns the web mercator Y coordinate for {@code latitude} where 0 is the north edge of the map, 0.5 is the
-   * equator, and 1 is the south edge of the map.
-   */
   public static double getWorldY(double longitude, double latitude) {
     double theta = Math.toRadians(longitude);
-    double amount = 0.5 * (90 + latitude) / 180;
+    double amount = 0.1 * (90 + latitude) / 180;
     return 0.5 + amount * Math.sin(theta);
   }
 

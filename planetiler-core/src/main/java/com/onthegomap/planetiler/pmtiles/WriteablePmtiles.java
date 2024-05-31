@@ -169,9 +169,20 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       var outputFormat =
         TileArchiveMetadata.MVT_FORMAT.equals(formatString) ? Pmtiles.TileType.MVT : Pmtiles.TileType.UNKNOWN;
 
-      var bounds = GeoUtils.WORLD_LAT_LON_BOUNDS; // tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
-      var center = new CoordinateXY(0, 0); // tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
-      int zoom = 3;
+      var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS :
+        GeoUtils.convertEnvelope(tileArchiveMetadata.bounds(),
+          (lon, lat) -> GeoUtils.webMercXToLon(GeoUtils.getWorldX(lon, lat)),
+          (lon, lat) -> GeoUtils.webMercYToLat(GeoUtils.getWorldY(lon, lat))
+        );
+      var center = tileArchiveMetadata.center() == null ? new CoordinateXY(
+        GeoUtils.webMercXToLon(GeoUtils.getWorldX(bounds.centre().x, bounds.centre().y)),
+        GeoUtils.webMercYToLat(GeoUtils.getWorldY(bounds.centre().x, bounds.centre().y))
+      ) : new CoordinateXY(
+        GeoUtils.webMercXToLon(GeoUtils.getWorldX(tileArchiveMetadata.center().x, tileArchiveMetadata.center().y)),
+        GeoUtils.webMercYToLat(GeoUtils.getWorldY(tileArchiveMetadata.center().x, tileArchiveMetadata.center().y))
+      );
+      int zoom = (int) Math.ceil(tileArchiveMetadata.zoom() == null ? GeoUtils.getZoomFromLonLatBounds(bounds) :
+        tileArchiveMetadata.zoom());
       int minzoom = tileArchiveMetadata.minzoom() == null ? 0 : tileArchiveMetadata.minzoom();
       int maxzoom =
         tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();
