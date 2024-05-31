@@ -309,7 +309,7 @@ class OsmReaderTest {
   }
 
   private OsmElement.Node node(long id, double x, double y) {
-    return new OsmElement.Node(id, GeoUtils.getWorldLat(y, 0), GeoUtils.getWorldLon(x, 0));
+    return new OsmElement.Node(id, GeoUtils.getWorldLat(y), GeoUtils.getWorldLon(x));
   }
 
   @Test
