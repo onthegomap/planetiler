@@ -57,7 +57,7 @@ public class PolygonIndex<T> {
     return postFilterContaining(point, items);
   }
 
-  /** Returns the data associated with all polygons containing {@code point}. */
+  /** Returns the data associated with all polygons intersecting {@code geom}. */
   public List<T> getIntersecting(Geometry geom) {
     build();
     List<?> items = index.query(geom.getEnvelopeInternal());
