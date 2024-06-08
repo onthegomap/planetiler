@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -21,15 +23,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ForwardingProfileTests {
 
-  private final ForwardingProfile profile = new ForwardingProfile() {
-    @Override
-    public String name() {
-      return "test";
-    }
-  };
+  private ForwardingProfile profile = new ForwardingProfile() {};
 
   @Test
   void testPreprocessOsmNode() {
@@ -359,5 +358,29 @@ class ForwardingProfileTests {
       "_layer", "a"
     )), a);
     testFeatures(List.of(), b);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "--only-layers=water",
+    "--exclude-layers=land",
+    "--exclude-layers=land --only-layers=water,land",
+  })
+  void testLayerCliArgFilter(String args) {
+    profile = new ForwardingProfile(PlanetilerConfig.from(Arguments.fromArgs(args.split(" ")))) {};
+    record Processor(String name) implements ForwardingProfile.HandlerForLayer, ForwardingProfile.FeatureProcessor {
+
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        features.point(name);
+      }
+    }
+
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of("key", "value"), "source", "source layer", 1);
+    profile.registerHandler(new Processor("water"));
+    profile.registerHandler(new Processor("land"));
+    testFeatures(List.of(Map.of(
+      "_layer", "water"
+    )), a);
   }
 }
