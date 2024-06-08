@@ -546,4 +546,9 @@ public class Arguments {
       () -> keys.get().stream().filter(key -> allowed.contains(normalize(key))).toList()
     );
   }
+
+  /** Returns a new arguments instance where the value for {@code key} defaults to {@code value}. */
+  public Arguments withDefault(Object key, Object value) {
+    return orElse(Arguments.of(key.toString().replaceFirst("^-*", ""), value));
+  }
 }

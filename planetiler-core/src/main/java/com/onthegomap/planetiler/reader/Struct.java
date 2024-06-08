@@ -56,14 +56,14 @@ public interface Struct {
             result.put(e.getKey(), v);
           }
         }
-        yield new MapStruct(result);
+        yield new MapStruct(result, map);
       }
       case Collection<?> collection -> {
         List<Struct> result = new ArrayList<>(collection.size());
         for (var d : collection) {
           result.add(of(d));
         }
-        yield new ListStruct(result);
+        yield new ListStruct(result, collection);
       }
       default -> throw new IllegalArgumentException("Unable to convert " + o + " (" + o.getClass() + ")");
     };
@@ -253,22 +253,29 @@ public interface Struct {
       .flatMap(item -> mapper.apply(item).asList().stream())
       .map(Struct::of)
       .toList();
-    return list.isEmpty() ? NULL : new ListStruct(list);
+    var raw = list.stream().map(Struct::rawValue).toList();
+    return list.isEmpty() ? NULL : new ListStruct(list, raw);
   }
 
   class PrimitiveStruct<T> implements Struct {
 
     final T value;
+    private final Object raw;
     private String asJson;
 
-    PrimitiveStruct(T value) {
+    PrimitiveStruct(T value, Object raw) {
       this.value = value;
+      this.raw = raw;
+    }
+
+    PrimitiveStruct(T value) {
+      this(value, value);
     }
 
 
     @Override
     public final Object rawValue() {
-      return value;
+      return raw;
     }
 
     @Override
@@ -521,8 +528,8 @@ public interface Struct {
 
   class MapStruct extends PrimitiveStruct<Map<Object, Struct>> {
 
-    MapStruct(Map<Object, Struct> value) {
-      super(value);
+    MapStruct(Map<Object, Struct> value, Map<?, ?> raw) {
+      super(value, raw);
     }
 
     @Override
@@ -562,8 +569,8 @@ public interface Struct {
   }
 
   class ListStruct extends PrimitiveStruct<List<Struct>> {
-    ListStruct(List<Struct> value) {
-      super(value);
+    ListStruct(List<Struct> value, Collection<?> raw) {
+      super(value, raw);
     }
 
     @Override
@@ -578,6 +585,9 @@ public interface Struct {
 
     @Override
     public Struct get(Object key) {
+      if (key instanceof String k) {
+        return flatMap(v -> v.get(k.replaceAll("^\\[]\\.?", "")));
+      }
       return key instanceof Number n ? get(n.intValue()) : NULL;
     }
   }

@@ -2,8 +2,11 @@ package com.onthegomap.planetiler;
 
 import static com.onthegomap.planetiler.TestUtils.assertSubmap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -110,6 +113,28 @@ class ForwardingProfileTests {
     testFeatures(List.of(Map.of(
       "_layer", "b"
     )), b);
+  }
+
+  @Test
+  void testProcessFeatureWithFilter() {
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of("key", "value"), "srca", null, 1);
+    SourceFeature b = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srcb", null, 1);
+
+    profile.registerSourceHandler(a.getSource(), new ForwardingProfile.FeatureProcessor() {
+      @Override
+      public void processFeature(SourceFeature elem, FeatureCollector features) {
+        features.point("a");
+      }
+
+      @Override
+      public Expression filter() {
+        return Expression.matchAny("key", "value");
+      }
+    });
+    testFeatures(List.of(Map.of(
+      "_layer", "a"
+    )), a);
+    testFeatures(List.of(), b);
   }
 
   @Test
@@ -259,5 +284,80 @@ class ForwardingProfileTests {
     assertEquals(Map.of("c", List.of(feature, feature)),
       profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0),
         Map.of("c", List.of(feature, feature, feature, feature))));
+  }
+
+  @Test
+  void testCaresAboutSource() {
+    profile.registerSourceHandler("a", (x, y) -> {
+    });
+    assertTrue(profile.caresAboutSource("a"));
+    assertFalse(profile.caresAboutSource("b"));
+
+    profile.registerSourceHandler("b", (x, y) -> {
+    });
+    assertTrue(profile.caresAboutSource("a"));
+    assertTrue(profile.caresAboutSource("b"));
+    assertFalse(profile.caresAboutSource("c"));
+
+    class C implements ForwardingProfile.Handler, ForwardingProfile.FeatureProcessor {
+
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {}
+
+      @Override
+      public Expression filter() {
+        return Expression.matchSource("c");
+      }
+    }
+    profile.registerHandler(new C());
+    assertTrue(profile.caresAboutSource("a"));
+    assertTrue(profile.caresAboutSource("b"));
+    assertTrue(profile.caresAboutSource("c"));
+    assertFalse(profile.caresAboutSource("d"));
+
+    profile.registerFeatureHandler((x, y) -> {
+    });
+    assertTrue(profile.caresAboutSource("d"));
+    assertTrue(profile.caresAboutSource("e"));
+  }
+
+  @Test
+  void registerAnySourceFeatureHandler() {
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srca", null, 1);
+    SourceFeature b = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srcb", null, 1);
+    testFeatures(List.of(), a);
+    testFeatures(List.of(), b);
+
+    profile.registerFeatureHandler((elem, features) -> features.point("a"));
+    testFeatures(List.of(Map.of(
+      "_layer", "a"
+    )), a);
+    testFeatures(List.of(Map.of(
+      "_layer", "a"
+    )), b);
+  }
+
+  @Test
+  void registerHandlerWithFilter() {
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of("key", "value"), "srca", null, 1);
+    SourceFeature b = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srcb", null, 1);
+    testFeatures(List.of(), a);
+    testFeatures(List.of(), b);
+
+    profile.registerFeatureHandler(new ForwardingProfile.FeatureProcessor() {
+      @Override
+      public void processFeature(SourceFeature elem, FeatureCollector features) {
+        features.point("a");
+      }
+
+      @Override
+      public Expression filter() {
+        return Expression.matchAny("key", "value");
+      }
+    });
+    testFeatures(List.of(Map.of(
+      "_layer", "a"
+    )), a);
+    testFeatures(List.of(), b);
   }
 }

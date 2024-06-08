@@ -2,15 +2,19 @@ package com.onthegomap.planetiler.expression;
 
 import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
 
-import com.google.common.base.Joiner;
+import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -28,6 +32,7 @@ import org.slf4j.LoggerFactory;
  * }
  */
 // TODO rename to BooleanExpression
+@FunctionalInterface
 public interface Expression extends Simplifiable<Expression> {
   Logger LOGGER = LoggerFactory.getLogger(Expression.class);
 
@@ -123,6 +128,32 @@ public interface Expression extends Simplifiable<Expression> {
     return new MatchType(type);
   }
 
+  /**
+   * Returns an expression that evaluates to true if the geometry of an element matches {@code type}.
+   */
+  static MatchType matchGeometryType(GeometryType type) {
+    return new MatchType(switch (type) {
+      case POINT -> POINT_TYPE;
+      case LINE -> LINESTRING_TYPE;
+      case POLYGON -> POLYGON_TYPE;
+      case null, default -> throw new IllegalArgumentException("Unsupported type: " + type);
+    });
+  }
+
+  /**
+   * Returns an expression that evaluates to true if the source of an element matches {@code source}.
+   */
+  static MatchSource matchSource(String source) {
+    return new MatchSource(source);
+  }
+
+  /**
+   * Returns an expression that evaluates to true if the source layer of an element matches {@code layer}.
+   */
+  static MatchSourceLayer matchSourceLayer(String layer) {
+    return new MatchSourceLayer(layer);
+  }
+
   private static String generateJavaCodeList(List<Expression> items) {
     return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
   }
@@ -145,6 +176,18 @@ public interface Expression extends Simplifiable<Expression> {
         case And(var children) -> new And(children.stream().map(child -> child.replace(replace, b)).toList());
         default -> this;
       };
+    }
+  }
+
+  /** Calls {@code fn} for every expression within the current one. */
+  default void visit(Consumer<Expression> fn) {
+    fn.accept(this);
+    switch (this) {
+      case Not(var child) -> child.visit(fn);
+      case Or(var children) -> children.forEach(child -> child.visit(fn));
+      case And(var children) -> children.forEach(child -> child.visit(fn));
+      default -> {
+      }
     }
   }
 
@@ -190,7 +233,9 @@ public interface Expression extends Simplifiable<Expression> {
   }
 
   /** Returns Java code that can be used to reconstruct this expression. */
-  String generateJavaCode();
+  default String generateJavaCode() {
+    throw new UnsupportedOperationException();
+  }
 
   /** A constant boolean value. */
   record Constant(boolean value, @Override String generateJavaCode) implements Expression {
@@ -329,8 +374,8 @@ public interface Expression extends Simplifiable<Expression> {
   }
 
   /**
-   * Evaluates to true if the value for {@code field} tag is any of {@code exactMatches} or contains any of {@code
-   * wildcards}.
+   * Evaluates to true if the value for {@code field} tag is any of {@code exactMatches} or contains any of
+   * {@code wildcards}.
    *
    * @param values           all raw string values that were initially provided
    * @param exactMatches     the input {@code values} that should be treated as exact matches
@@ -405,8 +450,25 @@ public interface Expression extends Simplifiable<Expression> {
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
+      return evaluate(matchKeys, value);
+    }
+
+    private boolean evaluate(List<String> matchKeys, Object value) {
       if (value == null || "".equals(value)) {
         return matchWhenMissing;
+      } else if (value instanceof Collection<?> c) {
+        if (c.isEmpty()) {
+          return matchWhenMissing;
+        } else {
+          for (var item : c) {
+            if (evaluate(matchKeys, item)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      } else if (value instanceof Map<?, ?>) {
+        return false;
       } else {
         String str = value.toString();
         if (exactMatches.contains(str)) {
@@ -483,7 +545,7 @@ public interface Expression extends Simplifiable<Expression> {
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = input.getTag(field);
-      if (value != null && !"".equals(value)) {
+      if (value != null && !"".equals(value) && !(value instanceof Collection<?> c && c.isEmpty())) {
         matchKeys.add(field);
         return true;
       }
@@ -513,6 +575,38 @@ public interface Expression extends Simplifiable<Expression> {
       } else {
         return false;
       }
+    }
+  }
+
+  /**
+   * Evaluates to true if an input element has source matching {@code source}.
+   */
+  record MatchSource(String source) implements Expression {
+
+    @Override
+    public String generateJavaCode() {
+      return "matchSource(" + Format.quote(source) + ")";
+    }
+
+    @Override
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return input instanceof SourceFeature feature && source.equals(feature.getSource());
+    }
+  }
+
+  /**
+   * Evaluates to true if an input element has source layer matching {@code layer}.
+   */
+  record MatchSourceLayer(String layer) implements Expression {
+
+    @Override
+    public String generateJavaCode() {
+      return "matchSourceLayer(" + Format.quote(layer) + ")";
+    }
+
+    @Override
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return input instanceof SourceFeature feature && layer.equals(feature.getSourceLayer());
     }
   }
 }

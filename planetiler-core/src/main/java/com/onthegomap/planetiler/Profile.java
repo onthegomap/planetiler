@@ -32,8 +32,17 @@ import java.util.function.Consumer;
  * For complex profiles, {@link ForwardingProfile} provides a framework for splitting the logic up into several handlers
  * (i.e. one per layer) and forwarding each element/event to the handlers that care about it.
  */
-public interface Profile {
+public interface Profile extends FeatureProcessor<SourceFeature> {
   // TODO might want to break this apart into sub-interfaces that ForwardingProfile (and TileArchiveMetadata) can use too
+
+  /**
+   * Default attribution recommended for profiles using OpenStreetMap data
+   *
+   * @see <a href="https://www.openstreetmap.org/copyright">www.openstreetmap.org/copyright</a>
+   */
+  String OSM_ATTRIBUTION = """
+    <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+    """.trim();
 
   /**
    * Allows profile to extract any information it needs from a {@link OsmElement.Node} during the first pass through OSM
@@ -70,19 +79,6 @@ public interface Profile {
   default List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     return null;
   }
-
-  /**
-   * Generates output features for any input feature that should appear in the map.
-   * <p>
-   * Multiple threads may invoke this method concurrently for a single data source so implementations should ensure
-   * thread-safe access to any shared data structures. Separate data sources are processed sequentially.
-   * <p>
-   * All OSM nodes are processed first, then ways, then relations.
-   *
-   * @param sourceFeature the input feature from a source dataset (OSM element, shapefile element, etc.)
-   * @param features      a collector for generating output map features to emit
-   */
-  void processFeature(SourceFeature sourceFeature, FeatureCollector features);
 
   /** Free any resources associated with this profile (i.e. shared data structures) */
   default void release() {}
@@ -143,7 +139,9 @@ public interface Profile {
    *
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#metadata">MBTiles specification</a>
    */
-  String name();
+  default String name() {
+    return getClass().getSimpleName();
+  }
 
   /**
    * Returns the description of the generated tileset to put into {@link Mbtiles} metadata

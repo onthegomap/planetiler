@@ -40,6 +40,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +88,7 @@ public class Planetiler {
   private final Path nodeDbPath;
   private final Path multipolygonPath;
   private final Path featureDbPath;
-  private final boolean downloadSources;
+  private boolean downloadSources;
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
@@ -111,6 +112,7 @@ public class Planetiler {
   private boolean fetchWikidata = false;
   private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
+  private Map<String, String> archiveMetadataDefaults = new HashMap<>();
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -670,9 +672,49 @@ public class Planetiler {
     return setOutput(defaultOutputUri);
   }
 
-  /** Alias for {@link #overwriteOutput(String)} which infers the output type based on extension. */
+  /**
+   * Alias for {@link #overwriteOutput(String)} which infers the output type based on extension.
+   * <p>
+   * This will override the value returned by
+   */
   public Planetiler overwriteOutput(Path defaultOutput) {
     return overwriteOutput(defaultOutput.toString());
+  }
+
+  /** Adds an extra key/value pair to the output archive metadata. */
+  public Planetiler setOutputMetadata(String key, String value) {
+    archiveMetadataDefaults.put(key, value);
+    return this;
+  }
+
+  /** Sets the name attribute in the output archive metadata. */
+  public Planetiler setOutputName(String name) {
+    return setOutputMetadata(TileArchiveMetadata.NAME_KEY, name);
+  }
+
+  /** Sets the version attribute in the output archive metadata. */
+  public Planetiler setOutputVersion(String version) {
+    return setOutputMetadata(TileArchiveMetadata.VERSION_KEY, version);
+  }
+
+  /** Sets the version attribute in the output archive metadata. */
+  public Planetiler setOutputDescription(String description) {
+    return setOutputMetadata(TileArchiveMetadata.DESCRIPTION_KEY, description);
+  }
+
+  /** Sets the attribution attribute in the output archive metadata. */
+  public Planetiler setOutputAttribution(String attribution) {
+    return setOutputMetadata(TileArchiveMetadata.ATTRIBUTION_KEY, attribution);
+  }
+
+  /** Sets the type attribute in the output archive metadata to "overlay" meant to be shown over a basemap. */
+  public Planetiler setOutputIsOverlay() {
+    return setOutputMetadata(TileArchiveMetadata.TYPE_KEY, "overlay");
+  }
+
+  /** Sets the type attribute in the output archive metadata to "basemap". */
+  public Planetiler setOutputIsBasemap() {
+    return setOutputMetadata(TileArchiveMetadata.TYPE_KEY, "basemap");
   }
 
   /**
@@ -680,9 +722,8 @@ public class Planetiler {
    * writes the rendered tiles to the output archive.
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
-   * @throws Exception                if an error occurs while processing
    */
-  public void run() throws Exception {
+  public void run() {
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (buildInfo != null && LOGGER.isInfoEnabled()) {
@@ -772,7 +813,7 @@ public class Planetiler {
 
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
-    Files.createDirectories(tmpDir);
+    FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
     if (!toDownload.isEmpty()) {
@@ -814,7 +855,11 @@ public class Planetiler {
       stats.monitorFile("archive", output.getLocalPath(), archive::bytesWritten);
 
       for (Stage stage : stages) {
-        stage.task.run();
+        try {
+          stage.task.run();
+        } catch (Exception e) {
+          throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+        }
       }
 
       LOGGER.info("Deleting node.db to make room for output file");
@@ -831,13 +876,17 @@ public class Planetiler {
       TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,
         config, stats);
     } catch (IOException e) {
-      throw new IllegalStateException("Unable to write to " + output, e);
+      throw new PlanetilerException("Unable to write to " + output, e);
     }
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");
     stats.printSummary();
-    stats.close();
+    try {
+      stats.close();
+    } catch (Exception e) {
+      throw new PlanetilerException(e);
+    }
   }
 
   private void checkDiskSpace() {
@@ -990,4 +1039,15 @@ public class Planetiler {
   private record ToDownload(String id, String url, Path path) {}
 
   private record InputPath(String id, Path path, boolean freeAfterReading) {}
+
+  /** An exception that occurs while running planetiler. */
+  public static class PlanetilerException extends RuntimeException {
+    public PlanetilerException(String message, Exception e) {
+      super(message, e);
+    }
+
+    public PlanetilerException(Exception e) {
+      super(e);
+    }
+  }
 }

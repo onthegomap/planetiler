@@ -86,7 +86,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
       e.log(stats, "feature_point", "Error getting point geometry for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -106,7 +106,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
       e.log(stats, "feature_line", "Error constructing line for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -126,7 +126,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.partialLine(start, end));
     } catch (GeometryException e) {
       e.log(stats, "feature_partial_line", "Error constructing partial line for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -146,8 +146,25 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
       e.log(stats, "feature_polygon", "Error constructing polygon for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
+  }
+
+  /**
+   * Starts building a new polygon, line, or point map feature based on the geometry type of the input feature.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
+  public Feature anyGeometry(String layer) {
+    return source.canBePolygon() ? polygon(layer) :
+      source.canBeLine() ? line(layer) :
+      source.isPoint() ? point(layer) :
+      empty(layer);
+  }
+
+  private Feature empty(String layer) {
+    return new Feature(layer, EMPTY_GEOM, source.id());
   }
 
   /**
@@ -161,7 +178,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid", "Error getting centroid for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -178,7 +195,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -194,7 +211,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
       e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -216,7 +233,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.innermostPoint(tolerance));
     } catch (GeometryException e) {
       e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -295,6 +312,23 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     /** Copies the value for {@code key} attribute from source feature to the output feature. */
     default T inheritAttrFromSource(String key) {
       return setAttr(key, collector().source.getTag(key));
+    }
+
+    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    default T inheritAttrsFromSource(String... keys) {
+      for (var key : keys) {
+        inheritAttrFromSource(key);
+      }
+      return self();
+    }
+
+
+    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    default T inheritAttrsFromSourceWithMinzoom(int minzoom, String... keys) {
+      for (var key : keys) {
+        setAttrWithMinzoom(key, collector().source.getTag(key), minzoom);
+      }
+      return self();
     }
 
     /**
