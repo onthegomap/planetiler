@@ -3,8 +3,12 @@ package com.onthegomap.planetiler.reader.parquet;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.ForwardingProfile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.Glob;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -45,6 +49,25 @@ class ParquetInputFileTest {
       }
       assertEquals(3, ids.size(), "iter " + i);
     }
+  }
+
+  @Test
+  void testReadBostonWithProfileFilter() {
+    Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
+    var profile = new ForwardingProfile() {};
+    profile.registerFeatureHandler(new ForwardingProfile.FeatureProcessor() {
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {}
+
+      @Override
+      public Expression filter() {
+        return Expression.matchAny("type", "value");
+      }
+    });
+    var file1 = new ParquetInputFile("parquet", "layer", path, null, Bounds.WORLD, Map.of("type", "value"), null);
+    var file2 = new ParquetInputFile("parquet", "layer", path, null, Bounds.WORLD, Map.of("type", "other"), null);
+    assertFalse(file1.shouldSkip(profile));
+    assertTrue(file2.shouldSkip(profile));
   }
 
   @ParameterizedTest

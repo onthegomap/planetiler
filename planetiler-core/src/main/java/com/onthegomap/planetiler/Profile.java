@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler;
 
+import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -244,6 +245,14 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
    */
   default long estimateRamRequired(long osmFileSize) {
     return 0L;
+  }
+
+  /**
+   * Returns false if this profile will ignore every feature in a set where {@linkplain Expression.PartialInput partial
+   * attributes} are known ahead of time.
+   */
+  default boolean caresAbout(Expression.PartialInput input) {
+    return true;
   }
 
   /**

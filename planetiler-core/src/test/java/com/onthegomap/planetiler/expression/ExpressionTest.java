@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.expression.Expression.*;
 import static com.onthegomap.planetiler.expression.ExpressionTestUtil.featureWithTags;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
@@ -326,5 +327,61 @@ class ExpressionTest {
       Expression.matchSourceLayer("layer").evaluate(
         SimpleFeature.create(newPoint(0, 0), Map.of(), "other source", "other layer", 1)
       ));
+  }
+
+  @Test
+  void testPartialEvaluateMatchField() {
+    assertEquals(matchField("field"), matchField("field").partialEvaluate(
+      new PartialInput(Set.of(), Set.of(), Map.of("other", "value"), Set.of())));
+    assertEquals(TRUE, matchField("field").partialEvaluate(
+      new PartialInput(Set.of(), Set.of(), Map.of("field", "value"), Set.of())));
+  }
+
+  @Test
+  void testPartialEvaluateMatchAny() {
+    var expr = matchAny("field", "value1", "other%");
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("other", "value"), Set.of())));
+    assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "value1"), Set.of())));
+    assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "other"), Set.of())));
+    assertEquals(TRUE,
+      expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "other..."), Set.of())));
+    assertEquals(FALSE, expr.partialEvaluate(
+      new PartialInput(Set.of(), Set.of(), Map.of("field", "not a value"), Set.of())));
+  }
+
+  @Test
+  void testPartialEvaluateMatchGeometryType() {
+    var expr = matchGeometryType(GeometryType.POINT);
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(
+      new PartialInput(Set.of(), Set.of(), Map.of(), Set.of(GeometryType.POINT, GeometryType.UNKNOWN))));
+    assertEquals(expr,
+      expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of(GeometryType.UNKNOWN))));
+    assertEquals(expr,
+      expr.partialEvaluate(
+        new PartialInput(Set.of(), Set.of(), Map.of(), Set.of(GeometryType.POINT, GeometryType.POLYGON))));
+    assertEquals(TRUE,
+      expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of(GeometryType.POINT))));
+    assertEquals(FALSE,
+      expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of(GeometryType.POLYGON))));
+  }
+
+  @Test
+  void testPartialEvaluateMatchSource() {
+    var expr = matchSource("source");
+    assertEquals(expr,
+      expr.partialEvaluate(new PartialInput(Set.of("source", "others"), Set.of(), Map.of(), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of())));
+    assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of("source"), Set.of(), Map.of(), Set.of())));
+    assertEquals(FALSE, expr.partialEvaluate(new PartialInput(Set.of("other source"), Set.of(), Map.of(), Set.of())));
+  }
+
+  @Test
+  void testPartialEvaluateMatchSourceLayer() {
+    var expr = matchSourceLayer("layer");
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of("layer", "others"), Map.of(), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of())));
+    assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of("layer"), Map.of(), Set.of())));
+    assertEquals(FALSE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of("other layer"), Map.of(), Set.of())));
   }
 }

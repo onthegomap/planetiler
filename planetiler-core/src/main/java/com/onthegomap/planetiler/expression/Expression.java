@@ -205,6 +205,10 @@ public interface Expression extends Simplifiable<Expression> {
     }
   }
 
+  private static Expression constBool(boolean value) {
+    return value ? TRUE : FALSE;
+  }
+
   /**
    * Returns true if this expression matches an input element.
    *
@@ -213,6 +217,20 @@ public interface Expression extends Simplifiable<Expression> {
    * @return true if this expression matches the input element
    */
   boolean evaluate(WithTags input, List<String> matchKeys);
+
+  /**
+   * Returns a copy of this expression where any parts that the value is known replaced with {@link #TRUE} or
+   * {@link #FALSE} for a set of features where {@link PartialInput} are known ahead of time (ie. a hive-partitioned
+   * parquet input file).
+   */
+  default Expression partialEvaluate(PartialInput input) {
+    return switch (this) {
+      case Not(var expr) -> not(expr.partialEvaluate(input));
+      case And(var exprs) -> and(exprs.stream().map(e -> e.partialEvaluate(input)).toList());
+      case Or(var exprs) -> or(exprs.stream().map(e -> e.partialEvaluate(input)).toList());
+      default -> this;
+    };
+  }
 
   //A list that silently drops all additions
   class NoopList<T> extends ArrayList<T> {
@@ -453,6 +471,12 @@ public interface Expression extends Simplifiable<Expression> {
       return evaluate(matchKeys, value);
     }
 
+    @Override
+    public Expression partialEvaluate(PartialInput input) {
+      Object value = input.getTag(field);
+      return value == null ? this : constBool(evaluate(new ArrayList<>(), value));
+    }
+
     private boolean evaluate(List<String> matchKeys, Object value) {
       if (value == null || "".equals(value)) {
         return matchWhenMissing;
@@ -551,6 +575,11 @@ public interface Expression extends Simplifiable<Expression> {
       }
       return false;
     }
+
+    @Override
+    public Expression partialEvaluate(PartialInput input) {
+      return input.hasTag(field) ? TRUE : this;
+    }
   }
 
   /**
@@ -576,6 +605,17 @@ public interface Expression extends Simplifiable<Expression> {
         return false;
       }
     }
+
+    @Override
+    public Expression partialEvaluate(PartialInput input) {
+      return input.types.isEmpty() || input.types.contains(GeometryType.UNKNOWN) ? this :
+        partialEvaluateContains(input.types, switch (type) {
+          case LINESTRING_TYPE -> GeometryType.LINE;
+          case POLYGON_TYPE -> GeometryType.POLYGON;
+          case POINT_TYPE -> GeometryType.POINT;
+          default -> GeometryType.UNKNOWN;
+        }, this);
+    }
   }
 
   /**
@@ -592,6 +632,11 @@ public interface Expression extends Simplifiable<Expression> {
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return input instanceof SourceFeature feature && source.equals(feature.getSource());
     }
+
+    @Override
+    public Expression partialEvaluate(PartialInput input) {
+      return partialEvaluateContains(input.source, source, this);
+    }
   }
 
   /**
@@ -607,6 +652,38 @@ public interface Expression extends Simplifiable<Expression> {
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return input instanceof SourceFeature feature && layer.equals(feature.getSourceLayer());
+    }
+
+    @Override
+    public Expression partialEvaluate(PartialInput input) {
+      return partialEvaluateContains(input.layer, layer, this);
+    }
+  }
+
+  private static <T> Expression partialEvaluateContains(Set<T> set, T item, Expression self) {
+    if (set.isEmpty()) {
+      return self;
+    } else if (set.size() == 1) {
+      return constBool(set.contains(item));
+    } else if (set.contains(item)) {
+      return self;
+    } else {
+      return FALSE;
+    }
+  }
+
+  /**
+   * Partial attributes of a set of features that are known ahead of time, for example a hive-partitioned parquet input
+   * file.
+   * <p>
+   * Features within this set will only add tags but not change them, and the source/layer/geometry type will be one of
+   * the values specified in those sets. If the set is empty, the values are not known ahead of time.
+   */
+  record PartialInput(Set<String> source, Set<String> layer, Map<String, Object> tags, Set<GeometryType> types)
+    implements WithTags {
+
+    public static PartialInput ofSource(String source) {
+      return new PartialInput(Set.of(source), Set.of(), Map.of(), Set.of());
     }
   }
 }

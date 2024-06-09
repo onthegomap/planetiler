@@ -90,7 +90,7 @@ public class ParquetReader {
         String layer = getLayerName(path);
         return new ParquetInputFile(sourceName, layer, path, null, config.bounds(), hivePartitionFields, idGenerator);
       })
-      .filter(file -> !file.isOutOfBounds())
+      .filter(file -> !file.shouldSkip(profile))
       .toList();
     // don't show % complete on features when a filter is present because to determine total # elements would
     // take an expensive initial query, and % complete on blocks gives a good enough proxy

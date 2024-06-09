@@ -201,10 +201,13 @@ public abstract class ForwardingProfile implements Profile {
 
   @Override
   public boolean caresAboutSource(String name) {
-    // if any match source
+    return caresAbout(Expression.PartialInput.ofSource(name));
+  }
+
+  @Override
+  public boolean caresAbout(Expression.PartialInput input) {
     return sourceElementProcessors.stream().anyMatch(e -> e.expression()
-      .replace(Expression.matchSource(name), Expression.TRUE)
-      .replace(exp -> exp instanceof Expression.MatchSource, Expression.FALSE)
+      .partialEvaluate(input)
       .simplify() != Expression.FALSE);
   }
 

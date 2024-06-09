@@ -7,10 +7,13 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryType;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
@@ -39,6 +42,34 @@ public record GeoParquetMetadata(
 
   private static final ObjectMapper mapper =
     new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+  /**
+   * Returns the {@link GeometryType GeometryTypes} that can be contained in this geoparquet file or an empty set if
+   * unknown.
+   * <p>
+   * These can come from geoarrow encoding type, or the {@code geometry_types} attributes.
+   */
+  public Set<GeometryType> geometryTypes() {
+    Set<GeometryType> types = new HashSet<>();
+    for (var type : primaryColumnMetadata().geometryTypes()) {
+      types.add(switch (type) {
+        case "Point", "MultiPoint" -> GeometryType.POINT;
+        case "LineString", "MultiLineString" -> GeometryType.LINE;
+        case "Polygon", "MultiPolygon" -> GeometryType.POLYGON;
+        case null, default -> GeometryType.UNKNOWN;
+      });
+    }
+    // geoarrow
+    String encoding = primaryColumnMetadata().encoding();
+    if (encoding.contains("polygon")) {
+      types.add(GeometryType.POLYGON);
+    } else if (encoding.contains("point")) {
+      types.add(GeometryType.POINT);
+    } else if (encoding.contains("linestring")) {
+      types.add(GeometryType.LINE);
+    }
+    return types;
+  }
 
   public record CoveringBbox(
     List<String> xmin,
