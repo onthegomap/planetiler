@@ -353,7 +353,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * size.
      */
     default T setAttrWithMinSize(String key, Object value, double minPixelSize) {
-      return setAttrWithMinzoom(key, value, collector().getMinZoomForPixelSize(minPixelSize));
+      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
     }
 
     /**
@@ -368,7 +368,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     default T setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
       int minZoomToShowAlways) {
       return setAttrWithMinzoom(key, value,
-        Math.clamp(collector().getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    default int getMinZoomForPixelSize(double minPixelSize) {
+      return collector().getMinZoomForPixelSize(minPixelSize);
     }
 
     /**
@@ -1081,6 +1085,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
        */
       public LinearRange linearRange(Range<Double> range) {
         return entireLine().linearRange(range);
+      }
+
+
+      @Override
+      public int getMinZoomForPixelSize(double minPixelSize) {
+        return WithAttrs.super.getMinZoomForPixelSize(minPixelSize / (range.upperEndpoint() - range.lowerEndpoint()));
       }
 
       @Override

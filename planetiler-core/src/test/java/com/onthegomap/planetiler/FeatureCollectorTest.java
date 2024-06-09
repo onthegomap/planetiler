@@ -783,4 +783,14 @@ class FeatureCollectorTest {
       "d", true
     ), subFeature.attrs());
   }
+
+  @Test
+  void testSetAttrPartialWithMinSize() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    var line = collector.line("layername");
+
+    assertEquals(7, line.getMinZoomForPixelSize(100));
+    assertEquals(7, line.linearRange(0, 0.5).getMinZoomForPixelSize(50));
+    assertEquals(7, line.linearRange(0, 0.25).getMinZoomForPixelSize(25));
+  }
 }
