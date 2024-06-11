@@ -685,5 +685,10 @@ public interface Expression extends Simplifiable<Expression> {
     public static PartialInput ofSource(String source) {
       return new PartialInput(Set.of(source), Set.of(), Map.of(), Set.of());
     }
+
+    @Override
+    public Map<String, Object> tags() {
+      return tags == null ? Map.of() : tags;
+    }
   }
 }

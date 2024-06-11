@@ -341,6 +341,7 @@ class ExpressionTest {
   void testPartialEvaluateMatchAny() {
     var expr = matchAny("field", "value1", "other%");
     assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("other", "value"), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), null, Set.of())));
     assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "value1"), Set.of())));
     assertEquals(TRUE, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "other"), Set.of())));
     assertEquals(TRUE,
