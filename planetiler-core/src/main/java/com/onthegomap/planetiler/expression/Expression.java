@@ -187,6 +187,7 @@ public interface Expression extends Simplifiable<Expression> {
       case Or(var children) -> children.forEach(child -> child.visit(fn));
       case And(var children) -> children.forEach(child -> child.visit(fn));
       default -> {
+        // already called fn, and no nested children
       }
     }
   }
