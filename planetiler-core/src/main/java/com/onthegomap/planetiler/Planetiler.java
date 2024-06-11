@@ -684,42 +684,6 @@ public class Planetiler {
     return overwriteOutput(defaultOutput.toString());
   }
 
-  /** Adds an extra key/value pair to the output archive metadata. */
-  public Planetiler setOutputMetadata(String key, String value) {
-    archiveMetadataDefaults.put(key, value);
-    return this;
-  }
-
-  /** Sets the name attribute in the output archive metadata. */
-  public Planetiler setOutputName(String name) {
-    return setOutputMetadata(TileArchiveMetadata.NAME_KEY, name);
-  }
-
-  /** Sets the version attribute in the output archive metadata. */
-  public Planetiler setOutputVersion(String version) {
-    return setOutputMetadata(TileArchiveMetadata.VERSION_KEY, version);
-  }
-
-  /** Sets the version attribute in the output archive metadata. */
-  public Planetiler setOutputDescription(String description) {
-    return setOutputMetadata(TileArchiveMetadata.DESCRIPTION_KEY, description);
-  }
-
-  /** Sets the attribution attribute in the output archive metadata. */
-  public Planetiler setOutputAttribution(String attribution) {
-    return setOutputMetadata(TileArchiveMetadata.ATTRIBUTION_KEY, attribution);
-  }
-
-  /** Sets the type attribute in the output archive metadata to "overlay" meant to be shown over a basemap. */
-  public Planetiler setOutputIsOverlay() {
-    return setOutputMetadata(TileArchiveMetadata.TYPE_KEY, "overlay");
-  }
-
-  /** Sets the type attribute in the output archive metadata to "basemap". */
-  public Planetiler setOutputIsBasemap() {
-    return setOutputMetadata(TileArchiveMetadata.TYPE_KEY, "basemap");
-  }
-
   /**
    * Reads all elements from all sourced that have been added, generates map features according to the profile, and
    * writes the rendered tiles to the output archive.
