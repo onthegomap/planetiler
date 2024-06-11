@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -112,6 +113,7 @@ public class ParquetReader {
         throw new UncheckedIOException(e);
       }
     }).toList();
+    Distributor<ParquetFeature> distributor = Distributor.createWithCapacity(1_000);
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
       .readFromTiny("blocks", inputBlocks)
@@ -120,24 +122,28 @@ public class ParquetReader {
         var elements = featuresRead.counterForThread();
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
+          var consumer = distributor.forThread(sourceFeature -> {
+            FeatureCollector features = featureCollectors.get(sourceFeature);
+            try {
+              profile.processFeature(sourceFeature, features);
+              for (FeatureCollector.Feature renderable : features) {
+                renderer.accept(renderable);
+              }
+            } catch (Exception e) {
+              LOGGER.error("Error processing {}", sourceFeature, e);
+            }
+            elements.inc();
+          });
           for (var block : prev) {
             String layer = block.layer();
             workingOn.merge(layer, 1, Integer::sum);
             for (var sourceFeature : block) {
-              FeatureCollector features = featureCollectors.get(sourceFeature);
-              try {
-                profile.processFeature(sourceFeature, features);
-                for (FeatureCollector.Feature renderable : features) {
-                  renderer.accept(renderable);
-                }
-              } catch (Exception e) {
-                LOGGER.error("Error processing {}", sourceFeature, e);
-              }
-              elements.inc();
+              consumer.accept(sourceFeature);
             }
             blocks.inc();
             workingOn.merge(layer, -1, Integer::sum);
           }
+          consumer.close();
         }
       })
       .addBuffer("write_queue", 50_000, 1_000)
