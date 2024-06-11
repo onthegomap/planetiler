@@ -41,7 +41,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,7 +113,6 @@ public class Planetiler {
   private boolean fetchWikidata = false;
   private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
-  private Map<String, String> archiveMetadataDefaults = new HashMap<>();
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
