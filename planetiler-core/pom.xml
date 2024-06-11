@@ -125,6 +125,10 @@
       <version>${jackson.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.snakeyaml</groupId>
+      <artifactId>snakeyaml-engine</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient</artifactId>
       <version>${prometheus.version}</version>

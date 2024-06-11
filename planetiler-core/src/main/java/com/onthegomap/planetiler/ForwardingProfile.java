@@ -1,5 +1,8 @@
 package com.onthegomap.planetiler;
 
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -9,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -41,8 +45,41 @@ public abstract class ForwardingProfile implements Profile {
   private final Map<String, List<LayerPostProcesser>> layerPostProcessors = new HashMap<>();
   /** List of handlers that implement {@link TilePostProcessor}. */
   private final List<TilePostProcessor> tilePostProcessors = new ArrayList<>();
-  /** Map from source ID to its handler if it implements {@link FeatureProcessor}. */
-  private final Map<String, List<FeatureProcessor>> sourceElementProcessors = new HashMap<>();
+  /** List of handlers that implements {@link FeatureProcessor} along with a filter expression. */
+  private final List<MultiExpression.Entry<FeatureProcessor>> sourceElementProcessors = new CopyOnWriteArrayList<>();
+  private final List<String> onlyLayers;
+  private final List<String> excludeLayers;
+  @SuppressWarnings("java:S3077")
+  private volatile MultiExpression.Index<FeatureProcessor> indexedSourceElementProcessors = null;
+
+  protected ForwardingProfile(PlanetilerConfig config, Handler... handlers) {
+    onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
+    excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
+    for (var handler : handlers) {
+      registerHandler(handler);
+    }
+  }
+
+  protected ForwardingProfile() {
+    onlyLayers = List.of();
+    excludeLayers = List.of();
+  }
+
+  protected ForwardingProfile(Handler... handlers) {
+    onlyLayers = List.of();
+    excludeLayers = List.of();
+    for (var handler : handlers) {
+      registerHandler(handler);
+    }
+  }
+
+  private boolean caresAboutLayer(String layer) {
+    return (onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer);
+  }
+
+  private boolean caresAboutLayer(Object obj) {
+    return !(obj instanceof HandlerForLayer l) || caresAboutLayer(l.name());
+  }
 
   /**
    * Call {@code processor} for every element in {@code source}.
@@ -51,8 +88,29 @@ public abstract class ForwardingProfile implements Profile {
    * @param processor handler that will process elements in that source
    */
   public void registerSourceHandler(String source, FeatureProcessor processor) {
-    sourceElementProcessors.computeIfAbsent(source, name -> new ArrayList<>())
-      .add(processor);
+    if (!caresAboutLayer(processor)) {
+      return;
+    }
+    sourceElementProcessors
+      .add(MultiExpression.entry(processor, Expression.and(Expression.matchSource(source), processor.filter())));
+    synchronized (sourceElementProcessors) {
+      indexedSourceElementProcessors = null;
+    }
+  }
+
+  /**
+   * Call {@code processor} for every element.
+   *
+   * @param processor handler that will process elements in that source
+   */
+  public void registerFeatureHandler(FeatureProcessor processor) {
+    if (!caresAboutLayer(processor)) {
+      return;
+    }
+    sourceElementProcessors.add(MultiExpression.entry(processor, processor.filter()));
+    synchronized (sourceElementProcessors) {
+      indexedSourceElementProcessors = null;
+    }
   }
 
   /**
@@ -60,6 +118,9 @@ public abstract class ForwardingProfile implements Profile {
    * {@link OsmRelationPreprocessor}, {@link FinishHandler}, {@link TilePostProcessor} or {@link LayerPostProcesser}.
    */
   public void registerHandler(Handler handler) {
+    if (!caresAboutLayer(handler)) {
+      return;
+    }
     this.handlers.add(handler);
     if (handler instanceof OsmNodePreprocessor osmNodePreprocessor) {
       osmNodePreprocessors.add(osmNodePreprocessor);
@@ -79,6 +140,9 @@ public abstract class ForwardingProfile implements Profile {
     }
     if (handler instanceof TilePostProcessor postProcessor) {
       tilePostProcessors.add(postProcessor);
+    }
+    if (handler instanceof FeatureProcessor processor) {
+      registerFeatureHandler(processor);
     }
   }
 
@@ -117,19 +181,34 @@ public abstract class ForwardingProfile implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // delegate source feature processing to each handler for that source
-    var handlers = sourceElementProcessors.get(sourceFeature.getSource());
-    if (handlers != null) {
-      for (var handler : handlers) {
-        handler.processFeature(sourceFeature, features);
-        // TODO extract common handling for expression-based filtering from basemap to this
-        // common profile when we have another use-case for it.
+    for (var handler : getHandlerIndex().getMatches(sourceFeature)) {
+      handler.processFeature(sourceFeature, features);
+    }
+  }
+
+  private MultiExpression.Index<FeatureProcessor> getHandlerIndex() {
+    MultiExpression.Index<FeatureProcessor> result = indexedSourceElementProcessors;
+    if (result == null) {
+      synchronized (sourceElementProcessors) {
+        result = indexedSourceElementProcessors;
+        if (result == null) {
+          indexedSourceElementProcessors = result = MultiExpression.of(sourceElementProcessors).index();
+        }
       }
     }
+    return result;
   }
 
   @Override
   public boolean caresAboutSource(String name) {
-    return sourceElementProcessors.containsKey(name);
+    return caresAbout(Expression.PartialInput.ofSource(name));
+  }
+
+  @Override
+  public boolean caresAbout(Expression.PartialInput input) {
+    return sourceElementProcessors.stream().anyMatch(e -> e.expression()
+      .partialEvaluate(input)
+      .simplify() != Expression.FALSE);
   }
 
   @Override
@@ -271,13 +350,12 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   /** Handlers should implement this interface to process input features from a given source ID. */
-  public interface FeatureProcessor {
+  @FunctionalInterface
+  public interface FeatureProcessor extends com.onthegomap.planetiler.FeatureProcessor<SourceFeature>, Handler {
 
-    /**
-     * Process an input element from a source feature.
-     *
-     * @see Profile#processFeature(SourceFeature, FeatureCollector)
-     */
-    void processFeature(SourceFeature feature, FeatureCollector features);
+    /** Returns an {@link Expression} that limits the features that this processor gets called for. */
+    default Expression filter() {
+      return Expression.TRUE;
+    }
   }
 }

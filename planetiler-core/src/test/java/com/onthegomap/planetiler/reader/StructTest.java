@@ -80,6 +80,15 @@ class StructTest {
   }
 
   @Test
+  void testListQueryOnList() {
+    var struct = Struct.of(List.of(Map.of("b", "c"), Map.of("b", "d")));
+    assertEquals("d", struct.flatMap(elem -> elem.get("b")).get(1).asString());
+    assertEquals(Struct.of(List.of("c", "d")), struct.get("[].b"));
+    assertEquals(Struct.of(List.of("c", "d")), struct.get("b"));
+    assertEquals(Struct.NULL, struct.get("e"));
+  }
+
+  @Test
   void testListGet() {
     var struct = Struct.of(List.of(1, 2, 3));
     assertEquals(1, struct.get(0).asInt());
@@ -340,12 +349,30 @@ class StructTest {
     ));
     assertEquals("""
       {"a":{"b":"c"}}
-      """.strip(), struct.asJson());
+      """.strip(), struct.tagsAsJson());
     assertEquals("""
       {"b":"c"}
       """.strip(), struct.getStruct("a").asJson());
     assertEquals("""
       "c"
       """.strip(), struct.getStruct("a").get("b").asJson());
+  }
+
+  @Test
+  void testRawValueList() {
+    var struct = Struct.of(List.of(1, 2, 3));
+    assertEquals(List.of(1, 2, 3), struct.rawValue());
+  }
+
+  @Test
+  void testRawValueListFlatmap() {
+    assertEquals(List.of(1, 3), Struct.of(List.of(1, List.of(3))).flatMap(d -> d).rawValue());
+    assertEquals(List.of(3), Struct.of(List.of(1, List.of(3))).flatMap(d -> d.get(0)).rawValue());
+  }
+
+  @Test
+  void testRawValueMap() {
+    var struct = Struct.of(Map.of(1, 2));
+    assertEquals(Map.of(1, 2), struct.rawValue());
   }
 }

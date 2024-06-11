@@ -783,4 +783,73 @@ class FeatureCollectorTest {
       "d", true
     ), subFeature.attrs());
   }
+
+  @Test
+  void testSetAttrPartialWithMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttrWithMinzoom("full", 1, 2)
+      .setAttrWithMinzoom("fullstruct", Struct.of(2), 2)
+      .linearRange(0, 0.5)
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true,
+      "full", 1,
+      "fullstruct", 2
+    ), subFeature.attrs());
+  }
+
+  @Test
+  void testUnwrapStruct() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttr("full", Struct.of(1))
+      .linearRange(0, 0.5)
+      .setAttr("partial", Struct.of(2));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "full", 1,
+      "partial", 2
+    ), subFeature.attrs());
+  }
+
+  @Test
+  void testUnwrapStructFull() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttr("full", Struct.of(1));
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "full", 1
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testUnwrapStructFullWithMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttrWithMinzoom("full", Struct.of(1), 2);
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "full", 1
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrPartialWithMinSize() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    var line = collector.line("layername");
+
+    assertEquals(7, line.getMinZoomForPixelSize(100));
+    assertEquals(7, line.linearRange(0, 0.5).getMinZoomForPixelSize(50));
+    assertEquals(7, line.linearRange(0, 0.25).getMinZoomForPixelSize(25));
+  }
 }

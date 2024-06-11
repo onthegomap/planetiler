@@ -3,8 +3,8 @@ package com.onthegomap.planetiler.custommap;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
-import com.onthegomap.planetiler.custommap.validator.SchemaSpecification;
 import com.onthegomap.planetiler.custommap.validator.SchemaValidator;
+import com.onthegomap.planetiler.validator.SchemaSpecification;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.DynamicTest;

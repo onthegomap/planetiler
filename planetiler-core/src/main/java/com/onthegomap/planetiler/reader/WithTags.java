@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.reader;
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 
@@ -26,7 +27,7 @@ public interface WithTags {
   }
 
   private Struct getDotted(String key) {
-    String[] parts = key.split("\\.", 2);
+    String[] parts = key.split("(\\[])?\\.", 2);
     if (parts.length == 2) {
       return getStruct(parts[0]).get(parts[1]);
     }
@@ -46,8 +47,25 @@ public interface WithTags {
     return contains || (key.contains(".") && !getDotted(key).isNull());
   }
 
+  private static boolean contains(Object actual, Object expected) {
+    if (actual instanceof Collection<?> actualList) {
+      if (expected instanceof Collection<?> expectedList) {
+        for (var elem : expectedList) {
+          if (actualList.contains(elem)) {
+            return true;
+          }
+        }
+      } else {
+        return actualList.contains(expected);
+      }
+    } else if (expected instanceof Collection<?> expectedList) {
+      return expectedList.contains(actual);
+    }
+    return expected.equals(actual);
+  }
+
   default boolean hasTag(String key, Object value) {
-    return value.equals(getTag(key));
+    return contains(getTag(key), value);
   }
 
   /**
@@ -61,7 +79,7 @@ public interface WithTags {
     if (actual == null) {
       return false;
     } else {
-      return value1.equals(actual) || value2.equals(actual);
+      return contains(actual, value1) || contains(actual, value2);
     }
   }
 
@@ -69,11 +87,11 @@ public interface WithTags {
   default boolean hasTag(String key, Object value1, Object value2, Object... others) {
     Object actual = getTag(key);
     if (actual != null) {
-      if (value1.equals(actual) || value2.equals(actual)) {
+      if (contains(actual, value1) || contains(actual, value2)) {
         return true;
       }
       for (Object value : others) {
-        if (value.equals(actual)) {
+        if (contains(actual, value)) {
           return true;
         }
       }
@@ -155,7 +173,7 @@ public interface WithTags {
   /**
    * Serializes the properties on this feature as a JSON object.
    */
-  default String asJson() {
+  default String tagsAsJson() {
     return JsonConversion.writeValueAsString(tags());
   }
 

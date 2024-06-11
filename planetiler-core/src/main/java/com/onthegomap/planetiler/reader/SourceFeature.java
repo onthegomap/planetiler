@@ -65,19 +65,6 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
     this.id = id;
   }
 
-  // slight optimization: replace default implementation with direct access to the tags
-  // map to get slightly improved performance when matching elements against expressions
-
-  @Override
-  public Object getTag(String key) {
-    return tags.get(key);
-  }
-
-  @Override
-  public boolean hasTag(String key) {
-    return tags.containsKey(key);
-  }
-
 
   @Override
   public Map<String, Object> tags() {

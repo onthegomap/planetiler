@@ -2,8 +2,11 @@ package com.onthegomap.planetiler.reader.parquet;
 
 import blue.strategic.parquet.ParquetReader;
 import com.google.common.collect.Iterators;
+import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.Hashing;
 import java.io.Closeable;
@@ -17,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import java.util.stream.IntStream;
@@ -52,6 +56,7 @@ public class ParquetInputFile {
   private final int blockCount;
   final GeometryReader geometryReader;
   private final Map<String, Object> extraFields;
+  private final Set<GeometryType> geometryTypes;
   private Envelope postFilterBounds = null;
   private boolean outOfBounds = false;
 
@@ -72,6 +77,7 @@ public class ParquetInputFile {
       var fileMetadata = metadata.getFileMetaData();
       var geoparquet = GeoParquetMetadata.parse(fileMetadata);
       this.geometryReader = new GeometryReader(geoparquet);
+      this.geometryTypes = geoparquet.geometryTypes();
       if (!bounds.isWorld()) {
         if (!geoparquet.primaryColumnMetadata().envelope().intersects(bounds.latLon())) {
           outOfBounds = true;
@@ -110,8 +116,9 @@ public class ParquetInputFile {
     return FilterCompat.isFilteringRequired(filter);
   }
 
-  public boolean isOutOfBounds() {
-    return outOfBounds;
+  public boolean shouldSkip(Profile profile) {
+    return outOfBounds ||
+      !profile.caresAbout(new Expression.PartialInput(Set.of(source), Set.of(layer), extraFields, geometryTypes));
   }
 
   public BlockReader get() {

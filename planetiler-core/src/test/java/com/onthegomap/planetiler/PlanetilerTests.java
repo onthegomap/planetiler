@@ -205,17 +205,6 @@ class PlanetilerTests {
     );
   }
 
-  private PlanetilerResults runWithOsmElements(
-    Map<String, String> args,
-    List<OsmElement> features,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws Exception {
-    return run(
-      args,
-      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      TestProfile.processSourceFeatures(profileFunction)
-    );
-  }
 
   private PlanetilerResults runWithOsmElements(
     Map<String, String> args,
@@ -300,8 +289,9 @@ class PlanetilerTests {
     ), results.metadata);
   }
 
-  @Test
-  void testSinglePoint() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testSinglePoint(boolean anyGeom) throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
     double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
@@ -314,7 +304,7 @@ class PlanetilerTests {
           "attr", "value"
         ))
       ),
-      (in, features) -> features.point("layer")
+      (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.point("layer"))
         .setZoomRange(13, 15)
         .setAttr("name", "name value")
         .inheritAttrFromSource("attr")
@@ -438,8 +428,9 @@ class PlanetilerTests {
     ), results.tiles);
   }
 
-  @Test
-  void testLineString() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testLineString(boolean anyGeom) throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -456,7 +447,7 @@ class PlanetilerTests {
           "attr", "value"
         ))
       ),
-      (in, features) -> features.line("layer")
+      (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.line("layer"))
         .setZoomRange(13, 14)
         .setBufferPixels(4)
     );
@@ -690,8 +681,9 @@ class PlanetilerTests {
     );
   }
 
-  @Test
-  void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testPolygonWithHoleSpanningMultipleTiles(boolean anyGeom) throws Exception {
     List<Coordinate> outerPoints = z14CoordinateList(
       0.5, 0.5,
       3.5, 0.5,
@@ -715,7 +707,7 @@ class PlanetilerTests {
           List.of(innerPoints)
         ), Map.of())
       ),
-      (in, features) -> features.polygon("layer")
+      (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.polygon("layer"))
         .setZoomRange(12, 14)
         .setBufferPixels(4)
     );

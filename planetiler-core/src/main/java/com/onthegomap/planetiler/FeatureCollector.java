@@ -86,7 +86,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
       e.log(stats, "feature_point", "Error getting point geometry for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -106,7 +106,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
       e.log(stats, "feature_line", "Error constructing line for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -126,7 +126,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.partialLine(start, end));
     } catch (GeometryException e) {
       e.log(stats, "feature_partial_line", "Error constructing partial line for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -146,8 +146,25 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
       e.log(stats, "feature_polygon", "Error constructing polygon for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
+  }
+
+  /**
+   * Starts building a new polygon, line, or point map feature based on the geometry type of the input feature.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
+  public Feature anyGeometry(String layer) {
+    return source.canBePolygon() ? polygon(layer) :
+      source.canBeLine() ? line(layer) :
+      source.isPoint() ? point(layer) :
+      empty(layer);
+  }
+
+  private Feature empty(String layer) {
+    return new Feature(layer, EMPTY_GEOM, source.id());
   }
 
   /**
@@ -161,7 +178,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid", "Error getting centroid for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -178,7 +195,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
       e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -194,7 +211,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
       e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -216,7 +233,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometry(layer, source.innermostPoint(tolerance));
     } catch (GeometryException e) {
       e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source);
-      return new Feature(layer, EMPTY_GEOM, source.id());
+      return empty(layer);
     }
   }
 
@@ -297,6 +314,23 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return setAttr(key, collector().source.getTag(key));
     }
 
+    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    default T inheritAttrsFromSource(String... keys) {
+      for (var key : keys) {
+        inheritAttrFromSource(key);
+      }
+      return self();
+    }
+
+
+    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    default T inheritAttrsFromSourceWithMinzoom(int minzoom, String... keys) {
+      for (var key : keys) {
+        setAttrWithMinzoom(key, collector().source.getTag(key), minzoom);
+      }
+      return self();
+    }
+
     /**
      * Sets an attribute on the output feature to either a string, number, boolean, or instance of {@link ZoomFunction}
      * to change the value for {@code key} by zoom-level.
@@ -319,7 +353,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * size.
      */
     default T setAttrWithMinSize(String key, Object value, double minPixelSize) {
-      return setAttrWithMinzoom(key, value, collector().getMinZoomForPixelSize(minPixelSize));
+      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
     }
 
     /**
@@ -334,7 +368,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     default T setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
       int minZoomToShowAlways) {
       return setAttrWithMinzoom(key, value,
-        Math.clamp(collector().getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    default int getMinZoomForPixelSize(double minPixelSize) {
+      return collector().getMinZoomForPixelSize(minPixelSize);
     }
 
     /**
@@ -410,7 +448,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
 
-    private boolean attrsChangeByZoom = false;
+    private boolean mustUnwrapValues = false;
     private CacheByZoom<Map<String, Object>> attrCache = null;
     private CacheByZoom<List<RangeWithTags>> partialRangeCache = null;
 
@@ -817,18 +855,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     private static Object unwrap(Object object, int zoom) {
-      if (object instanceof ZoomFunction<?> fn) {
-        object = fn.apply(zoom);
+      for (int i = 0; i < 100; i++) {
+        switch (object) {
+          case ZoomFunction<?> fn -> object = fn.apply(zoom);
+          case Struct struct -> object = struct.rawValue();
+          case null, default -> {
+            return object;
+          }
+        }
       }
-      if (object instanceof Struct struct) {
-        object = struct.rawValue();
-      }
-      return object;
+      throw new IllegalStateException("Failed to unwrap at z" + zoom + ": " + object);
     }
 
     /** Returns the attribute to put on all output vector tile features at a zoom level. */
     public Map<String, Object> getAttrsAtZoom(int zoom) {
-      if (!attrsChangeByZoom) {
+      if (!mustUnwrapValues) {
         return attrs;
       }
       if (attrCache == null) {
@@ -840,8 +881,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     @Override
     public Feature setAttr(String key, Object value) {
-      if (value instanceof ZoomFunction) {
-        attrsChangeByZoom = true;
+      if (value instanceof ZoomFunction || value instanceof Struct) {
+        mustUnwrapValues = true;
       }
       if (value != null) {
         attrs.put(key, value);
@@ -852,8 +893,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     @Override
     public Feature putAttrs(Map<String, Object> attrs) {
       for (Object value : attrs.values()) {
-        if (value instanceof ZoomFunction) {
-          attrsChangeByZoom = true;
+        if (value instanceof ZoomFunction || value instanceof Struct) {
+          mustUnwrapValues = true;
           break;
         }
       }
@@ -957,7 +998,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
           return new Partial(omit, MapUtil.with(attrs, key, value));
         }
       }
-      MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, attrs), Partial::merge);
+      MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, getAttrsAtZoom(zoom)), Partial::merge);
       for (var override : partialOverrides) {
         result.update(override.range(), m -> switch (override) {
           case Attr attr -> m.withAttr(attr.key, unwrap(attr.value, zoom));
@@ -1018,6 +1059,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
       @Override
       public LinearRange setAttr(String key, Object value) {
+        if (value instanceof ZoomFunction<?> || value instanceof Struct) {
+          mustUnwrapValues = true;
+        }
         return add(new Attr(range, key, value));
       }
 
@@ -1047,6 +1091,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
        */
       public LinearRange linearRange(Range<Double> range) {
         return entireLine().linearRange(range);
+      }
+
+
+      @Override
+      public int getMinZoomForPixelSize(double minPixelSize) {
+        return WithAttrs.super.getMinZoomForPixelSize(minPixelSize / (range.upperEndpoint() - range.lowerEndpoint()));
       }
 
       @Override
