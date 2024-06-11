@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.expression.ParseException;
+import com.onthegomap.planetiler.util.YAML;
 import java.nio.file.Files;
 import java.nio.file.Path;
 

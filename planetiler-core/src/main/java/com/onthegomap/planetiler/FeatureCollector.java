@@ -448,7 +448,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
 
-    private boolean attrsChangeByZoom = false;
+    private boolean mustUnwrapValues = false;
     private CacheByZoom<Map<String, Object>> attrCache = null;
     private CacheByZoom<List<RangeWithTags>> partialRangeCache = null;
 
@@ -855,18 +855,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     private static Object unwrap(Object object, int zoom) {
-      if (object instanceof ZoomFunction<?> fn) {
-        object = fn.apply(zoom);
+      for (int i = 0; i < 100; i++) {
+        switch (object) {
+          case ZoomFunction<?> fn -> object = fn.apply(zoom);
+          case Struct struct -> object = struct.rawValue();
+          case null, default -> {
+            return object;
+          }
+        }
       }
-      if (object instanceof Struct struct) {
-        object = struct.rawValue();
-      }
-      return object;
+      throw new IllegalStateException("Failed to unwrap at z" + zoom + ": " + object);
     }
 
     /** Returns the attribute to put on all output vector tile features at a zoom level. */
     public Map<String, Object> getAttrsAtZoom(int zoom) {
-      if (!attrsChangeByZoom) {
+      if (!mustUnwrapValues) {
         return attrs;
       }
       if (attrCache == null) {
@@ -878,8 +881,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     @Override
     public Feature setAttr(String key, Object value) {
-      if (value instanceof ZoomFunction) {
-        attrsChangeByZoom = true;
+      if (value instanceof ZoomFunction || value instanceof Struct) {
+        mustUnwrapValues = true;
       }
       if (value != null) {
         attrs.put(key, value);
@@ -890,8 +893,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     @Override
     public Feature putAttrs(Map<String, Object> attrs) {
       for (Object value : attrs.values()) {
-        if (value instanceof ZoomFunction) {
-          attrsChangeByZoom = true;
+        if (value instanceof ZoomFunction || value instanceof Struct) {
+          mustUnwrapValues = true;
           break;
         }
       }
@@ -995,7 +998,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
           return new Partial(omit, MapUtil.with(attrs, key, value));
         }
       }
-      MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, attrs), Partial::merge);
+      MergingRangeMap<Partial> result = MergingRangeMap.unit(new Partial(false, getAttrsAtZoom(zoom)), Partial::merge);
       for (var override : partialOverrides) {
         result.update(override.range(), m -> switch (override) {
           case Attr attr -> m.withAttr(attr.key, unwrap(attr.value, zoom));
@@ -1056,6 +1059,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
       @Override
       public LinearRange setAttr(String key, Object value) {
+        if (value instanceof ZoomFunction<?> || value instanceof Struct) {
+          mustUnwrapValues = true;
+        }
         return add(new Attr(range, key, value));
       }
 

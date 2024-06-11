@@ -34,6 +34,7 @@ import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
+import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -88,6 +89,7 @@ public class Planetiler {
   private final Path nodeDbPath;
   private final Path multipolygonPath;
   private final Path featureDbPath;
+  private final Path onlyRunTests;
   private boolean downloadSources;
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
@@ -124,6 +126,7 @@ public class Planetiler {
     }
     tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
+    onlyRunTests = arguments.file("tests", "run test cases in a yaml then quit", null);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
     refreshSources =
       arguments.getBoolean("refresh_sources", "download new version of source files if they have changed", false);
@@ -750,6 +753,9 @@ public class Planetiler {
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
+    } else if (onlyRunTests != null) {
+      boolean success = JavaProfileValidator.validate(profile(), onlyRunTests, config());
+      System.exit(success ? 0 : 1);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (config.append()) {
