@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +40,11 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
-    return new MultiExpression<>(expressions);
+    LinkedHashMap<T, Expression> map = new LinkedHashMap<>();
+    for (var expression : expressions) {
+      map.merge(expression.result, expression.expression, Expression::or);
+    }
+    return new MultiExpression<>(map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).collect(Collectors.toList()));
   }
 
   public static <T> Entry<T> entry(T result, Expression expression) {
