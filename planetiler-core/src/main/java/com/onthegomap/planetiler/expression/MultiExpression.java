@@ -44,7 +44,7 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
     for (var expression : expressions) {
       map.merge(expression.result, expression.expression, Expression::or);
     }
-    return new MultiExpression<>(map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).toList());
+    return new MultiExpression<>(map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).collect(Collectors.toList()));
   }
 
   public static <T> Entry<T> entry(T result, Expression expression) {
