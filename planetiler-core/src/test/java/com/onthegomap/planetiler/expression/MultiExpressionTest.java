@@ -46,6 +46,16 @@ class MultiExpressionTest {
   }
 
   @Test
+  void testDoubleElement() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "value")),
+      entry("a", matchAny("key", "value"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
   void testSingleElementBooleanTrue() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAnyTyped("key", WithTags::getBoolean, true))

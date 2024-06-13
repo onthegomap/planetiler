@@ -360,6 +360,19 @@ class ForwardingProfileTests {
     testFeatures(List.of(), b);
   }
 
+  @Test
+  void registerHandlerTwice() {
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "source", null, 1);
+    testFeatures(List.of(), a);
+
+    ForwardingProfile.FeatureProcessor processor = (elem, features) -> features.point("a");
+    profile.registerHandler(processor);
+    profile.registerSourceHandler("source", processor);
+    testFeatures(List.of(Map.of(
+      "_layer", "a"
+    )), a);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {
     "--only-layers=water",
