@@ -8,10 +8,16 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import java.util.AbstractSequentialList;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.SequencedMap;
+import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -216,12 +222,12 @@ public abstract class ForwardingProfile implements Profile {
     throws GeometryException {
     // delegate feature post-processing to each layer, if it implements FeaturePostProcessor
     List<LayerPostProcesser> postProcessers = layerPostProcessors.get(layer);
-    List<VectorTile.Feature> result = items;
+    List<VectorTile.Feature> result = makeMutable(items);
     if (postProcessers != null) {
       for (var handler : postProcessers) {
         var thisResult = handler.postProcess(zoom, result);
-        if (thisResult != null) {
-          result = thisResult;
+        if (thisResult != null && result != thisResult) {
+          result = makeMutable(thisResult);
         }
       }
     }
@@ -231,15 +237,51 @@ public abstract class ForwardingProfile implements Profile {
   @Override
   public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
     Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
-    var result = layers;
+    var result = makeMutable(layers);
     for (TilePostProcessor postProcessor : tilePostProcessors) {
       // TODO catch failures to isolate from other tile postprocessors?
       var thisResult = postProcessor.postProcessTile(tileCoord, result);
-      if (thisResult != null) {
-        result = thisResult;
+      if (thisResult != null && result != thisResult) {
+        result = makeMutable(thisResult);
       }
     }
     return result;
+  }
+
+  private <T> List<T> makeMutable(List<T> list) {
+    return switch (list) {
+      case ArrayList<T> l -> list;
+      case LinkedList<T> l -> list;
+      case AbstractSequentialList<T> l -> new LinkedList<>(list);
+      case null -> null;
+      default -> new ArrayList<>(list);
+    };
+  }
+
+  private <K, V> Map<K, List<V>> makeMutable(Map<K, List<V>> map) {
+    var mutableMap = makeMutableMap(map);
+    if (mutableMap != null) {
+      for (var entry : map.entrySet()) {
+        var key = entry.getKey();
+        var value = entry.getValue();
+        var mutableList = makeMutable(value);
+        if (mutableList != value) {
+          mutableMap.put(key, mutableList);
+        }
+      }
+    }
+    return mutableMap;
+  }
+
+  private <K, V> Map<K, V> makeMutableMap(Map<K, V> map) {
+    return switch (map) {
+      case HashMap<K, V> m -> map;
+      case TreeMap<K, V> m -> map;
+      case NavigableMap<K, V> m -> new TreeMap<>(m);
+      case SequencedMap<K, V> m -> new LinkedHashMap<>(map);
+      case null -> null;
+      default -> new HashMap<>(map);
+    };
   }
 
   @Override
