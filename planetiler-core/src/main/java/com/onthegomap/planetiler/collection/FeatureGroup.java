@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
+import static com.onthegomap.planetiler.util.MutableCollections.makeMutable;
+
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
@@ -492,8 +494,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         return;
       }
       try {
-        List<VectorTile.Feature> postProcessed = profile
-          .postProcessLayerFeatures(layer, tileCoord.z(), features);
+        List<VectorTile.Feature> postProcessed = makeMutable(profile
+          .postProcessLayerFeatures(layer, tileCoord.z(), makeMutable(features)));
         features = postProcessed == null ? features : postProcessed;
         // lines are stored using a higher precision so that rounding does not
         // introduce artificial intersections between endpoints to confuse line merging,

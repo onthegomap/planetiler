@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.util.MutableCollections.makeMutable;
+
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
@@ -8,6 +10,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.util.MutableCollections;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -216,12 +219,12 @@ public abstract class ForwardingProfile implements Profile {
     throws GeometryException {
     // delegate feature post-processing to each layer, if it implements FeaturePostProcessor
     List<LayerPostProcesser> postProcessers = layerPostProcessors.get(layer);
-    List<VectorTile.Feature> result = items;
+    List<VectorTile.Feature> result = makeMutable(items);
     if (postProcessers != null) {
       for (var handler : postProcessers) {
         var thisResult = handler.postProcess(zoom, result);
-        if (thisResult != null) {
-          result = thisResult;
+        if (thisResult != null && result != thisResult) {
+          result = makeMutable(thisResult);
         }
       }
     }
@@ -231,12 +234,12 @@ public abstract class ForwardingProfile implements Profile {
   @Override
   public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
     Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
-    var result = layers;
+    var result = MutableCollections.makeMutableMultimap(layers);
     for (TilePostProcessor postProcessor : tilePostProcessors) {
       // TODO catch failures to isolate from other tile postprocessors?
       var thisResult = postProcessor.postProcessTile(tileCoord, result);
-      if (thisResult != null) {
-        result = thisResult;
+      if (thisResult != null && result != thisResult) {
+        result = MutableCollections.makeMutableMultimap(thisResult);
       }
     }
     return result;

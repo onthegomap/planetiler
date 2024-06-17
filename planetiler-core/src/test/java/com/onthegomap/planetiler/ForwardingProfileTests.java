@@ -179,6 +179,21 @@ class ForwardingProfileTests {
     });
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
 
+    // allow mutations on initial input
+    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+      @Override
+      public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+        items.set(0, items.getFirst());
+        return null;
+      }
+
+      @Override
+      public String name() {
+        return "a";
+      }
+    });
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
+
     // empty list removes
     profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
       @Override
@@ -194,6 +209,23 @@ class ForwardingProfileTests {
     assertEquals(List.of(), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
     // doesn't touch elements in another layer
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("b", 0, List.of(feature)));
+
+    // allow mutations on subsequent input
+    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+      @Override
+      public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+        items.add(null);
+        items.removeLast();
+        return items;
+      }
+
+      @Override
+      public String name() {
+        return "a";
+      }
+    });
+    assertEquals(List.of(), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
+    assertEquals(List.of(), profile.postProcessLayerFeatures("a", 0, new ArrayList<>(List.of(feature))));
 
     // 2 handlers for same layer run one after another
     var skip1 = new ForwardingProfile.LayerPostProcesser() {
@@ -243,10 +275,36 @@ class ForwardingProfileTests {
     assertEquals(Map.of("a", List.of(feature)),
       profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
 
+    // allow mutation on initial input
+    profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> {
+      if (layers.containsKey("a")) {
+        var list = layers.get("a");
+        var item = list.getFirst();
+        list.set(0, item);
+        layers.put("a", list);
+      }
+      return layers;
+    });
+    assertEquals(Map.of("a", List.of(feature)),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
+    assertEquals(Map.of("a", List.of(feature)),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0),
+        new HashMap<>(Map.of("a", new ArrayList<>(List.of(feature))))));
+
     // empty map removes
     profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> Map.of());
     assertEquals(Map.of(),
       profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
+
+    // allow mutation on subsequent inputs
+    profile.registerHandler((ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> {
+      layers.put("a", List.of());
+      layers.remove("a");
+      return layers;
+    });
+    assertEquals(Map.of(),
+      profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("a", List.of(feature))));
+
     // also touches elements in another layer
     assertEquals(Map.of(),
       profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0), Map.of("b", List.of(feature))));
@@ -284,6 +342,7 @@ class ForwardingProfileTests {
       profile.postProcessTileFeatures(TileCoord.ofXYZ(0, 0, 0),
         Map.of("c", List.of(feature, feature, feature, feature))));
   }
+
 
   @Test
   void testCaresAboutSource() {
