@@ -250,9 +250,9 @@ public abstract class ForwardingProfile implements Profile {
 
   private <T> List<T> makeMutable(List<T> list) {
     return switch (list) {
-      case ArrayList<T> l -> list;
-      case LinkedList<T> l -> list;
-      case AbstractSequentialList<T> l -> new LinkedList<>(list);
+      case ArrayList<T> l -> l;
+      case LinkedList<T> l -> l;
+      case AbstractSequentialList<T> l -> new LinkedList<>(l);
       case null -> null;
       default -> new ArrayList<>(list);
     };
@@ -275,10 +275,10 @@ public abstract class ForwardingProfile implements Profile {
 
   private <K, V> Map<K, V> makeMutableMap(Map<K, V> map) {
     return switch (map) {
-      case HashMap<K, V> m -> map;
-      case TreeMap<K, V> m -> map;
+      case HashMap<K, V> m -> m;
+      case TreeMap<K, V> m -> m;
       case NavigableMap<K, V> m -> new TreeMap<>(m);
-      case SequencedMap<K, V> m -> new LinkedHashMap<>(map);
+      case SequencedMap<K, V> m -> new LinkedHashMap<>(m);
       case null -> null;
       default -> new HashMap<>(map);
     };
