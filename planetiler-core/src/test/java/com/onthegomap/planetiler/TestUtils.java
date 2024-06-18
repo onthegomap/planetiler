@@ -280,7 +280,7 @@ public class TestUtils {
       };
       var decoded = VectorTile.decode(bytes).stream()
         .map(
-          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs()).withId(feature.id()))
+          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.attrs(), feature.id()))
         .toList();
       tiles.put(tile.coord(), decoded);
     }
@@ -501,8 +501,17 @@ public class TestUtils {
     }
   }
 
+
+  public static ComparableFeature feature(Geometry geom, String layer, Map<String, Object> attrs, long id) {
+    return new ComparableFeature(new NormGeometry(geom), layer, attrs, id);
+  }
+
   public static ComparableFeature feature(Geometry geom, String layer, Map<String, Object> attrs) {
     return new ComparableFeature(new NormGeometry(geom), layer, attrs);
+  }
+
+  public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs, long id) {
+    return new ComparableFeature(new NormGeometry(geom), null, attrs, id);
   }
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {

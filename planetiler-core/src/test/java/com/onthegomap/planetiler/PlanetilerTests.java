@@ -875,7 +875,7 @@ class PlanetilerTests {
         feature(newPoint(128, 128), Map.of(
           "attr", "value",
           "name", "name value"
-        )).withId(11)
+        ), 11)
       )
     ), results.tiles);
   }
@@ -964,7 +964,7 @@ class PlanetilerTests {
         feature(newLineString(128, 128, 192, 192), Map.of(
           "attr", "value",
           "name", "name value"
-        )).withId(32)
+        ), 32)
       )
     ), results.tiles);
   }
@@ -1089,7 +1089,7 @@ class PlanetilerTests {
           "attr", "value",
           "name", "name value",
           "relname", "rel name"
-        )).withId(173)
+        ), 173)
       )
     ), results.tiles);
   }
@@ -1151,20 +1151,21 @@ class PlanetilerTests {
 
   @Test
   void testPreprocessOsmNodesAndWays() throws Exception {
-    Set<Long> nodes1 = new HashSet<>();
+    HashMap<Long, Long> nodes1 = new HashMap<>();
     Set<Long> nodes2 = new HashSet<>();
     var profile = new Profile.NullProfile() {
       @Override
       public void preprocessOsmNode(OsmElement.Node node) {
         if (node.hasTag("a", "b")) {
-          nodes1.add(node.id());
+          nodes1.put(node.id(), node.featureIdFromElement());
         }
       }
 
       @Override
       public void preprocessOsmWay(OsmElement.Way way) {
-        if (nodes1.contains(way.nodes().get(0))) {
-          nodes2.add(way.nodes().get(0));
+        Long featureId = nodes1.get(way.nodes().get(0));
+        if (featureId != null) {
+          nodes2.add(featureId);
         }
       }
 

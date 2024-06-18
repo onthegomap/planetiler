@@ -24,10 +24,24 @@ public interface OsmElement extends WithTags {
 
   int cost();
 
+  Type type();
+
   enum Type {
-    NODE,
-    WAY,
-    RELATION
+    /** The specific numeric values, as returned by ordinal(),
+     * are used for encoding the OSM element type. */
+    OTHER,    // 0
+    NODE,     // 1
+    WAY,      // 2
+    RELATION  // 3
+  }
+
+  /** Encode OSM element id and type in a feature id.
+   * The OSM element type is encoded in the least significant digit and
+   * the OSM element id is stored in the higher significance digits.
+   * */
+  default long featureIdFromElement() {
+    int encodedType = type().ordinal();
+    return (id() * 10) + encodedType;
   }
 
   /** An un-handled element read from the .osm.pbf file (i.e. file header). */
@@ -40,6 +54,11 @@ public interface OsmElement extends WithTags {
     @Override
     public int cost() {
       return 1 + tags.size() + (info == null ? 0 : Info.COST);
+    }
+
+    @Override
+    public Type type() {
+      return Type.OTHER;
     }
   }
 
@@ -118,6 +137,11 @@ public interface OsmElement extends WithTags {
     }
 
     @Override
+    public Type type() {
+      return Type.NODE;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == this) {
         return true;
@@ -170,6 +194,11 @@ public interface OsmElement extends WithTags {
     public int cost() {
       return 1 + tags.size() + nodes.size() + (info == null ? 0 : Info.COST);
     }
+
+    @Override
+    public Type type() {
+      return Type.WAY;
+    }
   }
 
   /** An ordered list of nodes, ways, and other relations. */
@@ -197,6 +226,11 @@ public interface OsmElement extends WithTags {
     @Override
     public int cost() {
       return 1 + tags.size() + members.size() * 3 + (info == null ? 0 : Info.COST);
+    }
+
+    @Override
+    public Type type() {
+      return Type.RELATION;
     }
 
     /**
