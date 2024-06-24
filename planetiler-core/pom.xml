@@ -178,7 +178,7 @@
     <dependency>
       <groupId>blue.strategic.parquet</groupId>
       <artifactId>parquet-floor</artifactId>
-      <version>1.44</version>
+      <version>1.45</version>
     </dependency>
 
   </dependencies>
