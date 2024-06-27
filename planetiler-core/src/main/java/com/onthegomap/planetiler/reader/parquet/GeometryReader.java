@@ -6,7 +6,6 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.locationtech.jts.geom.Geometry;
@@ -24,9 +23,9 @@ class GeometryReader {
     Function<Object, GeometryType> sniffType
   ) {}
 
-  private static <L extends List<?>> FormatHandler arrowHandler(GeometryType type,
-    FunctionThatThrows<L, Geometry> parser) {
-    return new FormatHandler(obj -> obj instanceof List<?> list ? parser.apply((L) list) : null, any -> type);
+  private static <T> FormatHandler arrowHandler(GeometryType type,
+    FunctionThatThrows<T, Geometry> parser) {
+    return new FormatHandler(obj -> parser.apply((T) obj), any -> type);
   }
 
   GeometryReader(GeoParquetMetadata geoparquet) {
@@ -43,17 +42,17 @@ class GeometryReader {
           obj -> obj instanceof String string ? GeoUtils.wktReader().read(string) : null,
           obj -> obj instanceof String string ? GeometryType.fromWKT(string) : GeometryType.UNKNOWN
         );
-        case "multipolygon", "geoarrow.multipolygon" ->
+        case "multipolygon" ->
           arrowHandler(GeometryType.POLYGON, GeoArrow::multipolygon);
-        case "polygon", "geoarrow.polygon" ->
+        case "polygon" ->
           arrowHandler(GeometryType.POLYGON, GeoArrow::polygon);
-        case "multilinestring", "geoarrow.multilinestring" ->
+        case "multilinestring" ->
           arrowHandler(GeometryType.LINE, GeoArrow::multilinestring);
-        case "linestring", "geoarrow.linestring" ->
+        case "linestring" ->
           arrowHandler(GeometryType.LINE, GeoArrow::linestring);
-        case "multipoint", "geoarrow.multipoint" ->
+        case "multipoint" ->
           arrowHandler(GeometryType.POINT, GeoArrow::multipoint);
-        case "point", "geoarrow.point" ->
+        case "point" ->
           arrowHandler(GeometryType.POINT, GeoArrow::point);
         default -> throw new IllegalArgumentException("Unhandled type: " + columnInfo.encoding());
       };

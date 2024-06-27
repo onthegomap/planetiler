@@ -172,6 +172,13 @@ public record GeoParquetMetadata(
       }
       return null;
     }
+
+    /** Returns the geoarrow type string of this geometry column, or null if not geoarrow. */
+    public String getGeoArrowType() {
+      return (encoding != null && (encoding.contains("polygon") ||
+        encoding.contains("point") ||
+        encoding.contains("line"))) ? encoding : null;
+    }
   }
 
   public ColumnMetadata primaryColumnMetadata() {

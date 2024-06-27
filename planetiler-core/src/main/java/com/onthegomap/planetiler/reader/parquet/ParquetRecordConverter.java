@@ -1,15 +1,20 @@
 package com.onthegomap.planetiler.reader.parquet;
 
+import com.onthegomap.planetiler.reader.FileFormatException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.parquet.io.api.Converter;
 import org.apache.parquet.io.api.GroupConverter;
+import org.apache.parquet.io.api.PrimitiveConverter;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
 /**
@@ -22,8 +27,8 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
   private final StructConverter root;
   private Map<String, Object> map;
 
-  ParquetRecordConverter(MessageType schema) {
-    root = new StructConverter(new Context(schema)) {
+  ParquetRecordConverter(MessageType schema, GeoParquetMetadata geoParquetMetadata) {
+    root = new StructConverter(new Context(schema, geoParquetMetadata)) {
       @Override
       public void start() {
         var group = new MapGroup(schema.getFieldCount());
@@ -31,6 +36,72 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
         map = group.getMap();
       }
     };
+    if (geoParquetMetadata != null) {
+      validateGeometryColumn(schema, geoParquetMetadata);
+    }
+  }
+
+  private void validateGeometryColumn(MessageType schema, GeoParquetMetadata geoParquetMetadata) {
+    var primary = geoParquetMetadata.primaryColumnMetadata();
+    String geoColumn = geoParquetMetadata.primaryColumn();
+    var colSchema = schema.getType(geoColumn);
+    var encoding = primary.encoding();
+    switch (encoding) {
+      case "WKT" -> require(
+        colSchema.isPrimitive() &&
+          colSchema.asPrimitiveType().getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.BINARY &&
+          colSchema.getLogicalTypeAnnotation() == LogicalTypeAnnotation.stringType(),
+        "String type required for wkt-encoded geometry column " + geoColumn + " got: " + colSchema);
+      case "WKB" -> require(
+        colSchema.isPrimitive() &&
+          colSchema.asPrimitiveType().getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.BINARY &&
+          colSchema.getLogicalTypeAnnotation() == null,
+        "Binary type required for wkb-encoded geometry column " + geoColumn + " got: " + colSchema);
+      case "point" ->
+        requireConverter(encoding, geoColumn,
+          GeoArrowCoordinateConverter.class, 0, "Coordinate");
+      case "multipoint" ->
+        requireConverter(encoding, geoColumn,
+          GeoArrowCoordinateConverter.class, 1, "list<Coordinate>");
+      case "linestring" ->
+        requireConverter(encoding, geoColumn,
+          GeoArrowCoordinateSequenceConverter.class, 0, "list<Coordinate>");
+      case "multilinestring", "polygon" ->
+        requireConverter(encoding, geoColumn,
+          GeoArrowCoordinateSequenceConverter.class, 1, "list<list<Coordinate>>");
+      case "multipolygon" ->
+        requireConverter(encoding, geoColumn,
+          GeoArrowCoordinateSequenceConverter.class, 2, "list<list<list<Coordinate>>>");
+      case null, default -> throw new FileFormatException("Unexpected geoparquet geometry encoding: " + encoding);
+    }
+  }
+
+  private void requireConverter(String encoding, String column,
+    Class<?> clazz, int nesting, String pretty) {
+    var colSchema = root.context.type.asGroupType().getType(column);
+    var colIdx = root.context.type.asGroupType().getFieldIndex(column);
+    Converter converter = root.converters[colIdx];
+    for (int i = 0; i < nesting; i++) {
+      converter = getListElement(converter);
+    }
+    require(
+      clazz.isInstance(converter),
+      pretty + " type required for geoarrow " + encoding + " column " + column + " got: " + colSchema);
+  }
+
+  private static Converter getListElement(Converter converter) {
+    return (converter instanceof ListConverter lc && lc.getConverter(0) instanceof ListElementConverter lec) ?
+      lec.getConverter(0) : null;
+  }
+
+  private static void require(boolean condition, String message) {
+    if (!condition) {
+      throw new FileFormatException(message);
+    }
+  }
+
+  ParquetRecordConverter(MessageType schema) {
+    this(schema, null);
   }
 
   @Override
@@ -75,6 +146,114 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     public void start() {
       context.current = new ListGroup();
       context.acceptCurrentValue();
+    }
+  }
+
+  private static class GeoArrowCoordinateSequenceConverter extends StructConverter {
+
+    private final int dims;
+    private CoordinateSequenceBuilder currentSequence;
+    private int idx;
+
+    GeoArrowCoordinateSequenceConverter(Context context) {
+      super(context);
+      this.dims = context.type.asGroupType()
+        .getType(0).asGroupType()
+        .getType(0).asGroupType()
+        .getFieldCount();
+    }
+
+    @Override
+    protected Converter makeConverter(Context child) {
+      return new StructConverter(child) {
+
+        @Override
+        public void start() {}
+
+        @Override
+        protected Converter makeConverter(Context child) {
+          return new StructConverter(child) {
+
+            @Override
+            public void start() {}
+
+            @Override
+            public void end() {
+              idx++;
+            }
+
+            private PrimitiveConverter ordinateSetter(int ordinate) {
+              return new PrimitiveConverter() {
+                @Override
+                public void addDouble(double value) {
+                  currentSequence.setOrdinate(idx, ordinate, value);
+                }
+              };
+            }
+
+            @Override
+            protected Converter makeConverter(Context child) {
+              return switch (child.type.getName()) {
+                case "x" -> ordinateSetter(0);
+                case "y" -> ordinateSetter(1);
+                case "z" -> ordinateSetter(2);
+                case "m" -> ordinateSetter(3);
+                default -> throw new IllegalStateException("Unexpected value: " + child.type.getName());
+              };
+            }
+          };
+        }
+      };
+    }
+
+    @Override
+    public void start() {
+      idx = 0;
+      currentSequence = new CoordinateSequenceBuilder(dims);
+      context.accept(currentSequence);
+    }
+  }
+
+  private static class GeoArrowCoordinateConverter extends StructConverter {
+
+    private final int dims;
+    private CoordinateSequenceBuilder currentSequence;
+
+    GeoArrowCoordinateConverter(Context context) {
+      super(context);
+      this.dims = context.type.asGroupType().getFieldCount();
+    }
+
+    private PrimitiveConverter ordinateSetter(int ordinate) {
+      return new PrimitiveConverter() {
+        @Override
+        public void addDouble(double value) {
+          currentSequence.setOrdinate(0, ordinate, value);
+        }
+      };
+    }
+
+    @Override
+    protected Converter makeConverter(Context child) {
+      class CoordinateSetter extends PrimitiveConverter {
+        @Override
+        public void addDouble(double value) {
+          super.addDouble(value);
+        }
+      }
+      return switch (child.type.getName()) {
+        case "x" -> ordinateSetter(0);
+        case "y" -> ordinateSetter(1);
+        case "z" -> ordinateSetter(2);
+        case "m" -> ordinateSetter(3);
+        default -> throw new IllegalStateException("Unexpected value: " + child.type.getName());
+      };
+    }
+
+    @Override
+    public void start() {
+      currentSequence = new CoordinateSequenceBuilder(dims);
+      context.accept(currentSequence);
     }
   }
 
@@ -159,6 +338,11 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       Type type = child.type;
       LogicalTypeAnnotation logical = type.getLogicalTypeAnnotation();
       if (!type.isPrimitive()) {
+        if (child.isGeoArrowCoordSeq()) {
+          return new GeoArrowCoordinateSequenceConverter(child);
+        } else if (child.isGeoArrowCoordinate()) {
+          return new GeoArrowCoordinateConverter(child);
+        }
         return switch (logical) {
           case LogicalTypeAnnotation.ListLogicalTypeAnnotation ignored ->
             // If the repeated field is not a group, then its type is the element type and elements are required.
@@ -320,6 +504,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     final Type type;
     final boolean repeated;
     private final int fieldCount;
+    private GeoParquetMetadata metadata;
     Group current;
 
     Context(Context parent, String fieldOnParent, Type type, boolean repeated) {
@@ -331,11 +516,16 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
     }
 
     public Context(Context newParent, Type type) {
-      this(newParent, type.getName(), type, type.isRepetition(Type.Repetition.REPEATED));
+      this(newParent, type, null);
     }
 
-    public Context(MessageType schema) {
-      this(null, schema);
+    public Context(Context newParent, Type type, GeoParquetMetadata metadata) {
+      this(newParent, type.getName(), type, type.isRepetition(Type.Repetition.REPEATED));
+      this.metadata = metadata;
+    }
+
+    public Context(MessageType schema, GeoParquetMetadata metadata) {
+      this(null, schema, metadata);
     }
 
     public Context field(int i) {
@@ -387,6 +577,52 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
         "fieldOnParent=" + fieldOnParent + ", " +
         "type=" + type + ", " +
         "repeated=" + repeated + ']';
+    }
+
+    public boolean isGeoArrowCoordSeq() {
+      String geoArrowType = getGeoArrowType();
+      if (geoArrowType == null || geoArrowType.contains("point")) {
+        return false;
+      }
+      if (type.isPrimitive() || type.asGroupType().getFieldCount() != 1 ||
+        type.getLogicalTypeAnnotation() != LogicalTypeAnnotation.listType()) {
+        return false;
+      }
+      var repeatedElement = this.type.asGroupType().getType(0);
+      if (!repeatedElement.isRepetition(Type.Repetition.REPEATED) || repeatedElement.isPrimitive() ||
+        repeatedElement.asGroupType().getFieldCount() != 1) {
+        return false;
+      }
+      return isGeoarrowCoordinate(repeatedElement.asGroupType().getType(0));
+    }
+
+    public boolean isGeoArrowCoordinate() {
+      String geoArrowType = getGeoArrowType();
+      return geoArrowType != null && geoArrowType.contains("point") && isGeoarrowCoordinate(type);
+    }
+
+    private String getGeoArrowType() {
+      if (parent == null) {
+        return null;
+      } else if (parent.metadata != null) {
+        var column = parent.metadata.columns().get(type.getName());
+        return column == null ? null : column.getGeoArrowType();
+      } else {
+        return parent.getGeoArrowType();
+      }
+    }
+
+    private static boolean isGeoarrowCoordinate(Type struct) {
+      if (struct.isPrimitive()) {
+        return false;
+      }
+      var group = struct.asGroupType();
+      var names = group.getFields().stream().map(Type::getName).collect(Collectors.toSet());
+      var types = group.getFields().stream()
+        .map(d -> d.isPrimitive() ? d.asPrimitiveType().getPrimitiveTypeName() : null).collect(Collectors.toSet());
+      return types.equals(Set.of(PrimitiveType.PrimitiveTypeName.DOUBLE)) &&
+        (names.equals(Set.of("x", "y")) || names.equals(Set.of("x", "y", "z")) ||
+          names.equals(Set.of("x", "y", "z", "m")));
     }
   }
 }
