@@ -7,7 +7,7 @@ import org.locationtech.jts.geom.CoordinateXYZM;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
-public class CoordinateSequenceBuilder extends PackedCoordinateSequence {
+class CoordinateSequenceBuilder extends PackedCoordinateSequence {
 
   private final DoubleArrayList points = new DoubleArrayList();
   private final int components;
