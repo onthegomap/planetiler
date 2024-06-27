@@ -1,8 +1,12 @@
 package com.onthegomap.planetiler.reader.parquet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.Lists;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Duration;
@@ -15,16 +19,60 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.io.api.Converter;
+import org.apache.parquet.io.api.GroupConverter;
 import org.apache.parquet.io.api.PrimitiveConverter;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 
 class ParquetConverterTest {
+
+  private static final MessageType ARROW_SCHEMA_3 = Types.buildMessage()
+    .requiredList()
+    .requiredListElement()
+    .requiredListElement()
+    .requiredGroupElement()
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("x")
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("y")
+    .named("geometry")
+    .named("root");
+  private static final MessageType ARROW_SCHEMA_2 = Types.buildMessage()
+    .requiredList()
+    .requiredListElement()
+    .requiredGroupElement()
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("x")
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("y")
+    .named("geometry")
+    .named("root");
+  private static final MessageType ARROW_SCHEMA_1 = Types.buildMessage()
+    .requiredList()
+    .requiredGroupElement()
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("x")
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("y")
+    .named("geometry")
+    .named("root");
+  private static final MessageType ARROW_SCHEMA_0 = Types.buildMessage()
+    .requiredGroup()
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("x")
+    .required(PrimitiveType.PrimitiveTypeName.DOUBLE).named("y")
+    .named("geometry")
+    .named("root");
+  private static final List<MessageType> ARROW_SCHEMAS = List.of(
+    ARROW_SCHEMA_0,
+    ARROW_SCHEMA_1,
+    ARROW_SCHEMA_2,
+    ARROW_SCHEMA_3
+  );
+
   @Test
   void testIntPrimitive() {
     testPrimitive(
@@ -551,6 +599,219 @@ class ParquetConverterTest {
     map.end();
     root.end();
     assertEquals(Map.of("value", List.of(Map.of())), materializer.getCurrentRecord());
+  }
+
+  @Test
+  void testGeoArrowMultiPolygon() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("multipolygon")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_3, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, geom -> {
+        traverseOnly(geom, polys -> {
+          traverseOnly(polys, poly -> {
+            traverseOnly(poly, rings -> {
+              traverseOnly(rings, ring -> {
+                addPoint(ring, 0, 0);
+                addPoint(ring, 3, 0);
+                addPoint(ring, 3, 3);
+                addPoint(ring, 0, 3);
+                addPoint(ring, 0, 0);
+              });
+            });
+            traverseOnly(poly, rings -> {
+              traverseOnly(rings, ring -> {
+                addPoint(ring, 1, 1);
+                addPoint(ring, 2, 1);
+                addPoint(ring, 2, 2);
+                addPoint(ring, 1, 2);
+                addPoint(ring, 1, 1);
+              });
+            });
+          });
+        });
+        traverseOnly(geom, polys -> {
+          traverseOnly(polys, poly -> {
+            traverseOnly(poly, rings -> {
+              traverseOnly(rings, ring -> {
+                addPoint(ring, 10, 10);
+                addPoint(ring, 11, 10);
+                addPoint(ring, 11, 11);
+                addPoint(ring, 10, 11);
+                addPoint(ring, 10, 10);
+              });
+            });
+          });
+        });
+      });
+    });
+
+    assertGeometry(
+      "MULTIPOLYGON (((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((10 10, 11 10, 11 11, 10 11, 10 10)))",
+      reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @Test
+  void testGeoArrowPolygon() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("polygon")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_2, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, geom -> {
+        traverseOnly(geom, rings -> {
+          traverseOnly(rings, ring -> {
+            addPoint(ring, 0, 0);
+            addPoint(ring, 3, 0);
+            addPoint(ring, 3, 3);
+            addPoint(ring, 0, 3);
+            addPoint(ring, 0, 0);
+          });
+        });
+      });
+    });
+
+    assertGeometry("POLYGON ((0 0, 3 0, 3 3, 0 3, 0 0))",
+      reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @Test
+  void testGeoArrowMultilinestring() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("multilinestring")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_2, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, geom -> {
+        traverseOnly(geom, lines -> {
+          traverseOnly(lines, line -> {
+            addPoint(line, 0, 1);
+            addPoint(line, 2, 3);
+          });
+        });
+        traverseOnly(geom, lines -> {
+          traverseOnly(lines, line -> {
+            addPoint(line, 4, 5);
+            addPoint(line, 6, 7);
+          });
+        });
+      });
+    });
+
+    assertGeometry("MULTILINESTRING ((0 1, 2 3), (4 5, 6 7))",
+      reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @Test
+  void testGeoArrowLinestring() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("linestring")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_1, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, line -> {
+        addPoint(line, 0, 1);
+        addPoint(line, 2, 3);
+      });
+    });
+
+    assertGeometry("LINESTRING (0 1, 2 3)", reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @Test
+  void testGeoArrowMultiPoint() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("multipoint")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_1, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, points -> {
+        addPoint(points, 0, 1);
+        addPoint(points, 2, 3);
+      });
+    });
+
+    assertGeometry("MULTIPOINT (0 1, 2 3)", reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @Test
+  void testGeoArrowPoint() throws GeometryException, ParseException {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata("point")
+    ));
+    var reader = new GeometryReader(geoparquet);
+    var materializer = new ParquetRecordConverter(ARROW_SCHEMA_0, geoparquet);
+
+    traverse(materializer.getRootConverter(), root -> {
+      traverseOnly(root, point -> {
+        point.getConverter(0).asPrimitiveConverter().addDouble(1);
+        point.getConverter(1).asPrimitiveConverter().addDouble(2);
+      });
+    });
+
+    assertGeometry("POINT (1 2)", reader.readPrimaryGeometry(WithTags.from(materializer.getCurrentRecord())));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "point, 0",
+    "multipoint, 1",
+    "linestring, 1",
+    "multilinestring, 2",
+    "polygon, 2",
+    "multipolygon, 3",
+  })
+  void testGeoArrowSchemaValidation(String type, int valid) {
+    var geoparquet = new GeoParquetMetadata("1.1", "geometry", Map.of(
+      "geometry", new GeoParquetMetadata.ColumnMetadata(type)
+    ));
+
+    for (int i = 0; i < ARROW_SCHEMAS.size(); i++) {
+      var schema = ARROW_SCHEMAS.get(i);
+      if (i == valid) {
+        new ParquetRecordConverter(schema, geoparquet);
+      } else {
+        assertThrows(FileFormatException.class, () -> new ParquetRecordConverter(schema, geoparquet));
+      }
+    }
+  }
+
+  private static void assertGeometry(String expected, Geometry actual) throws ParseException {
+    assertEquals(
+      new WKTReader().read(
+        expected),
+      actual);
+  }
+
+  private static void addPoint(GroupConverter ring, double x, double y) {
+    traverseOnly(ring, coords -> {
+      traverseOnly(coords, coord -> {
+        coord.getConverter(0).asPrimitiveConverter().addDouble(x);
+        coord.getConverter(1).asPrimitiveConverter().addDouble(y);
+      });
+    });
+  }
+
+  private static void traverseOnly(Converter converter, Consumer<GroupConverter> fn) {
+    traverse(converter.asGroupConverter().getConverter(0), fn);
+  }
+
+  private static void traverse(Converter converter, Consumer<GroupConverter> fn) {
+    var group = converter.asGroupConverter();
+    group.start();
+    fn.accept(group);
+    group.end();
   }
 
   private void testPrimitive(PrimitiveType.PrimitiveTypeName type, Consumer<PrimitiveConverter> consumer,

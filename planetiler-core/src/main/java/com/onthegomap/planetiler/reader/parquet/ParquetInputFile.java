@@ -57,6 +57,7 @@ public class ParquetInputFile {
   final GeometryReader geometryReader;
   private final Map<String, Object> extraFields;
   private final Set<GeometryType> geometryTypes;
+  private final GeoParquetMetadata geoparquet;
   private Envelope postFilterBounds = null;
   private boolean outOfBounds = false;
 
@@ -75,7 +76,7 @@ public class ParquetInputFile {
     try (var file = open()) {
       metadata = file.getFooter();
       var fileMetadata = metadata.getFileMetaData();
-      var geoparquet = GeoParquetMetadata.parse(fileMetadata);
+      geoparquet = GeoParquetMetadata.parse(fileMetadata);
       this.geometryReader = new GeometryReader(geoparquet);
       this.geometryTypes = geoparquet.geometryTypes();
       if (!bounds.isWorld()) {
@@ -154,7 +155,7 @@ public class ParquetInputFile {
             throw new UncheckedIOException(e);
           }
           MessageColumnIO columnIO = columnIOFactory.getColumnIO(schema);
-          var recordReader = columnIO.getRecordReader(group, new ParquetRecordConverter(schema), filter);
+          var recordReader = columnIO.getRecordReader(group, new ParquetRecordConverter(schema, geoparquet), filter);
           long total = group.getRowCount();
           return Iterators.filter(new Iterator<>() {
             long i = 0;
