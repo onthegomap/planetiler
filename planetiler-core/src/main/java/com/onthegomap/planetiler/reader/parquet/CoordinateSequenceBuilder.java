@@ -2,11 +2,13 @@ package com.onthegomap.planetiler.reader.parquet;
 
 import com.carrotsearch.hppc.DoubleArrayList;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.CoordinateXYZM;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
+/** A mutable {@link CoordinateSequence} that grows to fit new elements when {@code set*} methods are called. */
 class CoordinateSequenceBuilder extends PackedCoordinateSequence {
 
   private final DoubleArrayList points = new DoubleArrayList();
