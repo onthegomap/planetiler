@@ -168,14 +168,18 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       return new StructConverter(child) {
 
         @Override
-        public void start() {}
+        public void start() {
+          // don't start a new struct
+        }
 
         @Override
         protected Converter makeConverter(Context child) {
           return new StructConverter(child) {
 
             @Override
-            public void start() {}
+            public void start() {
+              // don't start a new struct
+            }
 
             @Override
             public void end() {
@@ -235,12 +239,6 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
 
     @Override
     protected Converter makeConverter(Context child) {
-      class CoordinateSetter extends PrimitiveConverter {
-        @Override
-        public void addDouble(double value) {
-          super.addDouble(value);
-        }
-      }
       return switch (child.type.getName()) {
         case "x" -> ordinateSetter(0);
         case "y" -> ordinateSetter(1);
@@ -593,12 +591,12 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
         repeatedElement.asGroupType().getFieldCount() != 1) {
         return false;
       }
-      return isGeoarrowCoordinate(repeatedElement.asGroupType().getType(0));
+      return isGeoArrowCoordinate(repeatedElement.asGroupType().getType(0));
     }
 
     public boolean isGeoArrowCoordinate() {
       String geoArrowType = getGeoArrowType();
-      return geoArrowType != null && geoArrowType.contains("point") && isGeoarrowCoordinate(type);
+      return geoArrowType != null && geoArrowType.contains("point") && isGeoArrowCoordinate(type);
     }
 
     private String getGeoArrowType() {
@@ -612,7 +610,7 @@ public class ParquetRecordConverter extends RecordMaterializer<Map<String, Objec
       }
     }
 
-    private static boolean isGeoarrowCoordinate(Type struct) {
+    private static boolean isGeoArrowCoordinate(Type struct) {
       if (struct.isPrimitive()) {
         return false;
       }
