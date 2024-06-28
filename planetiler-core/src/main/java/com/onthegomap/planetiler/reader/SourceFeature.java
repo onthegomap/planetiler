@@ -321,8 +321,8 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /** By default, the feature id is taken as-is from the input data source id. */
-  public long featureIdFromElement() {
-    return id;
+  public long vectorTileFeatureId(int multiplier) {
+    return multiplier * id;
   }
 
   /** Returns true if this element has any OSM relation info. */

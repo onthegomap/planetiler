@@ -363,4 +363,16 @@ class ArgumentsTest {
     assertEquals("val_1", args.getArg("key-1"));
     assertNull(args.getArg("key-3"));
   }
+
+  @Test
+  void testFalseForInt() {
+    var args = Arguments.of(Map.of(
+      "true", "true",
+      "false", "false",
+      "3", "3"
+    ));
+    assertEquals(1, args.getInteger("true", "", 1));
+    assertEquals(0, args.getInteger("false", "", 1));
+    assertEquals(3, args.getInteger("3", "", 1));
+  }
 }

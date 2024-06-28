@@ -64,7 +64,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * @return a feature that can be configured further.
    */
   public Feature geometry(String layer, Geometry geometry) {
-    Feature feature = new Feature(layer, geometry, source.featureIdFromElement());
+    long vectorTileId = config.featureSourceIdMultiplier() < 4 ? source.id() :
+      source.vectorTileFeatureId(config.featureSourceIdMultiplier());
+    Feature feature = new Feature(layer, geometry, vectorTileId);
     output.add(feature);
     return feature;
   }

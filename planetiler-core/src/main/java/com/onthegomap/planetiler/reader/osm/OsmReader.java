@@ -637,11 +637,21 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     public OsmFeature(OsmElement elem, boolean point, boolean line, boolean polygon,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
-      super(elem.tags(), name, null, relationInfo, elem.featureIdFromElement());
+      super(elem.tags(), name, null, relationInfo, elem.id());
       this.originalElement = elem;
       this.point = point;
       this.line = line;
       this.polygon = polygon;
+    }
+
+    @Override
+    public long vectorTileFeatureId(int multiplier) {
+      return (id() * multiplier) + switch (originalElement.type()) {
+        case OTHER -> 0;
+        case NODE -> 1;
+        case WAY -> 2;
+        case RELATION -> 3;
+      };
     }
 
     @Override

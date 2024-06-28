@@ -37,7 +37,7 @@ public class OpenMapTilesMapping {
             if (inputs.size() % 1_000_000 == 0) {
               logger.log();
             }
-            inputs.add(new SourceFeature(element.tags(), "", "", null, element.featureIdFromElement()) {
+            inputs.add(new SourceFeature(element.tags(), "", "", null, element.id()) {
               @Override
               public Geometry latLonGeometry() {
                 return null;
