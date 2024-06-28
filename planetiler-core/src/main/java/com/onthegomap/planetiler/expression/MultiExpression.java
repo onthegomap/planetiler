@@ -4,12 +4,14 @@ import static com.onthegomap.planetiler.expression.Expression.FALSE;
 import static com.onthegomap.planetiler.expression.Expression.TRUE;
 import static com.onthegomap.planetiler.expression.Expression.matchType;
 
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,13 +34,17 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> type of data value associated with each expression
  */
-public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplifiable<MultiExpression<T>> {
+public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifiable<MultiExpression<T>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
-    return new MultiExpression<>(expressions);
+    LinkedHashMap<T, Expression> map = new LinkedHashMap<>();
+    for (var expression : expressions) {
+      map.merge(expression.result, expression.expression, Expression::or);
+    }
+    return new MultiExpression<>(map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).collect(Collectors.toList()));
   }
 
   public static <T> Entry<T> entry(T result, Expression expression) {
@@ -98,9 +104,18 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
     if (expressions.isEmpty()) {
       return new EmptyIndex<>();
     }
-    boolean caresAboutGeometryType =
-      expressions.stream().anyMatch(entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
-    return caresAboutGeometryType ? new GeometryTypeIndex<>(this, warn) : new KeyIndex<>(simplify(), warn);
+    if (contains(Expression.MatchSource.class::isInstance)) {
+      return new SourceIndex<>(this, warn);
+    } else if (contains(Expression.MatchSourceLayer.class::isInstance)) {
+      return new SourceLayerIndex<>(this, warn);
+    } else if (contains(Expression.MatchType.class::isInstance)) {
+      return new GeometryTypeIndex<>(this, warn);
+    }
+    return new KeyIndex<>(simplify(), warn);
+  }
+
+  private boolean contains(Predicate<Expression> test) {
+    return expressions.stream().anyMatch(entry -> entry.expression.contains(test));
   }
 
   /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
@@ -203,7 +218,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
 
     @Override
     public List<Match<T>> getMatchesWithTriggers(WithTags input) {
-      return List.of();
+      return new ArrayList<>();
     }
 
     @Override
@@ -238,7 +253,12 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
           always.add(expressionValue);
         } else {
           getRelevantKeys(expression,
-            key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
+            key -> {
+              while (!key.isBlank()) {
+                keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue);
+                key = key.replaceAll("(^|(\\[])?\\.)[^.]*$", "");
+              }
+            });
         }
       }
       // create immutable copies for fast iteration at matching time
@@ -302,10 +322,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
   /** Index that limits the search space of expressions based on geometry type of an input element. */
   private static class GeometryTypeIndex<T> implements Index<T> {
 
-    private final KeyIndex<T> pointIndex;
-    private final KeyIndex<T> lineIndex;
-    private final KeyIndex<T> polygonIndex;
-    private final KeyIndex<T> otherIndex;
+    private final Index<T> pointIndex;
+    private final Index<T> lineIndex;
+    private final Index<T> polygonIndex;
+    private final Index<T> otherIndex;
 
     private GeometryTypeIndex(MultiExpression<T> expressions, boolean warn) {
       // build an index per type then search in each of those indexes based on the geometry type of each input element
@@ -316,14 +336,12 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
       otherIndex = indexForType(expressions, Expression.UNKNOWN_GEOMETRY_TYPE, warn);
     }
 
-    private KeyIndex<T> indexForType(MultiExpression<T> expressions, String type, boolean warn) {
-      return new KeyIndex<>(
-        expressions
-          .replace(matchType(type), TRUE)
-          .replace(e -> e instanceof Expression.MatchType, FALSE)
-          .simplify(),
-        warn
-      );
+    private Index<T> indexForType(MultiExpression<T> expressions, String type, boolean warn) {
+      return expressions
+        .replace(matchType(type), TRUE)
+        .replace(e -> e instanceof Expression.MatchType, FALSE)
+        .simplify()
+        .index(warn);
     }
 
     /**
@@ -354,14 +372,97 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
     }
   }
 
+  private abstract static class StringFieldIndex<T> implements Index<T> {
+
+    private final Map<String, Index<T>> sourceIndex;
+    private final Index<T> allSourcesIndex;
+
+    private StringFieldIndex(MultiExpression<T> expressions, boolean warn, Function<Expression, String> extract,
+      Function<String, Expression> make) {
+      Set<String> sources = new HashSet<>();
+      for (var expression : expressions.expressions) {
+        expression.expression.visit(e -> {
+          String key = extract.apply(e);
+          if (key != null) {
+            sources.add(key);
+          }
+        });
+      }
+      sourceIndex = HashMap.newHashMap(sources.size());
+      for (var source : sources) {
+        var forThisSource = expressions
+          .replace(make.apply(source), TRUE)
+          .replace(e -> extract.apply(e) != null, FALSE)
+          .simplify()
+          .index(warn);
+        if (!forThisSource.isEmpty()) {
+          sourceIndex.put(source, forThisSource);
+        }
+      }
+      allSourcesIndex = expressions.replace(e -> extract.apply(e) != null, FALSE).simplify().index(warn);
+    }
+
+    abstract String extract(WithTags input);
+
+    /**
+     * Returns all data values associated with expressions that match an input element, along with the tag keys that
+     * caused the match.
+     */
+    public List<Match<T>> getMatchesWithTriggers(WithTags input) {
+      List<Match<T>> result = null;
+      String key = extract(input);
+      if (key != null) {
+        var index = sourceIndex.get(key);
+        if (index != null) {
+          result = index.getMatchesWithTriggers(input);
+        }
+      }
+      if (result == null) {
+        result = allSourcesIndex.getMatchesWithTriggers(input);
+      }
+      result.sort(BY_ID);
+      return result;
+    }
+  }
+
+  /** Index that limits the search space of expressions based on geometry type of an input element. */
+  private static class SourceLayerIndex<T> extends StringFieldIndex<T> {
+
+    private SourceLayerIndex(MultiExpression<T> expressions, boolean warn) {
+      super(expressions, warn,
+        e -> e instanceof Expression.MatchSourceLayer(var layer) ? layer : null,
+        Expression::matchSourceLayer);
+    }
+
+    @Override
+    String extract(WithTags input) {
+      return input instanceof SourceFeature feature ? feature.getSourceLayer() : null;
+    }
+  }
+
+  /** Index that limits the search space of expressions based on geometry type of an input element. */
+  private static class SourceIndex<T> extends StringFieldIndex<T> {
+
+    private SourceIndex(MultiExpression<T> expressions, boolean warn) {
+      super(expressions, warn,
+        e -> e instanceof Expression.MatchSource(var source) ? source : null,
+        Expression::matchSource);
+    }
+
+    @Override
+    String extract(WithTags input) {
+      return input instanceof SourceFeature feature ? feature.getSource() : null;
+    }
+  }
+
   /** An expression/value pair with unique ID to store whether we evaluated it yet. */
-  private record EntryWithId<T> (T result, Expression expression, @Override int id) implements WithId {}
+  private record EntryWithId<T>(T result, Expression expression, @Override int id) implements WithId {}
 
   /**
    * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
    */
-  public record Entry<T> (T result, Expression expression) {}
+  public record Entry<T>(T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T> (T match, List<String> keys, @Override int id) implements WithId {}
+  public record Match<T>(T match, List<String> keys, @Override int id) implements WithId {}
 }

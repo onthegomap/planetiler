@@ -161,7 +161,7 @@ public class FeatureMerge {
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       VectorTile.Feature feature1 = groupedFeatures.getFirst();
-      double lengthLimit = lengthLimitCalculator.apply(feature1.attrs());
+      double lengthLimit = lengthLimitCalculator.apply(feature1.tags());
 
       // as a shortcut, can skip line merging only if:
       // - only 1 element in the group
@@ -401,7 +401,7 @@ public class FeatureMerge {
         others.add(feature);
       } else {
         groupedByAttrs
-          .computeIfAbsent(feature.attrs(), k -> new ArrayList<>())
+          .computeIfAbsent(feature.tags(), k -> new ArrayList<>())
           .add(feature);
       }
     }

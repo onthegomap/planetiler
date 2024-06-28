@@ -2,7 +2,10 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
@@ -14,7 +17,21 @@ public interface WithTags {
   Map<String, Object> tags();
 
   default Object getTag(String key) {
-    return tags().get(key);
+    var result = tags().get(key);
+    if (result != null) {
+      return result;
+    } else if (key.contains(".")) {
+      return getDotted(key).rawValue();
+    }
+    return null;
+  }
+
+  private Struct getDotted(String key) {
+    String[] parts = key.split("(\\[])?\\.", 2);
+    if (parts.length == 2) {
+      return getStruct(parts[0]).get(parts[1]);
+    }
+    return getStruct(parts[0]);
   }
 
   default Object getTag(String key, Object defaultValue) {
@@ -26,11 +43,29 @@ public interface WithTags {
   }
 
   default boolean hasTag(String key) {
-    return tags().containsKey(key);
+    var contains = tags().containsKey(key);
+    return contains || (key.contains(".") && !getDotted(key).isNull());
+  }
+
+  private static boolean contains(Object actual, Object expected) {
+    if (actual instanceof Collection<?> actualList) {
+      if (expected instanceof Collection<?> expectedList) {
+        for (var elem : expectedList) {
+          if (actualList.contains(elem)) {
+            return true;
+          }
+        }
+      } else {
+        return actualList.contains(expected);
+      }
+    } else if (expected instanceof Collection<?> expectedList) {
+      return expectedList.contains(actual);
+    }
+    return expected.equals(actual);
   }
 
   default boolean hasTag(String key, Object value) {
-    return value.equals(getTag(key));
+    return contains(getTag(key), value);
   }
 
   /**
@@ -44,7 +79,7 @@ public interface WithTags {
     if (actual == null) {
       return false;
     } else {
-      return value1.equals(actual) || value2.equals(actual);
+      return contains(actual, value1) || contains(actual, value2);
     }
   }
 
@@ -52,11 +87,11 @@ public interface WithTags {
   default boolean hasTag(String key, Object value1, Object value2, Object... others) {
     Object actual = getTag(key);
     if (actual != null) {
-      if (value1.equals(actual) || value2.equals(actual)) {
+      if (contains(actual, value1) || contains(actual, value2)) {
         return true;
       }
       for (Object value : others) {
-        if (value.equals(actual)) {
+        if (contains(actual, value)) {
           return true;
         }
       }
@@ -77,8 +112,8 @@ public interface WithTags {
   }
 
   /**
-   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and {@code
-   * true} otherwise.
+   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and
+   * {@code true} otherwise.
    */
   default boolean getBoolean(String key) {
     return Parse.bool(getTag(key));
@@ -110,6 +145,36 @@ public interface WithTags {
 
   default void setTag(String key, Object value) {
     tags().put(key, value);
+  }
+
+  /** Returns a {@link Struct} wrapper for a field, which can be a primitive or nested list/map. */
+  default Struct getStruct(String key) {
+    return Struct.of(getTag(key));
+  }
+
+  /**
+   * Shortcut for calling {@link Struct#get(Object)} multiple times to get a deeply nested value.
+   * <p>
+   * Arguments can be strings to get values out of maps, or integers to get an element at a certain index out of a list.
+   */
+  default Struct getStruct(Object key, Object... others) {
+    Struct struct = getStruct(Objects.toString(key));
+    return struct.get(others[0], Arrays.copyOfRange(others, 1, others.length));
+  }
+
+  /**
+   * Attempts to marshal the properties on this feature into a typed java class or record using
+   * <a href="https://github.com/FasterXML/jackson-databind">jackson-databind</a>.
+   */
+  default <T> T as(Class<T> clazz) {
+    return JsonConversion.convertValue(tags(), clazz);
+  }
+
+  /**
+   * Serializes the properties on this feature as a JSON object.
+   */
+  default String tagsAsJson() {
+    return JsonConversion.writeValueAsString(tags());
   }
 
   record OfMap(@Override Map<String, Object> tags) implements WithTags {}

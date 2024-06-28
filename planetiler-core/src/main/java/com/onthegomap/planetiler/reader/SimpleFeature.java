@@ -226,8 +226,10 @@ public class SimpleFeature extends SourceFeature {
 
   @Override
   public String toString() {
-    return "SimpleFeature[" +
-      "geometry type=" + latLonGeometry().getGeometryType() + ", " +
-      "tags=" + tags + ']';
+    return "Feature[source=" + getSource() +
+      ", source layer=" + getSourceLayer() +
+      ", id=" + id() +
+      ", geometry type=" + latLonGeometry().getGeometryType() +
+      ", tags=" + tags + ']';
   }
 }

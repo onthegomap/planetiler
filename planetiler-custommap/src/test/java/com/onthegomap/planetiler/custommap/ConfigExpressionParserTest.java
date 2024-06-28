@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.custommap.expression.ConfigExpression;
 import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.util.YAML;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

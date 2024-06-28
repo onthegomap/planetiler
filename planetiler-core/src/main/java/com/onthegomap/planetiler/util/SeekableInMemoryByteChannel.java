@@ -24,6 +24,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A {@link SeekableByteChannel} implementation that wraps a byte[].
@@ -38,8 +39,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * </p>
  *
  * @since 1.13
- * @NotThreadSafe
  */
+@NotThreadSafe
 public class SeekableInMemoryByteChannel implements SeekableByteChannel {
 
   private static final int NAIVE_RESIZE_LIMIT = Integer.MAX_VALUE >> 1;

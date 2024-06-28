@@ -16,23 +16,23 @@
   </parent>
 
   <properties>
-    <geotools.version>30.1</geotools.version>
-    <log4j.version>2.22.1</log4j.version>
+    <geotools.version>31.2</geotools.version>
+    <log4j.version>2.23.1</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.25.2</protobuf.version>
-    <geopackage.version>6.6.4</geopackage.version>
+    <protobuf.version>3.25.3</protobuf.version>
+    <geopackage.version>6.6.5</geopackage.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>com.carrotsearch</groupId>
       <artifactId>hppc</artifactId>
-      <version>0.9.1</version>
+      <version>0.10.0</version>
     </dependency>
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>1.0.1</version>
+      <version>1.1.0</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -42,12 +42,12 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
-      <version>2.2.15</version>
+      <version>2.2.16</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>
       <artifactId>jts-core</artifactId>
-      <version>1.19.0</version>
+      <version>${jts.version}</version>
     </dependency>
     <dependency>
       <groupId>org.tukaani</groupId>
@@ -67,7 +67,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.45.0.0</version>
+      <version>3.46.0.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>
@@ -77,7 +77,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.11</version>
+      <version>2.0.13</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -120,6 +120,15 @@
       <version>${jackson.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.snakeyaml</groupId>
+      <artifactId>snakeyaml-engine</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient</artifactId>
       <version>${prometheus.version}</version>
@@ -142,18 +151,36 @@
     <dependency>
       <groupId>com.ibm.icu</groupId>
       <artifactId>icu4j</artifactId>
-      <version>74.2</version>
+      <version>75.1</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.0.0-jre</version>
+      <version>33.2.1-jre</version>
     </dependency>
     <dependency>
       <groupId>mil.nga.geopackage</groupId>
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-nop</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
+    <!-- Pin transitive snappy dependency to more recent version without vulnerability -->
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+      <version>1.1.10.5</version>
+    </dependency>
+    <dependency>
+      <groupId>blue.strategic.parquet</groupId>
+      <artifactId>parquet-floor</artifactId>
+      <version>1.45</version>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -174,7 +201,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.4.2</version>
           <executions>
             <execution>
               <goals>

@@ -1,17 +1,21 @@
-package com.onthegomap.planetiler.custommap.validator;
+package com.onthegomap.planetiler.validator;
 
 import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.onthegomap.planetiler.custommap.YAML;
 import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.util.YAML;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-/** A model of example input source features and expected output vector tile features that a schema should produce. */
+/**
+ * A model of example input source features and expected output vector tile features that a schema should produce.
+ * <p>
+ * Executed by a subclass of {@link BaseSchemaValidator}.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SchemaSpecification(List<Example> examples) {
 

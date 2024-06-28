@@ -21,10 +21,13 @@ class PolygonIndexTest {
   void testSingle() {
     index.put(rectangle(0, 1), 1);
     assertListsContainSameElements(List.of(1), index.getContaining(newPoint(0.5, 0.5)));
+    assertListsContainSameElements(List.of(1), index.getIntersecting(newPoint(0.5, 0.5)));
+    assertListsContainSameElements(List.of(1), index.getIntersecting(rectangle(1, 2)));
     assertListsContainSameElements(List.of(1), index.getContainingOrNearest(newPoint(0.5, 0.5)));
 
     assertListsContainSameElements(List.of(), index.getContaining(newPoint(1.5, 1.5)));
     assertListsContainSameElements(List.of(), index.getContainingOrNearest(newPoint(1.5, 1.5)));
+    assertListsContainSameElements(List.of(), index.getIntersecting(rectangle(2, 3)));
   }
 
   @Test
@@ -33,6 +36,9 @@ class PolygonIndexTest {
     index.put(rectangle(0, 1), 2);
     assertListsContainSameElements(List.of(1, 2), index.getContaining(newPoint(0.5, 0.5)));
     assertListsContainSameElements(List.of(1, 2), index.getContainingOrNearest(newPoint(0.5, 0.5)));
+    assertListsContainSameElements(List.of(1, 2), index.getIntersecting(rectangle(0.5, 1.5)));
+    assertListsContainSameElements(List.of(1, 2), index.getIntersecting(rectangle(1, 2)));
+    assertListsContainSameElements(List.of(), index.getIntersecting(rectangle(2, 3)));
   }
 
   @Test

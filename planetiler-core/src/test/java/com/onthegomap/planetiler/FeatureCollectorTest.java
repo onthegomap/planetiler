@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
+import com.onthegomap.planetiler.reader.Struct;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.Arrays;
@@ -652,5 +653,203 @@ class FeatureCollectorTest {
         "key499", "val499"
       )
     ), collector);
+  }
+
+  @Test
+  void testPartialLineFeature() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.partialLine("layername", 0.25, 0.5).setAttr("k1", "v1");
+    collector.partialLine("layername", 0.75, 1).setAttr("k2", "v2");
+    assertFeatures(14, List.of(
+      Map.of(
+        "_geom", new RoundGeometry(newLineString(0.25, 0, 0.5, 0)),
+        "k1", "v1",
+        "k2", "<null>"
+      ),
+      Map.of(
+        "_geom", new RoundGeometry(newLineString(0.75, 0, 1, 0)),
+        "k1", "<null>",
+        "k2", "v2"
+      )
+    ), collector);
+  }
+
+  @Test
+  void testLinearReferenceTags() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.1, 0.5).setAttr("k1", "v1")
+      .linearRange(0.3, 0.7).setAttr("k2", "v2")
+      .entireLine().setAttr("k3", "v3");
+
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.1, roundTrip(newLineString(0, 0, 0.1, 0)), Map.of(
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.1, 0.3, roundTrip(newLineString(0.1, 0, 0.3, 0)), Map.of(
+        "k1", "v1",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.3, 0.5, roundTrip(newLineString(0.3, 0, 0.5, 0)), Map.of(
+        "k1", "v1",
+        "k2", "v2",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.5, 0.7, roundTrip(newLineString(0.5, 0, 0.7, 0)), Map.of(
+        "k2", "v2",
+        "k3", "v3"
+      )),
+      new FeatureCollector.RangeWithTags(0.7, 1, roundTrip(newLineString(0.7, 0, 1, 0)), Map.of(
+        "k3", "v3"
+      ))
+    ), feature.getLinearRangesAtZoom(14));
+  }
+
+  @Test
+  void testPartialMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.25, 0.75).setMinZoom(14);
+    assertFeatures(13, List.of(
+      Map.of("_geom", new RoundGeometry(newLineString(0, 0, 1, 0)))
+    ), collector);
+    assertFeatures(14, List.of(
+      Map.of("_geom", new RoundGeometry(newLineString(0, 0, 1, 0)))
+    ), collector);
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(13));
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 1, roundTrip(newLineString(0, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(14));
+  }
+
+  private static Geometry roundTrip(Geometry world) {
+    return GeoUtils.latLonToWorldCoords(GeoUtils.worldToLatLonCoords(world));
+  }
+
+  @Test
+  void testPartialOmit() {
+    var collector = factory.get(newReaderFeature(newLineString(worldToLatLon(0, 0, 1, 0)), Map.of()));
+    collector.line("layername")
+      .linearRange(0.25, 0.75).omit();
+    var feature = collector.iterator().next();
+    assertTrue(feature.hasLinearRanges());
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(13));
+    assertEquals(List.of(
+      new FeatureCollector.RangeWithTags(0, 0.25, roundTrip(newLineString(0, 0, 0.25, 0)), Map.of()),
+      new FeatureCollector.RangeWithTags(0.75, 1, roundTrip(newLineString(0.75, 0, 1, 0)), Map.of())
+    ), feature.getLinearRangesAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrStruct() {
+    var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of()));
+    collector.point("layername")
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrPartial() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .linearRange(0, 0.5)
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true
+    ), subFeature.attrs());
+  }
+
+  @Test
+  void testSetAttrPartialWithMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttrWithMinzoom("full", 1, 2)
+      .setAttrWithMinzoom("fullstruct", Struct.of(2), 2)
+      .linearRange(0, 0.5)
+      .setAttr("a", Struct.of(1))
+      .setAttrWithMinzoom("b", Struct.of(2d), 9)
+      .putAttrs(Map.of("c", Struct.of("3"), "d", ZoomFunction.minZoom(9, Struct.of(true))));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "a", 1,
+      "b", 2d,
+      "c", "3",
+      "d", true,
+      "full", 1,
+      "fullstruct", 2
+    ), subFeature.attrs());
+  }
+
+  @Test
+  void testUnwrapStruct() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttr("full", Struct.of(1))
+      .linearRange(0, 0.5)
+      .setAttr("partial", Struct.of(2));
+    var feature = collector.iterator().next();
+    var subFeature = feature.getLinearRangesAtZoom(14).getFirst();
+    assertEquals(Map.of(
+      "full", 1,
+      "partial", 2
+    ), subFeature.attrs());
+  }
+
+  @Test
+  void testUnwrapStructFull() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttr("full", Struct.of(1));
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "full", 1
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testUnwrapStructFullWithMinzoom() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    collector.line("layername")
+      .setAttrWithMinzoom("full", Struct.of(1), 2);
+    var feature = collector.iterator().next();
+    assertEquals(Map.of(
+      "full", 1
+    ), feature.getAttrsAtZoom(14));
+  }
+
+  @Test
+  void testSetAttrPartialWithMinSize() {
+    var collector = factory.get(newReaderFeature(newLineString(0, 0, 1, 1), Map.of()));
+    var line = collector.line("layername");
+
+    assertEquals(7, line.getMinZoomForPixelSize(100));
+    assertEquals(7, line.linearRange(0, 0.5).getMinZoomForPixelSize(50));
+    assertEquals(7, line.linearRange(0, 0.25).getMinZoomForPixelSize(25));
   }
 }

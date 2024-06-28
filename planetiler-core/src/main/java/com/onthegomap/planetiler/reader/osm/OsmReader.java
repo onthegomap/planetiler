@@ -35,8 +35,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -788,11 +790,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     @Override
     protected Geometry computeWorldGeometry() throws GeometryException {
       List<LongArrayList> rings = new ArrayList<>(relation.members().size());
+      Set<Long> added = new HashSet<>();
       for (OsmElement.Relation.Member member : relation.members()) {
         String role = member.role();
         LongArrayList poly = multipolygonWayGeometries.get(member.ref());
         if (member.type() == OsmElement.Type.WAY) {
-          if (poly != null && !poly.isEmpty()) {
+          if (!added.add(member.ref())) {
+            // ignore duplicate relation members
+            stats.dataError("osm_" + relation.getTag("type") + "_duplicate_member");
+          } else if (poly != null && !poly.isEmpty()) {
             rings.add(poly);
           } else {
             // boundary and land_area relations might not be complete for extracts, but multipolygons should be

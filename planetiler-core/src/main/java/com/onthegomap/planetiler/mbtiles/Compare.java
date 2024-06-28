@@ -116,7 +116,7 @@ public class Compare {
    * <li>{@link VectorTile.Feature#id()} won't be compared
    * <li>{@link VectorTile.Feature#layer()} will be compared
    * <li>{@link VectorTile.Feature#geometry()} gets normalized for comparing
-   * <li>{@link VectorTile.Feature#attrs()} will be compared except for the rank attribute since the value produced by
+   * <li>{@link VectorTile.Feature#tags()} will be compared except for the rank attribute since the value produced by
    * planetiler is not stable and differs on every run (at least for parks)
    * <li>{@link VectorTile.Feature#group()} will be compared
    * </ul>
@@ -129,7 +129,7 @@ public class Compare {
   ) {
     static VectorTileFeatureForCmp fromActualFeature(VectorTile.Feature f) {
       try {
-        var attrs = new HashMap<>(f.attrs());
+        var attrs = new HashMap<>(f.tags());
         attrs.remove("rank");
         return new VectorTileFeatureForCmp(f.layer(), f.geometry().decode().norm(), attrs, f.group());
       } catch (GeometryException e) {

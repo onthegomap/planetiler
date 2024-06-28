@@ -39,6 +39,20 @@ class ArgumentsTest {
   }
 
   @Test
+  void testWithFallback() {
+    Arguments args = Arguments.of("key1", "value1a", "key2", "value2a")
+      .withDefault("key2", "value2b")
+      .withDefault("--key3", "value3b")
+      .withDefault("key_5", true);
+
+    assertEquals("value1a", args.getString("key1", "key", "fallback"));
+    assertEquals("value2a", args.getString("key2", "key", "fallback"));
+    assertEquals("value3b", args.getString("key3", "key", "fallback"));
+    assertEquals("fallback", args.getString("key4", "key", "fallback"));
+    assertTrue(args.getBoolean("key-5", "key", false));
+  }
+
+  @Test
   void testConfigFileParsing() {
     Arguments args = Arguments.fromConfigFile(TestUtils.pathToResource("test.properties"));
 

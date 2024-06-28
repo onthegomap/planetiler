@@ -13,9 +13,11 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.parquet.ParquetReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -32,6 +34,7 @@ import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
+import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -39,9 +42,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +88,8 @@ public class Planetiler {
   private final Path nodeDbPath;
   private final Path multipolygonPath;
   private final Path featureDbPath;
-  private final boolean downloadSources;
+  private final Path onlyRunTests;
+  private boolean downloadSources;
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
@@ -117,6 +124,7 @@ public class Planetiler {
     }
     tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
+    onlyRunTests = arguments.file("tests", "run test cases in a yaml then quit", null);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
     refreshSources =
       arguments.getBoolean("refresh_sources", "download new version of source files if they have changed", false);
@@ -469,6 +477,53 @@ public class Planetiler {
         config, profile, stats, keepUnzipped)));
   }
 
+
+  /**
+   * Adds a new <a href="https://github.com/opengeospatial/geoparquet">geoparquet</a> source that will be processed when
+   * {@link #run()} is called.
+   *
+   * @param name             string to use in stats and logs to identify this stage
+   * @param paths            paths to the geoparquet files to read.
+   * @param hivePartitioning Set to true to parse extra feature tags from the file path, for example
+   *                         {@code {them="buildings", type="part"}} from
+   *                         {@code base/theme=buildings/type=part/file.parquet}
+   * @param getId            function that extracts a unique vector tile feature ID from each input feature, string or
+   *                         binary features will be hashed to a {@code long}.
+   * @param getLayer         function that extracts {@link SourceFeature#getSourceLayer()} from the properties of each
+   *                         input feature
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning,
+    Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
+    // TODO handle auto-downloading
+    for (var path : paths) {
+      inputPaths.add(new InputPath(name, path, false));
+    }
+    var separator = Pattern.quote(paths.isEmpty() ? "/" : paths.getFirst().getFileSystem().getSeparator());
+    String prefix = StringUtils.getCommonPrefix(paths.stream().map(Path::toString).toArray(String[]::new))
+      .replaceAll(separator + "[^" + separator + "]*$", "");
+    return addStage(name, "Process features in " + (prefix.isEmpty() ? (paths.size() + " files") : prefix),
+      ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
+        .process(paths, featureGroup, config)));
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} using the default layer and ID
+   * extractors.
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning) {
+    return addParquetSource(name, paths, hivePartitioning, null, null);
+  }
+
+  /**
+   * Alias for {@link #addParquetSource(String, List, boolean, Function, Function)} without hive partitioning and using
+   * the default layer and ID extractors.
+   */
+  public Planetiler addParquetSource(String name, List<Path> paths) {
+    return addParquetSource(name, paths, false);
+  }
+
   /**
    * Adds a new stage that will be invoked when {@link #run()} is called.
    *
@@ -618,7 +673,11 @@ public class Planetiler {
     return setOutput(defaultOutputUri);
   }
 
-  /** Alias for {@link #overwriteOutput(String)} which infers the output type based on extension. */
+  /**
+   * Alias for {@link #overwriteOutput(String)} which infers the output type based on extension.
+   * <p>
+   * This will override the value returned by
+   */
   public Planetiler overwriteOutput(Path defaultOutput) {
     return overwriteOutput(defaultOutput.toString());
   }
@@ -628,9 +687,8 @@ public class Planetiler {
    * writes the rendered tiles to the output archive.
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
-   * @throws Exception                if an error occurs while processing
    */
-  public void run() throws Exception {
+  public void run() {
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (buildInfo != null && LOGGER.isInfoEnabled()) {
@@ -657,6 +715,9 @@ public class Planetiler {
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
+    } else if (onlyRunTests != null) {
+      boolean success = JavaProfileValidator.validate(profile(), onlyRunTests, config());
+      System.exit(success ? 0 : 1);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (config.append()) {
@@ -720,7 +781,7 @@ public class Planetiler {
 
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
-    Files.createDirectories(tmpDir);
+    FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
     if (!toDownload.isEmpty()) {
@@ -762,7 +823,11 @@ public class Planetiler {
       stats.monitorFile("archive", output.getLocalPath(), archive::bytesWritten);
 
       for (Stage stage : stages) {
-        stage.task.run();
+        try {
+          stage.task.run();
+        } catch (Exception e) {
+          throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+        }
       }
 
       LOGGER.info("Deleting node.db to make room for output file");
@@ -779,13 +844,17 @@ public class Planetiler {
       TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,
         config, stats);
     } catch (IOException e) {
-      throw new IllegalStateException("Unable to write to " + output, e);
+      throw new PlanetilerException("Unable to write to " + output, e);
     }
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");
     stats.printSummary();
-    stats.close();
+    try {
+      stats.close();
+    } catch (Exception e) {
+      throw new PlanetilerException(e);
+    }
   }
 
   private void checkDiskSpace() {
@@ -938,4 +1007,15 @@ public class Planetiler {
   private record ToDownload(String id, String url, Path path) {}
 
   private record InputPath(String id, Path path, boolean freeAfterReading) {}
+
+  /** An exception that occurs while running planetiler. */
+  public static class PlanetilerException extends RuntimeException {
+    public PlanetilerException(String message, Exception e) {
+      super(message, e);
+    }
+
+    public PlanetilerException(Exception e) {
+      super(e);
+    }
+  }
 }

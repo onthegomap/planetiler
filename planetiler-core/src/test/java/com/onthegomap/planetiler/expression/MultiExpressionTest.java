@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
@@ -41,6 +42,16 @@ class MultiExpressionTest {
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testDoubleElement() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "value")),
+      entry("a", matchAny("key", "value"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
   }
 
@@ -625,28 +636,10 @@ class MultiExpressionTest {
 
   @Test
   void testCustomExpression() {
-    Expression dontEvaluate = new Expression() {
-      @Override
-      public boolean evaluate(WithTags input, List<String> matchKeys) {
-        throw new AssertionError("should not evaluate");
-      }
-
-      @Override
-      public String generateJavaCode() {
-        return null;
-      }
+    Expression dontEvaluate = (input, matchKeys) -> {
+      throw new AssertionError("should not evaluate");
     };
-    Expression matchAbc = new Expression() {
-      @Override
-      public boolean evaluate(WithTags input, List<String> matchKeys) {
-        return input.hasTag("abc");
-      }
-
-      @Override
-      public String generateJavaCode() {
-        return null;
-      }
-    };
+    Expression matchAbc = (input, matchKeys) -> input.hasTag("abc");
     var index = MultiExpression.of(List.of(
       entry("a", matchAbc),
       entry("b", and(matchField("def"), dontEvaluate)),
@@ -693,6 +686,76 @@ class MultiExpressionTest {
     assertFalse(expr.evaluate(featureWithTags("otherkey", "otherval"), list));
     assertFalse(expr.evaluate(featureWithTags("key", "otherval"), list));
     assertFalse(expr.evaluate(featureWithTags(), list));
+  }
+
+
+  @Test
+  void testSourceFilter() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchSource("a")),
+      entry("b", and(matchSource("b"), matchField("field"))),
+      entry("c", or(matchField("abc"), matchSourceLayer("c")))
+    )).index();
+
+    assertSameElements(List.of(), index.getMatches(point("source", "layer", Map.of())));
+    assertSameElements(List.of("a"), index.getMatches(point("a", "layer", Map.of())));
+    assertSameElements(List.of(), index.getMatches(point("b", "layer", Map.of())));
+    assertSameElements(List.of("b"), index.getMatches(point("b", "layer", Map.of("field", "value"))));
+    assertSameElements(List.of("c"), index.getMatches(point("source", "layer", Map.of("abc", "value"))));
+    assertSameElements(List.of("c"), index.getMatches(point("source", "c", Map.of("abc", "value"))));
+    assertSameElements(List.of("c"), index.getMatches(point("source", "c", Map.of())));
+  }
+
+  @Test
+  void testSourceAndGeomFilter() {
+    var index = MultiExpression.of(List.of(
+      entry("a", and(matchGeometryType(GeometryType.POINT), matchSource("a"))),
+      entry("b", and(matchGeometryType(GeometryType.POLYGON), and(matchSource("b"), matchField("field")))),
+      entry("c", and(matchGeometryType(GeometryType.POLYGON), or(matchField("abc"), matchSourceLayer("c")))),
+      entry("d", and(matchField("field2")))
+    )).index();
+
+    assertSameElements(List.of(), index.getMatches(point("source", "layer", Map.of())));
+    assertSameElements(List.of("a"), index.getMatches(point("a", "layer", Map.of())));
+    assertSameElements(List.of(), index.getMatches(point("b", "layer", Map.of())));
+    assertSameElements(List.of(), index.getMatches(point("b", "layer", Map.of("field", "value"))));
+    assertSameElements(List.of(), index.getMatches(point("source", "layer", Map.of("abc", "value"))));
+    assertSameElements(List.of(), index.getMatches(point("source", "c", Map.of("abc", "value"))));
+    assertSameElements(List.of(), index.getMatches(point("source", "c", Map.of())));
+    assertSameElements(List.of("d"), index.getMatches(point("source", "layer", Map.of("field2", "value"))));
+  }
+
+  private static SourceFeature point(String source, String layer, Map<String, Object> tags) {
+    return SimpleFeature.create(newPoint(0, 0), tags, source, layer, 1);
+  }
+
+
+  @Test
+  void testNestedMatching() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchField("a.b")),
+      entry("b", matchAny("a.b", "c", "d")),
+      entry("c", matchAny("a", "e")),
+      entry("d", matchAny("a[].b", "c"))
+    )).index();
+
+    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("k", "v"))));
+    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", "e"))));
+    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", List.of("e")))));
+    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", List.of("e", "f")))));
+    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("a", List.of("g", "f")))));
+
+
+    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a.b", "e"))));
+    assertSameElements(List.of("a", "b"), index.getMatches(WithTags.from(Map.of("a.b", "c"))));
+    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of())))));
+    assertSameElements(List.of("a", "b", "d"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("c"))))));
+    assertSameElements(List.of("a", "b"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("d"))))));
+    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("e"))))));
+    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", Map.of("c", "e"))))));
+
+    assertSameElements(List.of("a", "b", "c", "d"),
+      index.getMatches(WithTags.from(Map.of("a", List.of("e", Map.of("b", List.of("c")))))));
   }
 
   private static <T> void assertSameElements(List<T> a, List<T> b) {

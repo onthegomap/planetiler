@@ -68,7 +68,7 @@ public class Verify {
         if (tileCoord.z() == zoom) {
           byte[] data = db.getTile(tileCoord);
           for (var feature : decode(data)) {
-            if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
+            if (layer.equals(feature.layer()) && feature.tags().entrySet().containsAll(attrs.entrySet())) {
               Geometry geometry = feature.geometry().decode();
               num += getGeometryCounts(geometry, clazz);
             }

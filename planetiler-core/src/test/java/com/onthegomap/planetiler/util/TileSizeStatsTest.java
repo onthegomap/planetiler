@@ -37,7 +37,7 @@ class TileSizeStatsTest {
     assertEquals(2, entry1.layerAttrKeys());
     assertEquals(2, entry1.layerAttrValues());
 
-    var formatted = TileSizeStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    var formatted = TileSizeStats.newThreadLocalSerializer().formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_geometries	layer_attr_bytes	layer_attr_keys	layer_attr_values
@@ -86,7 +86,7 @@ class TileSizeStatsTest {
     assertEquals("b", entry2.layer());
     assertEquals(1, entry2.layerFeatures());
 
-    var formatted = TileSizeStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    var formatted = TileSizeStats.newThreadLocalSerializer().formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_geometries	layer_attr_bytes	layer_attr_keys	layer_attr_values

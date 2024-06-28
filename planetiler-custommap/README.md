@@ -132,7 +132,7 @@ to `france.osm.pbf`. Planetiler searches for argument values in this order:
 3. Environmental variables with "PLANETILER_" prefix: `PLANETILER_AREA=france java ...`
 4. Default value from the config
 
-Argument values are available from the [`args` variable](#root-context) in
+Argument values are available from the [`args` variable](#1-root-context) in
 an [inline script expression](#inline-script-expression) or the [`arg_value` expression](#argument-value-expression).
 
 ### Built-in arguments
@@ -152,7 +152,7 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `maxzoom` - Maximum tile zoom level to emit
 - `render_maxzoom` - Maximum rendering zoom level up to
 - `force` - Overwriting output file and ignore warnings
-- `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
+- `compress_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files
 - `sort_max_readers` - Maximum number of concurrent read threads to use when sorting chunks
 - `sort_max_writers` - Maximum number of concurrent write threads to use when sorting chunks
@@ -466,44 +466,51 @@ value: "${ 8 * 24 - 2 }"
 
 #### Inline Script Contexts
 
-Scripts are parsed and evaluated inside a "context" that defines the variables available to that script. Contexts are
-nested, so each child context can also access the variables from its parent.
+Scripts are parsed and evaluated inside a "context" that defines the variables available to that script.
 
-> ##### root context
->
-> Available variables:
-> - `args` - a map from [argument](#arguments) name to value, see also [built-in arguments](#built-in-arguments) that
->
->> are always available.
->>
->> ##### process feature context
->>
->> Context available when processing an input feature, for example testing whether to include it from `include_when`.
->> Available variables:
->>
->> - `feature.tags` - map with key/value tags from the input feature
->> - `feature.id` - numeric ID of the input feature
->> - `feature.source` - string source ID this feature came from
->> - `feature.source_layer` - optional layer within the source the feature came from
->> - `feature.osm_changeset` - optional OSM changeset ID for this feature
->> - `feature.osm_version` - optional OSM element version for this feature
->> - `feature.osm_timestamp` - optional OSM last modified timestamp for this feature
->> - `feature.osm_user_id` - optional ID of the OSM user that last modified this feature
->> - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
->>
->>> ##### post-match context
->>>
->>> Context available after a feature has matched, for example computing an attribute value. Adds variables:
->>>
->>> - `match_key` - string tag that triggered a match to include the feature in this layer
->>> - `match_value` - the tag value associated with that key
->>>
->>>> ##### configure attribute context
->>>>
->>>> Context available after the value of an attribute has been computed, for example: set min zoom to render an
->>>> attribute. Adds variables:
->>>>
->>>> - `value` the value that was computed for this key
+**_Notice_**: Contexts are nested, so each child context can also access the variables from its parent.
+
+##### 1. Root Context
+
+Available variables:
+
+- `args` - a map from [argument](#arguments) name to value, see also [built-in arguments](#built-in-arguments) that are
+  always available.
+
+##### 2. Process Feature Context
+
+Context available when processing an input feature, for example testing whether to include it from `include_when`.
+
+Additional variables, on top of the root context:
+
+- `feature.tags` - map with key/value tags from the input feature
+- `feature.id` - numeric ID of the input feature
+- `feature.source` - string source ID this feature came from
+- `feature.source_layer` - optional layer within the source the feature came from
+- `feature.osm_changeset` - optional OSM changeset ID for this feature
+- `feature.osm_version` - optional OSM element version for this feature
+- `feature.osm_timestamp` - optional OSM last modified timestamp for this feature
+- `feature.osm_user_id` - optional ID of the OSM user that last modified this feature
+- `feature.osm_user_name` - optional name of the OSM user that last modified this feature
+- `feature.osm_type` - type of the OSM element as a string: `"node"`, `"way"`, or `"relation"`
+
+##### 3. Post-Match Context
+
+Context available after a feature has matched, for example computing an attribute value.
+
+Additional variables, on top of the process feature context:
+
+- `match_key` - string tag that triggered a match to include the feature in this layer
+- `match_value` - the tag value associated with that key
+
+##### 4. Configure Attribute Context
+
+Context available after the value of an attribute has been computed, for example: set min zoom to render an
+attribute.
+
+Additional variable, on top of the post-match context:
+
+- `value` the value that was computed for this key
 
 For example:
 
@@ -600,7 +607,7 @@ include_when:
 
 When a feature matches a boolean expression in the `include_when` field, the first key that triggered the match is
 available to other expressions as `match_key` and its value is available as `match_value`
-(See [Post-Match Context](#post-match-context)):
+(See [Post-Match Context](#3-post-match-context)):
 
 ```yaml
 include_when:

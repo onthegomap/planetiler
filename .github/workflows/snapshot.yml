@@ -35,6 +35,8 @@ jobs:
         server-id: ossrh
         server-username: MAVEN_USERNAME
         server-password: MAVEN_PASSWORD
+        gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+        gpg-passphrase: OSSRH_GPG_SECRET_KEY_PASSWORD
     - run: ./scripts/build-release.sh
     - run: ./scripts/test-release.sh
     - run: sha256sum planetiler-dist/target/*with-deps.jar
@@ -44,9 +46,6 @@ jobs:
       with:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
-    - name: Install GPG Private Key
-      run: |
-        echo -n "${{ secrets.OSSRH_GPG_SECRET_KEY }}" | base64 --decode | gpg --batch --import
     - run: ./scripts/push-release.sh
       env:
         GITHUB_ACTOR: ${{ github.actor }}

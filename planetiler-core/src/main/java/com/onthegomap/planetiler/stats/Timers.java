@@ -103,12 +103,20 @@ public class Timers {
       LOGGER.info("");
       LOGGER.info("Starting...");
     }
-    return () -> {
-      LOGGER.info("Finished in {}", timers.get(name).timer.stop());
-      for (var details : getStageDetails(name, true)) {
-        LOGGER.info("  {}", details);
+    return new Finishable() {
+      @Override
+      public void stop() {
+        LOGGER.info("Finished in {}", timers.get(name).timer.stop());
+        for (var details : getStageDetails(name, true)) {
+          LOGGER.info("  {}", details);
+        }
+        currentStage.set(last);
       }
-      currentStage.set(last);
+
+      @Override
+      public ProcessTime elapsed() {
+        return timer.elapsed();
+      }
     };
   }
 
@@ -129,6 +137,8 @@ public class Timers {
   /** A handle that callers can use to indicate a task has finished. */
   public interface Finishable {
     void stop();
+
+    ProcessTime elapsed();
   }
 
   record ThreadInfo(ProcessInfo.ThreadState state, String prefix, Duration elapsed) {}
