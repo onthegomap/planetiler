@@ -61,7 +61,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * @return a feature that can be configured further.
    */
   public Feature geometry(String layer, Geometry geometry) {
-    Feature feature = new Feature(layer, geometry, source);
+    Feature feature = new Feature(layer, geometry, source.featureIdFromElement());
     output.add(feature);
     return feature;
   }
@@ -82,8 +82,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
-      e.log(stats, "feature_point", "Error getting point geometry for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_point", "Error getting point geometry for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -102,8 +102,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
-      e.log(stats, "feature_line", "Error constructing line for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_line", "Error constructing line for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -122,8 +122,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
-      e.log(stats, "feature_polygon", "Error constructing polygon for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_polygon", "Error constructing polygon for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -137,8 +137,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
-      e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_centroid", "Error getting centroid for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -154,8 +154,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
-      e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -170,8 +170,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
-      e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -192,8 +192,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.innermostPoint(tolerance));
     } catch (GeometryException e) {
-      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source);
+      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.featureIdFromElement());
+      return new Feature(layer, EMPTY_GEOM, source.featureIdFromElement());
     }
   }
 
@@ -277,21 +277,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     private String numPointsAttr = null;
 
-    private Feature(String layer, Geometry geom, SourceFeature source) {
+    private Feature(String layer, Geometry geom, long id) {
       this.layer = layer;
       this.geom = geom;
       this.geometryType = GeometryType.typeOf(geom);
-      if (source instanceof OsmSourceFeature osmSourceFeature) {
-        long osmId = osmSourceFeature.originalElement().id();
-        this.id = switch (osmSourceFeature.originalElement()) {
-          case OsmElement.Node node -> node.id() * 10 + 1;
-          case OsmElement.Way way -> way.id() * 10 + 2;
-          case OsmElement.Relation relation -> relation.id() * 10 + 3;
-          default -> osmId * 10;
-        };
-      } else {
-        this.id = source.id();
-      }
+      this.id = id;
       if (geometryType == GeometryType.POINT) {
         minPixelSizeAtMaxZoom = 0;
         defaultMinPixelSize = 0;
