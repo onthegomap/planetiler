@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -84,14 +85,33 @@ public class TileWeights {
   /**
    * Load tile weights from a gzipped TSV file with {@code z, x, y, loads} columns.
    * <p>
-   * Duplicate entries will be added together.
+   * Duplicate entries will be added together. If the file is missing, will fall back to embedded file with top 50k OSM
+   * tiles.
    */
   public static TileWeights readFromFile(Path path) {
+    try (var fileStream = new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
+      var result = readFrom(fileStream);
+      if (!result.weights.isEmpty()) {
+        return result;
+      }
+    } catch (IOException | RuntimeJsonMappingException e) {
+      LOGGER.info("Unable to load tile weights from {}, falling back to top 100k", path);
+    }
+
+    try (var resourceStream = TileWeights.class.getResourceAsStream("/top_50k_osm_tiles.tsv")) {
+      return readFrom(resourceStream);
+    } catch (IOException e) {
+      LOGGER.warn("Unable to load top 100k tile weights, falling back to unweighted average", e);
+      return new TileWeights();
+    }
+  }
+
+  private static TileWeights readFrom(InputStream input) throws IOException {
+    if (input == null) {
+      throw new IOException("No input provided");
+    }
     TileWeights result = new TileWeights();
-    try (
-      var input = new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path)));
-      var reader = READER.<Row>readValues(input)
-    ) {
+    try (var reader = READER.<Row>readValues(input)) {
       while (reader.hasNext()) {
         var row = reader.next();
         if (row.z >= PlanetilerConfig.MIN_MINZOOM && row.z <= PlanetilerConfig.MAX_MAXZOOM) {
@@ -100,9 +120,6 @@ public class TileWeights {
           result.put(TileCoord.ofXYZ(x, y, row.z()), row.loads());
         }
       }
-    } catch (IOException | RuntimeJsonMappingException e) {
-      LOGGER.warn("Unable to load tile weights from {}, will fall back to unweighted average: {}", path, e);
-      return new TileWeights();
     }
     return result;
   }

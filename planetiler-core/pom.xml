@@ -188,6 +188,16 @@
       <resource>
         <directory>src/main/resources</directory>
         <filtering>true</filtering>
+        <includes>
+          <include>buildinfo.properties</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>buildinfo.properties</exclude>
+        </excludes>
       </resource>
     </resources>
     <testResources>
