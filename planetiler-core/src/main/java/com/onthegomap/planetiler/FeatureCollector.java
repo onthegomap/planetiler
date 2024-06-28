@@ -64,6 +64,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * @return a feature that can be configured further.
    */
   public Feature geometry(String layer, Geometry geometry) {
+    // TODO args could also provide a list of source IDs to put into slot 4, 5, 6, etc..
+    // to differentiate between other sources besides just OSM and "other"
     long vectorTileId = config.featureSourceIdMultiplier() < 4 ? source.id() :
       source.vectorTileFeatureId(config.featureSourceIdMultiplier());
     Feature feature = new Feature(layer, geometry, vectorTileId);
