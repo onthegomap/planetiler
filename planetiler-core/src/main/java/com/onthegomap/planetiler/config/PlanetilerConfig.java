@@ -60,7 +60,8 @@ public record PlanetilerConfig(
   Path tmpDir,
   Path tileWeights,
   double maxPointBuffer,
-  boolean logJtsExceptions
+  boolean logJtsExceptions,
+  int featureSourceIdMultiplier
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -213,7 +214,11 @@ public record PlanetilerConfig(
           "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
           "raster tile rendering",
         Double.POSITIVE_INFINITY),
-      arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false)
+      arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false),
+      arguments.getInteger("feature_source_id_multiplier",
+        "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
+          "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
+        10)
     );
   }
 

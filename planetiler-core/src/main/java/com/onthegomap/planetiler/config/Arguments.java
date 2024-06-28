@@ -445,7 +445,11 @@ public class Arguments {
    */
   public int getInteger(String key, String description, int defaultValue) {
     String value = getArg(key, Integer.toString(defaultValue));
-    int parsed = Integer.parseInt(value);
+    int parsed = switch (value.toLowerCase(Locale.ROOT)) {
+      case "false" -> 0;
+      case "true" -> defaultValue;
+      default -> Integer.parseInt(value);
+    };
     logArgValue(key, description, parsed);
     return parsed;
   }

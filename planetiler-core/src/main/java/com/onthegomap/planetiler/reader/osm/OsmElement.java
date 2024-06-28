@@ -27,6 +27,7 @@ public interface OsmElement extends WithTags {
   Type type();
 
   enum Type {
+    OTHER,
     NODE,
     WAY,
     RELATION
@@ -46,7 +47,7 @@ public interface OsmElement extends WithTags {
 
     @Override
     public Type type() {
-      return null;
+      return Type.OTHER;
     }
   }
 

@@ -284,7 +284,9 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = VectorTile.decode(bytes).stream()
-        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags())).toList();
+        .map(
+          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
+        .toList();
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
@@ -490,12 +492,21 @@ public class TestUtils {
   public record ComparableFeature(
     GeometryComparision geometry,
     String layer,
-    Map<String, Object> attrs
+    Map<String, Object> attrs,
+    Long id
   ) {
+    ComparableFeature(
+      GeometryComparision geometry,
+      String layer,
+      Map<String, Object> attrs
+    ) {
+      this(geometry, layer, attrs, null);
+    }
 
     @Override
     public boolean equals(Object o) {
       return o == this || (o instanceof ComparableFeature other &&
+        (id == null || other.id == null || id.equals(other.id)) &&
         geometry.equals(other.geometry) &&
         attrs.equals(other.attrs) &&
         (layer == null || other.layer == null || Objects.equals(layer, other.layer)));
@@ -507,10 +518,23 @@ public class TestUtils {
       result = 31 * result + attrs.hashCode();
       return result;
     }
+
+    ComparableFeature withId(long id) {
+      return new ComparableFeature(geometry, layer, attrs, id);
+    }
+  }
+
+
+  public static ComparableFeature feature(Geometry geom, String layer, Map<String, Object> attrs, long id) {
+    return new ComparableFeature(new NormGeometry(geom), layer, attrs, id);
   }
 
   public static ComparableFeature feature(Geometry geom, String layer, Map<String, Object> attrs) {
     return new ComparableFeature(new NormGeometry(geom), layer, attrs);
+  }
+
+  public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs, long id) {
+    return new ComparableFeature(new NormGeometry(geom), null, attrs, id);
   }
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
