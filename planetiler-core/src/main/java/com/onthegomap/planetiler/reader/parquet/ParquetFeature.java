@@ -47,6 +47,11 @@ public class ParquetFeature extends SourceFeature {
     return schema;
   }
 
+  // todo linespace
+  public String geometryColumn() {
+    return geometryParser.geometryColumn;
+  }
+
   @Override
   public Geometry latLonGeometry() throws GeometryException {
     return latLon == null ? latLon = geometryParser.parseGeometry(rawGeometry, geometryParser.geometryColumn) : latLon;
@@ -58,7 +63,8 @@ public class ParquetFeature extends SourceFeature {
       (world = GeoUtils.sortPolygonsByAreaDescending(GeoUtils.latLonToWorldCoords(latLonGeometry())));
   }
 
-  private GeometryType geometryType() {
+  // todo linespace
+  public GeometryType geometryType() {
     if (geometryType != null) {
       return geometryType;
     }
