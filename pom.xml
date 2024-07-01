@@ -92,6 +92,7 @@
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>
+    <module>linespace_shade</module>
   </modules>
 
   <dependencyManagement>
@@ -416,7 +417,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>flatten-maven-plugin</artifactId>
-            <version>1.6.0</version>
+            <version>1.5.0</version>
             <configuration>
               <updatePomFile>true</updatePomFile>
               <flattenMode>resolveCiFriendliesOnly</flattenMode>

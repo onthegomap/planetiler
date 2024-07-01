@@ -5,17 +5,27 @@ import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
+import com.onthegomap.planetiler.util.MinioUtils;
 import com.onthegomap.planetiler.util.Parse;
+import io.minio.MinioClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Holder for common parameters used by many components in planetiler.
  */
 public record PlanetilerConfig(
+  // todo linespace
+  ThreadPoolExecutor oosThreadPoolExecutor,
+  MinioUtils minioUtils,
   Arguments arguments,
   Bounds bounds,
   int threads,
@@ -61,6 +71,8 @@ public record PlanetilerConfig(
   Path tileWeights,
   double maxPointBuffer,
   boolean logJtsExceptions,
+  String oosSavePath,
+  String outputType,
   int featureSourceIdMultiplier
 ) {
 
@@ -119,6 +131,37 @@ public record PlanetilerConfig(
       }
     }
 
+    // todo linespace 创建文件上传线程池
+    int processorsThreads = Runtime.getRuntime().availableProcessors() * 2 + 1;
+    int oosCorePoolSize = arguments.getInteger("oosCorePoolSize", "文件上传核心线程数", 0);
+    int oosMaxPoolSize = arguments.getInteger("oosMaxPoolSize", "文件上传最大线程数", 0);
+    oosCorePoolSize = oosCorePoolSize == 0 ? processorsThreads : oosCorePoolSize;
+    oosMaxPoolSize = oosMaxPoolSize == 0 ? processorsThreads : oosMaxPoolSize;
+    if (oosMaxPoolSize < oosCorePoolSize) {
+      oosMaxPoolSize = oosCorePoolSize;
+    }
+
+    ThreadPoolExecutor oosThreadPoolExecutor = new ThreadPoolExecutor(oosCorePoolSize, oosMaxPoolSize, 0L, TimeUnit.MINUTES,
+      new LinkedBlockingQueue<>(),
+      Executors.defaultThreadFactory(), new ThreadPoolExecutor.CallerRunsPolicy());
+
+    // todo linespace 设置minio配置信息
+    String accessKey = arguments.getString("accessKey", "accessKey", "");
+    String secretKey = arguments.getString("secretKey", "secretKey", "");
+    String endpoint =  arguments.getString("endpoint", "endpoint", "");
+    String bucketName = arguments.getString("bucketName", "bucketName", "");
+    MinioUtils minioUtils;
+    if (StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey)
+      && StringUtils.isNotBlank(endpoint) && StringUtils.isNotBlank(bucketName)) {
+      MinioClient client = MinioClient.builder()
+        .endpoint(endpoint)
+        .credentials(accessKey,secretKey)
+        .build();
+      minioUtils = new MinioUtils(client, bucketName);
+    } else {
+      minioUtils = new MinioUtils();
+    }
+
     int minzoom = arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM);
     int maxzoom = arguments.getInteger("maxzoom", "maximum zoom level up to " + MAX_MAXZOOM, DEFAULT_MAXZOOM);
     int renderMaxzoom =
@@ -127,6 +170,9 @@ public record PlanetilerConfig(
     Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
 
     return new PlanetilerConfig(
+      // todo linespce
+      oosThreadPoolExecutor,
+      minioUtils,
       arguments,
       bounds,
       threads,
@@ -215,6 +261,9 @@ public record PlanetilerConfig(
           "raster tile rendering",
         Double.POSITIVE_INFINITY),
       arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false),
+      // todo linespce
+      arguments.getString("oossavepath", "存储服务器文件存储路径", ""),
+      arguments.getString("outputType", "输出数据类型（mbtiles,pbf）", "pbf"),
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",

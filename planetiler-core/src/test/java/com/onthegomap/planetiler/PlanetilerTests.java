@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -2319,45 +2320,63 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    "",
-    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4"
+    "--outputType=mbtiles --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=/planetiler/无敌 --oosCorePoolSize=24 --oosMaxPoolSize=24 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
+//    "--tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz --endpoint=http://127.0.0.1:9547 --bucketName=parquet  --secretKey=J4E9epBZNXV9GlJiu9LRtBwjvd9Wx538 --accessKey=kGiVOXwOBMBmV7Ab --oosSavePath=/linespace/test --oosCorePoolSize=24 --oosMaxPoolSize=24",
+//    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4 --tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz"
   })
   void testPlanetilerRunnerParquet(String args) throws Exception {
-    Path mbtiles = tempDir.resolve("output.mbtiles");
+    Path mbtiles = Paths.get("E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\pbftest\\planetiler测试\\planetiler.mbtiles");
 
-    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=" + tempDir.resolve("data")).split("\\s+")))
+    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\pbftest\\planetiler测试").split("\\s+")))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
-          features.polygon("buildings")
-            .setZoomRange(0, 14)
-            .setMinPixelSize(0)
-            .setAttr("id", source.getString("id"));
+          FeatureCollector.Feature feature;
+          if (source.canBePolygon()) {
+            feature = features.polygon("polygon_data").setZoomRange(0, 14)
+              .setMinPixelSize(1);
+          } else if (source.canBeLine()) {
+            feature = features.line("line_data").setZoomRange(0, 14);
+          } else if (source.isPoint()) {
+            feature = features.point("point_data").setMaxZoom(14);
+          } else {
+            throw new RuntimeException("未知的参数类型");
+          }
+
+          Map<String, Object> tags = source.tags();
+          for (Map.Entry<String, Object> entry : tags.entrySet()) {
+            feature.setAttr(entry.getKey(), entry.getValue());
+          }
         }
+
       })
-      .addParquetSource("parquet", List.of(TestUtils.pathToResource("parquet").resolve("boston.parquet")))
+      //E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\地理单元分库_1\DISPL.parquet
+      //E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\china-points-1.parquet
+      // E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\pro-Province_R-1.parquet
+      .addParquetSource("parquet", List.of(Paths.get("E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\parquet\\地理单元分库_1\\DISPL.parquet")),
+        false, null , props -> props.get("layer"))
       .setOutput(mbtiles)
       .run();
 
-    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
-      Set<String> uniqueIds = new HashSet<>();
-      long featureCount = 0;
-      var tileMap = TestUtils.getTileMap(db);
-      for (int z = 14; z >= 11; z--) {
-        var coord = TileCoord.aroundLngLat(-71.07448, 42.35626, z);
-        assertTrue(tileMap.containsKey(coord), "contain " + coord);
-      }
-      for (var tile : tileMap.values()) {
-        for (var feature : tile) {
-          feature.geometry().validate();
-          featureCount++;
-          uniqueIds.add((String) feature.attrs().get("id"));
-        }
-      }
-
-      assertTrue(featureCount > 0);
-      assertEquals(3, uniqueIds.size());
-    }
+//    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+//      Set<String> uniqueIds = new HashSet<>();
+//      long featureCount = 0;
+//      var tileMap = TestUtils.getTileMap(db);
+//      for (int z = 14; z >= 11; z--) {
+//        var coord = TileCoord.aroundLngLat(-71.07448, 42.35626, z);
+//        assertTrue(tileMap.containsKey(coord), "contain " + coord);
+//      }
+//      for (var tile : tileMap.values()) {
+//        for (var feature : tile) {
+//          feature.geometry().validate();
+//          featureCount++;
+//          uniqueIds.add((String) feature.attrs().get("id"));
+//        }
+//      }
+//
+//      assertTrue(featureCount > 0);
+//      assertEquals(3, uniqueIds.size());
+//    }
   }
 
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {

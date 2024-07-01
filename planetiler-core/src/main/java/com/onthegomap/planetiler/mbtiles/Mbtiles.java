@@ -609,6 +609,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     private void flush(PreparedStatement statement) {
+      // todo linespace  暂时注释生成mbtiles逻辑
       try {
         int pos = 1;
         for (T item : batch) {
@@ -616,7 +617,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         }
         statement.execute();
         batch.clear();
-      } catch (SQLException throwables) {
+      } catch (Exception throwables) {
         throw new IllegalStateException("Error flushing batch", throwables);
       }
     }

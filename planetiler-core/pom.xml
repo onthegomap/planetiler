@@ -180,7 +180,11 @@
       <artifactId>parquet-floor</artifactId>
       <version>1.45</version>
     </dependency>
-
+    <dependency>
+      <groupId>io.minio</groupId>
+      <artifactId>minio</artifactId>
+      <version>8.5.10</version>
+    </dependency>
   </dependencies>
 
   <build>

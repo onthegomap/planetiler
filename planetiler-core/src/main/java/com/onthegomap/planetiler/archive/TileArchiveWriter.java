@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.archive;
 
+import static com.onthegomap.planetiler.archive.TileArchiveConfig.Format.MBTILES;
+import static com.onthegomap.planetiler.archive.TileArchiveConfig.Format.PBF;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
@@ -22,6 +24,8 @@ import com.onthegomap.planetiler.util.TilesetSummaryStatistics;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.text.NumberFormat;
@@ -39,8 +43,10 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import vector_tile.VectorTileProto;
 
 /**
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
@@ -270,6 +276,7 @@ public class TileArchiveWriter {
 
     var tileStatsUpdater = tileStats.threadLocalUpdater();
     var layerAttrStatsUpdater = layerAttrStats.handlerForThread();
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (TileBatch batch : prev) {
       List<TileEncodingResult> result = new ArrayList<>(batch.size());
       FeatureGroup.TileFeatures last = null;
@@ -281,6 +288,12 @@ public class TileArchiveWriter {
         List<TileSizeStats.LayerStats> layerStats;
         Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
+          // todo linespace
+          if (StringUtils.isBlank(config.outputType()) || PBF.id().equalsIgnoreCase(config.outputType())) {
+            VectorTile tile = tileFeatures.getVectorTile(layerAttrStatsUpdater);
+            uploadPbf(tileFeatures, tile.toProto(), futures);
+          }
+
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
@@ -289,11 +302,19 @@ public class TileArchiveWriter {
         } else {
           VectorTile tile = tileFeatures.getVectorTile(layerAttrStatsUpdater);
           if (skipFilled && (lastIsFill = tile.containsOnlyFills())) {
+            // todo linespace
+            if (StringUtils.isBlank(config.outputType()) || PBF.id().equalsIgnoreCase(config.outputType())) {
+              uploadPbf(tileFeatures, tile.toProto(), futures);
+            }
+
             encoded = null;
             layerStats = null;
             bytes = null;
           } else {
             var proto = tile.toProto();
+            // todo linespace 生成mapbox pbf文件
+            uploadPbf(tileFeatures, proto, futures);
+
             encoded = proto.toByteArray();
             bytes = switch (config.tileCompression()) {
               case GZIP -> gzip(encoded);
@@ -334,8 +355,54 @@ public class TileArchiveWriter {
           );
         }
       }
+
+      // todo linespace  等待任务上传完毕
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
       // hand result off to writer
       batch.out.complete(result);
+    }
+  }
+
+  /**
+   * todo linespace 生成mapbox pbf文件
+   *
+   * @param tileFeatures
+   * @param proto
+   * @param futures
+   */
+  private void uploadPbf(FeatureGroup.TileFeatures tileFeatures, VectorTileProto.Tile proto,
+    List<CompletableFuture<Void>> futures) {
+    if (StringUtils.isBlank(config.outputType()) || PBF.id().equalsIgnoreCase(config.outputType())) {
+      TileCoord tileCoord = tileFeatures.tileCoord();
+      String dirPath = config.oosSavePath() + "/" + tileCoord.z() + "/" + tileCoord.x();
+      String absolutePath = dirPath + "/" + tileCoord.y() + ".pbf";
+
+      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        proto.writeTo(outputStream);
+        byte[] data = outputStream.toByteArray();
+
+        // 使用 CompletableFuture 并行上传文件，并增加异常处理
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+          try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+            config.minioUtils().upLoadFile(absolutePath, inputStream);
+          } catch (Exception e) {
+            throw new RuntimeException(
+              String.format("生成并上传pbf:%s/%s/%s失败", tileCoord.z(), tileCoord.x(), tileCoord.y()), e);
+          }
+        }, config.oosThreadPoolExecutor()).handle((uploadResult, ex) -> {
+          if (ex != null) {
+            LOGGER.error("上传文件时发生异常: " + ex.getMessage());
+            throw new RuntimeException("文件上传失败", ex);
+          }
+          return uploadResult;
+        });
+
+        futures.add(future);
+
+      } catch (Exception e) {
+        throw new RuntimeException(
+          String.format("生成并上传pbf:%s/%s/%s失败", tileCoord.z(), tileCoord.x(), tileCoord.y()), e);
+      }
     }
   }
 
@@ -344,6 +411,11 @@ public class TileArchiveWriter {
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
 
     final boolean firstTileWriter = firstTileWriterTracker.compareAndExchange(true, false);
+
+    // todo linespace
+    if (!MBTILES.id().equalsIgnoreCase(config.outputType())) {
+      return;
+    }
 
     var f = NumberFormat.getNumberInstance(Locale.getDefault());
     f.setMaximumFractionDigits(5);

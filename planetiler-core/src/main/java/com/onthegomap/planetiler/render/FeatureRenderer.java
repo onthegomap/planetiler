@@ -211,7 +211,13 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
     TiledGeometry sliced;
     Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+    if (geom.isEmpty()) {
+      LOGGER.error("简化存在异常，数据为空！");
+    }
     List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
+    if (groups.isEmpty()) {
+      LOGGER.error("GeometryCoordinateSequences.extractGroups 存在异常，groups数据为空！");
+    }
     try {
       sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
     } catch (GeometryException e) {
@@ -255,6 +261,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * coordinate rounding.
            */
           geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
+          if (geom.isEmpty()) {
+            LOGGER.error("snapAndFixPolygon 执行异常");
+          }
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();
