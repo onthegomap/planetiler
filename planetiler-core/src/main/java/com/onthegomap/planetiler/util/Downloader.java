@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -165,7 +166,7 @@ public class Downloader {
 
     for (var toDownload : toDownloadList) {
       try {
-        long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
+        long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size.orElse(0);
         loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -183,14 +184,19 @@ public class Downloader {
     return CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resourceToDownload.id);
       long existingSize = FileUtils.size(resourceToDownload.output);
-      var metadata = httpHeadFollowRedirects(resourceToDownload.url, 0);
-      Path tmpPath = resourceToDownload.tmpPath();
-      resourceToDownload.metadata.complete(metadata);
-      if (metadata.size == existingSize) {
-        LOGGER.info("Skipping {}: {} already up-to-date", resourceToDownload.id, resourceToDownload.output);
-        return;
-      }
       try {
+        resourceToDownload.metadata.complete(httpHeadFollowRedirects(resourceToDownload.url, 0));
+      } catch (Exception e) {
+        resourceToDownload.metadata.completeExceptionally(e);
+        throw e;
+      }
+      Path tmpPath = resourceToDownload.tmpPath();
+      try {
+        var metadata = resourceToDownload.metadata.get();
+        if (metadata.size.orElse(-1) == existingSize) {
+          LOGGER.info("Skipping {}: {} already up-to-date", resourceToDownload.id, resourceToDownload.output);
+          return;
+        }
         String redirectInfo = metadata.canonicalUrl.equals(resourceToDownload.url) ? "" :
           " (redirected to " + metadata.canonicalUrl + ")";
         LOGGER.info("Downloading {}{} to {}", resourceToDownload.url, redirectInfo, resourceToDownload.output);
@@ -198,7 +204,9 @@ public class Downloader {
         FileUtils.createParentDirectories(resourceToDownload.output);
         FileUtils.delete(tmpPath);
         FileUtils.deleteOnExit(tmpPath);
-        diskSpaceCheck.addDisk(tmpPath, metadata.size, resourceToDownload.id);
+        if (metadata.size.isPresent()) {
+          diskSpaceCheck.addDisk(tmpPath, metadata.size.getAsLong(), resourceToDownload.id);
+        }
         diskSpaceCheck.checkAgainstLimits(config.force(), false);
         httpDownload(resourceToDownload, tmpPath);
         Files.move(tmpPath, resourceToDownload.output);
@@ -225,7 +233,7 @@ public class Downloader {
       responseInfo -> {
         int status = responseInfo.statusCode();
         Optional<String> location = Optional.empty();
-        long contentLength = 0;
+        OptionalLong contentLength = OptionalLong.empty();
         HttpHeaders headers = responseInfo.headers();
         if (status >= 300 && status < 400) {
           location = responseInfo.headers().firstValue(LOCATION);
@@ -235,7 +243,7 @@ public class Downloader {
         } else if (responseInfo.statusCode() != 200) {
           throw new IllegalStateException("Bad response: " + responseInfo.statusCode());
         } else {
-          contentLength = headers.firstValueAsLong(CONTENT_LENGTH).orElseThrow();
+          contentLength = headers.firstValueAsLong(CONTENT_LENGTH);
         }
         boolean supportsRangeRequest = headers.allValues(ACCEPT_RANGES).contains("bytes");
         ResourceMetadata metadata = new ResourceMetadata(location, url, contentLength, supportsRangeRequest);
@@ -250,12 +258,14 @@ public class Downloader {
     record Range(long start, long end) {}
     List<Range> chunks = new ArrayList<>();
     boolean ranges = metadata.acceptRange && config.downloadThreads() > 1;
-    long chunkSize = ranges ? chunkSizeBytes : metadata.size;
-    for (long start = 0; start < metadata.size; start += chunkSize) {
-      long end = Math.min(start + chunkSize, metadata.size);
+    boolean supportsRange = ranges && metadata.size.isPresent();
+    long fileSize = metadata.size.orElse(Long.MAX_VALUE);
+    long chunkSize = ranges ? chunkSizeBytes : fileSize;
+    for (long start = 0; start < fileSize; start += chunkSize) {
+      long end = Math.min(start + chunkSize, fileSize);
       chunks.add(new Range(start, end));
     }
-    FileUtils.setLength(tmpPath, metadata.size);
+    FileUtils.setLength(tmpPath, metadata.size.orElse(1));
     Semaphore perFileLimiter = new Semaphore(config.downloadThreads());
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
@@ -299,7 +309,7 @@ public class Downloader {
       .header(USER_AGENT, config.httpUserAgent());
   }
 
-  record ResourceMetadata(Optional<String> redirect, String canonicalUrl, long size, boolean acceptRange) {}
+  record ResourceMetadata(Optional<String> redirect, String canonicalUrl, OptionalLong size, boolean acceptRange) {}
 
   record ResourceToDownload(
     String id, String url, Path output, CompletableFuture<ResourceMetadata> metadata,
