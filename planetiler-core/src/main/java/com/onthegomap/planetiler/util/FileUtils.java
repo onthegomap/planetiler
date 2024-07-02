@@ -38,7 +38,7 @@ public class FileUtils {
   private static final Format FORMAT = Format.defaultInstance();
   // Prevent zip-bomb attack, see https://rules.sonarsource.com/java/RSPEC-5042
   private static final int ZIP_THRESHOLD_ENTRIES = 10_000;
-  private static final int ZIP_THRESHOLD_SIZE = 1_000_000_000;
+  private static final long ZIP_THRESHOLD_SIZE = 100_000_000_000L;
   private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
@@ -271,7 +271,7 @@ public class FileUtils {
    */
   public static void safeCopy(InputStream inputStream, Path destPath) {
     try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, WRITE)) {
-      int totalSize = 0;
+      long totalSize = 0;
 
       int nBytes;
       byte[] buffer = new byte[2048];
@@ -295,7 +295,7 @@ public class FileUtils {
    * @throws UncheckedIOException if an IO exception occurs
    */
   public static void unzip(InputStream input, Path destDir) {
-    int totalSizeArchive = 0;
+    long totalSizeArchive = 0;
     int totalEntryArchive = 0;
     try (var zip = new ZipInputStream(input)) {
       ZipEntry entry;
