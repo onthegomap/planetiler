@@ -13,7 +13,12 @@ import org.locationtech.jts.geom.Puntal;
 import vector_tile.VectorTileProto;
 
 public enum GeometryType {
-  UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN, 0, "unknown"),
+  UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN, 0, "unknown") {
+    @Override
+    public Expression featureTest() {
+      return Expression.TRUE;
+    }
+  },
   @JsonProperty("point")
   POINT(VectorTileProto.Tile.GeomType.POINT, 1, "point"),
   @JsonProperty("line")
