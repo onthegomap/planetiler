@@ -24,8 +24,8 @@ public enum FeatureGeometry {
   POLYGON_CENTROID_IF_CONVEX(GeometryType.POLYGON, FeatureCollector::centroidIfConvex),
   @JsonProperty("polygon_point_on_surface")
   POLYGON_POINT_ON_SURFACE(GeometryType.POLYGON, FeatureCollector::pointOnSurface),
-  @JsonProperty("line_point_on_surface")
-  LINE_POINT_ON_SURFACE(GeometryType.LINE, FeatureCollector::pointOnSurface);
+  @JsonProperty("point_on_line")
+  POINT_ON_LINE(GeometryType.LINE, FeatureCollector::pointOnSurface);
 
   public final GeometryType geometryType;
   public final BiFunction<FeatureCollector, String, FeatureCollector.Feature> geometryFactory;

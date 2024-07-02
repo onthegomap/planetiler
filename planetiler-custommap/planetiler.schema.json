@@ -358,7 +358,7 @@
             "centroid",
             "polygon_centroid_if_convex",
             "polygon_point_on_surface",
-            "line_point_on_surface"
+            "point_on_line"
           ]
         },
         "source": {

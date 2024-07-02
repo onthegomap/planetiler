@@ -223,7 +223,7 @@ A feature is a defined set of objects that meet a specified filter criteria.
   - `line_centroid` to match on lines, and emit a point at the center
   - `centroid` to match any geometry, and emit a point at the center
   - `polygon_point_on_surface` to match on polygons, and emit an interior point
-  - `line_point_on_surface` to match on lines, and emit a point somewhere along the line
+  - `point_on_line` to match on lines, and emit a point somewhere along the line
   - `polygon_centroid_if_convex` to match on polygons, and if the polygon is convex emit the centroid, otherwise emit an
     interior point
 - `min_tile_cover_size` - Include objects of a certain geometry size, where 1.0 means "is

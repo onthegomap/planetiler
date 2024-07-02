@@ -1257,7 +1257,7 @@ class ConfiguredFeatureTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"line_centroid", "line_point_on_surface"})
+  @ValueSource(strings = {"line_centroid", "point_on_line"})
   void testLineCentroid(String type) {
     var config = """
       sources:
