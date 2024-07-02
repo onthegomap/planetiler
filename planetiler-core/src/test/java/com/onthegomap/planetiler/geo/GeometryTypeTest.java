@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.geo;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
@@ -42,9 +41,9 @@ class GeometryTypeTest {
     assertFalse(GeometryType.POLYGON.featureTest().evaluate(point));
     assertTrue(GeometryType.POLYGON.featureTest().evaluate(poly));
 
-    assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(point));
-    assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(line));
-    assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(poly));
+    assertTrue(GeometryType.UNKNOWN.featureTest().evaluate(point));
+    assertTrue(GeometryType.UNKNOWN.featureTest().evaluate(line));
+    assertTrue(GeometryType.UNKNOWN.featureTest().evaluate(poly));
   }
 
   @ParameterizedTest

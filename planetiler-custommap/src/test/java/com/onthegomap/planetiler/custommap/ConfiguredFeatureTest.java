@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Puntal;
 
 class ConfiguredFeatureTest {
   private PlanetilerConfig planetilerConfig = PlanetilerConfig.defaults();
@@ -1221,5 +1222,60 @@ class ConfiguredFeatureTest {
         3
       )
     ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testCentroid() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: centroid
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+    testLinestring(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+    testPoint(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"line_centroid", "point_on_line"})
+  void testLineCentroid(String type) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: %s
+      """.formatted(type);
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testLinestring(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
   }
 }
