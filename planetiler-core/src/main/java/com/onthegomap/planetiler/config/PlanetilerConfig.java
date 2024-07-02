@@ -7,7 +7,6 @@ import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
 import com.onthegomap.planetiler.util.MinioUtils;
 import com.onthegomap.planetiler.util.Parse;
-import io.minio.MinioClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -73,6 +72,7 @@ public record PlanetilerConfig(
   boolean logJtsExceptions,
   String oosSavePath,
   String outputType,
+  String martinUrl,
   int featureSourceIdMultiplier
 ) {
 
@@ -141,23 +141,20 @@ public record PlanetilerConfig(
       oosMaxPoolSize = oosCorePoolSize;
     }
 
-    ThreadPoolExecutor oosThreadPoolExecutor = new ThreadPoolExecutor(oosCorePoolSize, oosMaxPoolSize, 0L, TimeUnit.MINUTES,
+    ThreadPoolExecutor oosThreadPoolExecutor = new ThreadPoolExecutor(oosCorePoolSize, oosMaxPoolSize, 0L,
+      TimeUnit.MINUTES,
       new LinkedBlockingQueue<>(),
       Executors.defaultThreadFactory(), new ThreadPoolExecutor.CallerRunsPolicy());
 
     // todo linespace 设置minio配置信息
     String accessKey = arguments.getString("accessKey", "accessKey", "");
     String secretKey = arguments.getString("secretKey", "secretKey", "");
-    String endpoint =  arguments.getString("endpoint", "endpoint", "");
+    String endpoint = arguments.getString("endpoint", "endpoint", "");
     String bucketName = arguments.getString("bucketName", "bucketName", "");
     MinioUtils minioUtils;
     if (StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey)
       && StringUtils.isNotBlank(endpoint) && StringUtils.isNotBlank(bucketName)) {
-      MinioClient client = MinioClient.builder()
-        .endpoint(endpoint)
-        .credentials(accessKey,secretKey)
-        .build();
-      minioUtils = new MinioUtils(client, bucketName);
+      minioUtils = new MinioUtils(endpoint, accessKey, secretKey, bucketName);
     } else {
       minioUtils = new MinioUtils();
     }
@@ -264,6 +261,7 @@ public record PlanetilerConfig(
       // todo linespce
       arguments.getString("oossavepath", "存储服务器文件存储路径", ""),
       arguments.getString("outputType", "输出数据类型（mbtiles,pbf）", "pbf"),
+      arguments.getString("martinUrl", "martin地址", "http://localhost:9545/"),
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",

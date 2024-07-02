@@ -226,6 +226,10 @@ public class ParquetInputFile {
     return blockCount;
   }
 
+  public Envelope getLatLonBounds() {
+    return geoparquet.primaryColumnMetadata().envelope();
+  }
+
   public interface BlockReader extends Iterable<Block>, Closeable {
 
     @Override

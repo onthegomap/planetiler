@@ -609,7 +609,6 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     private void flush(PreparedStatement statement) {
-      // todo linespace  暂时注释生成mbtiles逻辑
       try {
         int pos = 1;
         for (T item : batch) {

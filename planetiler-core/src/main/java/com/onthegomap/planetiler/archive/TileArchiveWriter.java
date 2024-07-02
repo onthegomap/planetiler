@@ -5,6 +5,9 @@ import static com.onthegomap.planetiler.archive.TileArchiveConfig.Format.PBF;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -18,6 +21,7 @@ import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerAttrStats;
+import com.onthegomap.planetiler.util.MinioUtils;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TileWeights;
 import com.onthegomap.planetiler.util.TilesetSummaryStatistics;
@@ -27,9 +31,14 @@ import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +53,8 @@ import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -474,8 +485,62 @@ public class TileArchiveWriter {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
   }
 
+  /**
+   * todo linespace  存储tilejson文件
+   */
   private void finishArchive() {
-    archive.finish(tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats()));
+    TileArchiveMetadata metadata = tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats());
+    archive.finish(metadata);
+    Envelope bounds = metadata.bounds();
+    Coordinate centre = bounds.centre();
+    MinioUtils minioUtils = config.minioUtils();
+    boolean isMbtiles = MBTILES.id().equalsIgnoreCase(config.outputType());
+    String tileUrl;
+    if (isMbtiles) {
+      tileUrl = config.martinUrl() + Paths.get(config.oosSavePath()).getFileName() + "/{z}/{x}/{y}";
+    } else {
+      tileUrl = minioUtils.getEndpoint() + "/" + minioUtils.getBucketName() +  config.oosSavePath() + "/{z}/{x}/{y}.pbf";
+    }
+    // 生成tilejson文件 minioUtils.getEndpoint() + "/" + minioUtils.getBucketName() + "/"
+    TileJSON tileJSON = new TileJSON(
+      "3.0.0",
+      metadata.name(),
+      null,
+      "V1.0.0",
+      "版权所有 © 智成时空（西安）创新科技有限公司2022-2024，保留一切权利",
+      null,
+      null,
+      "xyz",
+      Arrays.asList(tileUrl),
+      null,
+      null,
+      new double[]{bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()},
+      new double[]{centre.x, centre.y},
+      metadata.minzoom(),
+      metadata.maxzoom(),
+      metadata.vectorLayers(),
+      null
+    );
+
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.registerModule(new Jdk8Module());
+      mapper.enable(SerializationFeature.INDENT_OUTPUT);
+      String jsonContent = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(tileJSON);
+
+      // 创建tilejson文件
+      if (isMbtiles) {
+        // 存储本地，存储为 JSON 文件
+        Path outputPath = Paths.get(config.oosSavePath(), "tilejson.json");
+        Files.write(outputPath, jsonContent.getBytes(StandardCharsets.UTF_8));
+      } else {
+        InputStream inputStream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8));
+        String objectName = config.oosSavePath() + "/tilejson.json";
+        minioUtils.upLoadFile(objectName, inputStream);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**

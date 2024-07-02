@@ -6,7 +6,7 @@
 
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-parent</artifactId>
-  <version>${revision}</version>
+  <version>0.8</version>
   <packaging>pom</packaging>
 
   <name>Planetiler Parent</name>
@@ -28,7 +28,7 @@
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
     <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
-    <revision>0.8-SNAPSHOT</revision>
+    <revision>0.8</revision>
     <timestamp>${maven.build.timestamp}</timestamp>
   </properties>
 

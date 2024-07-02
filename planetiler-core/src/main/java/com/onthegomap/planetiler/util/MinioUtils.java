@@ -18,9 +18,10 @@ import org.slf4j.LoggerFactory;
 public class MinioUtils {
 
   private final Logger logger = LoggerFactory.getLogger(MinioUtils.class);
-
   private MinioClient minioClient;
   private String bucketName;
+  private String endpoint;
+
 
   public MinioUtils() {
     init();
@@ -54,9 +55,13 @@ public class MinioUtils {
   }
 
 
-  public MinioUtils(MinioClient client, String bucketName) {
-    this.minioClient = client;
+  public MinioUtils(String endpoint, String accessKey, String secretKey, String bucketName) {
+    this.minioClient = MinioClient.builder()
+      .endpoint(endpoint)
+      .credentials(accessKey, secretKey)
+      .build();
     this.bucketName = bucketName;
+    this.endpoint = endpoint;
   }
 
   /**
@@ -162,5 +167,13 @@ public class MinioUtils {
       logger.error("minio removeFiles fail, fileNames:{}, Exception:{}", fileNames, e);
     }
     return false;
+  }
+
+  public String getEndpoint() {
+    return this.endpoint;
+  }
+
+  public String getBucketName() {
+    return this.bucketName;
   }
 }
