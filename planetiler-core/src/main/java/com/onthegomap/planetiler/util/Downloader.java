@@ -258,7 +258,6 @@ public class Downloader {
     record Range(long start, long end) {}
     List<Range> chunks = new ArrayList<>();
     boolean ranges = metadata.acceptRange && config.downloadThreads() > 1;
-    boolean supportsRange = ranges && metadata.size.isPresent();
     long fileSize = metadata.size.orElse(Long.MAX_VALUE);
     long chunkSize = ranges ? chunkSizeBytes : fileSize;
     for (long start = 0; start < fileSize; start += chunkSize) {
