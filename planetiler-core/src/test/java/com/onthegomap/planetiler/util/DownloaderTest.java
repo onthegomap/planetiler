@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,7 +26,8 @@ class DownloaderTest {
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
   private AtomicLong downloads = new AtomicLong(0);
 
-  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange) {
+  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange,
+    boolean supportsContentLength) {
     return new Downloader(config, 2L) {
 
       @Override
@@ -55,23 +57,30 @@ class DownloaderTest {
         if (parts.length > 1) {
           int redirectNum = Integer.parseInt(parts[1]);
           String next = redirectNum <= 1 ? parts[0] : (parts[0] + "#" + (redirectNum - 1));
-          return new ResourceMetadata(Optional.of(next), url, 0, supportsRange);
+          return new ResourceMetadata(Optional.of(next), url,
+            supportsContentLength ? OptionalLong.of(0) : OptionalLong.empty(), supportsRange);
         }
         byte[] bytes = resources.get(url);
-        return new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange);
+        return new ResourceMetadata(Optional.empty(), url,
+          supportsContentLength ? OptionalLong.of(bytes.length) : OptionalLong.empty(), supportsRange);
       }
     };
   }
 
   @ParameterizedTest
   @CsvSource({
-    "false,0",
-    "true,0",
-    "false,1",
-    "false,2",
-    "true,4",
+    "false,0,true",
+    "true,0,true",
+    "false,1,true",
+    "false,2,true",
+    "true,4,true",
+
+    "false,0,false",
+    "true,0,false",
+    "false,1,false",
+    "true,1,false",
   })
-  void testDownload(boolean range, int redirects) throws Exception {
+  void testDownload(boolean range, int redirects, boolean supportsContentLength) throws Exception {
     Path dest = path.resolve("out");
     String string = "0123456789";
     String url = "http://url";
@@ -79,7 +88,7 @@ class DownloaderTest {
     Map<String, byte[]> resources = new ConcurrentHashMap<>();
 
     byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
-    Downloader downloader = mockDownloader(resources, range);
+    Downloader downloader = mockDownloader(resources, range, supportsContentLength);
 
     // fails if no data
     var resource1 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
@@ -96,13 +105,15 @@ class DownloaderTest {
     assertEquals(10, resource2.bytesDownloaded());
 
     // does not re-request if size is the same
-    downloads.set(0);
-    var resource3 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
-    downloader.downloadIfNecessary(resource3).get();
-    assertEquals(0, downloads.get());
-    assertEquals(string, Files.readString(dest));
-    assertEquals(FileUtils.size(path), FileUtils.size(dest));
-    assertEquals(0, resource3.bytesDownloaded());
+    if (supportsContentLength) {
+      downloads.set(0);
+      var resource3 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
+      downloader.downloadIfNecessary(resource3).get();
+      assertEquals(0, downloads.get());
+      assertEquals(string, Files.readString(dest));
+      assertEquals(FileUtils.size(path), FileUtils.size(dest));
+      assertEquals(0, resource3.bytesDownloaded());
+    }
 
     // does re-download if size changes
     var resource4 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
@@ -131,7 +142,7 @@ class DownloaderTest {
 
       @Override
       ResourceMetadata httpHead(String url) {
-        return new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true);
+        return new ResourceMetadata(Optional.empty(), url, OptionalLong.of(Long.MAX_VALUE), true);
       }
     };
 
