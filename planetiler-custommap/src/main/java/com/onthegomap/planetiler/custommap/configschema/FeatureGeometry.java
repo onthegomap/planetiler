@@ -16,10 +16,16 @@ public enum FeatureGeometry {
   POLYGON(GeometryType.POLYGON, FeatureCollector::polygon),
   @JsonProperty("polygon_centroid")
   POLYGON_CENTROID(GeometryType.POLYGON, FeatureCollector::centroid),
+  @JsonProperty("line_centroid")
+  LINE_CENTROID(GeometryType.LINE, FeatureCollector::centroid),
+  @JsonProperty("centroid")
+  CENTROID(GeometryType.UNKNOWN, FeatureCollector::centroid),
   @JsonProperty("polygon_centroid_if_convex")
   POLYGON_CENTROID_IF_CONVEX(GeometryType.POLYGON, FeatureCollector::centroidIfConvex),
   @JsonProperty("polygon_point_on_surface")
-  POLYGON_POINT_ON_SURFACE(GeometryType.POLYGON, FeatureCollector::pointOnSurface);
+  POLYGON_POINT_ON_SURFACE(GeometryType.POLYGON, FeatureCollector::pointOnSurface),
+  @JsonProperty("point_on_line")
+  POINT_ON_LINE(GeometryType.LINE, FeatureCollector::pointOnSurface);
 
   public final GeometryType geometryType;
   public final BiFunction<FeatureCollector, String, FeatureCollector.Feature> geometryFactory;
