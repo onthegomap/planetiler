@@ -235,4 +235,13 @@ public interface OsmElement extends WithTags {
   record Info(long changeset, long timestamp, int userId, int version, String user) {
     private static final int COST = 2;
   }
+
+  static long vectorTileFeatureId(int multiplier, long id, Type type) {
+    return (id * multiplier) + switch (type) {
+      case OTHER -> 0;
+      case NODE -> 1;
+      case WAY -> 2;
+      case RELATION -> 3;
+    };
+  }
 }
