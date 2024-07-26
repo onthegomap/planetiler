@@ -20,7 +20,7 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.17.1</jackson.version>
+    <jackson.version>2.17.2</jackson.version>
     <junit.version>5.10.3</junit.version>
     <jts.version>1.19.0</jts.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -236,7 +236,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.3.1</version>
         <!-- by default surefire excludes tests on nested classes https://github.com/junit-team/junit5/issues/1377 -->
         <configuration>
           <excludes>
@@ -247,7 +247,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.3.1</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -310,7 +310,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.7.0</version>
+          <version>3.8.0</version>
           <configuration>
             <quiet>true</quiet>
             <doclint>-missing</doclint>
