@@ -497,7 +497,7 @@ public class TileArchiveWriter {
     boolean isMbtiles = MBTILES.id().equalsIgnoreCase(config.outputType());
     String tileUrl;
     if (isMbtiles) {
-      tileUrl = config.martinUrl() + Paths.get(config.oosSavePath()).getFileName() + "/{z}/{x}/{y}";
+      tileUrl = config.martinUrl() + "/" + Paths.get(config.oosSavePath()).getFileName() + "/{z}/{x}/{y}";
     } else {
       tileUrl = minioUtils.getEndpoint() + "/" + minioUtils.getBucketName() +  config.oosSavePath() + "/{z}/{x}/{y}.pbf";
     }
