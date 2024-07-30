@@ -29,7 +29,7 @@ The `planetiler-core` module includes the following software:
   - mil.nga.geopackage:geopackage (MIT license)
   - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
-  - org.tukaani:xz (public domain)
+  - org.tukaani:xz (BSD 0-Clause License)
   - blue.strategic.parquet:parquet-floor (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
