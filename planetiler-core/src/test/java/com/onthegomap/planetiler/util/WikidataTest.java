@@ -19,6 +19,8 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +77,11 @@ class WikidataTest {
       }
     }
     """;
+  final String wikidataNamesJson = """
+    ["1",{"en":"English 1","de":"Deutch 1"},"<timestamp 1>"]
+    ["2",{"en":"English 2","de":"Deutch 2"},"<timestamp 2>"]
+    ["3",{"en":"English 3","de":"Deutch 3"},"<timestamp 3>"]
+    """;
 
   @Test
   void testWikidataTranslations() {
@@ -120,7 +127,8 @@ class WikidataTest {
           """, body);
       }),
       dynamicTest("can load serialized data", () -> {
-        var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
+        var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
+          Duration.ofSeconds(0), 0);
         assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
         assertEquals(Map.of("es", "es name2"), translations.get(2));
       }),
@@ -128,7 +136,8 @@ class WikidataTest {
         StringWriter writer2 = new StringWriter();
         Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
         Wikidata fixture2 = new Wikidata(writer2, client2, 2, profile, config);
-        fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
+        fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
+          Duration.ofSeconds(0), 0));
         fixture2.fetch(1L);
         fixture2.fetch(2L);
         fixture2.fetch(1L);
@@ -148,7 +157,8 @@ class WikidataTest {
       .thenThrow(IOException.class)
       .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
     fixture.fetch(1L);
-    var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
+    var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
+      Duration.ofSeconds(0), 0);
     assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
     assertEquals(Map.of("es", "es name2"), translations.get(2));
 
@@ -159,6 +169,43 @@ class WikidataTest {
     var outerException = assertThrows(RuntimeException.class, () -> fixture.fetch(2L));
     var innerException = outerException.getCause();
     assertInstanceOf(IOException.class, innerException);
+  }
+
+  @Test
+  void testLegacyWikidataNamesJson() throws IOException {
+    String json = wikidataNamesJson.replaceAll(",\"<timestamp .>\"", "");
+    var reader = new BufferedReader(new StringReader(json));
+    // no timestamp + age limit set => all old => all should be dropped
+    var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0);
+    assertEquals(0, translationsProvider.getAll().size());
+  }
+
+  @Test
+  void testWikidataNamesJsonMaxAge() throws IOException {
+    Duration maxAge = Duration.ofSeconds(1);
+    Instant fresh = Instant.now();
+    Instant old = fresh.minus(maxAge).minus(maxAge);
+
+    String json = wikidataNamesJson
+      .replaceAll("<timestamp 1>", fresh.toString())
+      .replaceAll("<timestamp .>", old.toString());
+
+    var reader = new BufferedReader(new StringReader(json));
+    var translationsProvider = Wikidata.load(reader, maxAge, 0);
+    assertEquals(1, translationsProvider.getAll().size());
+  }
+
+  @Test
+  void testWikidataNamesJsonUpdateLimit() throws IOException {
+    Duration maxAge = Duration.ofSeconds(1);
+    Instant old = Instant.now().minus(maxAge).minus(maxAge);
+
+    String json = wikidataNamesJson
+      .replaceAll("<timestamp .>", old.toString());
+
+    var reader = new BufferedReader(new StringReader(json));
+    var translationsProvider = Wikidata.load(reader, maxAge, 1);
+    assertEquals(2, translationsProvider.getAll().size());
   }
 
   private static void assertEqualsIgnoringWhitespace(String expected, String actual) {
