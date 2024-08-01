@@ -55,9 +55,13 @@ public abstract class ForwardingProfile implements Profile {
   @SuppressWarnings("java:S3077")
   private volatile MultiExpression.Index<FeatureProcessor> indexedSourceElementProcessors = null;
 
-  protected ForwardingProfile(PlanetilerConfig config, Handler... handlers) {
+  protected ForwardingProfile(PlanetilerConfig config) {
     onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
     excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
+  }
+
+  protected ForwardingProfile(PlanetilerConfig config, Handler... handlers) {
+    this(config);
     for (var handler : handlers) {
       registerHandler(handler);
     }
@@ -80,7 +84,7 @@ public abstract class ForwardingProfile implements Profile {
     return (onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer);
   }
 
-  private boolean caresAboutLayer(Object obj) {
+  public boolean caresAboutLayer(Object obj) {
     return !(obj instanceof HandlerForLayer l) || caresAboutLayer(l.name());
   }
 
