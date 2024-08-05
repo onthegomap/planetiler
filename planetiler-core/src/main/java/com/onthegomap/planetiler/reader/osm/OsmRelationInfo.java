@@ -15,4 +15,8 @@ public interface OsmRelationInfo extends MemoryEstimator.HasEstimate {
   default long estimateMemoryUsageBytes() {
     return 0;
   }
+
+  default long vectorTileFeatureId(int multiplier) {
+    return OsmElement.vectorTileFeatureId(multiplier, id(), OsmElement.Type.RELATION);
+  }
 }
