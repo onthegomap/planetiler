@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
  * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
@@ -110,7 +112,6 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         coords[i].setX(orig.x * tilesAtZoom);
         coords[i].setY(orig.y * tilesAtZoom);
       }
-
 
       // for "label grid" point density limiting, compute the grid square that this point sits in
       // only valid if not a multipoint
@@ -254,7 +255,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
            * coordinate rounding.
            */
-          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render", zoom == config.maxzoom());
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();
@@ -273,6 +274,26 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         if (!geom.isEmpty()) {
           encodeAndEmitFeature(feature, id, attrs, tile, geom, null, scale);
           emitted++;
+        } else if (PlanetilerConfig.SmallFeatureStrategy.CENTROID.getStrategy().equals(config.smallFeatStrategy())) {
+          // todo linespace  避免在低级别要素被简化后丢弃，生成特征要素的质心代替原有要素，后续可考虑将质心优化为能够替代原有要素的最小三角形或正方形
+          FeatureCollector collector = feature.collector();
+          Geometry centroid = feature.getGeometry().getCentroid();
+          boolean isMaxZoom = zoom == config.maxzoom();
+          if (isMaxZoom && (zoom == PlanetilerConfig.defaults().maxzoom() || zoom == PlanetilerConfig.MAX_MAXZOOM)) {
+            LOGGER.warn("要素id: {} 在最高层级 {} 被简化!", feature.getId(), zoom);
+          }
+
+          // 此处需要考虑最后一层级太小的要素应该如何处理，是否应该将simplyPoint赋值给feature
+          FeatureCollector.Feature simplyPoint = collector.geometryNotAddOutPut("linespace_layer_point",
+              centroid)
+            .setPointLabelGridPixelSize(ZoomFunction.fromMaxZoomThresholds(config.labelGridPixelSize()))
+            .setPointLabelGridLimit(ZoomFunction.fromMaxZoomThresholds(config.labelGridLimit()))
+            .setBufferPixelOverrides(ZoomFunction.fromMaxZoomThresholds(config.bufferPixelOverrides()))
+            .setZoomRange(zoom, zoom);
+
+          renderPoint(simplyPoint, centroid.getCoordinates());
+        } else {
+          LOGGER.warn("Feature {} was simplified to empty geometry at zoom {}", feature, zoom);
         }
       } catch (GeometryException e) {
         e.log(stats, "write_tile_features", "Error writing tile " + tile + " feature " + feature);

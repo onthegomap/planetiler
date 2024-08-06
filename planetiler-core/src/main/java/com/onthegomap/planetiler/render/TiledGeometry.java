@@ -182,17 +182,16 @@ public class TiledGeometry {
   }
 
   /**
-   * Returns the tiles that this geometry touches, and the contents of those tiles for this geometry.
+   * 返回此几何体触碰到的瓦片及其内容。
    *
-   * @param groups  the list of linestrings or polygon rings extracted using {@link GeometryCoordinateSequences} in
-   *                world web mercator coordinates where (0,0) is the northwest and (2^z,2^z) is the southeast corner of
-   *                the planet
-   * @param buffer  how far detail should be included beyond the edge of each tile (0=none, 1=a full tile width)
-   * @param area    {@code true} if this is a polygon {@code false} if this is a linestring
-   * @param z       zoom level
-   * @param extents range of tile coordinates within the bounds of the map to generate
-   * @return each tile this feature touches, and the points that appear on each
-   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
+   * @param groups  使用 {@link GeometryCoordinateSequences} 提取的线串或多边形环的列表，
+   *                在 Web Mercator 坐标系中，其中 (0,0) 是西北角，(2^z,2^z) 是东南角。
+   * @param buffer  在每个瓦片边缘之外应包含的详细信息（0=无，1=整个瓦片宽度）。
+   * @param area    如果是多边形则为 {@code true}，如果是线串则为 {@code false}。
+   * @param z       缩放级别。
+   * @param extents 地图范围内的瓦片坐标范围。
+   * @return 此特征触碰到的每个瓦片及其上出现的点。
+   * @throws GeometryException 如果多边形无效并干扰裁剪。
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) throws GeometryException {
@@ -315,18 +314,15 @@ public class TiledGeometry {
   }
 
   /**
-   * Slices a geometry into tiles and stores in member fields for a single "copy" of the world.
+   * 将几何体切片到瓦片，并将结果存储在成员字段中，表示世界的单个“副本”。
    * <p>
-   * Instead of handling content outside -180 to 180 degrees longitude, return {@link Direction#LEFT} or
-   * {@link Direction#RIGHT} to indicate whether this method should be called again with a different {@code xOffset} to
-   * process wrapped content.
+   * 而不是处理经度范围超出 -180 到 180 度的内容，返回 {@link Direction#LEFT} 或 {@link Direction#RIGHT}
+   * 以指示是否应使用不同的 {@code xOffset} 再次调用此方法以处理包裹的内容。
    *
-   * @param groups  the geometry
-   * @param xOffset offset to apply to each X coordinate (-2^z handles content that wraps too far east and 2^z handles
-   *                content that wraps too far west)
-   * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
-   *         content to the east.
-   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
+   * @param groups  几何体。
+   * @param xOffset 要应用于每个 X 坐标的偏移量（-2^z 处理包裹过远的东部内容，2^z 处理包裹过远的西部内容）。
+   * @return 如果有更多内容在西部，则返回 {@link Direction#LEFT}；如果有更多内容在东部，则返回 {@link Direction#RIGHT}。
+   * @throws GeometryException 如果多边形无效并干扰裁剪。
    */
   private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
     throws GeometryException {

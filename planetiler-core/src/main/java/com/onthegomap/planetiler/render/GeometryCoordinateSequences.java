@@ -30,19 +30,17 @@ import org.locationtech.jts.geom.Polygon;
 class GeometryCoordinateSequences {
 
   /**
-   * Returns the coordinate sequences extracted from every linear component in {@code geom} over a minimum size
-   * threshold.
+   * 从 {@code geom} 中提取每个线性组件的坐标序列，超过最小大小阈值。
    * <p>
-   * For {@link LineString LineStrings} that means all linestrings over a certain length.
+   * 对于 {@link LineString LineStrings}，这意味着所有超过一定长度的线串。
    * <p>
-   * For {@link Polygon Polygons} that means all lists of [exterior, interior...] ring coordinate sequences where the
-   * ring is over a certain area. This utility also ensures that exterior and interior rings use counter-clockwise
-   * winding.
+   * 对于 {@link Polygon Polygons}，这意味着所有 [外环, 内环...] 环坐标序列列表，其中环超过一定面积。
+   * 该实用工具还确保外环和内环使用逆时针方向。
    *
-   * @param geom    one or more linestings or polygons
-   * @param minSize minimum length of linestrings, or minimum area of exterior/interior rings to include
-   * @return the coordinate sequences of the geometry
-   * @throws IllegalArgumentException if {@code geom} contains anything other than linestrings or polygons (i.e. points)
+   * @param geom    一个或多个线串或多边形
+   * @param minSize 线串的最小长度，或包含的外环/内环的最小面积
+   * @return 几何体的坐标序列
+   * @throws IllegalArgumentException 如果 {@code geom} 包含线串或多边形以外的内容（例如点）
    */
   static List<List<CoordinateSequence>> extractGroups(Geometry geom, double minSize) {
     List<List<CoordinateSequence>> result = new ArrayList<>();
@@ -50,7 +48,7 @@ class GeometryCoordinateSequences {
     return result;
   }
 
-  /** Accumulates linear components we find over {@code minSize} into {@code groups}. */
+  /** 累积超过 {@code minSize} 的线性组件到 {@code groups} 中。 */
   private static void extractGroups(Geometry geom, List<List<CoordinateSequence>> groups, double minSize) {
     if (geom.isEmpty()) {
       // ignore empty geometries

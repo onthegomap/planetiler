@@ -85,23 +85,20 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   default void release() {}
 
   /**
-   * Apply any post-processing to features in an output layer of a tile before writing it to the output file
-   * <p>
-   * These transformations may add, remove, or change the tags, geometry, or ordering of output features based on other
-   * features present in this tile. See {@link FeatureMerge} class for a set of common transformations that merge
-   * linestrings/polygons.
-   * <p>
-   * Many threads invoke this method concurrently so ensure thread-safe access to any shared data structures.
-   * <p>
-   * The default implementation passes through input features unaltered
+   * 对瓦片的输出层中的特征应用任何后处理，然后再将其写入输出文件。
    *
-   * @param layer the output layer name
-   * @param zoom  zoom level of the tile
-   * @param items all the output features in this layer in this tile
-   * @return the new list of output features or {@code null} to not change anything. Set any elements of the list to
-   *         {@code null} if they should be ignored.
-   * @throws GeometryException for any recoverable geometric operation failures - the framework will log the error, emit
-   *                           the original input features, and continue processing other layers
+   * 这些转换可能基于此瓦片中的其他特征添加、移除或更改输出特征的标签、几何形状或顺序。
+   * 参见 {@link FeatureMerge} 类以获取一组常见的转换，这些转换合并线串/多边形。
+   *
+   * 许多线程同时调用此方法，因此请确保对任何共享数据结构的线程安全访问。
+   *
+   * 默认实现不改变输入特征。
+   *
+   * @param layer 输出层名称
+   * @param zoom  瓦片的缩放级别
+   * @param items 此层中的所有输出特征
+   * @return 新的输出特征列表或 {@code null} 不做任何改变。将列表的任何元素设置为 {@code null} 表示应忽略它们。
+   * @throws GeometryException 对于任何可恢复的几何操作失败 - 框架将记录错误，发出原始输入特征，并继续处理其他层
    */
   default List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTile.Feature> items) throws GeometryException {
@@ -109,26 +106,22 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   }
 
   /**
-   * Apply any post-processing to layers in an output tile before writing it to the output.
-   * <p>
-   * This is called before {@link #postProcessLayerFeatures(String, int, List)} gets called for each layer. Use this
-   * method if features in one layer should influence features in another layer, to create new layers from existing
-   * ones, or if you need to remove a layer entirely from the output.
-   * <p>
-   * These transformations may add, remove, or change the tags, geometry, or ordering of output features based on other
-   * features present in this tile. See {@link FeatureMerge} class for a set of common transformations that merge
-   * linestrings/polygons.
-   * <p>
-   * Many threads invoke this method concurrently so ensure thread-safe access to any shared data structures.
-   * <p>
-   * The default implementation passes through input features unaltered
+   * 对输出瓦片中的层应用任何后处理，然后再将其写入输出。
    *
-   * @param tileCoord the tile being post-processed
-   * @param layers    all the output features in each layer on this tile
-   * @return the new map from layer to features or {@code null} to not change anything. Set any elements of the lists to
-   *         {@code null} if they should be ignored.
-   * @throws GeometryException for any recoverable geometric operation failures - the framework will log the error, emit
-   *                           the original input features, and continue processing other tiles
+   * 这是在为每个层调用 {@link #postProcessLayerFeatures(String, int, List)} 之前调用的。
+   * 如果一个层中的特征应该影响另一个层中的特征、从现有层创建新层，或者需要从输出中完全移除一个层，则使用此方法。
+   *
+   * 这些转换可能基于此瓦片中的其他特征添加、移除或更改输出特征的标签、几何形状或顺序。
+   * 参见 {@link FeatureMerge} 类以获取一组常见的转换，这些转换合并线串/多边形。
+   *
+   * 许多线程同时调用此方法，因此请确保对任何共享数据结构的线程安全访问。
+   *
+   * 默认实现不改变输入特征。
+   *
+   * @param tileCoord 被后处理的瓦片
+   * @param layers    此瓦片中每个层中的所有输出特征
+   * @return 新的从层到特征的映射或 {@code null} 不做任何改变。将列表的任何元素设置为 {@code null} 表示应忽略它们。
+   * @throws GeometryException 对于任何可恢复的几何操作失败 - 框架将记录错误，发出原始输入特征，并继续处理其他瓦片
    */
   default Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
     Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
@@ -202,61 +195,59 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   }
 
   /**
-   * Invoked once for each source after all elements for that source have been processed.
+   * 在处理完某个源的所有元素后，每个源调用一次。
    *
-   * @param sourceName        the name of the source that just finished
-   * @param featureCollectors a supplier for new {@link FeatureCollector} instances for a {@link SourceFeature}.
-   * @param next              a consumer to pass finished map features to
+   * @param sourceName        刚刚完成的源的名称
+   * @param featureCollectors 一个新 {@link FeatureCollector} 实例的供应商，用于 {@link SourceFeature}。
+   * @param next              传递完成的地图特征的消费者
    */
   default void finish(String sourceName, FeatureCollector.Factory featureCollectors,
     Consumer<FeatureCollector.Feature> next) {}
 
   /**
-   * Returns true if this profile will use any of the elements from an input source.
-   * <p>
-   * The default implementation returns true.
+   * 返回此配置文件是否将使用输入源中的任何元素。
    *
-   * @param name the input source name
-   * @return {@code true} if this profile uses that source, {@code false} if it is safe to ignore
+   * 默认实现返回 true。
+   *
+   * @param name 输入源名称
+   * @return {@code true} 如果此配置文件使用该源，{@code false} 如果可以忽略
    */
   default boolean caresAboutSource(String name) {
     return true;
   }
 
   /**
-   * Returns an estimate for how many bytes of disk this profile will use for intermediate feature storage to warn when
-   * running with insufficient disk space.
+   * 返回此配置文件将使用的中间特征存储的磁盘字节数的估计值，以便在磁盘空间不足时发出警告。
    */
   default long estimateIntermediateDiskBytes(long osmFileSize) {
     return 0L;
   }
 
   /**
-   * Returns an estimate for how many bytes the output file will be to warn when running with insufficient disk space.
+   * 返回输出文件的字节数估计值，以便在磁盘空间不足时发出警告。
    */
   default long estimateOutputBytes(long osmFileSize) {
     return 0L;
   }
 
   /**
-   * Returns an estimate for how many bytes of RAM this will use to warn when running with insufficient memory.
-   * <p>
-   * This should include memory for things the profile stores in memory, as well as relations and multipolygons.
+   * 返回此将使用的RAM的字节数估计值，以便在内存不足时发出警告。
+   *
+   * 这应包括配置文件存储在内存中的东西，以及关系和多边形。
    */
   default long estimateRamRequired(long osmFileSize) {
     return 0L;
   }
 
   /**
-   * Returns false if this profile will ignore every feature in a set where {@linkplain Expression.PartialInput partial
-   * attributes} are known ahead of time.
+   * 如果此配置文件将忽略部分属性已知的输入集中所有特征，则返回 false。
    */
   default boolean caresAbout(Expression.PartialInput input) {
     return true;
   }
 
   /**
-   * A default implementation of {@link Profile} that emits no output elements.
+   * {@link Profile} 的默认实现，不发出任何输出元素。
    */
   class NullProfile implements Profile {
 

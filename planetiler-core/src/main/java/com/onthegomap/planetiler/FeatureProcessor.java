@@ -3,22 +3,21 @@ package com.onthegomap.planetiler;
 import com.onthegomap.planetiler.reader.SourceFeature;
 
 /**
- * Subcomponent of {@link Profile} that handles processing layers from a feature, and optionally when that source is
- * finished.
+ * {@link Profile} 的子组件，负责处理来自特征的图层，并在源完成时选择性地进行处理。
  */
 @FunctionalInterface
 public interface FeatureProcessor<T extends SourceFeature> {
 
   /**
-   * Generates output features for any input feature that should appear in the map.
+   * 为地图中应出现的任何输入特征生成输出特征。
    * <p>
-   * Multiple threads may invoke this method concurrently for a single data source so implementations should ensure
-   * thread-safe access to any shared data structures. Separate data sources are processed sequentially.
+   * 多个线程可能会同时为单个数据源调用此方法，因此实现应确保对任何共享数据结构的线程安全访问。
+   * 各个数据源是按顺序处理的。
    * <p>
-   * All OSM nodes are processed first, then ways, then relations.
+   * 所有 OSM 节点首先被处理，然后是路径（ways），最后是关系（relations）。
    *
-   * @param sourceFeature the input feature from a source dataset (OSM element, shapefile element, etc.)
-   * @param features      a collector for generating output map features to emit
+   * @param sourceFeature 来自源数据集的输入特征（OSM元素、shapefile元素等）
+   * @param features      用于生成输出地图特征的收集器
    */
   void processFeature(T sourceFeature, FeatureCollector features);
 }

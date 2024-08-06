@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -73,12 +74,28 @@ public record PlanetilerConfig(
   String oosSavePath,
   String outputType,
   String martinUrl,
+  String smallFeatStrategy,
+  Map<Integer, Double> labelGridPixelSize,
+  Map<Integer, Double> labelGridLimit,
+  Map<Integer, Double> bufferPixelOverrides,
   int featureSourceIdMultiplier
 ) {
 
   public static final int MIN_MINZOOM = 0;
   public static final int MAX_MAXZOOM = 15;
   private static final int DEFAULT_MAXZOOM = 14;
+  /**
+   * Label网格大小的阈值，根据不同缩放级别设置不同的网格大小。
+   */
+  private static final String LABEL_GRID_PIXEL_SIZE_DEFAULT = "14=32,6=16,1=4";
+  /**
+   * Label网格限制的阈值，根据不同缩放级别设置不同的网格限制。
+   */
+  private static final String LABEL_GRID_LIMIT_DEFAULT = "14=512,6=2048,1=4096";
+  /**
+   * 缓冲像素阈值，根据不同缩放级别设置不同的缓冲像素值。
+   */
+  private static final String BUFFER_PIXEL_OVERRIDES_DEFAULT= "14=32,6=16,1=4";
 
   public PlanetilerConfig {
     if (minzoom > maxzoom) {
@@ -93,6 +110,8 @@ public record PlanetilerConfig(
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
     }
+
+    SmallFeatureStrategy.fromString(smallFeatStrategy);
   }
 
   public static PlanetilerConfig defaults() {
@@ -167,7 +186,7 @@ public record PlanetilerConfig(
     Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
 
     return new PlanetilerConfig(
-      // todo linespce
+      // todo linespace
       oosThreadPoolExecutor,
       minioUtils,
       arguments,
@@ -247,21 +266,32 @@ public record PlanetilerConfig(
             TileCompression.availableValues().stream().map(TileCompression::id).toList(),
           "gzip")),
       arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
+      // https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}
       arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
-        "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
+        ""),
       tmpDir,
       arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
         tmpDir.resolveSibling("tile_weights.tsv.gz")),
       arguments.getDouble("max_point_buffer",
         "Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for " +
-          "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
+          "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support "
+          +
           "raster tile rendering",
         Double.POSITIVE_INFINITY),
       arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false),
-      // todo linespce
+      // todo linespace
       arguments.getString("oossavepath", "存储服务器文件存储路径", ""),
       arguments.getString("outputType", "输出数据类型（mbtiles,pbf）", "pbf"),
       arguments.getString("martinUrl", "martin地址", "http://localhost:9545/"),
+      arguments.getString("small_Feat_Strategy", "过小的要素处理方案："
+          + "discard - 简化后小于一个像素点直接丢弃；centroid - 生成质心替代；triangle - 生成最小三角形替代；square - 生成最小正方形替代",
+        SmallFeatureStrategy.DISCARD.strategy),
+      arguments.getMap("label_grid_pixel_size", Integer::parseInt, Double::parseDouble,
+        "设置在每个缩放级别计算标签网格哈希值时用于分组或限制输出点的网格大小（以像素为单）。", LABEL_GRID_PIXEL_SIZE_DEFAULT),
+      arguments.getMap("label_grid_limit", Integer::parseInt, Double::parseDouble,
+        "设置在每个缩放级别计算标签网格哈希值时用于限制输出点密度的点数上限（以像素为单位）。", LABEL_GRID_LIMIT_DEFAULT),
+      arguments.getMap("buffer_Pixel_Thresholds", Integer::parseInt, Double::parseDouble,
+        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", BUFFER_PIXEL_OVERRIDES_DEFAULT),
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
@@ -276,4 +306,44 @@ public record PlanetilerConfig(
   public double tolerance(int zoom) {
     return zoom >= maxzoomForRendering ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
   }
+
+  public enum SmallFeatureStrategy {
+    /**
+     * 丢弃
+     */
+    DISCARD("discard"),
+    /**
+     * 生成质心
+     */
+    CENTROID("centroid"),
+    /**
+     * 生成最小三角形
+     */
+    TRIANGLE("triangle"),
+    /**
+     * 生成最小正方形
+     */
+    SQUARE("square");
+
+    private final String strategy;
+
+    SmallFeatureStrategy(String strategy) {
+      this.strategy = strategy;
+    }
+
+    public String getStrategy() {
+      return strategy;
+    }
+
+    public static SmallFeatureStrategy fromString(String strategy) {
+      return switch (strategy.toLowerCase()) {
+        case "discard" -> DISCARD;
+        case "centroid" -> CENTROID;
+        case "triangle" -> TRIANGLE;
+        case "square" -> SQUARE;
+        default -> throw new IllegalArgumentException("未知的处理策略: " + strategy);
+      };
+    }
+  }
+
 }

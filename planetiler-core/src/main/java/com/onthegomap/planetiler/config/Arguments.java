@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -554,5 +556,27 @@ public class Arguments {
   /** Returns a new arguments instance where the value for {@code key} defaults to {@code value}. */
   public Arguments withDefault(Object key, Object value) {
     return orElse(Arguments.of(key.toString().replaceFirst("^-*", ""), value));
+  }
+
+  /**
+   * 通用的map解析方法
+   *
+   * @param key         字段名称
+   * @param keyParser   将字符串转换为键的函数
+   * @param valueParser 将字符串转换为值的函数
+   * @param <K>         键的目标类型
+   * @param <V>         值的目标类型
+   * @return 解析后的map映射
+   */
+  public <K, V> Map<K, V> getMap(String key, Function<String, K> keyParser, Function<String, V> valueParser,
+    String description, String defaultValue) {
+    String input = getString(key, description, defaultValue);
+
+    return Arrays.stream(input.split(","))
+      .map(s -> s.split("="))
+      .collect(Collectors.toMap(
+        arr -> keyParser.apply(arr[0]),
+        arr -> valueParser.apply(arr[1])
+      ));
   }
 }

@@ -17,14 +17,12 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 
 /**
- * Base class for input features read from a data source.
+ * 从数据源读取的输入特征的基类。
  * <p>
- * Provides cached convenience methods with lazy initialization for geometric attributes derived from
- * {@link #latLonGeometry()} and {@link #worldGeometry()} to avoid computing them if not needed, and recomputing them if
- * needed by multiple features.
+ * 提供了带有惰性初始化的几何属性的缓存便利方法，这些方法是从 {@link #latLonGeometry()} 和 {@link #worldGeometry()} 派生的，
+ * 以避免在不需要时进行计算，并在多个特征需要时重新计算。
  * <p>
- * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where (0,0) is
- * the northwest corner and (1,1) is the southeast corner of the planet.
+ * 除 {@link #latLonGeometry()} 之外的所有几何体都返回以世界 Web 墨卡托坐标表示的元素，其中 (0,0) 是西北角，(1,1) 是地球的东南角。
  */
 public abstract class SourceFeature implements WithTags, WithGeometryType {
 
@@ -47,14 +45,13 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private LineSplitter lineSplitter;
 
   /**
-   * Constructs a new input feature.
+   * 构造一个新的输入特征。
    *
-   * @param tags          string key/value pairs associated with this element
-   * @param source        source name that profile can use to distinguish between elements from different data sources
-   * @param sourceLayer   layer name within {@code source} that profile can use to distinguish between different kinds
-   *                      of elements in a given source.
-   * @param relationInfos relations that this element is contained within
-   * @param id            numeric ID of this feature within this source (i.e. an OSM element ID)
+   * @param tags          与该元素关联的字符串键/值对
+   * @param source        配置文件可用于区分来自不同数据源的元素的源名称
+   * @param sourceLayer   配置文件可用于区分给定源中不同类型元素的图层名称
+   * @param relationInfos 包含该元素的关系
+   * @param id            该特征在该源中的数字 ID（即 OSM 元素 ID）
    */
   protected SourceFeature(Map<String, Object> tags, String source, String sourceLayer,
     List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos, long id) {
@@ -72,28 +69,24 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns this feature's geometry in latitude/longitude degree coordinates.
+   * 返回此特征在纬度/经度坐标中的几何体。
    *
-   * @return the latitude/longitude geometry
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @return 纬度/经度几何体
+   * @throws GeometryException         如果创建此几何体时发生意外但可恢复的错误，应记录以进行调试
+   * @throws GeometryException.Verbose 如果创建此几何体时发生预期错误，将在较低日志级别记录
    */
   public abstract Geometry latLonGeometry() throws GeometryException;
 
   /**
-   * Returns this feature's geometry in world web mercator coordinates.
+   * 返回此特征在世界 Web 墨卡托坐标中的几何体。
    *
-   * @return the geometry in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @return 墨卡托坐标中的几何体
+   * @throws GeometryException         如果创建此几何体时发生意外但可恢复的错误，应记录以进行调试
+   * @throws GeometryException.Verbose 如果创建此几何体时发生预期错误，将在较低日志级别记录
    */
   public abstract Geometry worldGeometry() throws GeometryException;
 
-  /** Returns and caches {@link Geometry#getCentroid()} of this geometry in world web mercator coordinates. */
+  /** 返回并缓存此几何体在世界 Web 墨卡托坐标中的 {@link Geometry#getCentroid()}。 */
   public final Geometry centroid() throws GeometryException {
     return centroid != null ? centroid : (centroid =
       canBePolygon() ? polygon().getCentroid() :
@@ -101,7 +94,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
         worldGeometry().getCentroid());
   }
 
-  /** Returns and caches {@link Geometry#getInteriorPoint()} of this geometry in world web mercator coordinates. */
+  /** 返回并缓存此几何体在世界 Web 墨卡托坐标中的 {@link Geometry#getInteriorPoint()}。 */
   public final Geometry pointOnSurface() throws GeometryException {
     return pointOnSurface != null ? pointOnSurface : (pointOnSurface =
       canBePolygon() ? polygon().getInteriorPoint() :
@@ -110,15 +103,13 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns {@link MaximumInscribedCircle#getCenter()} of this geometry in world web mercator coordinates.
+   * 返回此几何体在世界 Web 墨卡托坐标中的 {@link MaximumInscribedCircle#getCenter()}。
    *
-   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
-   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between
-   *                  0.05-0.1 are a good compromise of performance vs. precision.
+   * @param tolerance 计算最大内切圆的精度。0.01 表示面积平方根的 1%。较小的值精度更高，但计算代价昂贵。0.05-0.1 是性能与精度的良好折衷。
    */
   public final Geometry innermostPoint(double tolerance) throws GeometryException {
     if (canBePolygon()) {
-      // cache as long as the tolerance hasn't changed
+      // 缓存，只要容差没有改变
       if (tolerance != innermostPointTolerance || innermostPoint == null) {
         innermostPoint = MaximumInscribedCircle.getCenter(polygon(), Math.sqrt(area()) * tolerance);
         innermostPointTolerance = tolerance;
@@ -142,23 +133,20 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns and caches a point inside the geometry in world web mercator coordinates.
+   * 返回并缓存几何体在世界 Web 墨卡托坐标中的一个点。
    * <p>
-   * If the geometry is convex, uses the faster {@link Geometry#getCentroid()} but otherwise falls back to the slower
-   * {@link Geometry#getInteriorPoint()}.
+   * 如果几何体是凸的，使用更快的 {@link Geometry#getCentroid()}，否则使用较慢的 {@link Geometry#getInteriorPoint()}。
    */
   public final Geometry centroidIfConvex() throws GeometryException {
     return centroidIfConvex != null ? centroidIfConvex : (centroidIfConvex = computeCentroidIfConvex());
   }
 
   /**
-   * Computes this feature as a {@link LineString} or {@link MultiLineString} in world web mercator coordinates.
+   * 计算此特征在世界 Web 墨卡托坐标中的 {@link LineString} 或 {@link MultiLineString}。
    *
-   * @return the linestring in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @return 墨卡托坐标中的线串
+   * @throws GeometryException         如果创建此几何体时发生意外但可恢复的错误，应记录以进行调试
+   * @throws GeometryException.Verbose 如果创建此几何体时发生预期错误，将在较低日志级别记录
    */
   protected Geometry computeLine() throws GeometryException {
     Geometry world = worldGeometry();
@@ -166,10 +154,9 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns this feature as a {@link LineString} or {@link MultiLineString} in world web mercator coordinates.
+   * 返回此特征在世界 Web 墨卡托坐标中的 {@link LineString} 或 {@link MultiLineString}。
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * @throws GeometryException 如果在构建几何体时发生错误，或此特征不应解释为线
    */
   public final Geometry line() throws GeometryException {
     if (!canBeLine()) {
@@ -182,11 +169,9 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns a partial line string from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the
-   * end of the line.
+   * 返回从 {@code start} 到 {@code end} 的部分线串，其中 0 是线的起点，1 是线的终点。
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a single line (multilinestrings are not allowed).
+   * @throws GeometryException 如果在构建几何体时发生错误，或此特征不应解释为单线（不允许多线串）。
    */
   public final Geometry partialLine(double start, double end) throws GeometryException {
     Geometry line = line();
@@ -203,23 +188,20 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Computes this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
+   * 计算此特征在世界 Web 墨卡托坐标中的 {@link Polygon} 或 {@link MultiPolygon}。
    *
-   * @return the polygon in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @return 墨卡托坐标中的多边形
+   * @throws GeometryException         如果创建此几何体时发生意外但可恢复的错误，应记录以进行调试
+   * @throws GeometryException.Verbose 如果创建此几何体时发生预期错误，将在较低日志级别记录
    */
   protected Geometry computePolygon() throws GeometryException {
     return worldGeometry();
   }
 
   /**
-   * Returns this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
+   * 返回此特征在世界 Web 墨卡托坐标中的 {@link Polygon} 或 {@link MultiPolygon}。
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * @throws GeometryException 如果在构建几何体时发生错误，或此特征不应解释为线
    */
   public final Geometry polygon() throws GeometryException {
     if (!canBePolygon()) {
@@ -237,13 +219,11 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns this feature as a valid {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
+   * 返回此特征在世界 Web 墨卡托坐标中的有效 {@link Polygon} 或 {@link MultiPolygon}。
    * <p>
-   * Validating and fixing invalid polygons can be expensive, so use only if necessary. Invalid polygons will also be
-   * fixed at render-time.
+   * 验证和修复无效多边形可能代价昂贵，因此仅在必要时使用。无效多边形也将在渲染时修复。
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * @throws GeometryException 如果在构建几何体时发生错误，或此特征不应解释为线
    */
   public final Geometry validatedPolygon() throws GeometryException {
     if (!canBePolygon()) {
@@ -253,17 +233,14 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns and caches the result of {@link Geometry#getArea()} of this feature in world web mercator coordinates where
-   * {@code 1} means the area of the entire planet.
+   * 返回并缓存此特征在世界 Web 墨卡托坐标中 {@link Geometry#getArea()} 的结果，其中 {@code 1} 表示整个地球的面积。
    */
   public double area() throws GeometryException {
     return Double.isNaN(area) ? (area = canBePolygon() ? polygon().getArea() : 0) : area;
   }
 
   /**
-   * Returns and caches the result of {@link Geometry#getLength()} of this feature in world web mercator coordinates
-   * where {@code 1} means the circumference of the entire planet or the distance from 85 degrees north to 85 degrees
-   * south.
+   * 返回并缓存此特征在世界 Web 墨卡托坐标中 {@link Geometry#getLength()} 的结果，其中 {@code 1} 表示整个地球的周长或从北纬 85 度到南纬 85 度的距离。
    */
   public double length() throws GeometryException {
     return Double.isNaN(length) ? (length =
@@ -271,7 +248,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /**
-   * Returns and caches sqrt of {@link #area()} if polygon or {@link #length()} if a line string.
+   * 返回并缓存此特征的面积的平方根（如果是多边形）或长度（如果是线串）。
    */
   public double size() throws GeometryException {
     return Double.isNaN(size) ? (size = canBePolygon() ? Math.sqrt(Math.abs(area())) : canBeLine() ? length() : 0) :
@@ -288,16 +265,14 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
     return sourceLayer;
   }
 
-
   /**
-   * Returns a list of OSM relations that this element belongs to.
+   * 返回包含该元素的 OSM 关系的列表。
    *
-   * @param relationInfoClass class of the processed relation data
-   * @param <T>               type of {@code relationInfoClass}
-   * @return A list containing the OSM relation info along with the role that this element is tagged with in that
-   *         relation
+   * @param relationInfoClass 处理关系数据的类
+   * @param <T>               {@code relationInfoClass} 的类型
+   * @return 包含 OSM 关系信息及其在该关系中的角色的列表
    */
-  // TODO this should be in a specialized OSM subclass, not the generic superclass
+  // TODO 这应该在一个专门的 OSM 子类中，而不是通用的超类中
   public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
     Class<T> relationInfoClass) {
     List<OsmReader.RelationMember<T>> result = null;
@@ -315,17 +290,17 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
     return result == null ? List.of() : result;
   }
 
-  /** Returns the ID for this element from the input data source (i.e. OSM element ID). */
+  /** 返回此元素从输入数据源（即 OSM 元素 ID）获取的 ID。 */
   public final long id() {
     return id;
   }
 
-  /** By default, the feature id is taken as-is from the input data source id. */
+  /** 默认情况下，特征 ID 是从输入数据源 ID 直接获取的。 */
   public long vectorTileFeatureId(int multiplier) {
     return multiplier * id;
   }
 
-  /** Returns true if this element has any OSM relation info. */
+  /** 如果此元素有任何 OSM 关系信息，则返回 true。 */
   public boolean hasRelationInfo() {
     return relationInfos != null && !relationInfos.isEmpty();
   }
