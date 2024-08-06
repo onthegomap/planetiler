@@ -646,12 +646,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     @Override
     public long vectorTileFeatureId(int multiplier) {
-      return (id() * multiplier) + switch (originalElement.type()) {
-        case OTHER -> 0;
-        case NODE -> 1;
-        case WAY -> 2;
-        case RELATION -> 3;
-      };
+      return OsmElement.vectorTileFeatureId(multiplier, id(), originalElement.type());
     }
 
     @Override

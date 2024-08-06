@@ -375,12 +375,6 @@
             }
           ]
         },
-        "min_tile_cover_size": {
-          "description": "include objects of a certain geometry size, where 1.0 means \"is the same size as a tile at this zoom\"",
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
         "include_when": {
           "description": "A tag specification which determines the features to include. If unspecified, all features from the specified sources are included",
           "$ref": "#/$defs/boolean_expression"
@@ -487,6 +481,12 @@
               "additionalProperties": {
                 "$ref": "#/$defs/zoom_level"
               }
+            },
+            "min_tile_cover_size": {
+              "description": "Include this attribute only on geometries over a certain size at a given zoom level, where 1.0 means the entire width of a tile for lines, or area of a tile for polygons.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             }
           }
         }
