@@ -79,11 +79,7 @@ public class MinioUtils {
     return false;
   }
 
-  /**
-   * @Description: 创建 存储桶
-   * @Param bucketName: 存储桶名称
-   * @return: void
-   */
+
   public void makeBucket(String bucketName) {
     try {
       if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build())) {
@@ -94,27 +90,11 @@ public class MinioUtils {
     }
   }
 
-  /**
-   * 上传文件
-   *
-   * @param objectName 存储桶对象名称
-   * @param stream     文件流
-   * @return BladeFile
-   */
   public boolean upLoadFile(String objectName, InputStream stream) {
     upLoadFile(bucketName, objectName, stream, "application/octet" + "-stream");
     return true;
   }
 
-  /**
-   * @Description: 上传文件
-   * @Param bucketName: 存储桶名称
-   * @Param folderName: 上传的文件夹名称
-   * @Param fileName: 上传文件名
-   * @Param suffix: 文件后缀名
-   * @Param stream: 文件流
-   * @Param contentType: 文件类型
-   */
   public boolean upLoadFile(String bucketName, String objectName, InputStream stream,
     String contentType) {
     try {

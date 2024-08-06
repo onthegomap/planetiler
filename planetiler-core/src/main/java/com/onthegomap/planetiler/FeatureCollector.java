@@ -73,6 +73,14 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return feature;
   }
 
+  public Feature geometryNotAddOutPut(String layer, Geometry geometry) {
+    // TODO args could also provide a list of source IDs to put into slot 4, 5, 6, etc..
+    // to differentiate between other sources besides just OSM and "other"
+    long vectorTileId = config.featureSourceIdMultiplier() < 4 ? source.id() :
+      source.vectorTileFeatureId(config.featureSourceIdMultiplier());
+    return new Feature(layer, geometry, vectorTileId);
+  }
+
   /**
    * Starts building a new point map feature that expects the source feature to be a point.
    * <p>
@@ -116,14 +124,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
 
   /**
-   * Starts building a new partial line feature from {@code start} to {@code end} where 0 is the beginning of the line
-   * and 1 is the end of the line.
-   * <p>
-   * If the source feature cannot be a line, logs an error and returns a feature that can be configured, but won't
-   * actually emit anything to the map.
+   * 开始构建从start到end的新的部分线特征，其中0是线的起点，1是线的终点。
+   * 如果源特征不能是线，则记录错误并返回一个可以配置但实际上不会向地图发出任何内容的特征。
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature partialLine(String layer, double start, double end) {
     try {
@@ -135,15 +140,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new polygon map feature that expects the source feature to be a polygon.
-   * <p>
-   * If the source feature cannot be a polygon, logs an error and returns a feature that can be configured, but won't
-   * actually emit anything to the map.
-   * <p>
-   * Some OSM closed OSM ways can be both a polygon and a line
+   * 开始构建一个新多边形地图特征，期望源特征是多边形。
+   * 如果源特征不能是多边形，则记录错误并返回一个可以配置但实际上不会向地图发出任何内容的特征。
+   * 一些OSM封闭的OSM路径可以是多边形也可以是线
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature polygon(String layer) {
     try {
@@ -155,10 +157,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new polygon, line, or point map feature based on the geometry type of the input feature.
+   * 开始构建一个新点、多边形或线地图特征，基于输入特征的几何类型。
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature anyGeometry(String layer) {
     return source.canBePolygon() ? polygon(layer) :
@@ -172,10 +174,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new point map feature with geometry from {@link Geometry#getCentroid()} of the source feature.
+   * 开始构建一个新点地图特征，其几何形状来自源特征的 {@link Geometry#getCentroid()}。
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature centroid(String layer) {
     try {
@@ -187,12 +189,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new point map feature with geometry from {@link Geometry#getCentroid()} if the source feature is
-   * a point, line, or simple convex polygon, or {@link Geometry#getInteriorPoint()} if it is a multipolygon, polygon
-   * with holes, or concave simple polygon.
+   * 开始构建一个新点地图特征，其几何形状来自 {@link Geometry#getCentroid()} 如果源特征是一个点、线或简单凸多边形，
+   * 或者 {@link Geometry#getInteriorPoint()} 如果它是多边形、带洞多边形或凹的简单多边形。
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature centroidIfConvex(String layer) {
     try {
@@ -204,11 +205,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new point map feature with geometry from {@link Geometry#getInteriorPoint()} of the source
-   * feature.
+   * 开始构建一个新点地图特征，其几何形状来自源特征的 {@link Geometry#getInteriorPoint()}。
    *
-   * @param layer the output vector tile layer this feature will be written to
-   * @return a feature that can be configured further.
+   * @param layer 该特征将被写入的输出矢量瓦片层
+   * @return 可以进一步配置的特征。
    */
   public Feature pointOnSurface(String layer) {
     try {
@@ -220,17 +220,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
-   * Starts building a new point map feature at the furthest interior point of a polygon from its edge using
-   * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
-   * <p>
-   * NOTE: This is substantially more expensive to compute than {@link #centroid(String)} or
-   * {@link #pointOnSurface(String)}, especially for small {@code tolerance} values.
+   * 开始构建一个新点地图特征，在离多边形边缘最远的内部点使用 {@link MaximumInscribedCircle}（又名“不可达极”）的源特征。
+   * 注意：计算比 {@link #centroid(String)} 或 {@link #pointOnSurface(String)} 更加昂贵，尤其是对于较小的 {@code tolerance} 值。
    *
-   * @param layer     the output vector tile layer this feature will be written to
-   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
-   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between 5%
-   *                  and 10% are a good compromise of performance vs. precision.
-   * @return a feature that can be configured further.
+   * @param layer     该特征将被写入的输出矢量瓦片层
+   * @param tolerance 用于计算最大内切圆的精度。0.01表示面积平方根的1%。较小的值更精确，但计算成本更高。5%到10%的值是性能和精度的良好折中。
+   * @return 可以进一步配置的特征。
    */
   public Feature innermostPoint(String layer, double tolerance) {
     try {
@@ -241,12 +236,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 10%. */
+  /** 默认公差为10%的 {@link #innermostPoint(String, double)} 的别名。 */
   public Feature innermostPoint(String layer) {
     return innermostPoint(layer, 0.1);
   }
 
-  /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
+  /** 返回此特征至少为 {@code pixelSize} 像素大的最小缩放级别。 */
   public int getMinZoomForPixelSize(double pixelSize) {
     try {
       return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
@@ -256,8 +251,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-
-  /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+  /** 返回源特征在 {@code zoom} 级别的实际像素大小（如果是线，则为长度，如果是多边形，则为面积的平方根）。 */
   public double getPixelSizeAtZoom(int zoom) {
     try {
       return source.size() * (256 << zoom);
@@ -279,9 +273,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   public interface WithZoomRange<T extends WithZoomRange<T>> {
 
     /**
-     * Sets the zoom range (inclusive) that this feature appears in.
-     * <p>
-     * If not called, then defaults to all zoom levels.
+     * 设置此特征出现的缩放范围（包括）。
+     * 如果未调用，则默认为所有缩放级别。
      */
     default T setZoomRange(int min, int max) {
       assert min <= max;
@@ -290,16 +283,14 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
 
     /**
-     * Sets the minimum zoom level (inclusive) that this feature appears in.
-     * <p>
-     * If not called, defaults to minimum zoom-level of the map.
+     * 设置此特征出现的最小缩放级别（包括）。
+     * 如果未调用，则默认为地图的最小缩放级别。
      */
     T setMinZoom(int min);
 
     /**
-     * Sets the maximum zoom level (inclusive) that this feature appears in.
-     * <p>
-     * If not called, defaults to maximum zoom-level of the map.
+     * 设置此特征出现的最大缩放级别（包括）。
+     * 如果未调用，则默认为地图的最大缩放级别。
      */
     T setMaxZoom(int max);
   }
@@ -313,12 +304,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
   public interface WithAttrs<T extends WithAttrs<T>> extends WithSelf<T> {
 
-    /** Copies the value for {@code key} attribute from source feature to the output feature. */
+    /** 从源特征复制 {@code key} 属性的值到输出特征。 */
     default T inheritAttrFromSource(String key) {
       return setAttr(key, collector().source.getTag(key));
     }
 
-    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    /** 从源特征复制 {@code keys} 属性的值到输出特征。 */
     default T inheritAttrsFromSource(String... keys) {
       for (var key : keys) {
         inheritAttrFromSource(key);
@@ -326,8 +317,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return self();
     }
 
-
-    /** Copies the values for {@code keys} attributes from source feature to the output feature. */
+    /** 从源特征复制 {@code keys} 属性的值到输出特征。 */
     default T inheritAttrsFromSourceWithMinzoom(int minzoom, String... keys) {
       for (var key : keys) {
         setAttrWithMinzoom(key, collector().source.getTag(key), minzoom);
@@ -336,38 +326,33 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets an attribute on the output feature to either a string, number, boolean, or instance of {@link ZoomFunction}
-     * to change the value for {@code key} by zoom-level.
+     * 设置输出特征的属性为字符串、数字、布尔值或 {@link ZoomFunction} 实例，
+     * 以按缩放级别更改 {@code key} 的值。
      */
     T setAttr(String key, Object value);
 
     /**
-     * Sets the value for {@code key} attribute at or above {@code minzoom}. Below {@code minzoom} it will be ignored.
-     * <p>
-     * Replaces all previous value that has been for {@code key} at any zoom level. To have a value that changes at
-     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed
-     * {@link ZoomFunction} value.
+     * 设置 {@code key} 属性在或以上 {@code minzoom} 的值。低于 {@code minzoom} 则忽略。
+     * 替换所有先前在任何缩放级别为 {@code key} 设置的值。要在多个缩放级别阈值更改值，请调用
+     * {@link #setAttr(String, Object)} 并手动构建 {@link ZoomFunction} 值。
      */
     default T setAttrWithMinzoom(String key, Object value, int minzoom) {
       return setAttr(key, ZoomFunction.minZoom(minzoom, value));
     }
 
     /**
-     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
-     * size.
+     * 设置 {@code key} 属性的值仅在特征至少为 {@code minPixelSize} 像素大小的缩放级别。
      */
     default T setAttrWithMinSize(String key, Object value, double minPixelSize) {
       return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
     }
 
     /**
-     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
-     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
-     * {@code minPixelSize} pixels in size.
-     * <p>
-     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
-     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
-     * zoom level.
+     * 设置 {@code key} 属性的值，使其始终显示在 {@code zoom_level >= minZoomToShowAlways}，
+     * 但仅在 {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} 时显示，
+     * 如果其至少为 {@code minPixelSize} 像素大小。
+     * 如果需要更大的灵活性，请直接使用 {@link #getMinZoomForPixelSize(double)}，
+     * 或创建计算 {@link #getPixelSizeAtZoom(int)} 并应用自定义阈值的 {@link ZoomFunction}。
      */
     default T setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
       int minZoomToShowAlways) {
@@ -380,10 +365,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
-     * {@code minzoom}.
-     * <p>
-     * Replace values that have already been set.
+     * 在或以上 {@code minzoom} 将所有 {@code attrs} 中的键/值对插入到输出特征的属性集中。
+     * 替换已经设置的值。
      */
     default T putAttrsWithMinzoom(Map<String, Object> attrs, int minzoom) {
       for (var entry : attrs.entrySet()) {
@@ -393,12 +376,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature.
-     * <p>
-     * Does not touch attributes that have already been set.
-     * <p>
-     * Values in {@code attrs} can either be the raw value to set, or an instance of {@link ZoomFunction} to change the
-     * value for that attribute by zoom level.
+     * 将所有 {@code attrs} 中的键/值对插入到输出特征的属性集中。
+     * 不触碰已经设置的属性。
+     * {@code attrs} 中的值可以是要设置的原始值，或 {@link ZoomFunction} 实例，
+     * 以按缩放级别更改该属性的值。
      */
     default T putAttrs(Map<String, Object> attrs) {
       for (var entry : attrs.entrySet()) {
@@ -407,12 +388,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return self();
     }
 
-    /** Returns the {@link FeatureCollector} this feature came from. */
+    /** 返回此特征来自的 {@link FeatureCollector}。 */
     FeatureCollector collector();
   }
 
   /**
-   * Creates new feature collector instances for each source feature that we encounter.
+   * 为我们遇到的每个源特征创建新的特征收集器实例。
    */
   public record Factory(PlanetilerConfig config, Stats stats) {
 
@@ -423,15 +404,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
   private record PartialOverride(Range<Double> range, Object key, Object value) {}
 
-  /** A fully-configured subset of this line feature with linear-scoped attributes applied to a subset of the range.. */
+  /** 一个完全配置的线特征子集，具有应用于范围子集的线性范围属性。 */
   public record RangeWithTags(double start, double end, Geometry geom, Map<String, Object> attrs) {}
 
   /**
-   * A builder for an output map feature that contains all the information that will be needed to render vector tile
-   * features from the input element.
-   * <p>
-   * Some feature attributes are set globally (like sort key), and some allow the value to change by zoom-level (like
-   * tags).
+   * 一个用于构建输出地图特征的构建器，包含从输入要素中渲染矢量瓦片特征所需的所有信息。
+   * 一些特征属性是全局设置的（如排序键），一些允许按缩放级别更改值（如标签）。
    */
   public final class Feature implements WithZoomRange<Feature>, WithAttrs<Feature> {
 
@@ -482,7 +460,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
     }
 
-    /** Returns the original ID of the source feature that this feature came from (i.e. OSM node/way ID). */
+    /** 返回此特征来源的源特征的原始ID（即OSM节点/路径ID）。 */
     public long getId() {
       return id;
     }
@@ -501,23 +479,18 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the value by which features are sorted within a layer in the output vector tile.
+     * 返回特征在输出矢量瓦片中的层内排序的值。
      */
     public int getSortKey() {
       return sortKey;
     }
 
     /**
-     * Sets the value by which features are sorted within a layer in the output vector tile. Sort key gets packed into
-     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to
-     * {@code (2^(bits-1))-1}.
-     * <p>
-     * Circles, lines, and polygons are rendered in the order they appear in each layer, so features that appear later
-     * (higher sort key) show up on top of features with a lower sort key.
-     * <p>
-     * For symbols (text/icons) where clients try to avoid label collisions, features are placed in the order they
-     * appear in each layer, so features that appear earlier (lower sort key) will show up at lower zoom levels than
-     * feature that appear later (higher sort key) in a layer.
+     * 设置特征在输出矢量瓦片中的层内排序的值。排序键被打包到 {@link FeatureGroup#SORT_KEY_BITS} 位中，
+     * 因此此范围的值限制在 {@code -(2^(bits-1))} 到 {@code (2^(bits-1))-1}。
+     * 圆形、线条和多边形按它们在每层中出现的顺序呈现，因此在每层中较晚出现（较高排序键）的特征显示在较低排序键特征之上。
+     * 对于尝试避免标签碰撞的符号（文本/图标），特征按每层中出现的顺序放置，因此在每层中较早出现（较低排序键）的特征
+     * 将显示在比较晚出现（较高排序键）的特征的较低缩放级别。
      */
     public Feature setSortKey(int sortKey) {
       assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX : "Sort key " + sortKey +
@@ -526,12 +499,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
-    /** Sets the value by which features are sorted from high to low within a layer in the output vector tile. */
+    /** 设置特征在输出矢量瓦片中的层内从高到低排序的值。 */
     public Feature setSortKeyDescending(int sortKey) {
       return setSortKey(FeatureGroup.SORT_KEY_MAX + FeatureGroup.SORT_KEY_MIN - sortKey);
     }
 
-    /** Returns the minimum zoom level (inclusive) that this feature appears in. */
+    /** 返回此特征出现的最小缩放级别（包括）。 */
     public int getMinZoom() {
       return minzoom;
     }
@@ -542,7 +515,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
-    /** Returns the maximum zoom level (inclusive) that this feature appears in. */
+    /** 返回此特征出现的最大缩放级别（包括）。 */
     public int getMaxZoom() {
       return maxzoom;
     }
@@ -553,28 +526,26 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
-    /** Returns the output vector tile layer that this feature will appear in. */
+    /** 返回此特征将出现在的输出矢量瓦片层。 */
     public String getLayer() {
       return layer;
     }
 
     /**
-     * Returns the JTS geometry (in world web mercator coordinates) of this feature.
-     * <p>
-     * Subsequent postprocessing in {@link FeatureRenderer} will slice this into tile geometries.
+     * 返回此特征的JTS几何形状（在世界Web墨卡托坐标中）。
+     * 后续在 {@link FeatureRenderer} 中的后处理将把它切成瓦片几何。
      */
     public Geometry getGeometry() {
       return geom;
     }
 
-    /** Returns the number of pixels of detail to render outside the visible tile boundary at {@code zoom}. */
+    /** 返回在 {@code zoom} 级别渲染的瓦片边界外的细节像素数量。 */
     public double getBufferPixelsAtZoom(int zoom) {
       return ZoomFunction.applyAsDoubleOrElse(bufferPixelOverrides, zoom, defaultBufferPixels);
     }
 
     /**
-     * Sets the default number of pixels of detail to render outside the visible tile boundary when no zoom-specific
-     * override is set in {@link #setBufferPixelOverrides(ZoomFunction)}.
+     * 设置在未设置缩放级别特定覆盖时，渲染的瓦片边界外的细节像素的默认数量 {@link #setBufferPixelOverrides(ZoomFunction)}。
      */
     public Feature setBufferPixels(double buffer) {
       defaultBufferPixels = buffer;
@@ -582,22 +553,17 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets zoom-specific overrides to the number of pixels of detail to render outside the visible tile boundary.
-     * <p>
-     * If {@code buffer} is {@code null} or returns {@code null}, the buffer pixels will default to
-     * {@link #setBufferPixels(double)}.
+     * 设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。
+     * 如果 {@code buffer} 为 {@code null} 或返回 {@code null}，则缓冲像素将默认为 {@link #setBufferPixels(double)}。
      */
     public Feature setBufferPixelOverrides(ZoomFunction<Number> buffer) {
       bufferPixelOverrides = buffer;
       return this;
     }
 
-
     /**
-     * Returns the minimum resolution in tile pixels of features to emit at {@code zoom}.
-     * <p>
-     * For line features, this is length, and for polygon features this is the square root of the minimum area of
-     * features to emit.
+     * 返回特征在 {@code zoom} 级别的最小分辨率（以像素为单位）。
+     * 对于线特征，这是长度，对于多边形特征，这是要发出的最小面积的平方根。
      */
     public double getMinPixelSizeAtZoom(int zoom) {
       return zoom == config.maxzoomForRendering() ? minPixelSizeAtMaxZoom :
@@ -605,12 +571,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit below the
-     * maximum zoom-level of the map.
-     * <p>
-     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the minimum size at
-     * the max zoom level at {@link PlanetilerConfig#minFeatureSizeAtMaxZoom()} unless you explicitly override it with
-     * {@link #setMinPixelSizeAtMaxZoom(double)} or {@link #setMinPixelSizeAtAllZooms(int)}.
+     * 设置在地图最大缩放级别以下发出的线特征最小长度或多边形特征的最小面积的平方根。
+     * 在地图的最大缩放级别，客户端可以“过度缩放”到特征上，因此这将在最大缩放级别上将最小尺寸保持为
+     * {@link PlanetilerConfig#minFeatureSizeAtMaxZoom()}，除非明确覆盖它 {@link #setMinPixelSizeAtMaxZoom(double)}
+     * 或 {@link #setMinPixelSizeAtAllZooms(int)}。
      */
     public Feature setMinPixelSize(double minPixelSize) {
       this.defaultMinPixelSize = minPixelSize;
@@ -618,14 +582,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets zoom-specific overrides to the minimum length of line features or square root of the minimum area of polygon
-     * features to emit below the maximum zoom-level of the map.
-     * <p>
-     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the minimum size at
-     * the max zoom level at {@link PlanetilerConfig#minFeatureSizeAtMaxZoom()} unless you explicitly override it with
-     * {@link #setMinPixelSizeAtMaxZoom(double)} or {@link #setMinPixelSizeAtAllZooms(int)}.
-     * <p>
-     * If {@code levels} is {@code null} or returns {@code null}, the min pixel size will default to the default value.
+     * 设置在地图最大缩放级别以下发出的线特征最小长度或多边形特征的最小面积的平方根。
+     * 在地图的最大缩放级别，客户端可以“过度缩放”到特征上，因此这将在最大缩放级别上将最小尺寸保持为
+     * {@link PlanetilerConfig#minFeatureSizeAtMaxZoom()}，除非明确覆盖它 {@link #setMinPixelSizeAtMaxZoom(double)}
+     * 或 {@link #setMinPixelSizeAtAllZooms(int)}。
+     * 如果 {@code levels} 为 {@code null} 或返回 {@code null}，则最小像素尺寸将默认为默认值。
      */
     public Feature setMinPixelSizeOverrides(ZoomFunction<Number> levels) {
       this.minPixelSize = levels;
@@ -633,10 +594,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Overrides the default minimum pixel size at and below {@code zoom} with {@code minPixelSize}.
-     * <p>
-     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a
-     * {@link ZoomFunction} explicitly and pass it to {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     * 使用 {@code minPixelSize} 覆盖默认的最小像素尺寸，并在或以下 {@code zoom} 发出特征。
+     * 这将替换所有先前设置的缩放覆盖。要使用多个缩放级别阈值，请显式创建一个 {@link ZoomFunction} 并将其传递给 {@link #setMinPixelSizeOverrides(ZoomFunction)}。
      */
     public Feature setMinPixelSizeBelowZoom(int zoom, double minPixelSize) {
       if (zoom >= config.maxzoomForRendering()) {
@@ -647,13 +606,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit at the
-     * maximum zoom-level of the map.
-     * <p>
-     * Since clients can "overzoom" in on features past the maximum zoom level, this is typically much smaller than min
-     * pixel size at lower zoom levels.
-     * <p>
-     * This overrides, but does not replace the default min pixel size or overrides set through other methods.
+     * 设置在地图最大缩放级别发出的线特征最小长度或多边形特征的最小面积的平方根。
+     * 由于客户端可以“过度缩放”到最大缩放级别上的特征，因此这通常比较低缩放级别上的最小尺寸小得多。
+     * 这将覆盖，但不会替换默认的最小像素尺寸或通过其他方法设置的覆盖。
      */
     public Feature setMinPixelSizeAtMaxZoom(double minPixelSize) {
       this.minPixelSizeAtMaxZoom = minPixelSize;
@@ -661,11 +616,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit at all
-     * zoom levels, including the maximum zoom-level of the map.
-     * <p>
-     * This replaces previous default values, but not overrides set with
-     * {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     * 在所有缩放级别（包括地图最大缩放级别）设置线特征的最小长度或多边形特征的最小面积的平方根。
+     * 这将替换以前的默认值，但不会覆盖通过 {@link #setMinPixelSizeOverrides(ZoomFunction)} 设置的覆盖。
      */
     public Feature setMinPixelSizeAtAllZooms(int minPixelSize) {
       this.minPixelSizeAtMaxZoom = minPixelSize;
@@ -673,7 +625,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the simplification tolerance for lines and polygons in tile pixels at {@code zoom}.
+     * 返回在 {@code zoom} 级别的线和多边形的简化容差（以像素为单位）。
      */
     public double getPixelToleranceAtZoom(int zoom) {
       return zoom == config.maxzoomForRendering() ? pixelToleranceAtMaxZoom :
@@ -681,12 +633,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the simplification tolerance for lines and polygons in tile pixels below the maximum zoom-level of the map.
-     * <p>
-     * Since clients can "overzoom" past the max zoom of the map, this is typically smaller than the default tolerance
-     * to provide more detail as you zoom in.
-     * <p>
-     * This does not replace any overrides that were set with {@link #setPixelToleranceOverrides(ZoomFunction)}.
+     * 设置地图最大缩放级别以下的线和多边形的简化容差（以像素为单位）。
+     * 由于客户端可以“过度缩放”到地图的最大缩放级别，这通常比默认容差小，以提供更多细节。
+     * 这不会替换通过 {@link #setPixelToleranceOverrides(ZoomFunction)} 设置的覆盖。
      */
     public Feature setPixelTolerance(double tolerance) {
       this.defaultPixelTolerance = tolerance;
@@ -694,10 +643,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the simplification tolerance for lines and polygons in tile pixels at the maximum zoom-level of the map.
-     * <p>
-     * This does not replace the default value at other zoom levels set through {@link #setPixelTolerance(double)} any
-     * zoom-specific overrides that were set with {@link #setPixelToleranceOverrides(ZoomFunction)}.
+     * 设置地图最大缩放级别的线和多边形的简化容差（以像素为单位）。
+     * 这不会替换通过 {@link #setPixelTolerance(double)} 设置的默认值或通过 {@link #setPixelToleranceOverrides(ZoomFunction)} 设置的覆盖。
      */
     public Feature setPixelToleranceAtMaxZoom(double tolerance) {
       this.pixelToleranceAtMaxZoom = tolerance;
@@ -705,24 +652,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the simplification tolerance for lines and polygons in tile pixels including at the maximum zoom-level of
-     * the map.
-     * <p>
-     * This does not replace the default value at other zoom levels set through {@link #setPixelTolerance(double)}.
+     * 设置线和多边形的简化容差（以像素为单位），包括地图最大缩放级别。
+     * 这不会替换通过 {@link #setPixelTolerance(double)} 设置的默认值。
      */
     public Feature setPixelToleranceAtAllZooms(double tolerance) {
       return setPixelToleranceAtMaxZoom(tolerance).setPixelTolerance(tolerance);
     }
 
     /**
-     * Sets zoom-specific overrides to the simplification tolerance for lines and polygons in tile pixels below the
-     * maximum zoom-level of the map.
+     * 设置在最大缩放级别以下的地图瓦片中线条和多边形的简化容差的缩放特定覆盖。
      * <p>
-     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the tolerance at the
-     * max zoom level set to {@link PlanetilerConfig#simplifyToleranceAtMaxZoom()} unless you explicitly override it
-     * with {@link #setMinPixelSizeAtAllZooms(int)} or {@link #setMinPixelSizeAtMaxZoom(double)}.
+     * 在地图的最大缩放级别，客户端可以“过度放大”特征，因此在最大缩放级别将容差设置为 {@link PlanetilerConfig#simplifyToleranceAtMaxZoom()}，
+     * 除非你明确通过 {@link #setMinPixelSizeAtAllZooms(int)} 或 {@link #setMinPixelSizeAtMaxZoom(double)} 覆盖它。
      * <p>
-     * If {@code levels} is {@code null} or returns {@code null}, the min pixel size will default to the default value.
+     * 如果 {@code levels} 是 {@code null} 或返回 {@code null}，最小像素大小将默认为默认值。
      */
     public Feature setPixelToleranceOverrides(ZoomFunction<Number> overrides) {
       this.pixelTolerance = overrides;
@@ -730,11 +673,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Overrides the default simplification tolerance for lines and polygons in tile pixels at and below {@code zoom}
-     * with {@code minPixelSize}.
+     * 覆盖在 {@code zoom} 及以下缩放级别中瓦片像素中线条和多边形的默认简化容差，使用 {@code minPixelSize}。
      * <p>
-     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a
-     * {@link ZoomFunction} explicitly and pass it to {@link #setPixelToleranceOverrides(ZoomFunction)}
+     * 这将替换所有先前设置的缩放覆盖。要使用多个缩放级别阈值，请显式创建 {@link ZoomFunction} 并将其传递给 {@link #setPixelToleranceOverrides(ZoomFunction)}。
      */
     public Feature setPixelToleranceBelowZoom(int zoom, double tolerance) {
       if (zoom == config.maxzoomForRendering()) {
@@ -743,18 +684,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return setPixelToleranceOverrides(ZoomFunction.maxZoom(zoom, tolerance));
     }
 
+    /**
+     * 判断是否具有标签网格设置。
+     */
     public boolean hasLabelGrid() {
       return labelGridPixelSize != null || labelGridLimit != null;
     }
 
     /**
-     * Returns the size in pixels of the grid used to group or limit output points.
+     * 返回用于分组或限制输出点的网格的像素大小。
      *
-     * @throws AssertionError when assertions are enabled and the returned value is smaller than the buffer pixel size
+     * @throws AssertionError 当断言启用且返回值小于缓冲区像素大小时抛出
      */
     public double getPointLabelGridPixelSizeAtZoom(int zoom) {
       double result = ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
-      // TODO is this enough? what about a grid square that ends just before the start of the tile
+      // TODO 这是否足够？如果网格方块在瓦片开始之前结束怎么办
       assert result <= getBufferPixelsAtZoom(
         zoom) : "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was greater than label grid size=%f"
           .formatted(
@@ -763,31 +707,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the maximum number of lowest-sort-key points to include in the output vector tile in each square of a
-     * grid with size {@link #getPointLabelGridPixelSizeAtZoom(int)}.
+     * 返回每个网格方块中输出矢量瓦片中包含的最低排序键点的最大数量，网格大小为 {@link #getPointLabelGridPixelSizeAtZoom(int)}。
      */
     public int getPointLabelGridLimitAtZoom(int zoom) {
       return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
     }
 
     /**
-     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of points rendered in each
-     * zoom-level for limiting the density of features in the output tile, or computing a "rank" key that clients can
-     * use to control label density.
-     * <p>
-     * If limit is set, features will be dropped automatically before encoding the vector tile, but "rank" must be added
-     * explicitly in {@link Profile#postProcessLayerFeatures(String, int, List)}.
-     * <p>
-     * Replaces any previous values set for label grid pixel size.
-     * <p>
-     * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
-     * and ranking of a point rendered in adjacent tiles, be sure to set the buffer pixel size to at least be larger
-     * than the label grid pixel size at each zoom level.
+     * 设置在每个缩放级别计算标签网格哈希值时用于分组或限制输出点的网格大小（以像素为单位），
+     * 或者计算客户端可以用来控制标签密度的“排序”键。
+     * 如果设置了限制，则特征将在编码矢量瓦片之前自动删除，但必须在 {@link Profile#postProcessLayerFeatures(String, int, List)} 中显式添加“排序”。
+     * 替换之前为标签网格像素大小设置的任何值。
+     * 注意：标签网格在每个瓦片内独立计算，因此为了确保一致的限制和标签排序，请确保在每个缩放级别将缓冲像素大小设置为至少大于标签网格像素大小。
      *
-     * @param labelGridSize a function that returns the size of the label grid to use at each zoom level. If function is
-     *                      or returns null for a zoom-level, no label grid will be computed.
-     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     *      function</a>
+     * @param labelGridSize 在每个缩放级别使用的标签网格大小。如果函数为空或在某个缩放级别返回空，则不会计算标签网格。
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis 函数</a>
      */
     public Feature setPointLabelGridPixelSize(ZoomFunction<Number> labelGridSize) {
       this.labelGridPixelSize = labelGridSize;
@@ -809,14 +743,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the maximum number of points with the lowest sort-key to include with the same label grid hash in a tile.
-     * <p>
-     * Replaces any previous values set for label grid limit.
+     * 设置在每个缩放级别计算标签网格哈希值时用于限制输出点密度的点数上限（以像素为单位）。
+     * 替换之前为标签网格限制设置的任何值。
      *
-     * @param labelGridLimit a function that returns the size of the label grid to use at each zoom level. If function
-     *                       is or returns null for a zoom-level, no label grid will be computed.
-     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     *      function</a>
+     * @param labelGridLimit 在每个缩放级别使用的标签网格限制。如果函数为空或在某个缩放级别返回空，则不会计算标签网格。
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis 函数</a>
      */
     public Feature setPointLabelGridLimit(ZoomFunction<Number> labelGridLimit) {
       this.labelGridLimit = labelGridLimit;
@@ -824,29 +755,22 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Limits the density of points on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
-     * features with lowest sort-key in each square of a {@code size x size} pixel grid.
-     * <p>
-     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and
-     * {@link #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit.
-     * To set multiple thresholds, use the other methods directly.
-     * <p>
-     * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
-     * and ranking of a point rendered in adjacent tiles, be sure to set the buffer pixel size to at least be larger
-     * than the label grid pixel size at each zoom level.
+     * 在或以下 {@code maxzoom} 限制输出瓦片上的点密度，仅发出具有最低排序键的 {@code limit} 特征在 {@code size x size} 像素网格的每个方格中。
+     * 这是 {@link #setPointLabelGridPixelSize(ZoomFunction)} 和 {@link #setPointLabelGridLimit(ZoomFunction)} 的薄包装。
+     * 它会替换以前为标签网格大小或限制设置的任何值。要设置多个阈值，请直接使用其他方法。
+     * 注意：标签网格在每个瓦片内独立计算，因此为了确保一致的限制和标签排序，请确保在每个缩放级别将缓冲像素大小设置为至少大于标签网格像素大小。
      *
-     * @param maxzoom the zoom-level at and below which we should limit point density
-     * @param size    the label grid size to use when computing hashes
-     * @param limit   the number of lowest-sort-key points to include in each square of the grid
-     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     *      function</a>
+     * @param maxzoom 在该缩放级别或以下限制点密度
+     * @param size    计算哈希时使用的标签网格大小
+     * @param limit   在网格的每个方格中包含的最低排序键点的数量
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis 函数</a>
      */
     public Feature setPointLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
       return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size))
         .setPointLabelGridLimit(ZoomFunction.maxZoom(maxzoom, limit));
     }
 
-    // could be expensive, so cache results
+    // 可能昂贵，所以缓存结果
     private Map<String, Object> computeAttrsAtZoom(int zoom) {
       Map<String, Object> result = new TreeMap<>();
       for (var entry : attrs.entrySet()) {
@@ -871,7 +795,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       throw new IllegalStateException("Failed to unwrap at z" + zoom + ": " + object);
     }
 
-    /** Returns the attribute to put on all output vector tile features at a zoom level. */
+    /** 返回在缩放级别上输出矢量瓦片特征上的属性。 */
     public Map<String, Object> getAttrsAtZoom(int zoom) {
       if (!mustUnwrapValues) {
         return attrs;
@@ -912,23 +836,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
-     * before slicing it into tiles.
+     * 返回渲染器在将简化几何切片到瓦片中之前应使用的点数的特殊属性键。
      */
     public String getNumPointsAttr() {
       return numPointsAttr;
     }
 
     /**
-     * Sets a special attribute key that the renderer will use to store the number of points in the simplified geometry
-     * before slicing it into tiles.
+     * 设置渲染器将在将简化几何切片到瓦片中之前使用的点数的特殊属性键。
      */
     public Feature setNumPointsAttr(String numPointsAttr) {
       this.numPointsAttr = numPointsAttr;
       return this;
     }
 
-    /** Omit this feature from the output */
+    /** 从输出中省略此特征 */
     public Feature omit() {
       output.remove(this);
       return this;
@@ -943,41 +865,33 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         '}';
     }
 
-    /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+    /** 返回源特征在 {@code zoom} 级别的实际像素大小（如果是线，则为长度，如果是多边形，则为面积的平方根）。 */
     public double getSourceFeaturePixelSizeAtZoom(int zoom) {
       return getPixelSizeAtZoom(zoom);
     }
 
     /**
-     * Returns a {@link LinearRange} that can be used to configure attributes that apply to only a portion of this line
-     * from {@code start} to {@code end} where 0 is the beginning of the line and 1 is the end.
-     * <p>
-     * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
-     * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
-     * will get merged into a single segment.
+     * 返回一个 {@link LinearRange}，可用于配置仅应用于此线的一部分从 {@code start} 到 {@code end} 的属性，其中0是线的起点，1是线的终点。
+     * 由于mapbox矢量瓦片本身不能处理此功能，因此在每个缩放级别的输出瓦片中将线分成多条线，并在每条线上设置唯一的标签集。具有相同标签的相邻段将合并为一个段。
      */
     public LinearRange linearRange(double start, double end) {
       return linearRange(Range.closedOpen(start, end));
     }
 
     /**
-     * Returns a {@link LinearRange} that can be used to configure attributes that apply to only a portion of this line
-     * from {@code range.lowerBound} to {@code range.lowerBound} where 0 is the beginning of the line and 1 is the end.
-     * <p>
-     * Since mapbox vector tiles can't handle this natively, the line will be broken up into multiple lines in the
-     * output tiles at each zoom level with the unique sets of tags on each line. Adjacent segments with the same tags
-     * will get merged into a single segment.
+     * 返回一个 {@link LinearRange}，可用于配置仅应用于此线的一部分从 {@code range.lowerBound} 到 {@code range.lowerBound} 的属性，其中0是线的起点，1是线的终点。
+     * 由于mapbox矢量瓦片本身不能处理此功能，因此在每个缩放级别的输出瓦片中将线分成多条线，并在每条线上设置唯一的标签集。具有相同标签的相邻段将合并为一个段。
      */
     public LinearRange linearRange(Range<Double> range) {
       return new LinearRange(range);
     }
 
-    /** Returns true if any attributes have been configured over a subset of this line. */
+    /** 返回是否为此线的子集配置了任何属性。 */
     public boolean hasLinearRanges() {
       return partialOverrides != null;
     }
 
-    /** Computes and returns the linear-scoped attributes of this line, and the geometry they apply to. */
+    /** 计算并返回此线的线性范围属性及其应用的几何形状。 */
     public List<RangeWithTags> getLinearRangesAtZoom(int zoom) {
       if (partialOverrides == null) {
         return List.of();
@@ -1031,9 +945,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return rangesWithGeometries;
     }
 
-
     /**
-     * A builder that can be used to configure linear-scoped attributes for a partial segment of a line feature.
+     * 用于配置线性范围属性的构建器，适用于线特征的一部分。
      */
     public final class LinearRange implements WithZoomRange<LinearRange>, WithAttrs<LinearRange> {
 
@@ -1069,29 +982,27 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         return add(new Attr(range, key, value));
       }
 
-      /** Exclude this segment of the line feature at all zoom levels. */
+      /** 在所有缩放级别上排除此线特征的这一段。 */
       public LinearRange omit() {
         return add(new Omit(range));
       }
 
-      /** Returns the full line {@link Feature} that this segment came from. */
+      /** 返回该段的完整线 {@link Feature}。 */
       public Feature entireLine() {
         return Feature.this;
       }
 
       /**
-       * Returns a segment of the full parent line (not the current segment) that can be configured further.
-       *
-       * @see Feature#linearRange(double, double)
+       * 返回可以进一步配置的完整父线段（不是当前段）。
+       * 参见 Feature#linearRange(double, double)
        */
       public LinearRange linearRange(double start, double end) {
         return entireLine().linearRange(start, end);
       }
 
       /**
-       * Returns a segment of the full parent line (not the current segment) that can be configured further.
-       *
-       * @see Feature#linearRange(Range)
+       * 返回可以进一步配置的完整父线段（不是当前段）。
+       * 参见 Feature#linearRange(Range)
        */
       public LinearRange linearRange(Range<Double> range) {
         return entireLine().linearRange(range);

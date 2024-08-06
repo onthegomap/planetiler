@@ -42,6 +42,8 @@ public class GeoUtils {
 
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
   public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
+  /**增加简化精度，在最高曾经尽可能全保留所有要素和所有细节*/
+  public static final PrecisionModel MAX_TILE_PRECISION = new PrecisionModel(4096d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
 
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
@@ -307,6 +309,16 @@ public class GeoUtils {
   }
 
   /**
+   * todo linespace
+   *
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
+   * self-intersections or overlaps that may have caused.
+   */
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, boolean isMaxZoom) throws GeometryException {
+    return snapAndFixPolygon(geom, isMaxZoom ? MAX_TILE_PRECISION : TILE_PRECISION, stats, stage);
+  }
+
+  /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    *
@@ -319,20 +331,20 @@ public class GeoUtils {
         geom = fixPolygon(geom);
         stats.dataError(stage + "_snap_fix_input");
       }
-      return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+      return GeometryPrecisionReducer.reduceKeepCollapsed(geom, tilePrecision);
     } catch (TopologyException | IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
       geom = GeometryFixer.fix(geom);
       stats.dataError(stage + "_snap_fix_input2");
       try {
-        return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+        return GeometryPrecisionReducer.reduceKeepCollapsed(geom, tilePrecision);
       } catch (TopologyException | IllegalArgumentException e2) {
         // give it one last try but with more aggressive fixing, just in case (see issue #511)
         geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
         stats.dataError(stage + "_snap_fix_input3");
         try {
-          return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+          return GeometryPrecisionReducer.reduceKeepCollapsed(geom, tilePrecision);
         } catch (TopologyException | IllegalArgumentException e3) {
           stats.dataError(stage + "_snap_fix_input3_failed");
           throw new GeometryException("snap_third_time_failed", "Error reducing precision");
