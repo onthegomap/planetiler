@@ -127,8 +127,7 @@ class WikidataTest {
           """, body);
       }),
       dynamicTest("can load serialized data", () -> {
-        var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
-          Duration.ofSeconds(0), 0);
+        var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
         assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
         assertEquals(Map.of("es", "es name2"), translations.get(2));
       }),
@@ -136,8 +135,7 @@ class WikidataTest {
         StringWriter writer2 = new StringWriter();
         Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
         Wikidata fixture2 = new Wikidata(writer2, client2, 2, profile, config);
-        fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
-          Duration.ofSeconds(0), 0));
+        fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
         fixture2.fetch(1L);
         fixture2.fetch(2L);
         fixture2.fetch(1L);
@@ -157,8 +155,7 @@ class WikidataTest {
       .thenThrow(IOException.class)
       .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
     fixture.fetch(1L);
-    var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())),
-      Duration.ofSeconds(0), 0);
+    var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
     assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
     assertEquals(Map.of("es", "es name2"), translations.get(2));
 

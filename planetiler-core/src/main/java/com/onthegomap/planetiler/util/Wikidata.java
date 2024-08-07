@@ -112,6 +112,16 @@ public class Wikidata {
    *
    * @throws UncheckedIOException if an error occurs
    */
+  public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats) {
+    fetch(infile, outfile, config, profile, stats, Duration.ofSeconds(0), 0);
+  }
+
+  /**
+   * Loads any existing translations from {@code outfile}, then downloads translations for any wikidata element in
+   * {@code infile} that have not already been downloaded and writes the results to {@code outfile}.
+   *
+   * @throws UncheckedIOException if an error occurs
+   */
   public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats,
     Duration maxAge, int updateLimit) {
 
@@ -194,6 +204,10 @@ public class Wikidata {
    * Returns translations parsed from {@code reader} where each line is a JSON array where first element is the ID and
    * second element is a map from language to translation.
    */
+  static WikidataTranslations load(BufferedReader reader) throws IOException {
+    return load(reader, Duration.ZERO, 0);
+  }
+
   protected static WikidataTranslations load(BufferedReader reader, Duration maxAge, int updateLimit)
     throws IOException {
     WikidataTranslations mappings = new WikidataTranslations();
