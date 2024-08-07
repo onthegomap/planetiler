@@ -218,9 +218,9 @@ public class Wikidata {
       JsonNode node = objectMapper.readTree(line);
       long id = Long.parseLong(node.get(0).asText());
 
-      Instant updateTime = Instant.MIN;
+      Instant updateTime = Instant.ofEpochMilli(0);
       if (node.has(2)) {
-        updateTime = Instant.parse(node.get(2).asText());
+        updateTime = Instant.ofEpochMilli(node.get(2).asLong());
       }
       if (updateTimeLimit != null && updateTime.isBefore(updateTimeLimit) &&
         (updateLimit <= 0 || updateCounter < updateLimit)) {
@@ -386,10 +386,10 @@ public class Wikidata {
   /** Flushes a batch of translations to disk. */
   private void writeTranslations(LongObjectMap<Map<String, String>> results, LongObjectMap<Instant> updateTimes)
     throws IOException {
-    final String updateTimeDefault = Instant.now().toString();
+    final long updateTimeDefault = Instant.now().toEpochMilli();
     for (LongObjectCursor<Map<String, String>> cursor : results) {
-      String updateTime =
-        updateTimes.containsKey(cursor.key) ? updateTimes.get(cursor.key).toString() : updateTimeDefault;
+      long updateTime =
+        updateTimes.containsKey(cursor.key) ? updateTimes.get(cursor.key).toEpochMilli() : updateTimeDefault;
       writer.write(objectMapper.writeValueAsString(List.of(
         Long.toString(cursor.key),
         cursor.value,
