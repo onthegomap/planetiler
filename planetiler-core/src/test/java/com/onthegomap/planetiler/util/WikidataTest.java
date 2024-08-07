@@ -186,7 +186,7 @@ class WikidataTest {
 
   @Test
   void testWikidataNamesJsonMaxAge() throws IOException {
-    // 10s => item 1 is 1s old hence fresh, the rest (30s and 50s) are older
+    // 10s => item 1 is 5s old hence fresh, the rest is 30s old hence outdated
     Duration maxAge = Duration.ofSeconds(10);
 
     var reader = new BufferedReader(new StringReader(wikidataNamesJson));
