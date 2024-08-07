@@ -218,7 +218,7 @@ public class Wikidata {
       JsonNode node = objectMapper.readTree(line);
       long id = Long.parseLong(node.get(0).asText());
 
-      Instant updateTime = Instant.ofEpochMilli(0);
+      Instant updateTime = Instant.EPOCH;
       if (node.has(2)) {
         updateTime = Instant.ofEpochMilli(node.get(2).asLong());
       }
