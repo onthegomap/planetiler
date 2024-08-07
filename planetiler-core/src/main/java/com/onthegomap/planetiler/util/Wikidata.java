@@ -37,6 +37,7 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -189,7 +190,7 @@ public class Wikidata {
       return new WikidataTranslations();
     } else {
       try (BufferedReader fis = Files.newBufferedReader(path)) {
-        WikidataTranslations result = load(fis, maxAge, updateLimit);
+        WikidataTranslations result = load(fis, maxAge, updateLimit, Clock.systemUTC());
         LOGGER.info(
           "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
         return result;
@@ -205,14 +206,14 @@ public class Wikidata {
    * second element is a map from language to translation.
    */
   static WikidataTranslations load(BufferedReader reader) throws IOException {
-    return load(reader, Duration.ZERO, 0);
+    return load(reader, Duration.ZERO, 0, Clock.systemUTC());
   }
 
-  protected static WikidataTranslations load(BufferedReader reader, Duration maxAge, int updateLimit)
+  protected static WikidataTranslations load(BufferedReader reader, Duration maxAge, int updateLimit, Clock clock)
     throws IOException {
     WikidataTranslations mappings = new WikidataTranslations();
     String line;
-    Instant updateTimeLimit = maxAge.isZero() ? null : Instant.now().minus(maxAge);
+    Instant updateTimeLimit = maxAge.isZero() ? null : Instant.now(clock).minus(maxAge);
     int updateCounter = 0;
     while ((line = reader.readLine()) != null) {
       JsonNode node = objectMapper.readTree(line);

@@ -19,8 +19,10 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,10 +79,16 @@ class WikidataTest {
       }
     }
     """;
+  final String wikidataNamesLegacyJson = """
+    ["1",{"en":"English 1","de":"Deutch 1"}]
+    ["2",{"en":"English 2","de":"Deutch 2"}]
+    ["3",{"en":"English 3","de":"Deutch 3"}]
+    """;
+  final Clock clock = Clock.fixed(Instant.ofEpochMilli(60_000), ZoneId.of("UTC"));
   final String wikidataNamesJson = """
-    ["1",{"en":"English 1","de":"Deutch 1"},"<timestamp 1>"]
-    ["2",{"en":"English 2","de":"Deutch 2"},"<timestamp 2>"]
-    ["3",{"en":"English 3","de":"Deutch 3"},"<timestamp 3>"]
+    ["1",{"en":"English 1","de":"Deutch 1"},55000]
+    ["2",{"en":"English 2","de":"Deutch 2"},30000]
+    ["3",{"en":"English 3","de":"Deutch 3"},30000]
     """;
 
   @Test
@@ -170,38 +178,28 @@ class WikidataTest {
 
   @Test
   void testLegacyWikidataNamesJson() throws IOException {
-    String json = wikidataNamesJson.replaceAll(",\"<timestamp .>\"", "");
-    var reader = new BufferedReader(new StringReader(json));
+    var reader = new BufferedReader(new StringReader(wikidataNamesLegacyJson));
     // no timestamp + age limit set => all old => all should be dropped
-    var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0);
+    var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0, clock);
     assertEquals(0, translationsProvider.getAll().size());
   }
 
   @Test
   void testWikidataNamesJsonMaxAge() throws IOException {
-    Duration maxAge = Duration.ofSeconds(1);
-    Instant fresh = Instant.now();
-    Instant old = fresh.minus(maxAge).minus(maxAge);
+    // 10s => item 1 is 1s old hence fresh, the rest (30s and 50s) are older
+    Duration maxAge = Duration.ofSeconds(10);
 
-    String json = wikidataNamesJson
-      .replaceAll("<timestamp 1>", fresh.toString())
-      .replaceAll("<timestamp .>", old.toString());
-
-    var reader = new BufferedReader(new StringReader(json));
-    var translationsProvider = Wikidata.load(reader, maxAge, 0);
+    var reader = new BufferedReader(new StringReader(wikidataNamesJson));
+    var translationsProvider = Wikidata.load(reader, maxAge, 0, clock);
     assertEquals(1, translationsProvider.getAll().size());
   }
 
   @Test
   void testWikidataNamesJsonUpdateLimit() throws IOException {
     Duration maxAge = Duration.ofSeconds(1);
-    Instant old = Instant.now().minus(maxAge).minus(maxAge);
 
-    String json = wikidataNamesJson
-      .replaceAll("<timestamp .>", old.toString());
-
-    var reader = new BufferedReader(new StringReader(json));
-    var translationsProvider = Wikidata.load(reader, maxAge, 1);
+    var reader = new BufferedReader(new StringReader(wikidataNamesJson));
+    var translationsProvider = Wikidata.load(reader, maxAge, 1, clock);
     assertEquals(2, translationsProvider.getAll().size());
   }
 
