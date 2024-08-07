@@ -805,11 +805,7 @@ public class Planetiler {
         wikidataUpdateLimit);
     }
     if (useWikidata) {
-      // update of old items handled by "fetch" above => do NOT use age checks here
-      var translationsProvider = Wikidata.load(wikidataNamesFile, Duration.ZERO, 0);
-      translationsProvider.clearUpdateTimes();
-      translations()
-        .addFallbackTranslationProvider(translationsProvider);
+      translations().addFallbackTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
     if (onlyDownloadSources || onlyFetchWikidata) {
       return; // exit only if just fetching wikidata or downloading sources

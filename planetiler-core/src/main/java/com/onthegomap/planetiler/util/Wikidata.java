@@ -166,7 +166,13 @@ public class Wikidata {
   /**
    * Returns translations parsed from {@code path} that was written by a previous run of the downloader.
    */
-  public static WikidataTranslations load(Path path, Duration maxAge, int updateLimit) {
+  public static WikidataTranslations load(Path path) {
+    var translationsProvider = Wikidata.load(path, Duration.ZERO, 0);
+    translationsProvider.clearUpdateTimes();
+    return translationsProvider;
+  }
+
+  private static WikidataTranslations load(Path path, Duration maxAge, int updateLimit) {
     Timer timer = Timer.start();
     if (!Files.exists(path)) {
       LOGGER.info("no wikidata translations found, run with --fetch-wikidata to download");
@@ -188,7 +194,8 @@ public class Wikidata {
    * Returns translations parsed from {@code reader} where each line is a JSON array where first element is the ID and
    * second element is a map from language to translation.
    */
-  static WikidataTranslations load(BufferedReader reader, Duration maxAge, int updateLimit) throws IOException {
+  protected static WikidataTranslations load(BufferedReader reader, Duration maxAge, int updateLimit)
+    throws IOException {
     WikidataTranslations mappings = new WikidataTranslations();
     String line;
     Instant updateTimeLimit = maxAge.isZero() ? null : Instant.now().minus(maxAge);
