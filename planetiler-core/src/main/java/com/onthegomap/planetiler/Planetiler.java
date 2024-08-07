@@ -577,7 +577,8 @@ public class Planetiler {
     useWikidata = fetchWikidata || arguments.getBoolean("use_wikidata", "use wikidata translations", true);
     wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
     wikidataMaxAge =
-      arguments.getDuration("wikidata_max_age", "Maximum age of Wikidata translations (0 = disabled)", "720H");
+      arguments.getDuration("wikidata_max_age",
+        "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "P30D");
     // limit of 100_000 is roughly 5% of total amount of entries for whole Planet
     wikidataUpdateLimit = arguments.getInteger("wikidata_update_limit",
       "Limit on how many old translations to update during one download (0 = disabled)", 100_000);
