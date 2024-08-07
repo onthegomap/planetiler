@@ -579,9 +579,8 @@ public class Planetiler {
     wikidataMaxAge =
       arguments.getDuration("wikidata_max_age",
         "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "P30D");
-    // limit of 100_000 is roughly 5% of total amount of entries for whole Planet
     wikidataUpdateLimit = arguments.getInteger("wikidata_update_limit",
-      "Limit on how many old translations to update during one download (0 = disabled)", 100_000);
+      "Limit on how many old translations to update during one download (0 = disabled)", 0);
     return this;
   }
 
