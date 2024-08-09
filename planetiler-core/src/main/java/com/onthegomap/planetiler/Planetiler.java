@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +112,8 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
+  private Duration wikidataMaxAge = Duration.ZERO;
+  private int wikidataUpdateLimit = 0;
   private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
 
@@ -573,6 +576,11 @@ public class Planetiler {
         fetchWikidata);
     useWikidata = fetchWikidata || arguments.getBoolean("use_wikidata", "use wikidata translations", true);
     wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
+    wikidataMaxAge =
+      arguments.getDuration("wikidata_max_age",
+        "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "0s");
+    wikidataUpdateLimit = arguments.getInteger("wikidata_update_limit",
+      "Limit on how many old translations to update during one download (0 = disabled)", 0);
     return this;
   }
 
@@ -793,7 +801,8 @@ public class Planetiler {
     ensureInputFilesExist();
 
     if (fetchWikidata) {
-      Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
+      Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats(), wikidataMaxAge,
+        wikidataUpdateLimit);
     }
     if (useWikidata) {
       translations().addFallbackTranslationProvider(Wikidata.load(wikidataNamesFile));
