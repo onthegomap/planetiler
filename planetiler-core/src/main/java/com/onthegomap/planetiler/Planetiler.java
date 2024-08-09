@@ -578,7 +578,7 @@ public class Planetiler {
     wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
     wikidataMaxAge =
       arguments.getDuration("wikidata_max_age",
-        "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "P30D");
+        "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "0s");
     wikidataUpdateLimit = arguments.getInteger("wikidata_update_limit",
       "Limit on how many old translations to update during one download (0 = disabled)", 0);
     return this;
