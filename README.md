@@ -33,7 +33,7 @@ To generate a map of an area using the [OpenMapTiles profile](https://github.com
 you will need:
 
 - Java 21+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
-- at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
+- at least 1GB of free SSD disk space plus 5-10x the size of the `.osm.pbf` file
 - at least 0.5x as much free RAM as the input `.osm.pbf` file size
 
 #### To build the map:
