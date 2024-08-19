@@ -10,7 +10,7 @@ import java.util.function.UnaryOperator;
  * Destination data types for an attribute that link the type to functions that can parse the value from an input object
  */
 public enum DataType implements BiFunction<WithTags, String, Object> {
-  GET_STRING("string", WithTags::getString, Objects::toString),
+  GET_STRING("string", WithTags::getString, Parse::parseStringOrNull),
   GET_BOOLEAN("boolean", WithTags::getBoolean, Parse::bool),
   GET_DIRECTION("direction", WithTags::getDirection, Parse::direction),
   GET_LONG("long", WithTags::getLong, Parse::parseLongOrNull),
