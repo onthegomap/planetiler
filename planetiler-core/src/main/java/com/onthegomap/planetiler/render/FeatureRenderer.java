@@ -29,6 +29,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
@@ -245,6 +246,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
         Geometry geom;
         int scale = 0;
+        PrecisionModel precision = null;
         if (feature.isPolygon()) {
           geom = GeometryCoordinateSequences.reassemblePolygons(geoms);
           /*
@@ -255,7 +257,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
            * coordinate rounding.
            */
-          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render", zoom == config.maxzoom());
+          // todo linespace
+          precision = GeoUtils.getPrecision(zoom, config.maxzoom());
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render",precision);
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();
@@ -274,24 +278,52 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         if (!geom.isEmpty()) {
           encodeAndEmitFeature(feature, id, attrs, tile, geom, null, scale);
           emitted++;
-        } else if (PlanetilerConfig.SmallFeatureStrategy.CENTROID.getStrategy().equals(config.smallFeatStrategy())) {
+        }
+        else if (PlanetilerConfig.SmallFeatureStrategy.CENTROID.getStrategy().equals(config.smallFeatStrategy()) && precision != null) {
           // todo linespace  避免在低级别要素被简化后丢弃，生成特征要素的质心代替原有要素，后续可考虑将质心优化为能够替代原有要素的最小三角形或正方形
-          FeatureCollector collector = feature.collector();
-          Geometry centroid = feature.getGeometry().getCentroid();
           boolean isMaxZoom = zoom == config.maxzoom();
           if (isMaxZoom && (zoom == PlanetilerConfig.defaults().maxzoom() || zoom == PlanetilerConfig.MAX_MAXZOOM)) {
-            LOGGER.warn("要素id: {} 在最高层级 {} 被简化!", feature.getId(), zoom);
+            LOGGER.debug("要素id: {} 在最高层级 {} 被简化!", feature.getId(), zoom);
           }
 
+          Geometry centroid = feature.getGeometry().getCentroid();
           // 此处需要考虑最后一层级太小的要素应该如何处理，是否应该将simplyPoint赋值给feature
-          FeatureCollector.Feature simplyPoint = collector.geometryNotAddOutPut("linespace_layer_point",
+          FeatureCollector.Feature simplyPoint = feature.collector().geometryNotAddOutPut("linespace_layer_point",
               centroid)
             .setPointLabelGridPixelSize(ZoomFunction.fromMaxZoomThresholds(config.labelGridPixelSize()))
             .setPointLabelGridLimit(ZoomFunction.fromMaxZoomThresholds(config.labelGridLimit()))
             .setBufferPixelOverrides(ZoomFunction.fromMaxZoomThresholds(config.bufferPixelOverrides()))
             .setZoomRange(zoom, zoom);
+          attrs.forEach(simplyPoint::setAttr);
+          simplyPoint.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
 
+          feature.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+          feature.setAttr("smallFeatureZoom", zoom);
           renderPoint(simplyPoint, centroid.getCoordinates());
+        }
+        else if (PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy().equals(config.smallFeatStrategy()) && precision != null) {
+          if (!attrs.containsKey("smallFeatureStrategy") && !feature.getAttrsAtZoom(zoom).containsKey("smallFeatureStrategy")) {
+            // 生成能替换要素的最小的正方形
+            boolean isMaxZoom = zoom == config.maxzoom();
+            if (isMaxZoom && (zoom == PlanetilerConfig.defaults().maxzoom() || zoom == PlanetilerConfig.MAX_MAXZOOM)) {
+              LOGGER.debug("要素id: {} 在最高层级 {} 被简化!", feature.getId(), zoom);
+            }
+
+            double precisionScale = precision.getScale();
+            Geometry centroid = feature.getGeometry().getCentroid();
+            // 生成矩形
+            Geometry squareGeom = GeoUtils.createSmallSquareWithCentroid(centroid, precisionScale, zoom);
+            FeatureCollector.Feature simplySquare = feature.collector().geometryNotAddOutPut(feature.getLayer(), squareGeom)
+              .setMinPixelSizeAtAllZooms(0)
+              .setPixelToleranceAtAllZooms(0)
+              .setZoomRange(zoom,  zoom);
+            attrs.forEach(simplySquare::setAttr);
+            simplySquare.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+
+            feature.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+            feature.setAttr("smallFeatureZoom", zoom);
+            renderLineOrPolygon(simplySquare, simplySquare.getGeometry());
+          }
         } else {
           LOGGER.warn("Feature {} was simplified to empty geometry at zoom {}", feature, zoom);
         }

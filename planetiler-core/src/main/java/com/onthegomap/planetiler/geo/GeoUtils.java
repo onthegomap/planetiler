@@ -42,8 +42,11 @@ public class GeoUtils {
 
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
   public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
-  /**增加简化精度，在最高曾经尽可能全保留所有要素和所有细节*/
-  public static final PrecisionModel MAX_TILE_PRECISION = new PrecisionModel(4096d);
+  /**增加简化精度，在不同层级设置不同的scale,保证越高级别要素精度越高*/
+  public static final PrecisionModel TILE_PRECISION_MIDDLE= new PrecisionModel(256d);
+  public static final PrecisionModel TILE_PRECISION_HIGH = new PrecisionModel(2048d);
+  public static final PrecisionModel TILE_PRECISION_MAX = new PrecisionModel(4096d);
+
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
 
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
@@ -311,11 +314,30 @@ public class GeoUtils {
   /**
    * todo linespace
    *
-   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION } or {@link  #TILE_PRECISION_MAX} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, boolean isMaxZoom) throws GeometryException {
-    return snapAndFixPolygon(geom, isMaxZoom ? MAX_TILE_PRECISION : TILE_PRECISION, stats, stage);
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, PrecisionModel precisionModel) throws GeometryException {
+    return snapAndFixPolygon(geom, precisionModel, stats, stage);
+  }
+
+  /**
+   * 不同层级设置不同的精度
+   *
+   * @param zoom
+   * @param maxZoom
+   * @return
+   */
+  public static PrecisionModel getPrecision(int zoom, int maxZoom) {
+    if (zoom == maxZoom) {
+      return TILE_PRECISION_MAX;
+    } else if (zoom < 15 && zoom >= 10) {
+      return TILE_PRECISION_HIGH;
+    } else if (zoom < 10 && zoom >= 5) {
+      return TILE_PRECISION_MIDDLE;
+    } else {
+      return TILE_PRECISION;
+    }
   }
 
   /**
@@ -352,6 +374,8 @@ public class GeoUtils {
       }
     }
   }
+
+
 
   private static double wrapDouble(double value, double max) {
     value %= max;
@@ -570,6 +594,35 @@ public class GeoUtils {
 
   public static WKTReader wktReader() {
     return new WKTReader(JTS_FACTORY);
+  }
+
+  public static Geometry createSmallSquareWithCentroid(Geometry centroid, double precisionScale, int zoom) {
+    Coordinate center = centroid.getCoordinate();
+
+//    // 计算当前层级下瓦片的经纬度跨度
+//    double tileSizeDegrees = 360.0 / Math.pow(2, zoom);
+//    // 计算瓦片中每个像素代表的经纬度长度
+//    double degreesPerPixel = tileSizeDegrees / 256.0;
+//    // 根据 precisionScale 确定边长（单位：经纬度）
+//    double halfSideLength = degreesPerPixel /  precisionScale / 2.0;
+
+    // 当前缩放级别下的每个像素所代表的相对单位长度
+    double tileUnit = 1.0 / Math.pow(2, zoom);
+    // 计算最小分辨单位
+    double minResolvableUnit = 1.0 / Math.max(256d, precisionScale) * tileUnit;
+    // 计算正方形的边长，确保不会被简化
+    double halfSideLength = minResolvableUnit / 2.0;
+
+    // 构造正方形的四个顶点
+    Coordinate[] coordinates = new Coordinate[5];
+    coordinates[0] = new Coordinate(center.x - halfSideLength, center.y - halfSideLength);
+    coordinates[1] = new Coordinate(center.x + halfSideLength, center.y - halfSideLength);
+    coordinates[2] = new Coordinate(center.x + halfSideLength, center.y + halfSideLength);
+    coordinates[3] = new Coordinate(center.x - halfSideLength, center.y + halfSideLength);
+    coordinates[4] = coordinates[0];
+
+    GeometryFactory geometryFactory = new GeometryFactory();
+    return geometryFactory.createPolygon(coordinates);
   }
 
   /** Helper class to sort polygons by area of their outer shell. */
