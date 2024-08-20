@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -35,6 +37,7 @@ import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -47,9 +50,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1855,7 +1861,8 @@ class PlanetilerTests {
     }
 
     @Override
-    public void release() {}
+    public void release() {
+    }
 
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
@@ -2016,7 +2023,6 @@ class PlanetilerTests {
         .setMinZoom(0)
     );
 
-
     // this lat/lon is in the middle of an island and should not be covered by
     for (int z = 4; z <= 14; z++) {
       double lat = 53.391958;
@@ -2119,11 +2125,10 @@ class PlanetilerTests {
       case FILES -> p -> ReadableFilesArchive.newReader(p, Arguments.of());
     };
 
-
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-      ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
-    ))
+        ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
+      ))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -2320,42 +2325,49 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    "--outputType=mbtiles --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=/planetiler/无敌 --oosCorePoolSize=24 --oosMaxPoolSize=24 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
+    "--small_Feat_Strategy=square --minzoom=0 --maxzoom=14 --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=H:\\Linespace\\LineSpaceData\\测试数据\\parquet --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
 //    "--tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz --endpoint=http://127.0.0.1:9547 --bucketName=parquet  --secretKey=J4E9epBZNXV9GlJiu9LRtBwjvd9Wx538 --accessKey=kGiVOXwOBMBmV7Ab --oosSavePath=/linespace/test --oosCorePoolSize=24 --oosMaxPoolSize=24",
 //    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4 --tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz"
   })
   void testPlanetilerRunnerParquet(String args) throws Exception {
-    Path mbtiles = Paths.get("E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\pbftest\\planetiler测试\\planetiler.mbtiles");
+//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\china-latest-multipolygons";
+//    String tempDir = basePath + "\\面简化_0816";
+//    String outputPath = basePath + "\\面简化_0816\\centroid.mbtiles";
+//    List<Path> inputPaths = Stream.of(basePath + "\\china-latest-multipolygons.parquet").map(Paths::get).toList();
 
-    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\pbftest\\planetiler测试").split("\\s+")))
+    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\guangdong-latest.osm.pbf";
+    String tempDir = basePath + "\\修改-生成最小面积";
+    String outputPath = basePath + "\\修改-生成最小面积\\修改-生成最小面积.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\guangdong-latest-multipolygons.parquet").map(Paths::get).toList();
+
+//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\地理单元分库_1";
+//    String tempDir = basePath + "\\DISPL";
+//    String outputPath = basePath + "\\DISPL\\DISPL.mbtiles";
+//    List<Path> inputPaths = Stream.of(basePath + "\\DISPL.parquet").map(Paths::get).toList();
+
+//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\china-latest-points";
+//      String tempDir = basePath + "\\default";
+//    String outputPath = basePath + "\\default\\default.mbtiles";
+//    List<Path> inputPaths = Stream.of(basePath + "\\china-latest-points.parquet").map(Paths::get).toList();
+
+    Planetiler.create(Arguments.fromArgs(
+        (args + " --tmpdir=" + tempDir).split("\\s+")))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
-          FeatureCollector.Feature feature;
-          if (source.canBePolygon()) {
-            feature = features.polygon("polygon_data").setZoomRange(0, 14)
-              .setMinPixelSize(1);
-          } else if (source.canBeLine()) {
-            feature = features.line("line_data").setZoomRange(0, 14);
-          } else if (source.isPoint()) {
-            feature = features.point("point_data").setMaxZoom(14);
-          } else {
-            throw new RuntimeException("未知的参数类型");
-          }
+          FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
+//            .setSortKey(generateUniqueSortKey(Long.toString(source.id())))
+//            .setPointLabelGridPixelSize(createLabelGridSizeFunction())
+//            .setPointLabelGridLimit(createLabelGridLimitFunction())
+//            .setBufferPixelOverrides(createBufferPixelFunction())
+            .setMinPixelSizeAtAllZooms(0)
+            .setPixelToleranceAtAllZooms(0);
 
-          Map<String, Object> tags = source.tags();
-          for (Map.Entry<String, Object> entry : tags.entrySet()) {
-            feature.setAttr(entry.getKey(), entry.getValue());
-          }
+          source.tags().forEach(feature::setAttr);
         }
-
       })
-      //E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\地理单元分库_1\DISPL.parquet
-      //E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\china-points-1.parquet
-      // E:\智成时空\产品-server\LineSpaceData\测试数据\parquet\pro-Province_R-1.parquet
-      .addParquetSource("parquet", List.of(Paths.get("E:\\智成时空\\产品-server\\LineSpaceData\\测试数据\\parquet\\地理单元分库_1\\DISPL.parquet")),
-        false, null , props -> props.get("layer"))
-      .setOutput(mbtiles)
+      .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
+      .setOutput(outputPath)
       .run();
 
 //    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
@@ -2393,25 +2405,25 @@ class PlanetilerTests {
   @Test
   void testPlanetilerMemoryCheck() {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateIntermediateDiskBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateIntermediateDiskBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateOutputBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateOutputBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateRamRequired(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateRamRequired(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
   }
 
@@ -2731,6 +2743,7 @@ class PlanetilerTests {
 
   @FunctionalInterface
   private interface ReadableTileArchiveFactory {
+
     ReadableTileArchive create(Path p) throws IOException;
   }
 }

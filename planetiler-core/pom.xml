@@ -12,7 +12,7 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.8</version>
+    <version>${revision}</version>
   </parent>
 
   <properties>
@@ -77,7 +77,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.13</version>
+      <version>2.0.16</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -173,7 +173,7 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.1.10.5</version>
+      <version>1.1.10.6</version>
     </dependency>
     <dependency>
       <groupId>blue.strategic.parquet</groupId>

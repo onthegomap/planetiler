@@ -9,7 +9,7 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.8</version>
+    <version>${revision}</version>
   </parent>
 
   <dependencies>
@@ -25,6 +25,7 @@
     <dependency>
       <groupId>org.projectnessie.cel</groupId>
       <artifactId>cel-tools</artifactId>
+      <version>0.4.5</version>
     </dependency>
 
     <dependency>
@@ -41,7 +42,7 @@
       <dependency>
         <groupId>org.projectnessie.cel</groupId>
         <artifactId>cel-bom</artifactId>
-        <version>0.4.4</version>
+        <version>0.4.5</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

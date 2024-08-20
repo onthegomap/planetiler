@@ -475,7 +475,10 @@ public class Arguments {
    */
   public Duration getDuration(String key, String description, String defaultValue) {
     String value = getArg(key, defaultValue);
-    Duration parsed = Duration.parse("PT" + value);
+    if (!value.startsWith("P") && !value.startsWith("T") && !value.startsWith("-")) {
+      value = "PT" + value;
+    }
+    Duration parsed = Duration.parse(value);
     logArgValue(key, description, parsed.get(ChronoUnit.SECONDS) + " seconds");
     return parsed;
   }
