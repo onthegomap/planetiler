@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ForwardingProfileTests {
@@ -454,5 +455,50 @@ class ForwardingProfileTests {
     testFeatures(List.of(Map.of(
       "_layer", "water"
     )), a);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "'--only-layers=water', water",
+    "'--exclude-layers=land,transportation,transportation_name', water",
+    "'--exclude-layers=land,transportation', water",
+    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    "'--exclude-layers=land,transportation_name', water transportation",
+    "'--exclude-layers=land --only-layers=water,land', water",
+    "'--exclude-layers=transportation --only-layers=water,transportation,transportation_name', water",
+    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    "'--exclude-layers=transportation_name --only-layers=water,transportation,transportation_name', water transportation",
+    "'--exclude-layers=transportation,transportation_name --only-layers=water,transportation,transportation_name', water",
+    "'--exclude-layers=transportation --only-layers=water,transportation_name', water",
+    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    "'--exclude-layers=transportation_name --only-layers=water,transportation', water transportation",
+  })
+  void testLayerWithDepsCliArgFilter(String args, String expectedLayers) {
+    profile = new ForwardingProfile(PlanetilerConfig.from(Arguments.fromArgs(args.split(" ")))) {
+      @Override
+      public boolean dependsOnLayer(String dependent, String dependency) {
+        return "transportation_name".equals(dependent) && "transportation".equals(dependency);
+      }
+    };
+    record Processor(String name) implements ForwardingProfile.HandlerForLayer, ForwardingProfile.FeatureProcessor {
+
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        features.point(name);
+      }
+    }
+
+    SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of("key", "value"), "source", "source layer", 1);
+    profile.registerHandler(new Processor("water"));
+    profile.registerHandler(new Processor("transportation"));
+    profile.registerHandler(new Processor("transportation_name"));
+    profile.registerHandler(new Processor("land"));
+
+    List<Map<String, Object>> expected = new ArrayList<>();
+    for (var expectedLayer : expectedLayers.split(" ")) {
+      expected.add(Map.of("_layer", expectedLayer));
+    }
+
+    testFeatures(expected, a);
   }
 }

@@ -81,11 +81,19 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   private boolean caresAboutLayer(String layer) {
-    return (onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer);
+    if (excludeLayers.contains(layer) || excludeLayers.stream().anyMatch(excluded -> dependsOnLayer(layer, excluded))) {
+      return false;
+    }
+    return onlyLayers.isEmpty() || onlyLayers.contains(layer) ||
+      onlyLayers.stream().anyMatch(included -> dependsOnLayer(included, layer));
   }
 
   public boolean caresAboutLayer(Object obj) {
     return !(obj instanceof HandlerForLayer l) || caresAboutLayer(l.name());
+  }
+
+  public boolean dependsOnLayer(String dependent, String dependency) {
+    return false;
   }
 
   /**
