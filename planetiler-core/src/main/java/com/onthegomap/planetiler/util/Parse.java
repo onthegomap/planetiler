@@ -31,6 +31,11 @@ public class Parse {
 
   private Parse() {}
 
+  /** Returns {@code tag} as a string or null if null. */
+  public static String parseStringOrNull(Object tag) {
+    return tag == null ? null : tag.toString();
+  }
+
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
     return tag == null ? null : tag instanceof Number number ? Long.valueOf(number.longValue()) :
