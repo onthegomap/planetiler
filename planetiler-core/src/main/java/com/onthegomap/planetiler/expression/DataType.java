@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.expression;
 
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Parse;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 
