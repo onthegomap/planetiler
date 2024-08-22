@@ -461,16 +461,16 @@ class ForwardingProfileTests {
   @CsvSource({
     "'--only-layers=water', water",
     "'--exclude-layers=land,transportation,transportation_name', water",
-    "'--exclude-layers=land,transportation', water",
-    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    // transportation excluded but transportation_name NOT => transportation will be processed
+    "'--exclude-layers=land,transportation', water transportation_name transportation",
     "'--exclude-layers=land,transportation_name', water transportation",
     "'--exclude-layers=land --only-layers=water,land', water",
-    "'--exclude-layers=transportation --only-layers=water,transportation,transportation_name', water",
-    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    // transportation excluded but transportation_name NOT => transportation will be processed
+    "'--exclude-layers=transportation --only-layers=water,transportation,transportation_name', water transportation_name transportation",
     "'--exclude-layers=transportation_name --only-layers=water,transportation,transportation_name', water transportation",
     "'--exclude-layers=transportation,transportation_name --only-layers=water,transportation,transportation_name', water",
-    "'--exclude-layers=transportation --only-layers=water,transportation_name', water",
-    // transportation does not depend on any excluded layer and is not excluded => will be processed
+    // transportation excluded but transportation_name NOT => transportation will be processed
+    "'--exclude-layers=transportation --only-layers=water,transportation_name', water transportation_name transportation",
     "'--exclude-layers=transportation_name --only-layers=water,transportation', water transportation",
   })
   void testLayerWithDepsCliArgFilter(String args, String expectedLayers) {
@@ -493,6 +493,8 @@ class ForwardingProfileTests {
     profile.registerHandler(new Processor("transportation"));
     profile.registerHandler(new Processor("transportation_name"));
     profile.registerHandler(new Processor("land"));
+    // profiles like OpenMapTiles will trying to add "transportation" once again to cover for dependency
+    profile.registerHandler(new Processor("transportation"));
 
     List<Map<String, Object>> expected = new ArrayList<>();
     for (var expectedLayer : expectedLayers.split(" ")) {
