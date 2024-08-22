@@ -493,7 +493,7 @@ class ForwardingProfileTests {
     profile.registerHandler(new Processor("transportation"));
     profile.registerHandler(new Processor("transportation_name"));
     profile.registerHandler(new Processor("land"));
-    // profiles like OpenMapTiles will trying to add "transportation" once again to cover for dependency
+    // profiles like OpenMapTiles will try to add "transportation" once again to cover for dependency
     profile.registerHandler(new Processor("transportation"));
 
     List<Map<String, Object>> expected = new ArrayList<>();
