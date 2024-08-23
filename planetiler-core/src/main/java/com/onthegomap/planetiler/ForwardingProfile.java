@@ -83,8 +83,8 @@ public abstract class ForwardingProfile implements Profile {
   private boolean caresAboutLayer(String layer) {
     return ((onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer)) ||
       this.handlers.stream()
-        .filter(h -> h instanceof HandlerForLayer)
-        .map(h -> (HandlerForLayer) h)
+        .filter(HandlerForLayer.class::isInstance)
+        .map(HandlerForLayer.class::cast)
         .anyMatch(existing -> dependsOnLayer(existing.name(), layer));
   }
 
