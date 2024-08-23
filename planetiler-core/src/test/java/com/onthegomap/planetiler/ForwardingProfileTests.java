@@ -476,8 +476,8 @@ class ForwardingProfileTests {
   void testLayerWithDepsCliArgFilter(String args, String expectedLayers) {
     profile = new ForwardingProfile(PlanetilerConfig.from(Arguments.fromArgs(args.split(" ")))) {
       @Override
-      public boolean dependsOnLayer(String dependent, String dependency) {
-        return "transportation_name".equals(dependent) && "transportation".equals(dependency);
+      public Map<String, List<String>> dependsOnLayer() {
+        return Map.of("transportation_name", List.of("transportation"));
       }
     };
     record Processor(String name) implements ForwardingProfile.HandlerForLayer, ForwardingProfile.FeatureProcessor {
