@@ -85,6 +85,7 @@ public abstract class ForwardingProfile implements Profile {
       this.handlers.stream()
         .filter(HandlerForLayer.class::isInstance)
         .map(HandlerForLayer.class::cast)
+        .filter(l -> !l.name().equals(layer))
         .anyMatch(existing -> dependsOnLayer(existing.name(), layer));
   }
 
