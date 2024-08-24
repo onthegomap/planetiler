@@ -13,11 +13,13 @@ import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -233,8 +235,127 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       attrs = new HashMap<>(attrs);
       attrs.put(numPointsAttr, geom.getNumPoints());
     }
-    writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
+
+    writeTileFeatures_labelGrid(z, feature.getId(), feature, sliced, attrs);
   }
+
+  private void writeTileFeatures_labelGrid(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
+    Map<String, Object> attrs) {
+    int emitted = 0;
+    RenderedFeature.Group groupInfo = null;
+    for (var entry : sliced.getTileData().entrySet()) {
+      TileCoord tile = entry.getKey();
+      try {
+        List<List<CoordinateSequence>> geoms = entry.getValue();
+        Coordinate centroid = null;
+        Geometry geom;
+        int scale = 0;
+        if (feature.isPolygon()) {
+          geom = GeometryCoordinateSequences.reassemblePolygons(geoms);
+
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
+          if (!geom.isEmpty()) {
+            centroid = getGlobalCoord(tile, geom.getCentroid());
+          }
+          geom = geom.reverse();
+        } else {
+          geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
+          if (!geom.isEmpty()) {
+            centroid = getGlobalCoord(tile, geom.getCentroid());
+          }
+
+          scale = Math.max(config.maxzoom(), 14) - zoom;
+
+          scale = Math.min(31 - 14, scale);
+        }
+
+        if (!geom.isEmpty()) {
+          // for "label grid" point density limiting, compute the grid square that this point sits in
+          // only valid if not a multipoint
+          boolean hasLabelGrid = feature.hasLabelGrid();
+          if (hasLabelGrid) {
+            int tilesAtZoom = 1 << zoom;
+            Coordinate coord = new Coordinate(GeoUtils.getWorldX(centroid.x) * tilesAtZoom,
+              GeoUtils.getWorldY(centroid.y) * tilesAtZoom);
+            double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
+            groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
+              GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coord),
+              feature.getPointLabelGridLimitAtZoom(zoom)
+            );
+          }
+          encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
+          emitted++;
+        }
+      } catch (GeometryException e) {
+        e.log(stats, "write_tile_features", "Error writing tile " + tile + " feature " + feature);
+      }
+    }
+
+    // polygons that span multiple tiles contain detail about the outer edges separate from the filled tiles, so emit
+    // filled tiles now
+    if (feature.isPolygon()) {
+      emitted += emitFilledTiles_labelGrid(id, feature, sliced, groupInfo);
+    }
+
+    stats.emittedFeatures(zoom, feature.getLayer(), emitted);
+  }
+
+  private int emitFilledTiles_labelGrid(long id, FeatureCollector.Feature feature, TiledGeometry sliced,
+    RenderedFeature.Group groupInfo) {
+    /*
+     * Optimization: large input polygons that generate many filled interior tiles (i.e. the ocean), the encoder avoids
+     * re-encoding if groupInfo and vector tile feature are == to previous values, so compute one instance at the start
+     * of each zoom level for this feature.
+     */
+    VectorTile.Feature vectorTileFeature = new VectorTile.Feature(
+      feature.getLayer(),
+      id,
+      FILL,
+      feature.getAttrsAtZoom(sliced.zoomLevel())
+    );
+
+    int emitted = 0;
+    for (TileCoord tile : sliced.getFilledTiles()) {
+      consumer.accept(new RenderedFeature(
+        tile,
+        vectorTileFeature,
+        feature.getSortKey(),
+        Optional.ofNullable(groupInfo)
+      ));
+      emitted++;
+    }
+    return emitted;
+  }
+
+  private Coordinate getGlobalCoord(TileCoord tileCoord, Point coordinate) {
+    double worldWidthAtZoom = Math.pow(2, tileCoord.z());
+    double minX = tileCoord.x() / worldWidthAtZoom;
+    double maxX = (tileCoord.x() + 1) / worldWidthAtZoom;
+    double minY = (tileCoord.y() + 1) / worldWidthAtZoom;
+    double maxY = tileCoord.y() / worldWidthAtZoom;
+
+    double relativeX = coordinate.getX() / 256.0;
+    double relativeY = coordinate.getY() / 256.0;
+
+    double worldX = minX + relativeX * (maxX - minX);
+    double worldY = maxY - relativeY * (maxY - minY);
+
+    double lon = normalizeLongitude(GeoUtils.getWorldLon(worldX));
+    double lat = GeoUtils.getWorldLat(worldY);
+
+    return new Coordinate(lon, lat);
+  }
+
+  private static double normalizeLongitude(double lon) {
+    while (lon > 180) {
+      lon -= 360;
+    }
+    while (lon < -180) {
+      lon += 360;
+    }
+    return lon;
+  }
+
 
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
     Map<String, Object> attrs) {
