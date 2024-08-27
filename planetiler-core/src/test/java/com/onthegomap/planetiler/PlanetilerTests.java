@@ -430,7 +430,7 @@ class PlanetilerTests {
 
   @Test
   void testLabelGridLimitLine() throws Exception {
-    double y = 0.5 + Z14_WIDTH / 2;
+    double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
 
     double x1 = 0.5 + Z14_WIDTH / 4;
@@ -446,7 +446,7 @@ class PlanetilerTests {
         newReaderFeature(newLineString(lng2, lat, lng3, lat), Map.of("rank", "2")),
         newReaderFeature(newLineString(lng3, lat, lng4, lat), Map.of("rank", "3"))
       ),
-      (in, features) -> features.point("layer")
+      (in, features) -> features.line("layer")
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
         .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
@@ -456,14 +456,14 @@ class PlanetilerTests {
 
     assertSubmap(Map.of(
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newLineString(64, 128, 74, 128), Map.of("rank", "1")),
-        feature(newLineString(74, 128, 84, 128), Map.of("rank", "2")),
-        feature(newLineString(84, 128, 94, 128), Map.of("rank", "3"))
+        feature(newLineString(64, 64, 74, 64), Map.of("rank", "1")),
+        feature(newLineString(74, 64, 84, 64), Map.of("rank", "2")),
+        feature(newLineString(84, 64, 94, 64), Map.of("rank", "3"))
       ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
         // omit rank=3 due to label grid size
-        feature(newLineString(32, 64, 37, 64), Map.of("rank", "1")),
-        feature(newLineString(37, 64, 42, 64), Map.of("rank", "2"))
+        feature(newLineString(32, 32, 37, 32), Map.of("rank", "1")),
+        feature(newLineString(37, 32, 42, 32), Map.of("rank", "2"))
       )
     ), results.tiles);
   }
@@ -487,7 +487,7 @@ class PlanetilerTests {
         newReaderFeature(rectangle(lng2, lat, lng3, lat2), Map.of("rank", "2")),
         newReaderFeature(rectangle(lng3, lat, lng4, lat2), Map.of("rank", "3"))
       ),
-      (in, features) -> features.point("layer")
+      (in, features) -> features.polygon("layer")
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
         .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
@@ -497,14 +497,14 @@ class PlanetilerTests {
 
     assertSubmap(Map.of(
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(rectangle(64, 128, 74, 138), Map.of("rank", "1")),
-        feature(rectangle(74, 128, 84, 138), Map.of("rank", "2")),
-        feature(rectangle(84, 128, 94, 138), Map.of("rank", "3"))
+        feature(rectangle(64, 128, 74, 118), Map.of("rank", "1")),
+        feature(rectangle(74, 128, 84, 118), Map.of("rank", "2")),
+        feature(rectangle(84, 128, 94, 118), Map.of("rank", "3"))
       ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
         // omit rank=3 due to label grid size
-        feature(rectangle(32, 64, 37, 69), Map.of("rank", "1")),
-        feature(rectangle(37, 64, 42, 69), Map.of("rank", "2"))
+        feature(rectangle(32, 64, 37, 59), Map.of("rank", "1")),
+        feature(rectangle(37, 64, 42, 59), Map.of("rank", "2"))
       )
     ), results.tiles);
   }
