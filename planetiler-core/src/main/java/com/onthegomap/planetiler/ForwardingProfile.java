@@ -98,7 +98,7 @@ public abstract class ForwardingProfile implements Profile {
   /**
    * Indicate to {@link #caresAboutLayer(String)} what layers (dependents) rely on other layers (dependencies) so that
    * methods like {@link #registerFeatureHandler(FeatureProcessor)}, {@link #registerHandler(Handler)} or
-   * {@link #registerSourceHandler(String, FeatureProcessor)} do register also those dependencies.
+   * {@link #registerSourceHandler(String, FeatureProcessor)} do not block registration of those dependencies.
    * <p>
    * Dependencies are described as a map with dependent layer names as keys and lists containing dependency layer names
    * as map values. Example: Layer named {@code transportation_name} depends on layer named {@code transportation}:
