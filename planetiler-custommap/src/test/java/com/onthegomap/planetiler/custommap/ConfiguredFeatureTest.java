@@ -268,6 +268,15 @@ class ConfiguredFeatureTest {
   }
 
   @Test
+  void testTagNullValueAttributeTest() {
+    testPolygon(TEST_RESOURCE, "tag_attribute_null.yml", waterTags, f -> {
+      var attr = f.getAttrsAtZoom(14);
+      assertNull(attr.get("non_existent"));
+      assertNull(attr.get("non_existent_typed"));
+    }, 1);
+  }
+
+  @Test
   void testTagIncludeAttributeTest() {
     testPolygon(TEST_RESOURCE, "tag_include.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);

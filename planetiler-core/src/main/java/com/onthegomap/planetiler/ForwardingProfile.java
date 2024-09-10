@@ -81,11 +81,36 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   private boolean caresAboutLayer(String layer) {
-    return (onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer);
+    var dependencies = dependsOnLayer();
+    return ((onlyLayers.isEmpty() || onlyLayers.contains(layer)) && !excludeLayers.contains(layer)) ||
+      this.handlers.stream()
+        .filter(HandlerForLayer.class::isInstance)
+        .map(HandlerForLayer.class::cast)
+        .filter(l -> !l.name().equals(layer))
+        .anyMatch(
+          existing -> dependencies.containsKey(existing.name()) && dependencies.get(existing.name()).contains(layer));
   }
 
   public boolean caresAboutLayer(Object obj) {
     return !(obj instanceof HandlerForLayer l) || caresAboutLayer(l.name());
+  }
+
+  /**
+   * Indicate to {@link #caresAboutLayer(String)} what layers (dependents) rely on other layers (dependencies) so that
+   * methods like {@link #registerFeatureHandler(FeatureProcessor)}, {@link #registerHandler(Handler)} or
+   * {@link #registerSourceHandler(String, FeatureProcessor)} do not block registration of those dependencies.
+   * <p>
+   * Dependencies are described as a map with dependent layer names as keys and lists containing dependency layer names
+   * as map values. Example: Layer named {@code transportation_name} depends on layer named {@code transportation}:
+   * <p>
+   * {@snippet :
+   * Map.of("transportation_name", List.of("transportation"));
+   * }
+   *
+   * @return a map describing dependencies
+   */
+  public Map<String, List<String>> dependsOnLayer() {
+    return Map.of();
   }
 
   /**
