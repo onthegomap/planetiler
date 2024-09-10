@@ -19,7 +19,7 @@
     <geotools.version>31.3</geotools.version>
     <log4j.version>2.23.1</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.25.4</protobuf.version>
+    <protobuf.version>4.27.3</protobuf.version>
     <geopackage.version>6.6.5</geopackage.version>
   </properties>
 
@@ -67,7 +67,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.46.0.1</version>
+      <version>3.46.1.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>
@@ -156,7 +156,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.2.1-jre</version>
+      <version>33.3.0-jre</version>
     </dependency>
     <dependency>
       <groupId>mil.nga.geopackage</groupId>
@@ -178,7 +178,7 @@
     <dependency>
       <groupId>blue.strategic.parquet</groupId>
       <artifactId>parquet-floor</artifactId>
-      <version>1.45</version>
+      <version>1.46</version>
     </dependency>
     <dependency>
       <groupId>io.minio</groupId>

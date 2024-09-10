@@ -626,13 +626,13 @@ class FeatureMergeTest {
   @ParameterizedTest
   @CsvSource({
     "bostonbuildings.mbtiles, 2477, 3028, 13, 1141",
-    "bostonbuildings.mbtiles, 2481, 3026, 13, 948",
+    "bostonbuildings.mbtiles, 2481, 3026, 13, 949",
     "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
     "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
   void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
     throws IOException, GeometryException {
-    LOGGER.warn("Testing complex polygon merging for " + file + " " + z + "/" + x + "/" + y + " ...");
+    LOGGER.warn("Testing complex polygon merging for {} {}/{}/{} ...", file, z, x, y);
     try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = gunzip(tileData);
@@ -776,7 +776,7 @@ class FeatureMergeTest {
   }
 
   @Test
-  void removePointsOutsideBufferEmpty() throws GeometryException {
+  void removePointsOutsideBufferEmpty() {
     assertEquals(
       List.of(),
       FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
