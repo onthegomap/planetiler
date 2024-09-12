@@ -19,7 +19,7 @@
     <geotools.version>31.3</geotools.version>
     <log4j.version>2.24.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>4.27.3</protobuf.version>
+    <protobuf.version>4.28.1</protobuf.version>
     <geopackage.version>6.6.5</geopackage.version>
   </properties>
 
