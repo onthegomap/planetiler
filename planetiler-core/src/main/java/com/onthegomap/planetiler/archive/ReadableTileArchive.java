@@ -44,6 +44,18 @@ public interface ReadableTileArchive extends Closeable {
     return getAllTileCoords().map(coord -> new Tile(coord, getTile(coord)));
   }
 
+  default CloseableIterator<Tile> getZoomTiles(int z) {
+    return null;
+  }
+
+  default CloseableIterator<Tile> getZoomTiles(int z, int startX, int startY, int endX, int endY) {
+    return null;
+  }
+
+  default Integer getMaxDataTileId() {
+    return 0;
+  }
+
   /**
    * Returns the metadata stored in this archive.
    */

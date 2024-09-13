@@ -4,6 +4,7 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,6 +28,7 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -575,11 +577,25 @@ public class Arguments {
     String description, String defaultValue) {
     String input = getString(key, description, defaultValue);
 
+    if (StringUtils.isBlank(input)) {
+      return null;
+    }
+
     return Arrays.stream(input.split(","))
       .map(s -> s.split("="))
       .collect(Collectors.toMap(
         arr -> keyParser.apply(arr[0]),
         arr -> valueParser.apply(arr[1])
       ));
+  }
+
+  public <T> ZoomFunction<T> getZoomFunction(String key, Function<String, Integer> keyParser, Function<String, ? extends T> valueParser,
+    String description, String defaultValue) {
+    Map<Integer, ? extends T> map = getMap(key, keyParser, valueParser, description, defaultValue);
+    if (map == null) {
+      return null;
+    }
+
+    return ZoomFunction.fromMaxZoomThresholds(map);
   }
 }

@@ -6,6 +6,11 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -376,7 +381,13 @@ public class GeoUtils {
   }
 
 
-
+  /**
+   * 这个方法处理 X 坐标的环绕（wrap-around）。地理坐标的 X 坐标（经度）在全球范围内可能会超过可显示的范围
+   * （例如，超过180度或小于-180度），所以需要用 wrapDouble 来处理这种情况。它将 X 坐标归一化到 [0, max) 范围内。
+   * @param value
+   * @param max
+   * @return
+   */
   private static double wrapDouble(double value, double max) {
     value %= max;
     if (value < 0) {
@@ -598,13 +609,6 @@ public class GeoUtils {
 
   public static Geometry createSmallSquareWithCentroid(Geometry centroid, double precisionScale, int zoom) {
     Coordinate center = centroid.getCoordinate();
-
-//    // 计算当前层级下瓦片的经纬度跨度
-//    double tileSizeDegrees = 360.0 / Math.pow(2, zoom);
-//    // 计算瓦片中每个像素代表的经纬度长度
-//    double degreesPerPixel = tileSizeDegrees / 256.0;
-//    // 根据 precisionScale 确定边长（单位：经纬度）
-//    double halfSideLength = degreesPerPixel /  precisionScale / 2.0;
 
     // 当前缩放级别下的每个像素所代表的相对单位长度
     double tileUnit = 1.0 / Math.pow(2, zoom);

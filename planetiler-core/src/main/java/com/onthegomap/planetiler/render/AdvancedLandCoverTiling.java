@@ -8,16 +8,17 @@ import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.JsonUitls;
 import com.onthegomap.planetiler.util.ZoomFunction;
-import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,7 @@ public class AdvancedLandCoverTiling {
   private static final int DEFAULT_TILE_SIZE = 256;
   private static final double TILE_SCALE = 0.5d;
   private static final int PIXELATION_ZOOM = 12;
+  private static final int BATCH_SIZE = 50; // 可以根据实际情况调整
 
 
   private static final GeometryFactory geometryFactory = new GeometryFactory();
@@ -67,17 +69,15 @@ public class AdvancedLandCoverTiling {
     this.executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
   }
 
-  public void generateLowerZoomTiles() throws GeometryException, IOException {
-    // TODO 现获取矢量数据的范围，根据范围计算底层级的瓦片后再去获取高层层级瓦片，避免在大数据量情况下获取全部高层级的瓦片把内存撑爆
+  public void generateLowerZoomTiles() {
     try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
-      for (int zoom = config.maxzoom(); zoom > config.minzoom(); zoom--) {
-        if (zoom == config.maxzoom()) {
+      for (int zoom = config.maxzoom() - 1; zoom >= config.minzoom(); zoom--) {
+        if (zoom + 1 == config.maxzoom()) {
           writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
         }
 
-        // 根据层级提前初始化PIXEL_GRID和PIXEL_SIZE
-        initPixelSize(zoom - 1);
-        processZoomLevel(zoom - 1, writer);
+        initPixelSize(zoom);
+        processZoomLevel(zoom, writer);
         writer.flush();
       }
       updateMetadata();
@@ -99,46 +99,90 @@ public class AdvancedLandCoverTiling {
     }
   }
 
-  public void processZoomLevel(int zoom, Mbtiles.TileWriter writer) {
-    LOGGER.info("开始处理缩放级别 {}", zoom);
+  public void processZoomLevel(int z, Mbtiles.TileWriter writer) {
+    LOGGER.info("开始处理缩放级别 {}", z);
     long startTime = System.currentTimeMillis();
 
-    ConcurrentLinkedQueue<TileEncodingResult> results = new ConcurrentLinkedQueue<>();
-    try (CloseableIterator<Tile> tileIterator = mbtiles.getZoomTiles(zoom + 1)) {
+    Bounds bounds = config.bounds();
+    TileExtents.ForZoom currentZoom = bounds.tileExtents().getForZoom(z);
+    TileExtents.ForZoom highZoom = bounds.tileExtents().getForZoom(z + 1);
+
+    // 计算父瓦片的范围 (TMS坐标)
+    int minParentX = currentZoom.minX();
+    int maxParentX = currentZoom.maxX();
+    int minParentY = currentZoom.minY();
+    int maxParentY = currentZoom.maxY();
+
+    // 计算层级下最大瓦片数
+    int currentMaxY = (1 << z) - 1;
+    int highMaxY = (1 << (z + 1)) - 1;
+
+    int totalBatches =
+      ((maxParentX - minParentX + 1) / BATCH_SIZE + 1) * ((maxParentY - minParentY + 1) / BATCH_SIZE + 1);
+    int processedBatches = 0;
+    LOGGER.info("处理缩放级别 {} 的父瓦片范围：X({} to {}), Y({} to {}) (TMS)", z, minParentX, maxParentX, minParentY,
+      maxParentY);
+
+    for (int parentX = minParentX; parentX <= maxParentX; parentX += BATCH_SIZE) {
+      for (int parentY = minParentY; parentY <= maxParentY; parentY += BATCH_SIZE) {
+        int endParentX = Math.min(parentX + BATCH_SIZE - 1, maxParentX);
+        int endParentY = Math.min(parentY + BATCH_SIZE - 1, maxParentY);
+
+        // 计算子瓦片的范围 (XYZ坐标)
+        int minChildX = parentX * 2;
+        int maxChildX = (endParentX + 1) * 2 - 1;
+        int minChildY = (currentMaxY - endParentY) * 2;  // 翻转Y坐标并计算最小Y
+        int maxChildY = (currentMaxY - parentY + 1) * 2 - 1;  // 翻转Y坐标并计算最大Y
+
+        // 确保子瓦片范围不超出高层级的实际范围
+        minChildX = Math.max(minChildX, highZoom.minX());
+        maxChildX = Math.min(maxChildX, highZoom.maxX());
+        minChildY = Math.max(minChildY, 0);
+        maxChildY = Math.min(maxChildY, highMaxY);
+
+        processTileBatch(z, minChildX, minChildY, maxChildX, maxChildY, writer);
+
+        processedBatches++;
+        if (processedBatches % 10 == 0 || processedBatches == totalBatches) {
+          LOGGER.debug("缩放级别 {} 处理进度: {}/{} 批次", z, processedBatches, totalBatches);
+        }
+      }
+    }
+
+    long endTime = System.currentTimeMillis();
+    LOGGER.info("缩放级别 {} 处理完成，耗时: {} ms", z, (endTime - startTime));
+  }
+
+  private void processTileBatch(int z, int minX, int minY, int maxX, int maxY, Mbtiles.TileWriter writer) {
+    try (CloseableIterator<Tile> tileIterator = mbtiles.getZoomTiles(z + 1, minX, minY, maxX, maxY)) {
+      List<CompletableFuture<Void>> futures = new ArrayList<>();
       Map<TileCoord, ConcurrentHashMap<String, ConcurrentLinkedQueue<VectorTile.Feature>>> currentZoomTiles = new ConcurrentHashMap<>();
 
-      // 并行处理所有瓦片，仿真变换
-      List<CompletableFuture<Void>> futures = new ArrayList<>();
       while (tileIterator.hasNext()) {
         Tile next = tileIterator.next();
-        CompletableFuture<Void> future = CompletableFuture.runAsync(
-          () -> processTile(next, currentZoomTiles), executorService);
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> processTile(next, currentZoomTiles),
+          executorService);
         futures.add(future);
       }
       CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
       futures.clear();
 
+      ConcurrentLinkedQueue<TileEncodingResult> results = new ConcurrentLinkedQueue<>();
       for (Map.Entry<TileCoord, ConcurrentHashMap<String, ConcurrentLinkedQueue<VectorTile.Feature>>> entry : currentZoomTiles.entrySet()) {
         TileCoord parentTileCoord = entry.getKey();
         Map<String, ConcurrentLinkedQueue<VectorTile.Feature>> layerFeatures = entry.getValue();
 
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
           VectorTile vectorTile = new VectorTile();
-          for (Map.Entry<String, ConcurrentLinkedQueue<VectorTile.Feature>> layerEntry : layerFeatures.entrySet()) {
-            List<VectorTile.Feature> handleFeatures;
-            try {
-//              handleFeatures = FeatureMerge.mergeOverlappingPolygons(idFeatures, 0);
-              handleFeatures = rasterizeFeatures(layerEntry.getValue(), zoom);
-            } catch (GeometryException e) {
-              throw new RuntimeException(e);
-            }
-            vectorTile.addLayerFeatures(layerEntry.getKey(), handleFeatures);
-          }
-
           try {
-            results.add(new TileEncodingResult(parentTileCoord, Gzip.gzip(vectorTile.encode()), OptionalLong.empty()));
-          } catch (IOException e) {
+            for (Map.Entry<String, ConcurrentLinkedQueue<VectorTile.Feature>> layerEntry : layerFeatures.entrySet()) {
+              //              handleFeatures = FeatureMerge.mergeOverlappingPolygons(idFeatures, 0);
+              vectorTile.addLayerFeatures(layerEntry.getKey(), rasterizeFeatures(layerEntry.getValue(), z));
+            }
+
+            results.add(
+              new TileEncodingResult(parentTileCoord, Gzip.gzip(vectorTile.encode()), OptionalLong.empty()));
+          } catch (Exception e) {
             throw new RuntimeException(e);
           }
         }, executorService);
@@ -146,13 +190,15 @@ public class AdvancedLandCoverTiling {
         futures.add(future);
       }
       CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
       results.forEach(writer::write);
-    }
 
-    long endTime = System.currentTimeMillis();
-    LOGGER.info("缩放级别 {} 处理完成，耗时: {} ms", zoom, (endTime - startTime));
+      futures.clear();
+    } catch (Exception e) {
+      LOGGER.error("处理瓦片批次 ({},{}) 到 ({},{}) 在缩放级别 {} 时发生错误",
+        minX, minY, maxX, maxY, z, e);
+    }
   }
+
 
   private void processTile(Tile tile,
     Map<TileCoord, ConcurrentHashMap<String, ConcurrentLinkedQueue<VectorTile.Feature>>> currentZoomTiles) {
@@ -297,10 +343,13 @@ public class AdvancedLandCoverTiling {
    * 主方法，用于测试和运行切片生成过程
    */
   public static void main(String[] args) {
-    String mbtilesPath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\guangdong-latest.osm.pbf\\default-14\\default-14 - 副本.mbtiles";
+    String mbtilesPath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\shanghai\\default-14\\default-14 - 副本.mbtiles";
     PlanetilerConfig planetilerConfig = PlanetilerConfig.from(
-      Arguments.of("minzoom", 0, "maxzoom", 14, "pixelation_grid_size_overrides", "6=512,12=256"));
-//"pixel_size_overrides", "12=128"
+      Arguments.of(
+        "minzoom", 0,
+        "maxzoom", 14,
+        "pixelation_grid_size_overrides", "6=512,12=256",
+        "bounds", "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135"));
     try (WriteableTileArchive archive = TileArchives.newWriter(Paths.get(mbtilesPath), planetilerConfig)) {
       AdvancedLandCoverTiling tiling = new AdvancedLandCoverTiling(planetilerConfig, (Mbtiles) archive);
 

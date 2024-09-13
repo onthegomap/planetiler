@@ -444,6 +444,46 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     );
   }
 
+  @Override
+  public CloseableIterator<Tile> getZoomTiles(int z) {
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s, %s from %s where %s = %s ".formatted(
+          TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE, TILES_COL_Z, z)
+      ),
+      rs -> new Tile(getResultCoord(rs), rs.getBytes(TILES_COL_DATA))
+    );
+  }
+
+  @Override
+  public CloseableIterator<Tile> getZoomTiles(int z, int startX, int startY, int endX, int endY) {
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s, %s from %s where %s = %s and %s BETWEEN %s and %s and %s BETWEEN %s and %s ".formatted(
+          TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE, TILES_COL_Z,
+          z, TILES_COL_X, startX, endX, TILES_COL_Y, startY, endY)
+      ),
+      rs -> new Tile(getResultCoord(rs), rs.getBytes(TILES_COL_DATA))
+    );
+  }
+
+  @Override
+  public Integer getMaxDataTileId() {
+    QueryIterator<Integer> iterator = new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select max(%s) as %s  from %s".formatted(TILES_DATA_COL_DATA_ID, TILES_DATA_COL_DATA_ID, TILES_SHALLOW_TABLE)
+      ),
+      rs -> rs.getInt(TILES_DATA_COL_DATA_ID)
+    );
+
+    if (iterator.hasNext) {
+      return iterator.next();
+    }
+
+    return 0;
+  }
+
+
   public Connection connection() {
     return connection;
   }
@@ -605,6 +645,16 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         return connection.prepareStatement(sql);
       } catch (SQLException throwables) {
         throw new IllegalStateException("Could not create prepared statement", throwables);
+      }
+    }
+
+    public void flush() {
+      if (!batch.isEmpty()) {
+        try (var lastBatch = createBatchInsertPreparedStatement(batch.size())) {
+          flush(lastBatch);
+        } catch (SQLException throwables) {
+          throw new IllegalStateException("Error flushing batch", throwables);
+        }
       }
     }
 
@@ -781,6 +831,17 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         LOGGER.debug("Unique tile hashes: {}", format.integer(tileDataIdByHash.size()));
       }
     }
+
+    @Override
+    public void setTileDataIdCounter(int count) {
+      this.tileDataIdCounter = count;
+    }
+
+    @Override
+    public void flush() {
+      batchedTileDataTableWriter.flush();
+      batchedTileShallowTableWriter.flush();
+    }
   }
 
 
@@ -806,6 +867,60 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         }
       }
       return this;
+    }
+
+    public Metadata updateMetadata(Map<String, String> metadataMap) {
+      if (metadataMap == null || metadataMap.isEmpty()) {
+        LOGGER.debug("No metadata to update");
+        return this;
+      }
+
+      String sql = "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + ", " + METADATA_COL_VALUE + ") "
+        + "VALUES (?, ?) "
+        + "ON CONFLICT(" + METADATA_COL_NAME + ") DO UPDATE SET " + METADATA_COL_VALUE + " = ?";
+
+      try {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+          for (Map.Entry<String, String> entry : metadataMap.entrySet()) {
+            String name = entry.getKey();
+            String value = entry.getValue();
+
+            if (name == null || name.isEmpty()) {
+              LOGGER.warn("Skipping update for null or empty metadata name");
+              continue;
+            }
+
+            if (value == null) {
+              LOGGER.debug("Skipping update for null value of metadata: {}", name);
+              continue;
+            }
+
+            String logValue = value.length() > 1000
+              ? value.substring(0, 1000) + "... " + (value.length() - 1000) + " more characters"
+              : value;
+            LOGGER.debug("Updating mbtiles metadata: {}={}", name, logValue);
+
+            statement.setString(1, name);
+            statement.setString(2, value);
+            statement.setString(3, value);
+            statement.addBatch();
+          }
+
+          int[] affectedRows = statement.executeBatch();
+          LOGGER.debug("Metadata batch update affected {} rows", sum(affectedRows));
+        }
+      } catch (SQLException e) {
+        LOGGER.error("Error updating metadata batch", e);
+      }
+      return this;
+    }
+
+    private int sum(int[] array) {
+      int sum = 0;
+      for (int value : array) {
+        sum += value;
+      }
+      return sum;
     }
 
     /** Returns all key-value pairs from the metadata table. */

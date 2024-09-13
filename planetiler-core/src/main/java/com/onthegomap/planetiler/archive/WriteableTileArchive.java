@@ -54,6 +54,10 @@ public interface WriteableTileArchive extends Closeable {
     void close();
 
     default void printStats() {}
+
+    default void setTileDataIdCounter(int count) {}
+
+    default void flush() {}
   }
 
   // TODO update archive metadata

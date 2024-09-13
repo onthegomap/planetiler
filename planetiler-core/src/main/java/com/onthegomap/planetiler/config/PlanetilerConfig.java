@@ -7,11 +7,11 @@ import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
 import com.onthegomap.planetiler.util.MinioUtils;
 import com.onthegomap.planetiler.util.Parse;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -57,8 +57,10 @@ public record PlanetilerConfig(
   double downloadMaxBandwidth,
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
+  ZoomFunction<Number> minFeatureSizeOverrides,
   double simplifyToleranceAtMaxZoom,
   double simplifyToleranceBelowMaxZoom,
+  ZoomFunction<Number> simplifyToleranceOverrides,
   boolean osmLazyReads,
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
@@ -75,9 +77,10 @@ public record PlanetilerConfig(
   String outputType,
   String martinUrl,
   String smallFeatStrategy,
-  Map<Integer, Double> labelGridPixelSize,
-  Map<Integer, Double> labelGridLimit,
-  Map<Integer, Double> bufferPixelOverrides,
+  ZoomFunction<Number> labelGridPixelSize,
+  ZoomFunction<Number> labelGridLimit,
+  ZoomFunction<Number> bufferPixelOverrides,
+  ZoomFunction<Number> pixelationGridSizeOverrides,
   int featureSourceIdMultiplier
 ) {
 
@@ -87,15 +90,15 @@ public record PlanetilerConfig(
   /**
    * Label网格大小的阈值，根据不同缩放级别设置不同的网格大小。
    */
-  private static final String LABEL_GRID_PIXEL_SIZE_DEFAULT = "14=32,6=16,1=4";
+  private static final String LABEL_GRID_PIXEL_SIZE_DEFAULT = null;
   /**
    * Label网格限制的阈值，根据不同缩放级别设置不同的网格限制。
    */
-  private static final String LABEL_GRID_LIMIT_DEFAULT = "14=512,6=2048,1=4096";
+  private static final String LABEL_GRID_LIMIT_DEFAULT = null;
   /**
    * 缓冲像素阈值，根据不同缩放级别设置不同的缓冲像素值。
    */
-  private static final String BUFFER_PIXEL_OVERRIDES_DEFAULT= "14=32,6=16,1=4";
+  private static final String BUFFER_PIXEL_OVERRIDES_DEFAULT= null;
 
   public PlanetilerConfig {
     if (minzoom > maxzoom) {
@@ -242,12 +245,16 @@ public record PlanetilerConfig(
       arguments.getDouble("min_feature_size",
         "Default value for the minimum size in tile pixels of features to emit below the maximum zoom level",
         1),
+      arguments.getZoomFunction("min_feature_size_overrides", Integer::parseInt, Double::parseDouble,
+        "设置在地图最大缩放级别以下发出的线特征最小长度或多边形特征的最小面积的平方根", ""),
       arguments.getDouble("simplify_tolerance_at_max_zoom",
         "Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming",
         256d / 4096),
       arguments.getDouble("simplify_tolerance",
         "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
         0.1d),
+      arguments.getZoomFunction("simplify_tolerance_overrides", Integer::parseInt, Double::parseDouble,
+        "设置在最大缩放级别以下的地图瓦片中线条和多边形的简化容差。。", ""),
       arguments.getBoolean("osm_lazy_reads",
         "Read OSM blocks from disk in worker threads",
         true),
@@ -286,12 +293,14 @@ public record PlanetilerConfig(
       arguments.getString("small_Feat_Strategy", "过小的要素处理方案："
           + "discard - 简化后小于一个像素点直接丢弃；centroid - 生成质心替代；triangle - 生成最小三角形替代；square - 生成最小正方形替代",
         SmallFeatureStrategy.DISCARD.strategy),
-      arguments.getMap("label_grid_pixel_size", Integer::parseInt, Double::parseDouble,
-        "设置在每个缩放级别计算标签网格哈希值时用于分组或限制输出点的网格大小（以像素为单）。", LABEL_GRID_PIXEL_SIZE_DEFAULT),
-      arguments.getMap("label_grid_limit", Integer::parseInt, Double::parseDouble,
-        "设置在每个缩放级别计算标签网格哈希值时用于限制输出点密度的点数上限（以像素为单位）。", LABEL_GRID_LIMIT_DEFAULT),
-      arguments.getMap("buffer_Pixel_Thresholds", Integer::parseInt, Double::parseDouble,
-        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", BUFFER_PIXEL_OVERRIDES_DEFAULT),
+      arguments.getZoomFunction("label_grid_pixel_size", Integer::parseInt, Double::parseDouble,
+        "设置在每个缩放级别计算标签网格哈希值时用于分组或限制输出点的网格大小（以像素为单）。", ""),
+      arguments.getZoomFunction("label_grid_limit", Integer::parseInt, Double::parseDouble,
+        "设置在每个缩放级别计算标签网格哈希值时用于限制输出点密度的点数上限（以像素为单位）。", ""),
+      arguments.getZoomFunction("buffer_Pixel_Thresholds", Integer::parseInt, Double::parseDouble,
+        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", ""),
+      arguments.getZoomFunction("pixelation_grid_size_overrides", Integer::parseInt, Double::parseDouble,
+        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", ""),
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
