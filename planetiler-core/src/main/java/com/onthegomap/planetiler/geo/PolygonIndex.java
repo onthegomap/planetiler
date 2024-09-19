@@ -64,6 +64,23 @@ public class PolygonIndex<T> {
     return postFilterIntersecting(geom, items);
   }
 
+  public List<T> getCovers(Geometry geom) {
+    build();
+    List<?> items = index.query(geom.getEnvelopeInternal());
+    return postFilterCovers(geom, items);
+  }
+
+  private List<T> postFilterCovers(Geometry geom, List<?> items) {
+    List<T> result = new ArrayList<>(items.size());
+    for (Object item : items) {
+      if (item instanceof GeomWithData<?>(var poly,var data) && geom.contains(poly)) {
+        @SuppressWarnings("unchecked") T t = (T) data;
+        result.add(t);
+      }
+    }
+    return result;
+  }
+
   private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {

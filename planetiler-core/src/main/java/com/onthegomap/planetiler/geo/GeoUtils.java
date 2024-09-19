@@ -6,11 +6,6 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.geotools.api.referencing.FactoryException;
-import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
-import org.geotools.api.referencing.operation.TransformException;
-import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -97,6 +92,31 @@ public class GeoUtils {
       return copy;
     }
   };
+
+  private static class TileToLatLonTransformer extends GeometryTransformer {
+    private final int tileX;
+    private final int tileY;
+    private final int zoom;
+
+    public TileToLatLonTransformer(int tileX, int tileY, int zoom) {
+      this.tileX = tileX;
+      this.tileY = tileY;
+      this.zoom = zoom;
+    }
+
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
+      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
+      for (int i = 0; i < coords.size(); i++) {
+        double x = (tileX + coords.getX(i) / 256d) / Math.pow(2, zoom);
+        double y = (tileY + coords.getY(i) / 256d) / Math.pow(2, zoom);
+        copy.setOrdinate(i, 0, getWorldLon(x));
+        copy.setOrdinate(i, 1, getWorldLat(y));
+      }
+      return copy;
+    }
+  }
+
   private static final double MAX_LAT = getWorldLat(-0.1);
   private static final double MIN_LAT = getWorldLat(1.1);
   // to pack latitude/longitude into a single long, we round them to 31 bits of precision
@@ -156,6 +176,12 @@ public class GeoUtils {
       getWorldY(lonLatBounds.getMaxY())
     );
   }
+
+  public static Geometry tileToLatLonCoords(Geometry geom, int tileX, int tileY, int zoom) {
+    TileToLatLonTransformer transformer = new TileToLatLonTransformer(tileX, tileY, zoom);
+    return transformer.transform(geom);
+  }
+
 
   /**
    * Returns the longitude for a web mercator coordinate {@code x} where 0 is the international date line on the west
