@@ -23,7 +23,7 @@ First decide where to get the `planet.osm.pbf` file:
   osmium renumber everything.osm.pbf -o planet.osm.pbf
   ```
 - If you would like to update your `planet.osm.pbf` file to the latest changes from OpenStreetMap, you can
-  use [pyosmium-up-to-date](https://docs.osmcode.org/pyosmium/latest/tools_uptodate.html):
+  use [pyosmium-up-to-date](https://docs.osmcode.org/pyosmium/latest/user_manual/10-Replication-Tools/#updating-a-planet-or-extract):
 
   ```bash
   pyosmium-up-to-date --size 20000 -v planet.osm.pbf
