@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import com.google.api.expr.v1alpha1.Constant;
 import com.google.api.expr.v1alpha1.Decl;
 import com.google.api.expr.v1alpha1.Type;
+import com.google.common.collect.ForwardingMap;
 import com.google.protobuf.NullValue;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -370,7 +371,7 @@ public class Contexts {
     public Object apply(String key) {
       if (key != null) {
         return switch (key) {
-          case FEATURE_TAGS -> tagValueProducer.mapTags(feature);
+          case FEATURE_TAGS -> mapWithDefault(tagValueProducer.mapTags(feature), NullValue.NULL_VALUE);
           case FEATURE_ID -> feature.id();
           case FEATURE_SOURCE -> feature.getSource();
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());
@@ -393,6 +394,20 @@ public class Contexts {
       } else {
         return null;
       }
+    }
+
+    private static <K, V> Map<K, V> mapWithDefault(Map<K, V> map, Object nullValue) {
+      return new ForwardingMap<>() {
+        @Override
+        protected Map<K, V> delegate() {
+          return map;
+        }
+
+        @Override
+        public V get(Object key) {
+          return map.getOrDefault(key, (V) nullValue);
+        }
+      };
     }
 
     public FeaturePostMatch createPostMatchContext(List<String> matchKeys) {
