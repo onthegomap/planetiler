@@ -1287,4 +1287,38 @@ class ConfiguredFeatureTest {
       assertInstanceOf(Puntal.class, feature.getGeometry());
     }, 1);
   }
+
+  @Test
+  void testWikidataParse() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          attributes:
+          - key: wikidata
+            value: "${feature.tags.wikidata != null ? int(feature.tags.wikidata.replace('Q', '')) : 0}"
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testPoint(config, Map.of(
+      "wikidata", "Q235"
+    ), feature -> {
+      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
+    }, 1);
+    testPoint(config, Map.of(
+      "wikidata", "235"
+    ), feature -> {
+      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
+    }, 1);
+    testPoint(config, Map.of(
+    ), feature -> {
+      assertEquals(Map.of("wikidata", 0L), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
 }
