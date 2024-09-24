@@ -1306,16 +1306,16 @@ class ConfiguredFeatureTest {
             value: "${feature.tags.wikidata != null ? int(feature.tags.wikidata.replace('Q', '')) : 0}"
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
-    //    testPoint(config, Map.of(
-    //      "wikidata", "Q235"
-    //    ), feature -> {
-    //      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
-    //    }, 1);
-    //    testPoint(config, Map.of(
-    //      "wikidata", "235"
-    //    ), feature -> {
-    //      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
-    //    }, 1);
+    testPoint(config, Map.of(
+      "wikidata", "Q235"
+    ), feature -> {
+      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
+    }, 1);
+    testPoint(config, Map.of(
+      "wikidata", "235"
+    ), feature -> {
+      assertEquals(Map.of("wikidata", 235L), feature.getAttrsAtZoom(14));
+    }, 1);
     testPoint(config, Map.of(
     ), feature -> {
       assertEquals(Map.of("wikidata", 0L), feature.getAttrsAtZoom(14));

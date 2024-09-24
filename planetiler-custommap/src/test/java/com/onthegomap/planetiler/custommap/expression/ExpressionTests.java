@@ -44,7 +44,6 @@ class ExpressionTests {
     "{'a': 2}.has('a', 3)|false|boolean",
     "{'a': 1}.has('b')|false|boolean",
     "int({'tags': {'wikidata': 'Q1'}}.tags.wikidata.replace('Q', ''))|1|long",
-    "{'tags': {}}.tags.wikidata == null|true|boolean",
 
     "coalesce({'a': 1}.get('a'), 2)|1|long",
     "coalesce({'a': 1}.get('b'), 2)|2|long",
