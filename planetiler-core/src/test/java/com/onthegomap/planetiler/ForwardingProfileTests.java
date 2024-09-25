@@ -157,7 +157,7 @@ class ForwardingProfileTests {
   }
 
   @Test
-  void testLayerPostProcesser() throws GeometryException {
+  void testLayerPostProcessor() throws GeometryException {
     VectorTile.Feature feature = new VectorTile.Feature(
       "layer",
       1,
@@ -167,7 +167,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("layer", 0, List.of(feature)));
 
     // ignore null response
-    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return null;
@@ -181,7 +181,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
 
     // allow mutations on initial input
-    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         items.set(0, items.getFirst());
@@ -196,7 +196,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("a", 0, List.of(feature)));
 
     // empty list removes
-    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return List.of();
@@ -212,7 +212,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(feature), profile.postProcessLayerFeatures("b", 0, List.of(feature)));
 
     // allow mutations on subsequent input
-    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         items.add(null);
@@ -229,7 +229,7 @@ class ForwardingProfileTests {
     assertEquals(List.of(), profile.postProcessLayerFeatures("a", 0, new ArrayList<>(List.of(feature))));
 
     // 2 handlers for same layer run one after another
-    var skip1 = new ForwardingProfile.LayerPostProcesser() {
+    var skip1 = new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return items.stream().skip(1).toList();
@@ -242,7 +242,7 @@ class ForwardingProfileTests {
     };
     profile.registerHandler(skip1);
     profile.registerHandler(skip1);
-    profile.registerHandler(new ForwardingProfile.LayerPostProcesser() {
+    profile.registerHandler(new ForwardingProfile.LayerPostProcessor() {
       @Override
       public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
         return null; // ensure that returning null after initial post-processors run keeps the postprocessed result
