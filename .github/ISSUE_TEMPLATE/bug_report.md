@@ -19,7 +19,7 @@ Steps to reproduce the behavior:
 3. See error
 
 **Expected behavior**
-A clear and concise description of what you expected to happen. For map data issues, plase include OSM element IDs and
+A clear and concise description of what you expected to happen. For map data issues, please include OSM element IDs and
 the vector tile features you expect in the output to make help reproduce the issue in tests.
 
 **Screenshots**
