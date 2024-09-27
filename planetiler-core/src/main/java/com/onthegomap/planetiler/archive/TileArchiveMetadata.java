@@ -20,8 +20,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Metadata associated with a tile archive.
@@ -49,6 +47,7 @@ public record TileArchiveMetadata(
   @JsonSerialize(using = TileArchiveMetadataDeSer.MetadataJsonSerializer.class)
   @JsonDeserialize(using = TileArchiveMetadataDeSer.MetadataJsonDeserializer.class) TileArchiveMetadataJson json,
   @JsonAnyGetter
+  @JsonAnySetter
   @JsonDeserialize(using = TileArchiveMetadataDeSer.EmptyMapIfNullDeserializer.class) Map<String, String> others,
   @JsonProperty(COMPRESSION_KEY) TileCompression tileCompression
 ) {
@@ -71,8 +70,6 @@ public record TileArchiveMetadata(
 
   public static final String MVT_FORMAT = "pbf";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveMetadata.class);
-
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
     this(profile, config, null);
   }
@@ -94,7 +91,7 @@ public record TileArchiveMetadata(
       config.minzoom(),
       config.maxzoom(),
       vectorLayers == null ? null : new TileArchiveMetadataJson(vectorLayers),
-      mergeMaps(mapWithBuildInfo(),profile.extraArchiveMetadata()),
+      mergeMaps(mapWithBuildInfo(), profile.extraArchiveMetadata()),
       config.tileCompression()
     );
   }
@@ -170,21 +167,10 @@ public record TileArchiveMetadata(
       maxzoom, json, others, tileCompression);
   }
 
-  /*
-   * few workarounds to make collect unknown fields to others work,
-   * because @JsonAnySetter does not yet work on constructor/creator arguments
-   * https://github.com/FasterXML/jackson-databind/issues/3439
-   */
-
-  private static Map<String,String> mergeMaps(Map<String,String> m1, Map<String,String> m2) {
+  private static Map<String, String> mergeMaps(Map<String, String> m1, Map<String, String> m2) {
     var result = new TreeMap<>(m1);
     result.putAll(m2);
     return result;
-  }
-
-  @JsonAnySetter
-  private void putUnknownFieldsToOthers(String name, String value) {
-    others.put(name, value);
   }
 
 
