@@ -19,7 +19,7 @@ public class YAML {
 
   private YAML() {}
 
-  private static final Load snakeYaml = new Load(LoadSettings.builder().build());
+  private static final Load snakeYaml = new Load(LoadSettings.builder().setCodePointLimit(Integer.MAX_VALUE).build());
   public static final ObjectMapper jackson = new ObjectMapper();
 
   public static <T> T load(Path file, Class<T> clazz) {
