@@ -45,4 +45,129 @@ class YamlTest {
     }
     assertEquals(expected, YAML.load(builder.toString(), Map.class));
   }
+
+  @Test
+  void testMergeOperator() {
+    assertSameYaml("""
+      source: &label
+        a: 1
+      dest:
+        <<: *label
+        b: 2
+      """, """
+      source:
+        a: 1
+      dest:
+        a: 1
+        b: 2
+      """);
+  }
+
+  @Test
+  void testMergeOperatorNested() {
+    assertSameYaml("""
+      source: &label
+        a: 1
+      dest:
+        l1:
+          l2:
+            l3:
+              <<: *label
+              b: 2
+      """, """
+      source:
+        a: 1
+      dest:
+        l1:
+          l2:
+            l3:
+              a: 1
+              b: 2
+      """);
+  }
+
+  @Test
+  void testMergeOperatorOverride() {
+    assertSameYaml("""
+      source: &label
+        a: 1
+      dest:
+        <<: *label
+        a: 2
+      """, """
+      source:
+        a: 1
+      dest:
+        a: 2
+      """);
+  }
+
+  @Test
+  void testMergeOperatorMultiple() {
+    assertSameYaml("""
+      source: &label1
+        a: 1
+        z: 1
+      source2: &label2
+        a: 2
+        b: 3
+      dest:
+        <<: [*label1, *label2]
+        b: 4
+        c: 5
+      """, """
+      source:
+        a: 1
+        z: 1
+      source2:
+        a: 2
+        b: 3
+      dest:
+        a: 2
+        b: 4
+        c: 5
+        z: 1
+      """);
+  }
+
+  @Test
+  void testMergeNotAnchor() {
+    assertSameYaml("""
+      <<:
+        a: 1
+        b: 2
+      b: 3
+      c: 4
+      """, """
+      a: 1
+      b: 3
+      c: 4
+      """);
+  }
+
+  @Test
+  void testMergeOperatorSecond() {
+    assertSameYaml("""
+      source: &label
+        a: 1
+      dest:
+        c: 3
+        <<: *label
+        b: 2
+      """, """
+      source:
+        a: 1
+      dest:
+        a: 1
+        b: 2
+        c: 3
+      """);
+  }
+
+  private static void assertSameYaml(String a, String b) {
+    assertEquals(
+      YAML.load(b, Object.class),
+      YAML.load(a, Object.class)
+    );
+  }
 }

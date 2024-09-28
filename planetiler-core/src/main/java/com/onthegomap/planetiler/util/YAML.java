@@ -8,6 +8,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
 
@@ -33,9 +35,38 @@ public class YAML {
   public static <T> T load(InputStream stream, Class<T> clazz) {
     try (stream) {
       Object parsed = snakeYaml.loadFromInputStream(stream);
+      handleMergeOperator(parsed);
       return convertValue(parsed, clazz);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  private static void handleMergeOperator(Object parsed) {
+    if (parsed instanceof Map map) {
+      Object toMerge = map.remove("<<");
+      if (toMerge != null) {
+        mergeInto(map, toMerge);
+      }
+      for (var value : map.values()) {
+        handleMergeOperator(value);
+      }
+    } else if (parsed instanceof List<?> list) {
+      for (var item : list) {
+        handleMergeOperator(item);
+      }
+    }
+  }
+
+  private static void mergeInto(Map dest, Object source) {
+    if (source instanceof Map<?, ?> map) {
+      for (var entry : map.entrySet()) {
+        dest.putIfAbsent(entry.getKey(), entry.getValue());
+      }
+    } else if (source instanceof List<?> nesteds) {
+      for (var nested : nesteds.reversed()) {
+        mergeInto(dest, nested);
+      }
     }
   }
 
