@@ -123,7 +123,7 @@ class YamlTest {
         a: 2
         b: 3
       dest:
-        a: 2
+        a: 1 # from label1 since it came first
         b: 4
         c: 5
         z: 1
@@ -182,10 +182,11 @@ class YamlTest {
       - &BIG { r: 10 }
       - &SMALL { r: 1 }
       - # Merge one map
-	      << : *CENTER
-	      r: 10
-	      label: center/big
+       << : *CENTER
+       r: 10
+       label: center/big
       """);
+  }
 
   @Test
   void testMergeOperatorFromDraft2() {

@@ -51,11 +51,11 @@ public class YAML {
     if (parsed instanceof Map<?, ?> map) {
       Object toMerge = map.remove("<<");
       if (toMerge != null) {
-        Map<?, ?> orig = new LinkedHashMap<>(map);
+        var orig = new LinkedHashMap<>(map);
         // to preserve the map key order we insert the merged operator objects first, then the original ones
         map.clear();
-        mergeInto(map, toMerge);
-        mergeInto(map, orig);
+        mergeInto(map, toMerge, false);
+        mergeInto(map, orig, true);
       }
       for (var value : map.values()) {
         handleMergeOperator(value);
@@ -68,12 +68,16 @@ public class YAML {
   }
 
   @SuppressWarnings("rawtypes")
-  private static void mergeInto(Map dest, Object source) {
+  private static void mergeInto(Map dest, Object source, boolean replace) {
     if (source instanceof Map<?, ?> map) {
-      dest.putAll(map);
+      if (replace) {
+        dest.putAll(map);
+      } else {
+        map.forEach(dest::putIfAbsent);
+      }
     } else if (source instanceof List<?> nesteds) {
       for (var nested : nesteds) {
-        mergeInto(dest, nested);
+        mergeInto(dest, nested, replace);
       }
     }
   }
