@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.snakeyaml.engine.v2.api.Load;
@@ -43,10 +44,14 @@ public class YAML {
   }
 
   private static void handleMergeOperator(Object parsed) {
-    if (parsed instanceof Map map) {
+    if (parsed instanceof Map<?, ?> map) {
       Object toMerge = map.remove("<<");
       if (toMerge != null) {
+        Map<?, ?> orig = new LinkedHashMap<>(map);
+        // to preserve the map key order we insert the merged operator objects first, then the original ones
+        map.clear();
         mergeInto(map, toMerge);
+        mergeInto(map, orig);
       }
       for (var value : map.values()) {
         handleMergeOperator(value);
@@ -58,13 +63,12 @@ public class YAML {
     }
   }
 
+  @SuppressWarnings("rawtypes")
   private static void mergeInto(Map dest, Object source) {
     if (source instanceof Map<?, ?> map) {
-      for (var entry : map.entrySet()) {
-        dest.putIfAbsent(entry.getKey(), entry.getValue());
-      }
+      dest.putAll(map);
     } else if (source instanceof List<?> nesteds) {
-      for (var nested : nesteds.reversed()) {
+      for (var nested : nesteds) {
         mergeInto(dest, nested);
       }
     }
