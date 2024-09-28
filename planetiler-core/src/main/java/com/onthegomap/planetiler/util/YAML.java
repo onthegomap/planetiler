@@ -43,6 +43,10 @@ public class YAML {
     }
   }
 
+  /**
+   * SnakeYaml doesn't handle the <a href="https://yaml.org/type/merge.html">merge operator</a> so manually post-process
+   * the parsed yaml object to merge referenced objects into the parent one.
+   */
   private static void handleMergeOperator(Object parsed) {
     if (parsed instanceof Map<?, ?> map) {
       Object toMerge = map.remove("<<");
