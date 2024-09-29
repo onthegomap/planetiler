@@ -1,7 +1,9 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.reader.FileFormatException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -233,6 +235,64 @@ class YamlTest {
         x: 1
         label: center/big
       """);
+  }
+
+  @Test
+  void testAnchorAndAliasMap() {
+    assertSameYaml("""
+      source: &label
+        a: 1
+      dest: *label
+      """, """
+      source:
+        a: 1
+      dest:
+        a: 1
+      """);
+  }
+
+  @Test
+  void testAnchorAndAliasList() {
+    assertSameYaml("""
+      source: &label
+        - 1
+      dest: *label
+      """, """
+      source: [1]
+      dest: [1]
+      """);
+  }
+
+  @Test
+  void testAllowRefInMergeDoc() {
+    assertSameYaml("""
+      source: &label
+        a: &label1
+          c: 1
+        b: *label1
+        d:
+          <<: *label1
+      dest: *label
+      """, """
+      source: {a: {c: 1}, b: {c: 1}, d: {c: 1}}
+      dest: {a: {c: 1}, b: {c: 1}, d: {c: 1}}
+      """);
+  }
+
+  @Test
+  void testFailsOnRecursiveRefs() {
+    assertThrows(FileFormatException.class, () -> YAML.load("""
+      source: &label
+        - *label
+      """, Object.class));
+    assertThrows(FileFormatException.class, () -> YAML.load("""
+      source: &label
+        <<: *label
+      """, Object.class));
+    assertThrows(FileFormatException.class, () -> YAML.load("""
+      source: &label
+        a: *label
+      """, Object.class));
   }
 
   private static void assertSameYaml(String a, String b) {

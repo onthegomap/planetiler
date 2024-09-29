@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,9 +9,12 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
 
@@ -43,32 +47,43 @@ public class YAML {
     }
   }
 
+  private static void handleMergeOperator(Object parsed) {
+    handleMergeOperator(parsed, Collections.newSetFromMap(new IdentityHashMap<>()));
+  }
+
   /**
    * SnakeYaml doesn't handle the <a href="https://yaml.org/type/merge.html">merge operator</a> so manually post-process
    * the parsed yaml object to merge referenced objects into the parent one.
    */
-  private static void handleMergeOperator(Object parsed) {
+  private static void handleMergeOperator(Object parsed, Set<Object> parentNodes) {
+    if (!parentNodes.add(parsed)) {
+      throw new FileFormatException("Illegal recursive reference in yaml file");
+    }
     if (parsed instanceof Map<?, ?> map) {
       Object toMerge = map.remove("<<");
       if (toMerge != null) {
         var orig = new LinkedHashMap<>(map);
         // to preserve the map key order we insert the merged operator objects first, then the original ones
         map.clear();
-        mergeInto(map, toMerge, false);
-        mergeInto(map, orig, true);
+        mergeInto(map, toMerge, false, parentNodes);
+        mergeInto(map, orig, true, parentNodes);
       }
       for (var value : map.values()) {
-        handleMergeOperator(value);
+        handleMergeOperator(value, parentNodes);
       }
     } else if (parsed instanceof List<?> list) {
       for (var item : list) {
-        handleMergeOperator(item);
+        handleMergeOperator(item, parentNodes);
       }
     }
+    parentNodes.remove(parsed);
   }
 
   @SuppressWarnings("rawtypes")
-  private static void mergeInto(Map dest, Object source, boolean replace) {
+  private static void mergeInto(Map dest, Object source, boolean replace, Set<Object> parentNodes) {
+    if (!parentNodes.add(source)) {
+      throw new FileFormatException("Illegal recursive reference in yaml file");
+    }
     if (source instanceof Map<?, ?> map) {
       if (replace) {
         dest.putAll(map);
@@ -77,9 +92,10 @@ public class YAML {
       }
     } else if (source instanceof List<?> nesteds) {
       for (var nested : nesteds) {
-        mergeInto(dest, nested, replace);
+        mergeInto(dest, nested, replace, parentNodes);
       }
     }
+    parentNodes.remove(source);
   }
 
   public static <T> T load(String config, Class<T> clazz) {
