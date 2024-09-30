@@ -1,12 +1,11 @@
 package com.onthegomap.planetiler;
 
 import static com.onthegomap.planetiler.TestUtils.*;
+import static com.onthegomap.planetiler.collection.FeatureGroup.SORT_KEY_BITS;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -20,6 +19,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.PolygonIndex;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -32,10 +32,12 @@ import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.render.AdvancedLandCoverTile;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.SortKey;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.IOException;
@@ -44,18 +46,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -2325,71 +2326,125 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    "--small_Feat_Strategy=square --minzoom=0 --maxzoom=14 --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=H:\\Linespace\\LineSpaceData\\测试数据\\parquet --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
-//    "--tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz --endpoint=http://127.0.0.1:9547 --bucketName=parquet  --secretKey=J4E9epBZNXV9GlJiu9LRtBwjvd9Wx538 --accessKey=kGiVOXwOBMBmV7Ab --oosSavePath=/linespace/test --oosCorePoolSize=24 --oosMaxPoolSize=24",
-//    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4 --tile_weights=D:\\Project\\Java\\planetiler\\data\\tile_weights.tsv.gz"
+   " --small_Feat_Strategy=square --minzoom=13 --maxzoom=14 "
+     +  "--output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\jpn\\default-14\\default-14.mbtiles "
+      + " --is_rasterize=true --pixelation_zoom=12  --rasterize_min_zoom=0 --rasterize_max_zoom=13"
+      + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=E:\\Linespace\\SceneMapServer\\Data --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
   })
   void testPlanetilerRunnerParquet(String args) throws Exception {
-//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\china-latest-multipolygons";
-//    String tempDir = basePath + "\\面简化_0816";
-//    String outputPath = basePath + "\\面简化_0816\\centroid.mbtiles";
-//    List<Path> inputPaths = Stream.of(basePath + "\\china-latest-multipolygons.parquet").map(Paths::get).toList();
+//    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\xian";
+//    String tempDir = basePath + "\\mergeSmallFeatures";
+//    String outputPath = basePath + "\\mergeSmallFeatures\\mergeSmallFeatures.mbtiles";
+//    List<Path> inputPaths = Stream.of(basePath + "\\xian.parquet").map(Paths::get).toList();
+    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\jpn";
+    String tempDir = basePath + "\\default-14";
+    String outputPath = basePath + "\\default-14\\default-14.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\jpn.parquet").map(Paths::get).toList();
 
-    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\guangdong-latest.osm.pbf";
-    String tempDir = basePath + "\\修改-生成最小面积";
-    String outputPath = basePath + "\\修改-生成最小面积\\修改-生成最小面积.mbtiles";
-    List<Path> inputPaths = Stream.of(basePath + "\\guangdong-latest-multipolygons.parquet").map(Paths::get).toList();
-
-//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\地理单元分库_1";
-//    String tempDir = basePath + "\\DISPL";
-//    String outputPath = basePath + "\\DISPL\\DISPL.mbtiles";
-//    List<Path> inputPaths = Stream.of(basePath + "\\DISPL.parquet").map(Paths::get).toList();
-
-//    String basePath = "H:\\Linespace\\LineSpaceData\\测试数据\\parquet\\china-latest-points";
-//      String tempDir = basePath + "\\default";
-//    String outputPath = basePath + "\\default\\default.mbtiles";
-//    List<Path> inputPaths = Stream.of(basePath + "\\china-latest-points.parquet").map(Paths::get).toList();
-
-    Planetiler.create(Arguments.fromArgs(
-        (args + " --tmpdir=" + tempDir).split("\\s+")))
-      .setProfile(new Profile.NullProfile() {
+    Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
+      (args + " --tmpdir=" + tempDir).split("\\s+")));
+    PlanetilerConfig config = planetiler.config();
+    planetiler
+      .setProfile(new Profile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
-          FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
-//            .setSortKey(generateUniqueSortKey(Long.toString(source.id())))
-//            .setPointLabelGridPixelSize(createLabelGridSizeFunction())
-//            .setPointLabelGridLimit(createLabelGridLimitFunction())
-//            .setBufferPixelOverrides(createBufferPixelFunction())
-            .setMinPixelSizeAtAllZooms(0)
-            .setPixelToleranceAtAllZooms(0);
+          try {
+            FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
+              .setSortKey(SortKey
+                .orderByDouble(source.area(), 1d, 0, 1 << (SORT_KEY_BITS - 7) - 1)
+                .get())
+              .setPointLabelGridPixelSize(createLabelGridSizeFunction())
+              .setPointLabelGridLimit(createLabelGridLimitFunction())
+              //              .setBufferPixelOverrides(createBufferPixelFunction())
+              .setPixelToleranceAtAllZooms(0)
+              .setMinPixelSizeAtAllZooms(0);
 
-          source.tags().forEach(feature::setAttr);
+            source.tags().forEach(feature::setAttr);
+          } catch (GeometryException e) {
+            throw new RuntimeException(e);
+          }
+        }
+
+        @Override
+        public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
+          Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
+//          if(tileCoord.z() > config.pixelationZoom()) {
+//            return layers;
+//          }
+//
+//          AdvancedLandCoverTile landCoverTile = new AdvancedLandCoverTile(config);
+//          for (Map.Entry<String, List<VectorTile.Feature>> entry : layers.entrySet()) {
+//            List<AdvancedLandCoverTile.FeatureInfo> featureInfos = entry.getValue().stream().map(feature -> {
+//              Geometry decode = null;
+//              try {
+//                decode = feature.geometry().decode();
+//              } catch (GeometryException e) {
+//                throw new RuntimeException(e);
+//              }
+//              return new AdvancedLandCoverTile.FeatureInfo(feature, decode, decode.getArea());
+//            }).toList();
+//
+//            try {
+//              entry.setValue(landCoverTile.initPixelSize(tileCoord.z()).rasterizeFeatures(featureInfos, tileCoord.z()));
+//            } catch (GeometryException e) {
+//              LOGGER.error("栅格化失败", e);
+//            }
+//          }
+
+          return layers;
+        }
+
+        @Override
+        public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+          List<VectorTile.Feature> items) {
+//          if(zoom > config.pixelationZoom()) {
+//            return items;
+//          }
+//
+//          List<AdvancedLandCoverTile.FeatureInfo> featureInfos = items.stream().map(feature -> {
+//            try {
+//              Geometry decode = feature.geometry().decode();
+//              return new AdvancedLandCoverTile.FeatureInfo(feature, decode, decode.getArea());
+//            } catch (GeometryException e) {
+//              throw new RuntimeException(e);
+//            }
+//          }).toList();
+//
+//          AdvancedLandCoverTile landCoverTile = new AdvancedLandCoverTile(config);
+//          try {
+//            return landCoverTile.initPixelSize(zoom).rasterizeFeatures(featureInfos, zoom);
+//          } catch (GeometryException e) {
+//           LOGGER.error("栅格化失败", e);
+//          }
+
+          return items;
         }
       })
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
       .setOutput(outputPath)
       .run();
-
-//    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
-//      Set<String> uniqueIds = new HashSet<>();
-//      long featureCount = 0;
-//      var tileMap = TestUtils.getTileMap(db);
-//      for (int z = 14; z >= 11; z--) {
-//        var coord = TileCoord.aroundLngLat(-71.07448, 42.35626, z);
-//        assertTrue(tileMap.containsKey(coord), "contain " + coord);
-//      }
-//      for (var tile : tileMap.values()) {
-//        for (var feature : tile) {
-//          feature.geometry().validate();
-//          featureCount++;
-//          uniqueIds.add((String) feature.attrs().get("id"));
-//        }
-//      }
-//
-//      assertTrue(featureCount > 0);
-//      assertEquals(3, uniqueIds.size());
-//    }
   }
+
+  private ZoomFunction<Number> createLabelGridSizeFunction() {
+    Map<Integer, Number> map = new HashMap<>();
+    map.put(11, 1d);
+    map.put(10, 1 / 2d);
+    map.put(8, 1d / 4d);
+    map.put(6, 1d / 8d);
+    map.put(1, 1d / 7d);
+    return ZoomFunction.fromMaxZoomThresholds(map);
+  }
+
+  private ZoomFunction<Number> createLabelGridLimitFunction() {
+    Map<Integer, Number> map = new HashMap<>();
+    map.put(11, 30d);
+    map.put(10, 10d);
+    map.put(8, 1d);
+    map.put(6, 1d);
+    map.put(1, 1d);
+    return ZoomFunction.fromMaxZoomThresholds(map);
+  }
+
 
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
@@ -2745,5 +2800,86 @@ class PlanetilerTests {
   private interface ReadableTileArchiveFactory {
 
     ReadableTileArchive create(Path p) throws IOException;
+  }
+
+  @Test
+  void testLabelGridLimitLine() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 4;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+    double lng4 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 30d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(lng1, lat, lng2, lat), Map.of("rank", "1")),
+        newReaderFeature(newLineString(lng2, lat, lng3, lat), Map.of("rank", "2")),
+        newReaderFeature(newLineString(lng3, lat, lng4, lat), Map.of("rank", "3"))
+      ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+        .setPointLabelGridSizeAndLimit(13, 128, 2)
+        .setBufferPixels(128)
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(64, 64, 74, 64), Map.of("rank", "1")),
+        feature(newLineString(74, 64, 84, 64), Map.of("rank", "2")),
+        feature(newLineString(84, 64, 94, 64), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // omit rank=3 due to label grid size
+        feature(newLineString(32, 32, 37, 32), Map.of("rank", "1")),
+        feature(newLineString(37, 32, 42, 32), Map.of("rank", "2"))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  void testLabelGridLimitLPolygon() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+    double lat2 = GeoUtils.getWorldLat(y - Z14_WIDTH * 10d / 256);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+    double lng4 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 30d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(rectangle(lng1, lat, lng2, lat2), Map.of("rank", "1")),
+        newReaderFeature(rectangle(lng2, lat, lng3, lat2), Map.of("rank", "2")),
+        newReaderFeature(rectangle(lng3, lat, lng4, lat2), Map.of("rank", "3"))
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+        .setPointLabelGridSizeAndLimit(13, 128, 2)
+        .setBufferPixels(128)
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(rectangle(64, 128, 74, 118), Map.of("rank", "1")),
+        feature(rectangle(74, 128, 84, 118), Map.of("rank", "2")),
+        feature(rectangle(84, 128, 94, 118), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // omit rank=3 due to label grid size
+        feature(rectangle(32, 64, 37, 59), Map.of("rank", "1")),
+        feature(rectangle(37, 64, 42, 59), Map.of("rank", "2"))
+      )
+    ), results.tiles);
   }
 }
