@@ -16,12 +16,12 @@
     <dependency>
       <groupId>com.onthegomap.planetiler</groupId>
       <artifactId>planetiler-core</artifactId>
-      <version>0.8</version>
+      <version>0.8.3</version>
     </dependency>
     <dependency>
       <groupId>org.openmaptiles</groupId>
       <artifactId>planetiler-openmaptiles</artifactId>
-      <version>0.8</version>
+      <version>0.8.3</version>
     </dependency>
   </dependencies>
 

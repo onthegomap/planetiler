@@ -9,21 +9,21 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.ZoomFunction;
+import com.onthegomap.planetiler.util.ImprovedFeatureRasterization;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
@@ -215,6 +215,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
     TiledGeometry sliced;
     Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+//    Geometry geom = TopologyPreservingSimplifier.simplify(scaled, tolerance);
     List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
     try {
       sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
@@ -236,7 +237,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       attrs.put(numPointsAttr, geom.getNumPoints());
     }
 
-    writeTileFeatures_labelGrid(z, feature.getId(), feature, sliced, attrs);
+    writeTileFeatures(z, feature.getId(), feature, sliced, attrs, geom.getCoordinate());
   }
 
   private void writeTileFeatures_labelGrid(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
@@ -255,13 +256,13 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
           geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
           if (!geom.isEmpty()) {
-            centroid = getGlobalCoord(tile, geom.getCentroid());
+            centroid = convertCoordToGlobal(tile, new CoordinateXY(geom.getCentroid().getX(), geom.getCentroid().getY()));
           }
           geom = geom.reverse();
         } else {
           geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
           if (!geom.isEmpty()) {
-            centroid = getGlobalCoord(tile, geom.getCentroid());
+            centroid = convertCoordToGlobal(tile, new CoordinateXY(geom.getCentroid().getX(), geom.getCentroid().getY()));
           }
 
           scale = Math.max(config.maxzoom(), 14) - zoom;
@@ -272,6 +273,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         if (!geom.isEmpty()) {
           // for "label grid" point density limiting, compute the grid square that this point sits in
           // only valid if not a multipoint
+
           boolean hasLabelGrid = feature.hasLabelGrid();
           if (hasLabelGrid) {
             int tilesAtZoom = 1 << zoom;
@@ -283,8 +285,21 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
               feature.getPointLabelGridLimitAtZoom(zoom)
             );
           }
-          encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
-          emitted++;
+
+          //!attrs.containsKey("simply") && !feature.getAttrsAtZoom(zoom).containsKey("simply")
+          if(false && !attrs.containsKey("simply") && !feature.getAttrsAtZoom(zoom).containsKey("simply")) {
+//            Geometry pixelateGeometry = pixelateGeometry(geom,  tile,0.2, 1);
+            Geometry pixelateGeometry = ImprovedFeatureRasterization.rasterizeGeometry(geom, tile, 1, 0.5);
+              FeatureCollector.Feature simplyFeature = feature.collector().geometryNotAddOutPut(feature.getLayer(), pixelateGeometry)
+              .setZoomRange(zoom,zoom);
+            attrs.forEach(simplyFeature::setAttr);
+            // 记录已经像素化
+            simplyFeature.setAttr("simply", true);
+            renderLineOrPolygon(simplyFeature, simplyFeature.getGeometry());
+          } else {
+            encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
+            emitted++;
+          }
         }
       } catch (GeometryException e) {
         e.log(stats, "write_tile_features", "Error writing tile " + tile + " feature " + feature);
@@ -327,7 +342,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     return emitted;
   }
 
-  private Coordinate getGlobalCoord(TileCoord tileCoord, Point coordinate) {
+  private Coordinate convertCoordToGlobal(TileCoord tileCoord, Coordinate coordinate) {
     double worldWidthAtZoom = Math.pow(2, tileCoord.z());
     double minX = tileCoord.x() / worldWidthAtZoom;
     double maxX = (tileCoord.x() + 1) / worldWidthAtZoom;
@@ -358,7 +373,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
 
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
-    Map<String, Object> attrs) {
+    Map<String, Object> attrs, Coordinate coordinate) {
     int emitted = 0;
     for (var entry : sliced.getTileData().entrySet()) {
       TileCoord tile = entry.getKey();
@@ -379,8 +394,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * coordinate rounding.
            */
           // todo linespace
-          precision = GeoUtils.getPrecision(zoom, config.maxzoom());
-          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render",precision);
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();
@@ -396,11 +410,20 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           scale = Math.min(31 - 14, scale);
         }
 
+        RenderedFeature.Group groupInfo = null;
         if (!geom.isEmpty()) {
-          encodeAndEmitFeature(feature, id, attrs, tile, geom, null, scale);
+          if (config.pixelationZoom() > zoom && feature.hasLabelGrid()) {
+            double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
+            groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
+              GeoUtils.labelGridId(1 << zoom, labelGridTileSize, coordinate),
+              feature.getPointLabelGridLimitAtZoom(zoom)
+            );
+          }
+
+          encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
           emitted++;
-        }
-        else if (PlanetilerConfig.SmallFeatureStrategy.CENTROID.getStrategy().equals(config.smallFeatStrategy()) && precision != null) {
+        } else if (PlanetilerConfig.SmallFeatureStrategy.CENTROID.getStrategy().equals(config.smallFeatStrategy())
+          && precision != null) {
           // todo linespace  避免在低级别要素被简化后丢弃，生成特征要素的质心代替原有要素，后续可考虑将质心优化为能够替代原有要素的最小三角形或正方形
           boolean isMaxZoom = zoom == config.maxzoom();
           if (isMaxZoom && (zoom == PlanetilerConfig.defaults().maxzoom() || zoom == PlanetilerConfig.MAX_MAXZOOM)) {
@@ -411,9 +434,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           // 此处需要考虑最后一层级太小的要素应该如何处理，是否应该将simplyPoint赋值给feature
           FeatureCollector.Feature simplyPoint = feature.collector().geometryNotAddOutPut("linespace_layer_point",
               centroid)
-            .setPointLabelGridPixelSize(ZoomFunction.fromMaxZoomThresholds(config.labelGridPixelSize()))
-            .setPointLabelGridLimit(ZoomFunction.fromMaxZoomThresholds(config.labelGridLimit()))
-            .setBufferPixelOverrides(ZoomFunction.fromMaxZoomThresholds(config.bufferPixelOverrides()))
+            .setPointLabelGridPixelSize(config.labelGridPixelSize())
+            .setPointLabelGridLimit(config.labelGridLimit())
+            .setBufferPixelOverrides(config.bufferPixelOverrides())
             .setZoomRange(zoom, zoom);
           attrs.forEach(simplyPoint::setAttr);
           simplyPoint.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
@@ -421,32 +444,59 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           feature.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
           feature.setAttr("smallFeatureZoom", zoom);
           renderPoint(simplyPoint, centroid.getCoordinates());
-        }
-        else if (PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy().equals(config.smallFeatStrategy()) && precision != null) {
-          if (!attrs.containsKey("smallFeatureStrategy") && !feature.getAttrsAtZoom(zoom).containsKey("smallFeatureStrategy")) {
+        } else if (PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy().equals(config.smallFeatStrategy())
+          && precision != null) {
+          if (!attrs.containsKey("smallFeatureStrategy") && !feature.getAttrsAtZoom(zoom)
+            .containsKey("smallFeatureStrategy")) {
             // 生成能替换要素的最小的正方形
             boolean isMaxZoom = zoom == config.maxzoom();
             if (isMaxZoom && (zoom == PlanetilerConfig.defaults().maxzoom() || zoom == PlanetilerConfig.MAX_MAXZOOM)) {
               LOGGER.debug("要素id: {} 在最高层级 {} 被简化!", feature.getId(), zoom);
             }
 
-            double precisionScale = precision.getScale();
-            Geometry centroid = feature.getGeometry().getCentroid();
-            // 生成矩形
-            Geometry squareGeom = GeoUtils.createSmallSquareWithCentroid(centroid, precisionScale, zoom);
-            FeatureCollector.Feature simplySquare = feature.collector().geometryNotAddOutPut(feature.getLayer(), squareGeom)
-              .setMinPixelSizeAtAllZooms(0)
-              .setPixelToleranceAtAllZooms(0)
-              .setZoomRange(zoom,  zoom);
-            attrs.forEach(simplySquare::setAttr);
-            simplySquare.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+            double pixelSizeAtZoom = 1.0;
+            if (config.pixelationZoom() > zoom && feature.hasLabelGrid()) {
+              pixelSizeAtZoom = feature.getPointLabelGridPixelSizeAtZoom(zoom);
+              double labelGridTileSize = pixelSizeAtZoom / 256d;
+              groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
+                GeoUtils.labelGridId(1 << zoom, labelGridTileSize, coordinate),
+                feature.getPointLabelGridLimitAtZoom(zoom)
+              );
+            }
 
-            feature.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
-            feature.setAttr("smallFeatureZoom", zoom);
-            renderLineOrPolygon(simplySquare, simplySquare.getGeometry());
+            // 将坐标向下取整到最近的像素边界
+            double x = Math.floor(coordinate.x / pixelSizeAtZoom) * pixelSizeAtZoom;
+            double y = Math.floor(coordinate.y / pixelSizeAtZoom) * pixelSizeAtZoom;
+
+            // 计算像素的四个角点坐标
+            Coordinate[] coordinates = new Coordinate[5];
+            coordinates[0] = new Coordinate(x, y);
+            coordinates[1] = new Coordinate(x + pixelSizeAtZoom, y);
+            coordinates[2] = new Coordinate(x + pixelSizeAtZoom, y + pixelSizeAtZoom);
+            coordinates[3] = new Coordinate(x, y + pixelSizeAtZoom);
+            coordinates[4] = new Coordinate(x, y);
+            GeometryFactory geometryFactory = new GeometryFactory();
+            geom =  geometryFactory.createPolygon(coordinates);
+            encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
+
+//            double precisionScale = precision.getScale();
+//            Geometry centroid = feature.getGeometry().getCentroid();
+//            // 生成矩形
+//            Geometry squareGeom = GeoUtils.createSmallSquareWithCentroid(coordinate, precisionScale, zoom);
+//            FeatureCollector.Feature simplySquare = feature.collector()
+//              .geometryNotAddOutPut(feature.getLayer(), squareGeom)
+//              .setMinPixelSizeAtAllZooms(0)
+//              .setPixelToleranceAtAllZooms(0)
+//              .setZoomRange(zoom, zoom);
+//            attrs.forEach(simplySquare::setAttr);
+//            simplySquare.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+//
+//            feature.setAttr("smallFeatureStrategy", PlanetilerConfig.SmallFeatureStrategy.SQUARE.getStrategy());
+//            feature.setAttr("smallFeatureZoom", zoom);
+//            renderLineOrPolygon(simplySquare, simplySquare.getGeometry());
           }
         } else {
-          LOGGER.warn("Feature {} was simplified to empty geometry at zoom {}", feature, zoom);
+          LOGGER.debug("Feature {} was simplified to empty geometry at zoom {}", feature, zoom);
         }
       } catch (GeometryException e) {
         e.log(stats, "write_tile_features", "Error writing tile " + tile + " feature " + feature);

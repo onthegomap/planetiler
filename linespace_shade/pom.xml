@@ -29,11 +29,6 @@
       <artifactId>parquet-floor</artifactId>
       <version>1.44</version>
     </dependency>
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>3.25.3</version>
-    </dependency>
 
     <!-- Jackson -->
     <dependency>

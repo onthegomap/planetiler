@@ -18,6 +18,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holder for common parameters used by many components in planetiler.
@@ -36,6 +38,12 @@ public record PlanetilerConfig(
   Duration logInterval,
   int minzoom,
   int maxzoom,
+  int rasterizeMinZoom,
+  int rasterizeMaxZoom,
+  int pixelationZoom,
+  boolean isRasterize,
+  int tileBatchSize,
+  int maxFeatures,
   int maxzoomForRendering,
   boolean force,
   boolean append,
@@ -87,6 +95,8 @@ public record PlanetilerConfig(
   public static final int MIN_MINZOOM = 0;
   public static final int MAX_MAXZOOM = 15;
   private static final int DEFAULT_MAXZOOM = 14;
+  private static final int PIXELATION_ZOOM = 12;
+
   /**
    * Label网格大小的阈值，根据不同缩放级别设置不同的网格大小。
    */
@@ -173,16 +183,20 @@ public record PlanetilerConfig(
     String secretKey = arguments.getString("secretKey", "secretKey", "");
     String endpoint = arguments.getString("endpoint", "endpoint", "");
     String bucketName = arguments.getString("bucketName", "bucketName", "");
-    MinioUtils minioUtils;
+    MinioUtils minioUtils = null;
     if (StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey)
       && StringUtils.isNotBlank(endpoint) && StringUtils.isNotBlank(bucketName)) {
       minioUtils = new MinioUtils(endpoint, accessKey, secretKey, bucketName);
-    } else {
-      minioUtils = new MinioUtils();
     }
 
     int minzoom = arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM);
     int maxzoom = arguments.getInteger("maxzoom", "maximum zoom level up to " + MAX_MAXZOOM, DEFAULT_MAXZOOM);
+    int rasterizeMinZoom = arguments.getInteger("rasterize_min_zoom", "栅格化最小层级", MIN_MINZOOM);
+    int rasterizeMaxZoom = arguments.getInteger("rasterize_max_zoom", "栅格化最大层级 ", minzoom);
+    int pixelationZoom = arguments.getInteger("pixelation_zoom", "栅格化最大层级 ", PIXELATION_ZOOM);
+    boolean isRasterize = arguments.getBoolean("is_rasterize", "是否栅格化", false);
+    int tileBatchSize = arguments.getInteger("tile_batch_size", "栅格化批量处理大小 ", 100);
+    int maxFeatures =  arguments.getInteger("max_features", "每个图块的最大特征数", 200000);
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
@@ -206,6 +220,12 @@ public record PlanetilerConfig(
       arguments.getDuration("loginterval", "time between logs", "10s"),
       minzoom,
       maxzoom,
+      rasterizeMinZoom,
+      rasterizeMaxZoom,
+      pixelationZoom,
+      isRasterize,
+      tileBatchSize,
+      maxFeatures,
       renderMaxzoom,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("append",

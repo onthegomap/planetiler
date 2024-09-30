@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.parquet.ParquetReader;
+import com.onthegomap.planetiler.render.AdvancedLandCoverTile;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -863,6 +864,20 @@ public class Planetiler {
       stats.close();
     } catch (Exception e) {
       throw new PlanetilerException(e);
+    }
+
+    if (config.isRasterize()) {
+      String outputPath =  arguments.getString("output", "output tile archive URI", null);
+      if (StringUtils.isEmpty(outputPath)) {
+        throw new IllegalArgumentException("栅格化输出路径不可为空！");
+      }
+
+      try {
+        AdvancedLandCoverTile.create(config, outputPath)
+          .run();
+      } catch (Exception e) {
+        LOGGER.error("矢量数据栅格化失败！", e);
+      }
     }
   }
 

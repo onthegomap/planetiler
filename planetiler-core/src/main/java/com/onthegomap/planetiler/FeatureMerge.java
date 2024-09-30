@@ -9,15 +9,18 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.geo.PolygonIndex;
 import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -538,6 +541,97 @@ public class FeatureMerge {
       }
     }
   }
+
+  public static List<VectorTile.Feature> mergeSmallFeatures(
+    List<VectorTile.Feature> features,
+    int zoom,
+    double baseArea,
+    double baseLength,
+    double tolerance,
+    double buffer,
+    boolean reSimplify
+  ) throws GeometryException {
+    Stats stats = DefaultStats.get();
+    PolygonIndex<VectorTile.Feature> index = PolygonIndex.create();
+
+    for (VectorTile.Feature feature : features) {
+      index.put(feature.geometry().decode(), feature);
+    }
+
+    List<VectorTile.Feature> filterBigFeature = new ArrayList<>(features);
+    Set<VectorTile.Feature> containedFeatures = new HashSet<>();
+    for (VectorTile.Feature feature : features) {
+      if (containedFeatures.contains(feature)) {
+        continue;
+      }
+
+      List<VectorTile.Feature> covers = index.getCovers(feature.geometry().decode());
+      covers.remove(feature);
+      containedFeatures.addAll(covers);
+    }
+    filterBigFeature.removeAll(containedFeatures);
+
+    double minArea = baseArea / Math.pow(2, zoom);
+    double minLength = baseLength / Math.pow(2, zoom);
+
+    List<VectorTile.Feature> result = new ArrayList<>();
+
+    // 处理多边形
+    List<VectorTile.Feature> smallPolygons = new ArrayList<>();
+    for (VectorTile.Feature feature : filterBigFeature) {
+      Geometry geometry = feature.geometry().decode();
+      if (geometry instanceof Polygon && geometry.getArea() < 10) {
+        smallPolygons.add(feature);
+      } else {
+        result.add(feature); // 其他要素直接加入结果集
+      }
+    }
+
+    if (!smallPolygons.isEmpty()) {
+      result.addAll(mergeNearbyPolygons(smallPolygons, 10, 0, minLength, buffer, stats));
+    }
+
+    return filterBigFeature;
+  }
+
+  private static List<VectorTile.Feature> mergeSmallPolygons(
+    List<VectorTile.Feature> smallPolygons,
+    double minArea,
+    double tolerance,
+    double buffer,
+    boolean resimplify,
+    Stats stats
+  ) throws GeometryException {
+
+    List<Polygon> outPolygons = new ArrayList<>();
+    List<VectorTile.Feature> result = new ArrayList<>();
+
+    for (VectorTile.Feature feature : smallPolygons) {
+      Geometry geometry = feature.geometry().decode();
+      if (geometry instanceof Polygon polygon) {
+        outPolygons.add(polygon);
+      }
+    }
+
+    if (!outPolygons.isEmpty()) {
+      Geometry combinedGeometry = GeoUtils.combinePolygons(outPolygons);
+
+      if (resimplify && tolerance >= 0) {
+        combinedGeometry = DouglasPeuckerSimplifier.simplify(combinedGeometry, tolerance);
+      }
+
+      if (buffer >= 0) {
+        List<Polygon> outputPolygons = new ArrayList<>();
+        FeatureMerge.extractPolygons(combinedGeometry, outputPolygons, minArea, 0);
+        combinedGeometry = GeoUtils.combinePolygons(outputPolygons);
+      }
+
+      result.add(smallPolygons.getFirst().copyWithNewGeometry(combinedGeometry));
+    }
+
+    return result;
+  }
+
 
   /**
    * 返回一个新特征列表，其中删除了距图块边界超过 {@code buffer} 像素的点，假设图块为 256x256 像素。

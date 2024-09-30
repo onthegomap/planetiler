@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.PolygonIndex;
@@ -23,8 +24,10 @@ import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.JsonUitls;
 import com.onthegomap.planetiler.util.ZoomFunction;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -33,7 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.DoubleStream;
+import org.apache.commons.lang3.time.StopWatch;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -41,10 +47,23 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AdvancedLandCoverTiling implements Profile {
+public class AdvancedLandCoverTile implements Profile {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AdvancedLandCoverTiling.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AdvancedLandCoverTile.class);
+
+  private static final int SCALE_FACTOR = 100000; // 4位小数精度
   private static final int MAX_RESOLUTION = 4096;
+  private static final int DEFAULT_TILE_SIZE = 256;
+  private static final double TILE_SCALE = 0.5d;
+  private static final int BUFFER_SIZE = 1;
+  private static final GeometryFactory geometryFactory = new GeometryFactory();
+  private final PlanetilerConfig config;
+
+  private final ExecutorService executorService = Executors.newFixedThreadPool(
+    Runtime.getRuntime().availableProcessors());
+
+  private final AtomicInteger count = new AtomicInteger(0);
+
   /**
    * 默认一个像素占据1x1单元格，pixelSize为2，占据2x2个单元格
    */
@@ -52,36 +71,48 @@ public class AdvancedLandCoverTiling implements Profile {
   /**
    * 像素化默认网格数
    */
-  private static final int DEFAULT_PIXELATION_GRID_SIZE = 256;
   private int pixelGridSize = 256;
-  private static final int DEFAULT_TILE_SIZE = 256;
-  private static final double TILE_SCALE = 0.5d;
-  private static final int PIXELATION_ZOOM = 12;
-  private static final int BATCH_SIZE = 100; // 可以根据实际情况调整
-  private static final int BUFFER_SIZE = 4; // 缓冲区大小
-  Map<TileCoord, Map<String, ConcurrentLinkedQueue<FeatureInfo>>> currentZoomTiles = new ConcurrentHashMap<>();
+  /**
+   * 该缓存消耗内存较大，合理设置网格集大小。每个 Object 对象大约需要 300 字节
+   * <p>
+   * 预估各网格集缓存大小如下：
+   * - 256 * 256 ：20M
+   * - 512 * 512 ：70M
+   * - 1024 * 1024：310M
+   * - 2048 * 2048 : 1.2G
+   */
+  private final ConcurrentHashMap<String, Object[]> cachePixelGeom = new ConcurrentHashMap<>();
+  private final Map<TileCoord, Map<String, ConcurrentLinkedQueue<FeatureInfo>>> currentZoomTiles = new ConcurrentHashMap<>();
+  private Mbtiles mbtiles;
 
-  private static final GeometryFactory geometryFactory = new GeometryFactory();
-  private final PlanetilerConfig config;
-  private final Mbtiles mbtiles;
-  private final ExecutorService executorService = Executors.newFixedThreadPool(
-    Runtime.getRuntime().availableProcessors());
-
-  public AdvancedLandCoverTiling(PlanetilerConfig config, Mbtiles mbtiles) {
+  public AdvancedLandCoverTile(PlanetilerConfig config, Mbtiles mbtiles) {
     this.config = config;
     this.mbtiles = mbtiles;
   }
 
-  public void generateLowerZoomTiles() {
+  public AdvancedLandCoverTile(PlanetilerConfig config) {
+    this.config = config;
+  }
+
+
+  public void run() throws IOException {
+    LOGGER.info("开始进行像素化操作！");
+    StopWatch stopWatch = new StopWatch();
+    stopWatch.start();
     try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
-      for (int zoom = config.maxzoom() - 1; zoom >= config.minzoom(); zoom--) {
-        if (zoom + 1 == config.maxzoom()) {
+      // 记录已经缓存过得网格集
+      List<Integer> pixelGridList = new ArrayList<>();
+      for (int zoom = config.rasterizeMaxZoom() - 1; zoom >= config.rasterizeMinZoom(); zoom--) {
+        if (zoom + 1 == config.rasterizeMaxZoom()) {
           writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
         }
+        initPixelSize(zoom);
 
-        pixelGridSize = Math.min(getPixelationGridSizeAtZoom(zoom), MAX_RESOLUTION);
-        pixelSize = DEFAULT_TILE_SIZE / (double) pixelGridSize;
-        LOGGER.debug("zoom:{} pixelGridSize:{} pixelSize:{}", zoom, pixelGridSize, pixelSize);
+        if (zoom <= config.pixelationZoom() && !pixelGridList.contains(pixelGridSize)) {
+          initCachePixelGeom();
+          pixelGridList.add(pixelGridSize);
+        }
+
 //        processTileBatch(zoom, 0, 0, 0, 0, writer);
         processZoomLevel(zoom, writer);
         writer.flush();
@@ -89,9 +120,46 @@ public class AdvancedLandCoverTiling implements Profile {
       updateMetadata();
     } finally {
       executorService.shutdown();
+      mbtiles.close();
     }
+
+    stopWatch.stop();
+    LOGGER.info("所有缩放级别处理完成, 总消耗：{}", stopWatch.getTime(TimeUnit.SECONDS));
+
   }
 
+  /**
+   * 初始化网格集，提高效率
+   */
+  private void initCachePixelGeom() {
+    int maxCoord = DEFAULT_TILE_SIZE + BUFFER_SIZE;
+
+    DoubleStream.iterate(-BUFFER_SIZE, x -> x + pixelSize)
+      .limit((long) Math.ceil((maxCoord + BUFFER_SIZE) / pixelSize))
+      .parallel()
+      .forEach(x -> {
+        for (double y = -BUFFER_SIZE; y < maxCoord; y += pixelSize) {
+          Geometry pixelGeometry = createPixelGeometry(x, y);
+          cachePixelGeom.put(generateKey(x, y), new Object[]{pixelGeometry, VectorTile.encodeGeometry(pixelGeometry)});
+        }
+      });
+  }
+
+
+  public AdvancedLandCoverTile initPixelSize(int zoom) {
+    pixelGridSize = Math.min(getPixelationGridSizeAtZoom(zoom), MAX_RESOLUTION);
+    pixelSize = DEFAULT_TILE_SIZE / (double) pixelGridSize;
+    LOGGER.info("zoom:{} pixelGridSize:{} pixelSize:{}", zoom, pixelGridSize, pixelSize);
+    return this;
+  }
+
+
+  /**
+   * 分批处理高层级要素，避免一次读取导致内存溢出
+   *
+   * @param z
+   * @param writer
+   */
   public void processZoomLevel(int z, Mbtiles.TileWriter writer) {
     LOGGER.info("开始处理缩放级别 {}", z);
     long startTime = System.currentTimeMillis();
@@ -109,16 +177,17 @@ public class AdvancedLandCoverTiling implements Profile {
     int currentMaxY = (1 << z) - 1;
     int highMaxY = (1 << (z + 1)) - 1;
 
+    int tileBatchSize = config.tileBatchSize();
     int totalBatches =
-      ((maxParentX - minParentX + 1) / BATCH_SIZE + 1) * ((maxParentY - minParentY + 1) / BATCH_SIZE + 1);
+      ((maxParentX - minParentX + 1) / tileBatchSize + 1) * ((maxParentY - minParentY + 1) / tileBatchSize + 1);
     int processedBatches = 0;
     LOGGER.info("处理缩放级别 {} 的父瓦片范围：X({} to {}), Y({} to {}) (TMS)", z, minParentX, maxParentX, minParentY,
       maxParentY);
 
-    for (int parentX = minParentX; parentX <= maxParentX; parentX += BATCH_SIZE) {
-      for (int parentY = minParentY; parentY <= maxParentY; parentY += BATCH_SIZE) {
-        int endParentX = Math.min(parentX + BATCH_SIZE - 1, maxParentX);
-        int endParentY = Math.min(parentY + BATCH_SIZE - 1, maxParentY);
+    for (int parentX = minParentX; parentX <= maxParentX; parentX += tileBatchSize) {
+      for (int parentY = minParentY; parentY <= maxParentY; parentY += tileBatchSize) {
+        int endParentX = Math.min(parentX + tileBatchSize - 1, maxParentX);
+        int endParentY = Math.min(parentY + tileBatchSize - 1, maxParentY);
 
         // 计算子瓦片的范围 (XYZ坐标)
         int minChildX = parentX * 2;
@@ -132,14 +201,14 @@ public class AdvancedLandCoverTiling implements Profile {
         maxChildX = Math.min(maxChildX, highZoom.maxX());
         maxChildY = Math.min(maxChildY, highMaxY);
 
+        LOGGER.info("处理缩放级别 {} 的子瓦片范围：X({} to {}), Y({} to {}) (TMS)",
+          z, minChildX, maxChildX, minChildY, maxChildY);
         processTileBatch(z, minChildX, minChildY, maxChildX, maxChildY, writer);
-
-        processedBatches++;
-        LOGGER.info("缩放级别 {} 处理进度: {}/{} 批次", z, processedBatches, totalBatches);
+        LOGGER.info("缩放级别 {} 处理进度: {}/{} 批次", z, processedBatches++, totalBatches);
       }
     }
 
-    i.set(0);
+    count.set(0);
     long endTime = System.currentTimeMillis();
     LOGGER.info("缩放级别 {} 处理完成，耗时: {} ms", z, (endTime - startTime));
   }
@@ -198,7 +267,9 @@ public class AdvancedLandCoverTiling implements Profile {
 
           currentZoomTiles.computeIfAbsent(parentCoord, k -> new ConcurrentHashMap<>())
             .computeIfAbsent(feature.layer(), k -> new ConcurrentLinkedQueue<>())
-            .add(new FeatureInfo(feature.copyWithNewGeometry(vectorGeometry), transformationGeom));
+            .add(new FeatureInfo(feature.copyWithNewGeometry(vectorGeometry), transformationGeom,
+              transformationGeom.getArea()));
+          LOGGER.debug("tile:{},currentZoomTiles {}", tile, currentZoomTiles.size());
         }
       }
     } catch (Exception e) {
@@ -228,25 +299,25 @@ public class AdvancedLandCoverTiling implements Profile {
       geom = GeoUtils.fixPolygon(geom);
     }
 
-    return geom;
+    return DouglasPeuckerSimplifier.simplify(geom, 0.0625);
   }
 
-  private static AtomicInteger i = new AtomicInteger(0);
+
   private TileEncodingResult encodeTile(TileCoord coord, Map<String, ConcurrentLinkedQueue<FeatureInfo>> layers,
     int z) {
     try {
       VectorTile vectorTile = new VectorTile();
       for (Map.Entry<String, ConcurrentLinkedQueue<FeatureInfo>> layer : layers.entrySet()) {
-        List<VectorTile.Feature> vectorGeometryList = rasterizeFeatures(layer.getValue(), z).stream()
+        LOGGER.debug("开始处理瓦片：{}，当前层级瓦片已处理：{} 个", coord, count.addAndGet(1));
+        List<VectorTile.Feature> vectorGeometryList = rasterizeFeatures(new ArrayList<>(layer.getValue()), z).stream()
           .map(feature -> feature.copyWithNewGeometry(feature.geometry().unscale()))
           .toList();
 
         vectorTile.addLayerFeatures(layer.getKey(), vectorGeometryList);
-        LOGGER.info("开始处理瓦片：{}，当前层级瓦片已处理：{} 个", coord,  i.addAndGet(1));
       }
       return new TileEncodingResult(coord, Gzip.gzip(vectorTile.encode()), OptionalLong.empty());
     } catch (Exception e) {
-      LOGGER.error("编码瓦片 {} 时发生错误", coord, e);
+      LOGGER.error(String.format("编码瓦片 %s 时发生错误", coord), e);
       return null;
     }
   }
@@ -259,9 +330,9 @@ public class AdvancedLandCoverTiling implements Profile {
    * @return
    * @throws GeometryException
    */
-  private List<VectorTile.Feature> rasterizeFeatures(ConcurrentLinkedQueue<FeatureInfo> features, int zoom)
+  public List<VectorTile.Feature> rasterizeFeatures(List<FeatureInfo> features, int zoom)
     throws GeometryException {
-    if (zoom > 12) {
+    if (zoom > config.pixelationZoom()) {
       List<VectorTile.Feature> list = features.stream().map(FeatureInfo::feature).toList();
       return FeatureMerge.mergeOverlappingPolygons(list, 0);
     }
@@ -272,64 +343,67 @@ public class AdvancedLandCoverTiling implements Profile {
       featureIndex.put(featureInfo.geometry, featureInfo);
     }
 
-    ConcurrentHashMap<String, FeatureInfo> pixelFeatures = pixelationGeometry(featureIndex);
-
-    List<VectorTile.Feature> list = pixelFeatures.values().stream()
-      .map(info -> info.feature.copyWithNewGeometry(info.feature.geometry())).toList();
-    return FeatureMerge.mergeOverlappingPolygons(list, 0);
+    List<VectorTile.Feature> pixelFeatures = pixelationGeometry(featureIndex);
+    return FeatureMerge.mergeOverlappingPolygons(pixelFeatures, 0);
   }
 
 
-  private ConcurrentHashMap<String, FeatureInfo> pixelationGeometry(PolygonIndex<FeatureInfo> featureIndex)
-    throws GeometryException {
-    ConcurrentHashMap<String, FeatureInfo> pixelFeatures = new ConcurrentHashMap<>();
+  public List<VectorTile.Feature> pixelationGeometry(PolygonIndex<FeatureInfo> featureIndex) throws GeometryException {
+    List<VectorTile.Feature> pixelFeatures = new ArrayList<>();
 
-    // 简单扩充边界避免瓦片出现网格线的问题
-    for (int x = -BUFFER_SIZE; x < pixelGridSize + BUFFER_SIZE; x++) {
-      for (int y = -BUFFER_SIZE; y < pixelGridSize + BUFFER_SIZE; y++) {
-        Geometry pixelPolygon = createPixelGeometry(x, y);
-        List<FeatureInfo> intersectingFeatures = featureIndex.getIntersecting(pixelPolygon);
+    // 计算每个网格平均保存的要素数量
+    int pixelMaxFeatures = Math.max(1, config.maxFeatures() / (pixelGridSize * pixelGridSize));
+    // 计算剩余还可以保存的数量
+    int remain = config.maxFeatures() - pixelMaxFeatures * pixelGridSize * pixelGridSize;
+    int batchSize = 2000;
 
-        if (!intersectingFeatures.isEmpty()) {
-          VectorTile.Feature bestFeature = null;
-          double maxIntersectionArea = 0;
-
-          for (FeatureInfo featureInfo : intersectingFeatures) {
-            Geometry decode = featureInfo.geometry;
-            double intersectionArea = 0;
-            try {
-              intersectionArea = decode.intersection(pixelPolygon).getArea();
-            } catch (Exception e) {
-              // 异常则尝试修复一次，之所以不一开始就校验是减少性能损耗
-              // 可能是解码和编码精度问题导致此处需要再次修复无效几何体
-              if (!decode.isValid()) {
-                decode = GeoUtils.fixPolygon(decode);
-                intersectionArea = decode.intersection(pixelPolygon).getArea();
-              }
-              LOGGER.error("再次修复, 原因未知！！！");
-            }
-
-            if (intersectionArea > maxIntersectionArea) {
-              maxIntersectionArea = intersectionArea;
-              bestFeature = featureInfo.feature;
-            }
-          }
-
-          if (bestFeature != null) {
-            String pixelKey = x + ":" + y;
-            pixelFeatures.put(pixelKey, new FeatureInfo(
-              bestFeature.copyWithNewGeometry(VectorTile.encodeGeometry(pixelPolygon)),
-              pixelPolygon.getArea(),
-              maxIntersectionArea,
-              pixelKey
-            ));
-          }
+    // 计算实际的网格数量
+    for (double x = -BUFFER_SIZE; x < DEFAULT_TILE_SIZE + BUFFER_SIZE; x += pixelSize) {
+      for (double y = -BUFFER_SIZE; y < DEFAULT_TILE_SIZE + BUFFER_SIZE; y += pixelSize) {
+        Object[] objects = cachePixelGeom.get(generateKey(x, y));
+        Geometry pixelPolygon = (Geometry) objects[0];
+        List<FeatureInfo> intersecting = featureIndex.getIntersecting(pixelPolygon);
+        if (intersecting.isEmpty()) {
+          continue;
         }
+
+        // 选择此像素的特征
+        List<FeatureInfo> intersectionFeatures = intersecting.stream()
+          .sorted(Comparator.comparingDouble(f -> -f.area))
+          .limit(pixelMaxFeatures)
+          .toList();
+
+        // TODO 后续提高精度此处换为相交计算
+        intersectionFeatures.forEach(info ->
+          pixelFeatures.add(info.feature.copyWithNewGeometry((VectorTile.VectorGeometry) objects[1]))
+        );
+
+//        if (count++ / batchSize  == 0) {
+//          FeatureMerge.mergeOverlappingPolygons(pixelFeatures, 0);
+//          pixelFeatures.clear();
+//        }
       }
     }
 
     return pixelFeatures;
   }
+
+
+  /**
+   * 防止double类型转换精度丢失
+   *
+   * @param x
+   * @param y
+   * @return
+   */
+  public String generateKey(double x, double y) {
+    int scaledX = (int) Math.round(x * SCALE_FACTOR);
+    int scaledY = (int) Math.round(y * SCALE_FACTOR);
+    int scaledSize = (int) Math.round(pixelSize * SCALE_FACTOR);
+
+    return scaledX + ":" + scaledY + ":" + scaledSize;
+  }
+
 
   private Geometry createPixelGeometry(double x, double y) {
     double minX = x * pixelSize;
@@ -351,19 +425,19 @@ public class AdvancedLandCoverTiling implements Profile {
     TileArchiveMetadata archiveMetadata = metadata.get();
     TileArchiveMetadata.TileArchiveMetadataJson metadataJson = TileArchiveMetadata.TileArchiveMetadataJson.create(
       archiveMetadata.json().vectorLayers().stream()
-        .map(vectorLayer -> vectorLayer.withMinzoom(config.minzoom()))
+        .map(vectorLayer -> vectorLayer.withMinzoom(config.rasterizeMinZoom()))
         .toList()
     );
     metadata.updateMetadata(
       Map.of(
-        "minzoom", String.valueOf(config.minzoom()),
+        "minzoom", String.valueOf(config.rasterizeMinZoom()),
         "json", JsonUitls.toJsonString(metadataJson)
       )
     );
   }
 
   public int getPixelationGridSizeAtZoom(int zoom) {
-    return ZoomFunction.applyAsIntOrElse(config.pixelationGridSizeOverrides(), zoom, DEFAULT_PIXELATION_GRID_SIZE);
+    return ZoomFunction.applyAsIntOrElse(config.pixelationGridSizeOverrides(), zoom, DEFAULT_TILE_SIZE);
   }
 
   @Override
@@ -381,22 +455,22 @@ public class AdvancedLandCoverTiling implements Profile {
     return layers;
   }
 
-  private record FeatureInfo(
+  public record FeatureInfo(
     VectorTile.Feature feature,
     Geometry geometry,
-    double area,
-    double intersectionArea,
-    String pixel
+    double area
   ) {
+  }
 
-    public FeatureInfo(VectorTile.Feature feature, Geometry geometry) {
-      this(feature, geometry, 0, 0, null);
-    }
-
-    public FeatureInfo(VectorTile.Feature feature, double area, double maxIntersectionArea, String pixelKey) {
-      this(feature, null, area, maxIntersectionArea, pixelKey);
+  public static AdvancedLandCoverTile create(PlanetilerConfig config, String mbtilesPath) {
+    LOGGER.info("config:{}, \n  mbtilesPath:{}", config, mbtilesPath);
+    try {
+      return new AdvancedLandCoverTile(config, (Mbtiles) TileArchives.newWriter(Paths.get(mbtilesPath), config));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
+
 
   /**
    * 主方法，用于测试和运行切片生成过程
@@ -405,18 +479,17 @@ public class AdvancedLandCoverTiling implements Profile {
     String mbtilesPath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\shanghai\\default-14\\default-14 - 副本.mbtiles";
     PlanetilerConfig planetilerConfig = PlanetilerConfig.from(
       Arguments.of(
-        "minzoom", 0,
-        "maxzoom", 14,
-        "pixelation_grid_size_overrides", "12=256",
-        "bounds", "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135",
-        "pushgateway.job",
-        "localhost:9091"
+        "rasterize_min_zoom", 0,
+        "rasterize_max_zoom", 14,
+        "bounds", "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135"
+        , "pixelation_zoom", 12
+//        , "pixelation_grid_size_overrides", "12=512"
       )
     );
     try (WriteableTileArchive archive = TileArchives.newWriter(Paths.get(mbtilesPath), planetilerConfig)) {
-      AdvancedLandCoverTiling tiling = new AdvancedLandCoverTiling(planetilerConfig, (Mbtiles) archive);
+      AdvancedLandCoverTile tiling = new AdvancedLandCoverTile(planetilerConfig, (Mbtiles) archive);
 
-      tiling.generateLowerZoomTiles();
+      tiling.run();
       LOGGER.info("所有缩放级别处理完成");
     } catch (Exception e) {
       LOGGER.error("处理过程中发生错误", e);

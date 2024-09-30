@@ -42,10 +42,6 @@ public class GeoUtils {
 
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
   public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
-  /**增加简化精度，在不同层级设置不同的scale,保证越高级别要素精度越高*/
-  public static final PrecisionModel TILE_PRECISION_MIDDLE= new PrecisionModel(256d);
-  public static final PrecisionModel TILE_PRECISION_HIGH = new PrecisionModel(2048d);
-  public static final PrecisionModel TILE_PRECISION_MAX = new PrecisionModel(4096d);
 
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
 
@@ -345,31 +341,13 @@ public class GeoUtils {
   /**
    * todo linespace
    *
-   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION } or {@link  #TILE_PRECISION_MAX} and fixes any polygon
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION } and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
   public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, PrecisionModel precisionModel) throws GeometryException {
     return snapAndFixPolygon(geom, precisionModel, stats, stage);
   }
 
-  /**
-   * 不同层级设置不同的精度
-   *
-   * @param zoom
-   * @param maxZoom
-   * @return
-   */
-  public static PrecisionModel getPrecision(int zoom, int maxZoom) {
-    if (zoom == maxZoom) {
-      return TILE_PRECISION_MAX;
-    } else if (zoom < 15 && zoom >= 10) {
-      return TILE_PRECISION_HIGH;
-    } else if (zoom < 10 && zoom >= 5) {
-      return TILE_PRECISION_MIDDLE;
-    } else {
-      return TILE_PRECISION;
-    }
-  }
 
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
@@ -633,9 +611,7 @@ public class GeoUtils {
     return new WKTReader(JTS_FACTORY);
   }
 
-  public static Geometry createSmallSquareWithCentroid(Geometry centroid, double precisionScale, int zoom) {
-    Coordinate center = centroid.getCoordinate();
-
+  public static Geometry createSmallSquareWithCentroid(Coordinate coordinate , double precisionScale, int zoom) {
     // 当前缩放级别下的每个像素所代表的相对单位长度
     double tileUnit = 1.0 / Math.pow(2, zoom);
     // 计算最小分辨单位
@@ -645,10 +621,10 @@ public class GeoUtils {
 
     // 构造正方形的四个顶点
     Coordinate[] coordinates = new Coordinate[5];
-    coordinates[0] = new Coordinate(center.x - halfSideLength, center.y - halfSideLength);
-    coordinates[1] = new Coordinate(center.x + halfSideLength, center.y - halfSideLength);
-    coordinates[2] = new Coordinate(center.x + halfSideLength, center.y + halfSideLength);
-    coordinates[3] = new Coordinate(center.x - halfSideLength, center.y + halfSideLength);
+    coordinates[0] = new Coordinate(coordinate.x - halfSideLength, coordinate.y - halfSideLength);
+    coordinates[1] = new Coordinate(coordinate.x + halfSideLength, coordinate.y - halfSideLength);
+    coordinates[2] = new Coordinate(coordinate.x + halfSideLength, coordinate.y + halfSideLength);
+    coordinates[3] = new Coordinate(coordinate.x - halfSideLength, coordinate.y + halfSideLength);
     coordinates[4] = coordinates[0];
 
     GeometryFactory geometryFactory = new GeometryFactory();
