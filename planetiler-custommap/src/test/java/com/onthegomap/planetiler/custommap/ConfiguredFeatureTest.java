@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,6 +25,7 @@ import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.YAML;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -1320,5 +1322,46 @@ class ConfiguredFeatureTest {
     ), feature -> {
       assertEquals(Map.of("wikidata", 0L), feature.getAttrsAtZoom(14));
     }, 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "${feature.id}: 1",
+    "${feature.id}: [1, 3]",
+    "${feature.source}: source",
+    "${feature.source}: [source, source2]",
+    "${feature.source_layer}: layer",
+    "${feature.osm_changeset}: 2",
+    "${feature.osm_version}: 5",
+    "${feature.osm_timestamp}: 3",
+    "${feature.osm_user_id}: 4",
+    "${feature.osm_user_name}: user",
+    "${feature.osm_type}: way",
+  }, delimiter = '\t')
+  void testLeftHandSideExpression(String matchString) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          include_when:
+            %s
+      """.formatted(matchString);
+    System.err.println(YAML.load(config, Object.class));
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(rectangle(0, 1), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    var sfNoMatch =
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(), "other source", "other layer", 2, emptyList(),
+        new OsmElement.Info(6, 7, 8, 9, "other user"));
+    testFeature(config, sfMatch, any -> {
+    }, 1);
+    testFeature(config, sfNoMatch, any -> {
+    }, 0);
   }
 }
