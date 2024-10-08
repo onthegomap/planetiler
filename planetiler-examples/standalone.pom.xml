@@ -12,7 +12,7 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <planetiler.version>0.8.3-SNAPSHOT</planetiler.version>
-    <junit.version>5.11.1</junit.version>
+    <junit.version>5.11.2</junit.version>
     <!-- Replace this with the main class for the profile you add -->
     <mainClass>com.onthegomap.planetiler.examples.BikeRouteOverlay</mainClass>
   </properties>
