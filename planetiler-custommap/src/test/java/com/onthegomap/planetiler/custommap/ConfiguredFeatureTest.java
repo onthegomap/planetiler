@@ -36,6 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 
 class ConfiguredFeatureTest {
@@ -1287,6 +1289,36 @@ class ConfiguredFeatureTest {
       "natural", "water"
     ), feature -> {
       assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"geometry: any", ""})
+  void testAnyGeometry(String expression) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          %s
+      """.formatted(expression).strip();
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testLinestring(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Lineal.class, feature.getGeometry());
+    }, 1);
+    testPoint(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+    testPolygon(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Polygonal.class, feature.getGeometry());
     }, 1);
   }
 

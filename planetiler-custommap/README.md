@@ -218,6 +218,7 @@ A feature is a defined set of objects that meet a specified filter criteria.
 - `geometry` - A string enum that indicates which geometry types to include, and how to transform them. Can be one
   of:
   - `point` `line` or `polygon` to pass the original feature through
+  - `any` (default) to pass the original feature through regardless of geometry type
   - `polygon_centroid` to match on polygons, and emit a point at the center
   - `line_centroid` to match on lines, and emit a point at the center
   - `centroid` to match any geometry, and emit a point at the center

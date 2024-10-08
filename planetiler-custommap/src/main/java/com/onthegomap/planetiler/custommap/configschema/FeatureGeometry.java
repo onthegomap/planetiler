@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
+import com.fasterxml.jackson.annotation.JsonEnumDefaultValue;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.expression.Expression;
@@ -8,6 +9,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public enum FeatureGeometry {
+  @JsonProperty("any") @JsonEnumDefaultValue
+  ANY(GeometryType.UNKNOWN, FeatureCollector::anyGeometry),
   @JsonProperty("point")
   POINT(GeometryType.POINT, FeatureCollector::point),
   @JsonProperty("line")
