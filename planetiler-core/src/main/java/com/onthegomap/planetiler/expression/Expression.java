@@ -496,7 +496,9 @@ public interface Expression extends Simplifiable<Expression> {
         return false;
       } else {
         String str = value.toString();
-        if (exactMatches.contains(str)) {
+        // when field is null, we rely on a dynamic getter function so when exactMatches is empty we match
+        // on any value
+        if (exactMatches.contains(str) || (field == null && exactMatches.isEmpty())) {
           matchKeys.add(field);
           return true;
         }
@@ -556,6 +558,11 @@ public interface Expression extends Simplifiable<Expression> {
     @Override
     public int hashCode() {
       return Objects.hash(field, values, exactMatches, patternString(), matchWhenMissing, valueGetter);
+    }
+
+    public boolean mustAlwaysEvaluate() {
+      // when field is null we rely on a dynamic getter function
+      return field == null || matchWhenMissing;
     }
   }
 

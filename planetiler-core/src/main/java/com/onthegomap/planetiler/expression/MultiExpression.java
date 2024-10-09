@@ -60,7 +60,7 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
       case Expression.Or(var children) -> children.stream().anyMatch(MultiExpression::mustAlwaysEvaluate);
       case Expression.And(var children) -> children.stream().allMatch(MultiExpression::mustAlwaysEvaluate);
       case Expression.Not(var child) -> !mustAlwaysEvaluate(child);
-      case Expression.MatchAny any when any.matchWhenMissing() -> true;
+      case Expression.MatchAny any when any.mustAlwaysEvaluate() -> true;
       case null, default -> !(expression instanceof Expression.MatchAny) &&
           !(expression instanceof Expression.MatchField) &&
           !FALSE.equals(expression);
@@ -79,7 +79,7 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
         or.children().forEach(child -> getRelevantKeys(child, acceptKey));
       } else if (exp instanceof Expression.MatchField field) {
         acceptKey.accept(field.field());
-      } else if (exp instanceof Expression.MatchAny any && !any.matchWhenMissing()) {
+      } else if (exp instanceof Expression.MatchAny any && !any.mustAlwaysEvaluate()) {
         acceptKey.accept(any.field());
       }
       // ignore not case since not(matchAny("field", "")) should track "field" as a relevant key, but that gets
