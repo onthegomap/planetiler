@@ -498,6 +498,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   @FunctionalInterface
   private interface SqlFunction<I, O> {
+
     O apply(I t) throws SQLException;
   }
 
@@ -508,7 +509,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    *      schema</a>
    */
 
-     /** Contents of a row of the tiles_shallow table. */
+  /** Contents of a row of the tiles_shallow table. */
   private record TileShallowEntry(TileCoord coord, int tileDataId) {}
 
   /** Contents of a row of the tiles_data table. */
@@ -542,6 +543,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   /** Iterates through the results of a query one at a time without materializing the entire list in memory. */
   private class QueryIterator<T> implements CloseableIterator<T> {
+
     private final Statement statement;
     private final ResultSet rs;
     private final SqlFunction<ResultSet, T> rowMapper;
@@ -790,7 +792,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     private int tileDataIdCounter = 1;
 
     @Override
-    public void write(TileEncodingResult encodingResult) {
+    public synchronized void write(TileEncodingResult encodingResult) {
       int tileDataId;
       boolean writeData;
       OptionalLong tileDataHashOpt = encodingResult.tileDataHash();
@@ -948,7 +950,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
      * MBTiles specification.
      *
      * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBTiles 1.3
-     *      specification</a>
+     * specification</a>
      */
     public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
       TileArchiveMetadataDeSer.mbtilesMapper()
