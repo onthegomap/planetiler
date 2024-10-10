@@ -173,4 +173,9 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
     }
     return this;
   }
+
+  @Override
+  public ScriptEnvironment<I> environment() {
+    return descriptor;
+  }
 }

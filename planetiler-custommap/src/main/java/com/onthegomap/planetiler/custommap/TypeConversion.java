@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import com.onthegomap.planetiler.util.Parse;
 import java.util.List;
 import java.util.function.Function;
+import org.projectnessie.cel.common.types.NullT;
 
 /**
  * Utility for convert between types in a forgiving way (parse strings to get a number, call toString to get a string,
@@ -49,6 +50,9 @@ public class TypeConversion {
    */
   @SuppressWarnings("unchecked")
   public static <O> O convert(Object in, Class<O> out) {
+    if (in == NullT.NullValue) {
+      return null;
+    }
     if (in == null || out.isInstance(in)) {
       return (O) in;
     }

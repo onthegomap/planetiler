@@ -123,10 +123,7 @@ public class BooleanExpressionParser<T extends ScriptContext> {
         if (isAny) {
           values = List.of();
         }
-        return matchAnyTyped(null,
-          (withTags, any) -> context.clazz().isInstance(withTags) ?
-            expression.apply(context.clazz().cast(withTags)) : null,
-          values);
+        return matchAnyTyped(null, expression, values);
       }
       String field = unescape(key);
       if (isAny) {
