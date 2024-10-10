@@ -51,7 +51,7 @@ public class ConfigExpressionParser<I extends ScriptContext> {
    */
   public static <I extends ScriptContext, O> ConfigExpression<I, O> parse(Object object,
     TagValueProducer tagValueProducer, ScriptEnvironment<I> context, Class<O> outputClass) {
-    return new ConfigExpressionParser<>(tagValueProducer, context).parse(object, outputClass).simplify();
+    return new ConfigExpressionParser<>(tagValueProducer, context).parse(object, outputClass);
   }
 
   /**
