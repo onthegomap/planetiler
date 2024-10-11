@@ -473,6 +473,10 @@ public interface Expression extends Simplifiable<Expression> {
 
     @Override
     public Expression partialEvaluate(PartialInput input) {
+      if (field == null) {
+        // dynamic getters always need to be evaluated
+        return this;
+      }
       Object value = input.getTag(field);
       return value == null ? this : constBool(evaluate(new ArrayList<>(), value));
     }
