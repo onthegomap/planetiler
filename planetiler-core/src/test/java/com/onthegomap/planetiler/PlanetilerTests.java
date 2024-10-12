@@ -2322,6 +2322,50 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
+    " --small_Feat_Strategy=square --minzoom=14 --maxzoom=14 --pixelation_grid_size_overrides=12=512 "
+      + "--output=H:/100数据/Parquet\\default-14\\default-14.mbtiles"
+      + " --is_rasterize=true --pixelation_zoom=-1  --rasterize_min_zoom=13 --rasterize_max_zoom=14"
+      + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz "
+      + " -oosSavePath=H:\\100数据\\output --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
+  })
+  void testPlanetilerRunnerParquetDLTB(String args) throws Exception {
+//    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\xian";
+//    String tempDir = basePath + "\\mergeSmallFeatures";
+//    String outputPath = basePath + "\\mergeSmallFeatures\\mergeSmallFeatures.mbtiles";
+//    List<Path> inputPaths = Stream.of(basePath + "\\xian.parquet").map(Paths::get).toList();
+    String basePath = "H:/100数据/Parquet/";
+    String tempDir = basePath + "\\default-14";
+    String outputPath = basePath + "\\default-14\\default-14.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\dltb.parquet").map(Paths::get).toList();
+
+    Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
+      (args + " --tmpdir=" + tempDir).split("\\s+")));
+    PlanetilerConfig config = planetiler.config();
+    planetiler
+      .setProfile((source, features) -> {
+        try {
+          FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
+            .setSortKey(SortKey
+              .orderByDouble(source.area(), 1d, 0, 1 << (SORT_KEY_BITS - 7) - 1)
+              .get())
+            .setPointLabelGridPixelSize(createLabelGridSizeFunction())
+            .setPointLabelGridLimit(createLabelGridLimitFunction())
+            //              .setBufferPixelOverrides(createBufferPixelFunction())
+            .setPixelToleranceAtAllZooms(0)
+            .setMinPixelSizeAtAllZooms(0);
+
+          source.tags().forEach(feature::setAttr);
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      })
+      .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
+      .setOutput(outputPath)
+      .run();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
     " --minzoom=0 --maxzoom=14 "
       + " --small_Feat_Strategy=square --merge_fields=DLBM,DLMC --min_dist_sizes=5=0.0625,6=0.09375,7=0.125,8=0.1875,9=0.25,10=0.375,11=0.4375,12=0.5 "
 //     +  " --output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\东北黑土区\\default\\default.mbtiles --output-layerstats  "
@@ -2375,7 +2419,8 @@ class PlanetilerTests {
             return items;
           }
 
-          return FeatureMerge.mergeNearbyPolygonsAndFill(items, 0, 0, minDistAndBuffer, minDistAndBuffer, config.mergeFields());
+          return FeatureMerge.mergeNearbyPolygonsAndFill(items, 0, 0, minDistAndBuffer, minDistAndBuffer,
+            config.mergeFields());
         }
       })
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
