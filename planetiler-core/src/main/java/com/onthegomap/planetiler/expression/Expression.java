@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -91,7 +90,7 @@ public interface Expression extends Simplifiable<Expression> {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter, Object... values) {
+  static MatchAny matchAnyTyped(String field, TypedGetter typeGetter, Object... values) {
     return matchAnyTyped(field, typeGetter, List.of(values));
   }
 
@@ -101,7 +100,7 @@ public interface Expression extends Simplifiable<Expression> {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter,
+  static MatchAny matchAnyTyped(String field, TypedGetter typeGetter,
     List<?> values) {
     return MatchAny.from(field, typeGetter, values);
   }
@@ -405,10 +404,10 @@ public interface Expression extends Simplifiable<Expression> {
     String field, List<?> values, Set<String> exactMatches,
     Pattern pattern,
     boolean matchWhenMissing,
-    BiFunction<WithTags, String, Object> valueGetter
+    TypedGetter valueGetter
   ) implements Expression {
 
-    static MatchAny from(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
+    static MatchAny from(String field, TypedGetter valueGetter, List<?> values) {
       List<String> exactMatches = new ArrayList<>();
       List<String> patterns = new ArrayList<>();
 
@@ -474,6 +473,10 @@ public interface Expression extends Simplifiable<Expression> {
 
     @Override
     public Expression partialEvaluate(PartialInput input) {
+      if (field == null) {
+        // dynamic getters always need to be evaluated
+        return this;
+      }
       Object value = input.getTag(field);
       return value == null ? this : constBool(evaluate(new ArrayList<>(), value));
     }
@@ -496,7 +499,9 @@ public interface Expression extends Simplifiable<Expression> {
         return false;
       } else {
         String str = value.toString();
-        if (exactMatches.contains(str)) {
+        // when field is null, we rely on a dynamic getter function so when exactMatches is empty we match
+        // on any value
+        if (exactMatches.contains(str) || (field == null && exactMatches.isEmpty())) {
           matchKeys.add(field);
           return true;
         }
@@ -510,7 +515,13 @@ public interface Expression extends Simplifiable<Expression> {
 
     @Override
     public Expression simplifyOnce() {
-      return isMatchAnything() ? matchField(field) : this;
+      if (isMatchAnything()) {
+        return matchField(field);
+      } else if (valueGetter instanceof Simplifiable<?> simplifiable) {
+        return new MatchAny(field, values, exactMatches, pattern, matchWhenMissing,
+          (TypedGetter) simplifiable.simplifyOnce());
+      }
+      return this;
     }
 
     @Override
@@ -556,6 +567,11 @@ public interface Expression extends Simplifiable<Expression> {
     @Override
     public int hashCode() {
       return Objects.hash(field, values, exactMatches, patternString(), matchWhenMissing, valueGetter);
+    }
+
+    public boolean mustAlwaysEvaluate() {
+      // when field is null we rely on a dynamic getter function
+      return field == null || matchWhenMissing;
     }
   }
 

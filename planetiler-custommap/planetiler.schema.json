@@ -342,14 +342,12 @@
     },
     "feature": {
       "type": "object",
-      "required": [
-        "geometry"
-      ],
       "properties": {
         "geometry": {
           "description": "Include objects of a certain geometry type",
           "type": "string",
           "enum": [
+            "any",
             "point",
             "line",
             "polygon",

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfigExpressionParserTest {
@@ -42,11 +43,19 @@ class ConfigExpressionParserTest {
     assertParse(input, constOf(1d), Double.class);
   }
 
-  @Test
-  void testVar() {
-    assertParse("${feature.id}", variable(FEATURE_SIGNATURE.withOutput(Integer.class), "feature.id"), Integer.class);
-    assertParse("${feature.id}", variable(FEATURE_SIGNATURE.withOutput(Long.class), "feature.id"), Long.class);
-    assertParse("${feature.id}", variable(FEATURE_SIGNATURE.withOutput(Double.class), "feature.id"), Double.class);
+  @ParameterizedTest
+  @CsvSource({
+    "feature.id",
+    "feature.source",
+    "feature.source_layer",
+    "feature.osm_user_name"
+  })
+  void testVar(String var) {
+    String script = "${" + var + "}";
+    assertParse(script, variable(FEATURE_SIGNATURE.withOutput(Integer.class), var), Integer.class);
+    assertParse(script, variable(FEATURE_SIGNATURE.withOutput(Long.class), var), Long.class);
+    assertParse(script, variable(FEATURE_SIGNATURE.withOutput(Double.class), var), Double.class);
+    assertParse(script, variable(FEATURE_SIGNATURE.withOutput(String.class), var), String.class);
   }
 
   @Test

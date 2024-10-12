@@ -351,6 +351,19 @@ class ExpressionTest {
   }
 
   @Test
+  void testPartialEvaluateMatchAnyDynamicGetter() {
+    var expr = matchAnyTyped(null, ((withTags, tag) -> ""), 1, 2, 3);
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("other", "value"), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), null, Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "value1"), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "other"), Set.of())));
+    assertEquals(expr,
+      expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of("field", "other..."), Set.of())));
+    assertEquals(expr, expr.partialEvaluate(
+      new PartialInput(Set.of(), Set.of(), Map.of("field", "not a value"), Set.of())));
+  }
+
+  @Test
   void testPartialEvaluateMatchGeometryType() {
     var expr = matchGeometryType(GeometryType.POINT);
     assertEquals(expr, expr.partialEvaluate(new PartialInput(Set.of(), Set.of(), Map.of(), Set.of())));

@@ -10,7 +10,7 @@ public record FeatureItem(
   @JsonProperty("min_zoom") Object minZoom,
   @JsonProperty("max_zoom") Object maxZoom,
   @JsonProperty("min_size") Object minSize,
-  @JsonProperty(required = true) FeatureGeometry geometry,
+  @JsonProperty FeatureGeometry geometry,
   @JsonProperty("include_when") Object includeWhen,
   @JsonProperty("exclude_when") Object excludeWhen,
   Collection<AttributeDefinition> attributes
@@ -19,5 +19,10 @@ public record FeatureItem(
   @Override
   public Collection<AttributeDefinition> attributes() {
     return attributes == null ? List.of() : attributes;
+  }
+
+  @Override
+  public FeatureGeometry geometry() {
+    return geometry == null ? FeatureGeometry.ANY : geometry;
   }
 }

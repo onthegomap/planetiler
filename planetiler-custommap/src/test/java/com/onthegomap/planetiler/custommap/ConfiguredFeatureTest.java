@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 
 class ConfiguredFeatureTest {
@@ -1288,6 +1291,36 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"geometry: any", ""})
+  void testAnyGeometry(String expression) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          %s
+      """.formatted(expression).strip();
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testLinestring(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Lineal.class, feature.getGeometry());
+    }, 1);
+    testPoint(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+    testPolygon(config, Map.of(
+    ), feature -> {
+      assertInstanceOf(Polygonal.class, feature.getGeometry());
+    }, 1);
+  }
+
   @Test
   void testWikidataParse() {
     var config = """
@@ -1319,6 +1352,113 @@ class ConfiguredFeatureTest {
     testPoint(config, Map.of(
     ), feature -> {
       assertEquals(Map.of("wikidata", 0L), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "${feature.id}: 1",
+    "${feature.id + 1}: 2",
+    "${feature.id}: [1, 3]",
+    "${feature.source_layer}: layer",
+    "${  feature .  source_layer  }: [layer, layer2]",
+    "${feature.osm_changeset}: 2",
+    "${feature.osm_version}: 5",
+    "${feature.osm_timestamp}: 3",
+    "${feature.osm_user_id}: 4",
+    "${feature.osm_user_name}: user",
+    "${feature.osm_type}: way",
+  }, delimiter = '\t')
+  void testLeftHandSideExpression(String matchString) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          include_when:
+            %s
+      """.formatted(matchString);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(rectangle(0, 1), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    var sfNoMatch =
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(), "osm", "other layer", 2, emptyList(),
+        new OsmElement.Info(6, 7, 8, 9, "other user"));
+    testFeature(config, sfMatch, any -> {
+    }, 1);
+    testFeature(config, sfNoMatch, any -> {
+    }, 0);
+  }
+
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "${feature.osm_user_name}: __any__",
+    "${feature.osm_user_name}: null",
+    "${feature.source_layer}: __any__",
+    "${feature.source_layer}: null",
+  }, delimiter = '\t')
+  void testLeftHandSideExpressionMatchAny(String matchString) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          include_when:
+            %s
+      """.formatted(matchString);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(rectangle(0, 1), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    var sfNoMatch =
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(), "osm", null, 2, emptyList(),
+        new OsmElement.Info(6, 7, 8, 9, ""));
+    testFeature(config, sfMatch, any -> {
+    }, 1);
+    testFeature(config, sfNoMatch, any -> {
+    }, 0);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "${feature.osm_user_name}: ''",
+    "${feature.osm_user_name}: ['']",
+    "${feature.source_layer}: ''",
+    "${feature.source_layer}: ['']",
+  }, delimiter = '\t')
+  void testLeftHandSideExpressionMatchNone(String matchString) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          include_when:
+            %s
+      """.formatted(matchString);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(rectangle(0, 1), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    var sfNoMatch =
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(), "osm", null, 2, emptyList(),
+        new OsmElement.Info(6, 7, 8, 9, ""));
+    testFeature(config, sfMatch, any -> {
+    }, 0);
+    testFeature(config, sfNoMatch, any -> {
     }, 1);
   }
 }

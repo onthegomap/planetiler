@@ -3,11 +3,11 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
 
 import com.onthegomap.planetiler.expression.DataType;
+import com.onthegomap.planetiler.expression.TypedGetter;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
@@ -17,7 +17,7 @@ import java.util.function.UnaryOperator;
 public class TagValueProducer {
   public static final TagValueProducer EMPTY = new TagValueProducer(null);
 
-  private final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
+  private final Map<String, TypedGetter> valueRetriever = new HashMap<>();
 
   private final Map<String, String> keyType = new HashMap<>();
 
@@ -50,7 +50,7 @@ public class TagValueProducer {
   /**
    * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
    */
-  public BiFunction<WithTags, String, Object> valueGetterForKey(String key) {
+  public TypedGetter valueGetterForKey(String key) {
     return valueRetriever.getOrDefault(key, GET_TAG);
   }
 
