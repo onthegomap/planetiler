@@ -214,7 +214,8 @@ layers:
 
 A feature is a defined set of objects that meet a specified filter criteria.
 
-- `source` - A string [source](#source) ID, or list of source IDs from which features should be extracted
+- `source` - A string [source](#source) ID, or list of source IDs from which features should be extracted. If missing,
+  features from all sources are included.
 - `geometry` - A string enum that indicates which geometry types to include, and how to transform them. Can be one
   of:
   - `point` `line` or `polygon` to pass the original feature through

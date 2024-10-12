@@ -280,7 +280,7 @@ public class ConfiguredFeature {
     var sourceFeature = context.feature();
 
     // Ensure that this feature is from the correct source (index should enforce this, so just check when assertions enabled)
-    assert sources.contains(sourceFeature.getSource());
+    assert sources.isEmpty() || sources.contains(sourceFeature.getSource());
 
     var f = geometryFactory.apply(features);
     for (var processor : featureProcessors) {
