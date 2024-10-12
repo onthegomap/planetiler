@@ -360,7 +360,7 @@
           ]
         },
         "source": {
-          "description": "A source ID or list of source IDs from which features should be extracted",
+          "description": "A source ID or list of source IDs from which features should be extracted. If unspecified, all sources are included",
           "oneOf": [
             {
               "type": "string"

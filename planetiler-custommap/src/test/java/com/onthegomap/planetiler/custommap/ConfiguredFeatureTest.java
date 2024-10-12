@@ -1321,6 +1321,32 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"source: []", ""})
+  void testAnySource(String expression) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - geometry: point
+          %s
+      """.formatted(expression).strip();
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    testFeature(config, SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(
+    ), "osm", null, 1, emptyList(), OSM_INFO), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+    testFeature(config, SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(
+    ), "other", null, 1, emptyList(), OSM_INFO), feature -> {
+      assertInstanceOf(Puntal.class, feature.getGeometry());
+    }, 1);
+  }
+
   @Test
   void testWikidataParse() {
     var config = """

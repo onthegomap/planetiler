@@ -25,4 +25,9 @@ public record FeatureItem(
   public FeatureGeometry geometry() {
     return geometry == null ? FeatureGeometry.ANY : geometry;
   }
+
+  @Override
+  public List<String> source() {
+    return source == null ? List.of() : source;
+  }
 }

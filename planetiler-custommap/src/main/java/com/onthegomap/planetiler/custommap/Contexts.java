@@ -13,6 +13,8 @@ import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithGeometryType;
+import com.onthegomap.planetiler.reader.WithSource;
+import com.onthegomap.planetiler.reader.WithSourceLayer;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
@@ -285,7 +287,8 @@ public class Contexts {
    * Makes nested contexts adhere to {@link WithTags} and {@link WithGeometryType} by recursively fetching source
    * feature from the root context.
    */
-  private interface FeatureContext extends ScriptContext, WithTags, WithGeometryType, NestedContext {
+  private interface FeatureContext extends ScriptContext, WithTags, WithGeometryType, NestedContext, WithSourceLayer,
+    WithSource {
 
     default FeatureContext parent() {
       return null;
@@ -324,6 +327,16 @@ public class Contexts {
     @Override
     default boolean canBePolygon() {
       return feature().canBePolygon();
+    }
+
+    @Override
+    default String getSource() {
+      return feature().getSource();
+    }
+
+    @Override
+    default String getSourceLayer() {
+      return feature().getSourceLayer();
     }
   }
 

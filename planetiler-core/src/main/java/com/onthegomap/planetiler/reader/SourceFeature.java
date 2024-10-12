@@ -26,7 +26,7 @@ import org.locationtech.jts.geom.Polygon;
  * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where (0,0) is
  * the northwest corner and (1,1) is the southeast corner of the planet.
  */
-public abstract class SourceFeature implements WithTags, WithGeometryType {
+public abstract class SourceFeature implements WithTags, WithGeometryType, WithSource, WithSourceLayer {
 
   private final Map<String, Object> tags;
   private final String source;
@@ -279,11 +279,13 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   }
 
   /** Returns the ID of the source that this feature came from. */
+  @Override
   public String getSource() {
     return source;
   }
 
   /** Returns the layer ID within a source that this feature comes from. */
+  @Override
   public String getSourceLayer() {
     return sourceLayer;
   }
