@@ -64,6 +64,12 @@ public class ConfiguredFeature {
         BooleanExpressionParser.parse(feature.includeWhen(), tagValueProducer,
           processFeatureContext);
     }
+    if (!feature.source().isEmpty()) {
+      filter = Expression.and(
+        filter,
+        Expression.or(feature.source().stream().map(Expression::matchSource).toList())
+      );
+    }
     if (feature.excludeWhen() != null) {
       filter = Expression.and(
         filter,

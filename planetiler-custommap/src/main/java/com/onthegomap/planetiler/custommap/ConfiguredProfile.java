@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.expression.MultiExpression.Entry;
-import static java.util.Map.entry;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -19,7 +18,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * A profile configured from a yml file.
@@ -27,10 +25,8 @@ import java.util.stream.Collectors;
 public class ConfiguredProfile implements Profile {
 
   private final SchemaConfig schema;
-
-  private final Collection<FeatureLayer> layers;
   private final Map<String, FeatureLayer> layersById = new HashMap<>();
-  private final Map<String, Index<ConfiguredFeature>> featureLayerMatcher;
+  private final Index<ConfiguredFeature> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
 
@@ -38,14 +34,14 @@ public class ConfiguredProfile implements Profile {
     this.schema = schema;
     this.rootContext = rootContext;
 
-    layers = schema.layers();
+    Collection<FeatureLayer> layers = schema.layers();
     if (layers == null || layers.isEmpty()) {
       throw new IllegalArgumentException("No layers defined");
     }
 
     tagValueProducer = new TagValueProducer(schema.inputMappings());
 
-    Map<String, List<MultiExpression.Entry<ConfiguredFeature>>> configuredFeatureEntries = new HashMap<>();
+    List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
 
     for (var layer : layers) {
       String layerId = layer.id();
@@ -53,16 +49,12 @@ public class ConfiguredProfile implements Profile {
       for (var feature : layer.features()) {
         var configuredFeature = new ConfiguredFeature(layerId, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
-        for (var source : feature.source()) {
-          var list = configuredFeatureEntries.computeIfAbsent(source, s -> new ArrayList<>());
-          list.add(entry);
-        }
+        configuredFeatureEntries.add(entry);
       }
     }
 
-    featureLayerMatcher = configuredFeatureEntries.entrySet().stream()
-      .map(entry -> entry(entry.getKey(), MultiExpression.of(entry.getValue()).index()))
-      .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+    featureLayerMatcher = MultiExpression.of(configuredFeatureEntries).index();
+
   }
 
   @Override
@@ -78,15 +70,12 @@ public class ConfiguredProfile implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
     var context = rootContext.createProcessFeatureContext(sourceFeature, tagValueProducer);
-    var index = featureLayerMatcher.get(sourceFeature.getSource());
-    if (index != null) {
-      var matches = index.getMatchesWithTriggers(context);
-      for (var configuredFeature : matches) {
-        configuredFeature.match().processFeature(
-          context.createPostMatchContext(configuredFeature.keys()),
-          featureCollector
-        );
-      }
+    var matches = featureLayerMatcher.getMatchesWithTriggers(context);
+    for (var configuredFeature : matches) {
+      configuredFeature.match().processFeature(
+        context.createPostMatchContext(configuredFeature.keys()),
+        featureCollector
+      );
     }
   }
 
