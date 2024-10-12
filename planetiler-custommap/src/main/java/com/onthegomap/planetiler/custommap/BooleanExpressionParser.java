@@ -3,8 +3,10 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.expression.Expression.matchAnyTyped;
 import static com.onthegomap.planetiler.expression.Expression.matchField;
 import static com.onthegomap.planetiler.expression.Expression.not;
+import static com.onthegomap.planetiler.expression.Expression.or;
 
 import com.onthegomap.planetiler.custommap.expression.BooleanExpressionScript;
+import com.onthegomap.planetiler.custommap.expression.ConfigExpression;
 import com.onthegomap.planetiler.custommap.expression.ConfigExpressionScript;
 import com.onthegomap.planetiler.custommap.expression.ParseException;
 import com.onthegomap.planetiler.custommap.expression.ScriptContext;
@@ -119,11 +121,22 @@ public class BooleanExpressionParser<T extends ScriptContext> {
       List<?> values = (value instanceof Collection<?> items ? items : value == null ? List.of() : List.of(value))
         .stream().map(BooleanExpressionParser::unescape).toList();
       if (ConfigExpressionScript.isScript(key)) {
-        var expression = ConfigExpressionScript.parse(ConfigExpressionScript.extractScript(key), context);
+        var expression = ConfigExpressionScript.parse(ConfigExpressionScript.extractScript(key), context).simplify();
         if (isAny) {
           values = List.of();
         }
-        return matchAnyTyped(null, expression, values);
+        var result = matchAnyTyped(null, expression, values);
+        if (!values.isEmpty() && result.pattern() == null && !result.isMatchAnything() && !result.matchWhenMissing() &&
+          expression instanceof ConfigExpression.Variable<?, ?>(var ignored,var name)) {
+          if (name.equals("feature.source")) {
+            return or(values.stream().filter(String.class::isInstance).map(String.class::cast)
+              .map(Expression::matchSource).toList());
+          } else if (name.equals("feature.source_layer")) {
+            return or(values.stream().filter(String.class::isInstance).map(String.class::cast)
+              .map(Expression::matchSourceLayer).toList());
+          }
+        }
+        return result;
       }
       String field = unescape(key);
       if (isAny) {

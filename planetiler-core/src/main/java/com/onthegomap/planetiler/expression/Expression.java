@@ -50,7 +50,7 @@ public interface Expression extends Simplifiable<Expression> {
     return and(List.of(children));
   }
 
-  static And and(List<Expression> children) {
+  static And and(List<? extends Expression> children) {
     return new And(children);
   }
 
@@ -58,7 +58,7 @@ public interface Expression extends Simplifiable<Expression> {
     return or(List.of(children));
   }
 
-  static Or or(List<Expression> children) {
+  static Or or(List<? extends Expression> children) {
     return new Or(children);
   }
 
@@ -100,8 +100,7 @@ public interface Expression extends Simplifiable<Expression> {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, TypedGetter typeGetter,
-    List<?> values) {
+  static MatchAny matchAnyTyped(String field, TypedGetter typeGetter, List<?> values) {
     return MatchAny.from(field, typeGetter, values);
   }
 
@@ -153,7 +152,7 @@ public interface Expression extends Simplifiable<Expression> {
     return new MatchSourceLayer(layer);
   }
 
-  private static String generateJavaCodeList(List<Expression> items) {
+  private static String generateJavaCodeList(List<? extends Expression> items) {
     return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
   }
 
@@ -268,7 +267,7 @@ public interface Expression extends Simplifiable<Expression> {
     }
   }
 
-  record And(List<Expression> children) implements Expression {
+  record And(List<? extends Expression> children) implements Expression {
 
     @Override
     public String generateJavaCode() {
@@ -306,7 +305,7 @@ public interface Expression extends Simplifiable<Expression> {
     }
   }
 
-  record Or(List<Expression> children) implements Expression {
+  record Or(List<? extends Expression> children) implements Expression {
 
     @Override
     public String generateJavaCode() {
