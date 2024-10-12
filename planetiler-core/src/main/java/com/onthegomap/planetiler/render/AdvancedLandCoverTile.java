@@ -386,15 +386,15 @@ public class AdvancedLandCoverTile implements Profile {
     }
 
     // 构建索引
-    PolygonIndex<FeatureInfo> featureIndex = PolygonIndex.create();
-    for (FeatureInfo featureInfo : features) {
-      featureIndex.put(featureInfo.geometry, featureInfo);
+    PolygonIndex<Integer> featureIndex = PolygonIndex.create();
+    for (int i = 0; i < features.size(); i++) {
+      FeatureInfo featureInfo = features.get(i);
+      featureIndex.put(featureInfo.geometry, i);
     }
 
-    List<VectorTile.Feature> pixelFeatures = pixelationGeometry(featureIndex);
+    List<VectorTile.Feature> pixelFeatures = pixelationGeometry(featureIndex, features);
     return FeatureMerge.mergeOverlappingPolygons(pixelFeatures, 0);
   }
-
 
   /**
    * 网格相交计算：非常耗时
@@ -403,7 +403,8 @@ public class AdvancedLandCoverTile implements Profile {
    * @return
    * @throws GeometryException
    */
-  public List<VectorTile.Feature> pixelationGeometry(PolygonIndex<FeatureInfo> featureIndex) throws GeometryException {
+  public List<VectorTile.Feature> pixelationGeometry(PolygonIndex<Integer> featureIndex, List<FeatureInfo> featureInfos)
+    throws GeometryException {
     List<VectorTile.Feature> pixelFeatures = new ArrayList<>();
 
     // 计算每个网格平均保存的要素数量
@@ -418,18 +419,26 @@ public class AdvancedLandCoverTile implements Profile {
         Object[] objects = cachePixelGeom.get(generateKey(x, y));
         Geometry pixelPolygon = (Geometry) objects[0];
         // TODO: 计算过慢
-        List<FeatureInfo> intersecting = featureIndex.getIntersecting(pixelPolygon);
+        List<Integer> intersecting = featureIndex.getIntersecting(pixelPolygon);
         if (intersecting.isEmpty()) {
           continue;
         }
 
+        List<FeatureInfo> intersectionFeatures = intersecting.stream()
+          .sorted(Comparator.comparingDouble(f -> -featureInfos.get(f).area))
+          .map(featureInfos::get)
+          .limit(pixelMaxFeatures)
+          .toList();
         // 选择此像素的特征
-        List<FeatureInfo> intersectionFeatures = intersecting.stream().sorted(Comparator.comparingDouble(f -> -f.area))
-          .limit(pixelMaxFeatures).toList();
-
-        // TODO 后续提高精度此处换为相交计算
-        intersectionFeatures.forEach(
-          info -> pixelFeatures.add(info.feature.copyWithNewGeometry((VectorTile.VectorGeometry) objects[1])));
+//        List<FeatureInfo> intersectionFeatures = intersecting.stream()
+//          .sorted(Comparator.comparingDouble(f -> -f.area))
+//          .limit(pixelMaxFeatures)
+//          .toList();
+//
+//        // TODO 后续提高精度此处换为相交计算
+        intersectionFeatures.forEach(info ->
+          pixelFeatures.add(info.feature.copyWithNewGeometry((VectorTile.VectorGeometry) objects[1]))
+        );
 
 //        if (count++ / batchSize  == 0) {
 //          FeatureMerge.mergeOverlappingPolygons(pixelFeatures, 0);
@@ -466,7 +475,7 @@ public class AdvancedLandCoverTile implements Profile {
 
     return geometryFactory.createPolygon(
       new Coordinate[]{new Coordinate(minX, minY), new Coordinate(maxX, minY), new Coordinate(maxX, maxY),
-        new Coordinate(minX, maxY), new Coordinate(minX, minY)});
+        new Coordinate(minX, maxY), new Coordinate(minX, minY)}).reverse();
   }
 
   private void updateMetadata() {
@@ -518,10 +527,14 @@ public class AdvancedLandCoverTile implements Profile {
   public static void main(String[] args) {
     String mbtilesPath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\shanghai\\default-14\\default-14 - 副本.mbtiles";
     PlanetilerConfig planetilerConfig = PlanetilerConfig.from(
-      Arguments.of("rasterize_min_zoom", 0, "rasterize_max_zoom", 14, "bounds",
-        "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135", "pixelation_zoom", 12
+      Arguments.of(
+        "rasterize_min_zoom", 0
+        , "rasterize_max_zoom", 14
+        , "bounds", "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135"
+        , "pixelation_zoom", 12
 //        , "pixelation_grid_size_overrides", "12=512"
-      ));
+      )
+    );
     try (WriteableTileArchive archive = TileArchives.newWriter(Paths.get(mbtilesPath), planetilerConfig)) {
       AdvancedLandCoverTile tiling = new AdvancedLandCoverTile(planetilerConfig, (Mbtiles) archive);
 
