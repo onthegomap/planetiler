@@ -9,20 +9,20 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
-import com.onthegomap.planetiler.geo.PolygonIndex;
 import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.Area;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -37,6 +37,8 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.linemerge.LineMerger;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.union.CascadedPolygonUnion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +97,7 @@ public class FeatureMerge {
 
   /** 将具有相同属性的点合并为多点。 */
   public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
-    return mergeGeometries(features, GeometryType.POINT);
+    return mergeGeometries(features, Collections.emptyList(), GeometryType.POINT);
   }
 
   /**
@@ -104,7 +106,12 @@ public class FeatureMerge {
    * 注意：这不会尝试合并重叠的几何图形，参见 {@link #mergeOverlappingPolygons(List, double)} 或 {@link #mergeNearbyPolygons(List, double, double, double, double)}。
    */
   public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
-    return mergeGeometries(features, GeometryType.POLYGON);
+    return mergeGeometries(features, Collections.emptyList(), GeometryType.POLYGON);
+  }
+
+  public static List<VectorTile.Feature> mergeMultiPolygonWithTags(List<VectorTile.Feature> features,
+    List<String> fields) {
+    return mergeGeometries(features, fields, GeometryType.POLYGON);
   }
 
   /**
@@ -114,15 +121,16 @@ public class FeatureMerge {
    * 此外，这会移除保留的额外详细信息，以提高连接线串的合并性能，因此你应该只使用其中之一。
    */
   public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
-    return mergeGeometries(features, GeometryType.LINE);
+    return mergeGeometries(features, Collections.emptyList(), GeometryType.LINE);
   }
 
   private static List<VectorTile.Feature> mergeGeometries(
     List<VectorTile.Feature> features,
+    List<String> fields,
     GeometryType geometryType
   ) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
-    var groupedByAttrs = groupByAttrs(features, result, geometryType);
+    var groupedByAttrs = groupByAttrs(features, result, fields, geometryType);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       VectorTile.Feature feature1 = groupedFeatures.getFirst();
       if (groupedFeatures.size() == 1) {
@@ -289,9 +297,9 @@ public class FeatureMerge {
    * @throws GeometryException 如果编码合并的几何图形时发生错误
    */
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
-    double minHoleArea, double minDist, double buffer, Stats stats) throws GeometryException {
+    double minHoleArea, double minDist, double buffer, List<String> mergeFields, Stats stats) throws GeometryException {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
-    Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
+    Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, mergeFields, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       List<Polygon> outPolygons = new ArrayList<>();
       VectorTile.Feature feature1 = groupedFeatures.getFirst();
@@ -338,6 +346,127 @@ public class FeatureMerge {
     return result;
   }
 
+  public static List<VectorTile.Feature> mergeNearbyPolygonsAndFill(List<VectorTile.Feature> features, double minArea,
+    double minHoleArea, double minDist, double buffer, List<String> fields, Stats stats) throws GeometryException {
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    List<Geometry> resultGeometry = new ArrayList<>(features.size());
+    Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, fields, GeometryType.POLYGON);
+    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
+      List<Polygon> outPolygons = new ArrayList<>();
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
+      List<Geometry> geometries = new ArrayList<>(groupedFeatures.size());
+      for (var feature : groupedFeatures) {
+        try {
+          geometries.add(feature.geometry().decode());
+        } catch (GeometryException e) {
+          e.log("Error decoding vector tile feature for polygon merge: " + feature);
+        }
+      }
+      Collection<List<Geometry>> groupedByProximity = groupPolygonsByProximity(geometries, minDist);
+      for (List<Geometry> polygonGroup : groupedByProximity) {
+        Geometry merged;
+        if (polygonGroup.size() > 1) {
+          if (buffer > 0) {
+            merged = bufferUnionUnbuffer(buffer, polygonGroup, stats);
+          } else {
+            merged = buffer(buffer, GeoUtils.createGeometryCollection(polygonGroup));
+          }
+          if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
+            continue;
+          }
+          merged = GeoUtils.snapAndFixPolygon(merged, stats, "merge").reverse();
+        } else {
+          merged = polygonGroup.getFirst();
+          if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
+            continue;
+          }
+        }
+        extractPolygons(merged, outPolygons, minArea, minHoleArea);
+      }
+      if (!outPolygons.isEmpty()) {
+        outPolygons = sortByHilbertIndex(outPolygons);
+        Geometry combined = GeoUtils.combinePolygons(outPolygons);
+        result.add(feature1.copyWithNewGeometry(combined));
+        if (combined.isValid()) {
+          resultGeometry.add(combined);
+        }
+      }
+    }
+
+    if (resultGeometry.isEmpty()) {
+      return result;
+    }
+
+    // 1. 将所有几何进行联合以构成瓦片已占用区域
+    Geometry occupiedArea = CascadedPolygonUnion.union(resultGeometry);
+    // 2. 计算瓦片边界，创建完整瓦片边界的几何
+    Polygon tileBoundary = GeoUtils.createPolygon(new Coordinate[]{
+      new Coordinate(-4, -4),
+      new Coordinate(-4, 260),
+      new Coordinate(260, 260),
+      new Coordinate(260, -4),
+      new Coordinate(-4, -4)
+    }).reverse();
+    // 3. 计算差集（瓦片边界 - 占用区域）以获得镂空部分
+    Geometry emptySpaces = null;
+    try {
+      emptySpaces = tileBoundary.difference(occupiedArea);
+    } catch (Exception e) {
+      LOGGER.error("计算瓦片镂空失败", e);
+      stats.dataError("计算瓦片镂空失败!!!!!!!!!");
+      return result;
+    }
+
+    // 4. 填补镂空区域
+    if (!emptySpaces.isEmpty()) {
+      Polygonizer polygonizer = new Polygonizer();
+      polygonizer.add(emptySpaces);
+      Collection<Polygon> holes = polygonizer.getPolygons();
+      VectorTile.Feature first = features.getFirst();
+      for (Polygon hole : holes) {
+        // TODO 设置最小面积阈值，因效率、内存占用等问题暂时不填充属性，后续优化考虑填充附近的要素属性
+//        if (hole.getArea() > 0.0625) {
+        // 将镂空区域转换为瓦片要素
+        result.add(first.copyWithNewGeometryNoTags(VectorTile.encodeGeometry(hole)));
+//        }
+      }
+    }
+
+    return result;
+  }
+
+  private static Collection<List<VectorTile.Feature>> groupByAttrs(
+    List<VectorTile.Feature> features,
+    List<VectorTile.Feature> others,
+    List<String> mergeFields,
+    GeometryType geometryType) {
+    LinkedHashMap<Map<String, Object>, List<VectorTile.Feature>> groupedByAttrs = new LinkedHashMap<>();
+    for (VectorTile.Feature feature : features) {
+      if (feature == null) {
+        // ignore
+      } else if (feature.geometry().geomType() != geometryType) {
+        // just ignore and pass through non-polygon features
+        others.add(feature);
+      } else {
+        if (mergeFields.isEmpty()) {
+          groupedByAttrs
+            .computeIfAbsent(feature.tags(), k -> new ArrayList<>())
+            .add(feature);
+        } else {
+          HashMap<String, Object> key = new HashMap<>();
+          for (String field : mergeFields) {
+            key.put(field, feature.tags().get(field));
+          }
+
+          groupedByAttrs
+            .computeIfAbsent(key, k -> new ArrayList<>())
+            .add(feature);
+        }
+      }
+    }
+    return groupedByAttrs.values();
+  }
+
   private static <G extends Geometry> List<G> sortByHilbertIndex(List<G> geometries) {
     return geometries.stream()
       .map(p -> new WithIndex<>(p, VectorTile.hilbertIndex(p)))
@@ -348,7 +477,18 @@ public class FeatureMerge {
 
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
     double minHoleArea, double minDist, double buffer) throws GeometryException {
-    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, DefaultStats.get());
+    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, Collections.emptyList(),
+      DefaultStats.get());
+  }
+
+  public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
+    double minHoleArea, double minDist, double buffer, List<String> mergeFields) throws GeometryException {
+    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, mergeFields, DefaultStats.get());
+  }
+
+  public static List<VectorTile.Feature> mergeNearbyPolygonsAndFill(List<VectorTile.Feature> features, double minArea,
+    double minHoleArea, double minDist, double buffer, List<String> mergeFields) throws GeometryException {
+    return mergeNearbyPolygonsAndFill(features, minArea, minHoleArea, minDist, buffer, mergeFields, DefaultStats.get());
   }
 
 
@@ -541,97 +681,6 @@ public class FeatureMerge {
       }
     }
   }
-
-  public static List<VectorTile.Feature> mergeSmallFeatures(
-    List<VectorTile.Feature> features,
-    int zoom,
-    double baseArea,
-    double baseLength,
-    double tolerance,
-    double buffer,
-    boolean reSimplify
-  ) throws GeometryException {
-    Stats stats = DefaultStats.get();
-    PolygonIndex<VectorTile.Feature> index = PolygonIndex.create();
-
-    for (VectorTile.Feature feature : features) {
-      index.put(feature.geometry().decode(), feature);
-    }
-
-    List<VectorTile.Feature> filterBigFeature = new ArrayList<>(features);
-    Set<VectorTile.Feature> containedFeatures = new HashSet<>();
-    for (VectorTile.Feature feature : features) {
-      if (containedFeatures.contains(feature)) {
-        continue;
-      }
-
-      List<VectorTile.Feature> covers = index.getCovers(feature.geometry().decode());
-      covers.remove(feature);
-      containedFeatures.addAll(covers);
-    }
-    filterBigFeature.removeAll(containedFeatures);
-
-    double minArea = baseArea / Math.pow(2, zoom);
-    double minLength = baseLength / Math.pow(2, zoom);
-
-    List<VectorTile.Feature> result = new ArrayList<>();
-
-    // 处理多边形
-    List<VectorTile.Feature> smallPolygons = new ArrayList<>();
-    for (VectorTile.Feature feature : filterBigFeature) {
-      Geometry geometry = feature.geometry().decode();
-      if (geometry instanceof Polygon && geometry.getArea() < 10) {
-        smallPolygons.add(feature);
-      } else {
-        result.add(feature); // 其他要素直接加入结果集
-      }
-    }
-
-    if (!smallPolygons.isEmpty()) {
-      result.addAll(mergeNearbyPolygons(smallPolygons, 10, 0, minLength, buffer, stats));
-    }
-
-    return filterBigFeature;
-  }
-
-  private static List<VectorTile.Feature> mergeSmallPolygons(
-    List<VectorTile.Feature> smallPolygons,
-    double minArea,
-    double tolerance,
-    double buffer,
-    boolean resimplify,
-    Stats stats
-  ) throws GeometryException {
-
-    List<Polygon> outPolygons = new ArrayList<>();
-    List<VectorTile.Feature> result = new ArrayList<>();
-
-    for (VectorTile.Feature feature : smallPolygons) {
-      Geometry geometry = feature.geometry().decode();
-      if (geometry instanceof Polygon polygon) {
-        outPolygons.add(polygon);
-      }
-    }
-
-    if (!outPolygons.isEmpty()) {
-      Geometry combinedGeometry = GeoUtils.combinePolygons(outPolygons);
-
-      if (resimplify && tolerance >= 0) {
-        combinedGeometry = DouglasPeuckerSimplifier.simplify(combinedGeometry, tolerance);
-      }
-
-      if (buffer >= 0) {
-        List<Polygon> outputPolygons = new ArrayList<>();
-        FeatureMerge.extractPolygons(combinedGeometry, outputPolygons, minArea, 0);
-        combinedGeometry = GeoUtils.combinePolygons(outputPolygons);
-      }
-
-      result.add(smallPolygons.getFirst().copyWithNewGeometry(combinedGeometry));
-    }
-
-    return result;
-  }
-
 
   /**
    * 返回一个新特征列表，其中删除了距图块边界超过 {@code buffer} 像素的点，假设图块为 256x256 像素。

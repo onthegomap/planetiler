@@ -484,6 +484,18 @@ public class GeoUtils {
     return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
   }
 
+  public static Polygon createPolygon(Coordinate[] coordinates) {
+    return JTS_FACTORY.createPolygon(createLinearRing(coordinates), new LinearRing[0]);
+  }
+
+  public static Polygon createPolygon(Coordinate[] coordinates, List<LinearRing> rings) {
+    return JTS_FACTORY.createPolygon(createLinearRing(coordinates), rings.toArray(LinearRing[]::new));
+  }
+
+  public static LinearRing createLinearRing(Coordinate[] coordinates) {
+    return JTS_FACTORY.createLinearRing(coordinates);
+  }
+
   /**
    * Returns {@code true} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
    * {@code ring}, ignoring repeated and collinear points.

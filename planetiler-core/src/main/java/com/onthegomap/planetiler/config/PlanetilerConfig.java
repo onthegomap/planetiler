@@ -12,14 +12,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Holder for common parameters used by many components in planetiler.
@@ -42,6 +42,7 @@ public record PlanetilerConfig(
   int rasterizeMaxZoom,
   int pixelationZoom,
   boolean isRasterize,
+  List<String> mergeFields,
   int tileBatchSize,
   int maxFeatures,
   int maxzoomForRendering,
@@ -89,6 +90,7 @@ public record PlanetilerConfig(
   ZoomFunction<Number> labelGridLimit,
   ZoomFunction<Number> bufferPixelOverrides,
   ZoomFunction<Number> pixelationGridSizeOverrides,
+  ZoomFunction<Number> minDistSizes,
   int featureSourceIdMultiplier
 ) {
 
@@ -195,6 +197,7 @@ public record PlanetilerConfig(
     int rasterizeMaxZoom = arguments.getInteger("rasterize_max_zoom", "栅格化最大层级 ", minzoom);
     int pixelationZoom = arguments.getInteger("pixelation_zoom", "栅格化最大层级 ", PIXELATION_ZOOM);
     boolean isRasterize = arguments.getBoolean("is_rasterize", "是否栅格化", false);
+    List<String> mergeFields = arguments.getList("merge_fields", "要素合并属性字段", Collections.emptyList());
     int tileBatchSize = arguments.getInteger("tile_batch_size", "栅格化批量处理大小 ", 100);
     int maxFeatures =  arguments.getInteger("max_features", "每个图块的最大特征数", 200000);
     int renderMaxzoom =
@@ -224,6 +227,7 @@ public record PlanetilerConfig(
       rasterizeMaxZoom,
       pixelationZoom,
       isRasterize,
+      mergeFields,
       tileBatchSize,
       maxFeatures,
       renderMaxzoom,
@@ -318,9 +322,11 @@ public record PlanetilerConfig(
       arguments.getZoomFunction("label_grid_limit", Integer::parseInt, Double::parseDouble,
         "设置在每个缩放级别计算标签网格哈希值时用于限制输出点密度的点数上限（以像素为单位）。", ""),
       arguments.getZoomFunction("buffer_Pixel_Thresholds", Integer::parseInt, Double::parseDouble,
-        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", ""),
+        "设置不同层级的瓦片边界外的细节像素数量。", ""),
       arguments.getZoomFunction("pixelation_grid_size_overrides", Integer::parseInt, Double::parseDouble,
-        "设置在缩放级别特定覆盖的瓦片边界外的细节像素数量。", ""),
+        "设置不同层级像素化的网格数", ""),
+      arguments.getZoomFunction("min_dist_sizes", Integer::parseInt, Double::parseDouble,
+        "设置不同层级元素合并的最小距离（单位像素：256 x 256）", ""),
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",

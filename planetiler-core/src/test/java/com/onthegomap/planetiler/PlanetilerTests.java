@@ -19,7 +19,6 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.geo.PolygonIndex;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -32,7 +31,6 @@ import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
-import com.onthegomap.planetiler.render.AdvancedLandCoverTile;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
@@ -46,8 +44,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -2326,20 +2322,17 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-   " --small_Feat_Strategy=square --minzoom=13 --maxzoom=14 "
-     +  "--output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\jpn\\default-14\\default-14.mbtiles "
-      + " --is_rasterize=true --pixelation_zoom=12  --rasterize_min_zoom=0 --rasterize_max_zoom=13"
+    " --minzoom=0 --maxzoom=14 "
+      + " --small_Feat_Strategy=square --merge_fields=DLBM,DLMC --min_dist_sizes=5=0.0625,6=0.09375,7=0.125,8=0.1875,9=0.25,10=0.375,11=0.4375,12=0.5 "
+//     +  " --output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\东北黑土区\\default\\default.mbtiles --output-layerstats  "
+//      + "  --pixelation_grid_size_overrides=12=512 --is_rasterize=false --pixelation_zoom=12  --rasterize_min_zoom=12 --rasterize_max_zoom=13"
       + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=E:\\Linespace\\SceneMapServer\\Data --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
   })
   void testPlanetilerRunnerParquet(String args) throws Exception {
-//    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\xian";
-//    String tempDir = basePath + "\\mergeSmallFeatures";
-//    String outputPath = basePath + "\\mergeSmallFeatures\\mergeSmallFeatures.mbtiles";
-//    List<Path> inputPaths = Stream.of(basePath + "\\xian.parquet").map(Paths::get).toList();
-    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\jpn";
-    String tempDir = basePath + "\\default-14";
-    String outputPath = basePath + "\\default-14\\default-14.mbtiles";
-    List<Path> inputPaths = Stream.of(basePath + "\\jpn.parquet").map(Paths::get).toList();
+    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\dltb";
+    String tempDir = basePath + "\\合并填充";
+    String outputPath = basePath + "\\合并填充\\合并填充.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\dltb.parquet").map(Paths::get).toList();
 
     Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
       (args + " --tmpdir=" + tempDir).split("\\s+")));
@@ -2355,12 +2348,10 @@ class PlanetilerTests {
                 .get())
               .setPointLabelGridPixelSize(createLabelGridSizeFunction())
               .setPointLabelGridLimit(createLabelGridLimitFunction())
-              //              .setBufferPixelOverrides(createBufferPixelFunction())
-              .setPixelToleranceAtAllZooms(0)
+              .setPixelToleranceAtAllZooms(0.0625)
               .setMinPixelSizeAtAllZooms(0);
-
             source.tags().forEach(feature::setAttr);
-          } catch (GeometryException e) {
+          } catch (Exception e) {
             throw new RuntimeException(e);
           }
         }
@@ -2368,56 +2359,23 @@ class PlanetilerTests {
         @Override
         public Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
           Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
-//          if(tileCoord.z() > config.pixelationZoom()) {
-//            return layers;
-//          }
-//
-//          AdvancedLandCoverTile landCoverTile = new AdvancedLandCoverTile(config);
-//          for (Map.Entry<String, List<VectorTile.Feature>> entry : layers.entrySet()) {
-//            List<AdvancedLandCoverTile.FeatureInfo> featureInfos = entry.getValue().stream().map(feature -> {
-//              Geometry decode = null;
-//              try {
-//                decode = feature.geometry().decode();
-//              } catch (GeometryException e) {
-//                throw new RuntimeException(e);
-//              }
-//              return new AdvancedLandCoverTile.FeatureInfo(feature, decode, decode.getArea());
-//            }).toList();
-//
-//            try {
-//              entry.setValue(landCoverTile.initPixelSize(tileCoord.z()).rasterizeFeatures(featureInfos, tileCoord.z()));
-//            } catch (GeometryException e) {
-//              LOGGER.error("栅格化失败", e);
-//            }
-//          }
 
           return layers;
         }
 
         @Override
         public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-          List<VectorTile.Feature> items) {
-//          if(zoom > config.pixelationZoom()) {
-//            return items;
-//          }
-//
-//          List<AdvancedLandCoverTile.FeatureInfo> featureInfos = items.stream().map(feature -> {
-//            try {
-//              Geometry decode = feature.geometry().decode();
-//              return new AdvancedLandCoverTile.FeatureInfo(feature, decode, decode.getArea());
-//            } catch (GeometryException e) {
-//              throw new RuntimeException(e);
-//            }
-//          }).toList();
-//
-//          AdvancedLandCoverTile landCoverTile = new AdvancedLandCoverTile(config);
-//          try {
-//            return landCoverTile.initPixelSize(zoom).rasterizeFeatures(featureInfos, zoom);
-//          } catch (GeometryException e) {
-//           LOGGER.error("栅格化失败", e);
-//          }
+          List<VectorTile.Feature> items) throws GeometryException {
+          if (config.mergeFields() == null) {
+            return items;
+          }
 
-          return items;
+          double minDistAndBuffer = ZoomFunction.applyAsDoubleOrElse(createMinDistSizesFunction(), zoom, 0);
+          if (minDistAndBuffer == 0) {
+            return items;
+          }
+
+          return FeatureMerge.mergeNearbyPolygonsAndFill(items, 0, 0, minDistAndBuffer, minDistAndBuffer, config.mergeFields());
         }
       })
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
@@ -2425,26 +2383,38 @@ class PlanetilerTests {
       .run();
   }
 
+
   private ZoomFunction<Number> createLabelGridSizeFunction() {
     Map<Integer, Number> map = new HashMap<>();
-    map.put(11, 1d);
-    map.put(10, 1 / 2d);
-    map.put(8, 1d / 4d);
-    map.put(6, 1d / 8d);
-    map.put(1, 1d / 7d);
+    map.put(12, 1 / 4d);
+//    map.put(8, 1d / 4d);
+//    map.put(6, 1d / 8d);
+//    map.put(1, 1d / 7d);
     return ZoomFunction.fromMaxZoomThresholds(map);
   }
 
   private ZoomFunction<Number> createLabelGridLimitFunction() {
     Map<Integer, Number> map = new HashMap<>();
-    map.put(11, 30d);
-    map.put(10, 10d);
-    map.put(8, 1d);
-    map.put(6, 1d);
-    map.put(1, 1d);
+    map.put(12, 3d);
+//    map.put(8, 2d);
+//    map.put(6, 2d);
+//    map.put(1, 2d);
     return ZoomFunction.fromMaxZoomThresholds(map);
   }
 
+  // 建议的改进方案
+  private ZoomFunction<Number> createMinDistSizesFunction() {
+    return ZoomFunction.fromMaxZoomThresholds(Map.of(
+      5, 0.0625,
+      6, 0.09375,
+      7, 0.125,
+      8, 0.1875,
+      9, 0.25,
+      10, 0.375,
+      11, 0.4375,
+      12, 0.5
+    ));
+  }
 
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))

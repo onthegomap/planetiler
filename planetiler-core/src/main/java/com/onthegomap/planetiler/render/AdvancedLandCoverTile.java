@@ -81,7 +81,11 @@ public class AdvancedLandCoverTile implements Profile {
   /**
    * 该缓存消耗内存较大，合理设置网格集大小。每个 Object 对象大约需要 300 字节
    * <p>
-   * 预估各网格集缓存大小如下： - 256 * 256 ：20M - 512 * 512 ：70M - 1024 * 1024：310M - 2048 * 2048 : 1.2G
+   * 预估各网格集缓存大小如下：
+   * - 256 * 256 ：20M
+   * - 512 * 512 ：70M
+   * - 1024 * 1024：310M
+   * - 2048 * 2048 : 1.2G
    */
   private final ConcurrentHashMap<String, Object[]> cachePixelGeom = new ConcurrentHashMap<>();
   private final Map<TileCoord, Map<String, ConcurrentLinkedQueue<FeatureInfo>>> currentZoomTiles = new ConcurrentHashMap<>();
@@ -429,21 +433,11 @@ public class AdvancedLandCoverTile implements Profile {
           .map(featureInfos::get)
           .limit(pixelMaxFeatures)
           .toList();
-        // 选择此像素的特征
-//        List<FeatureInfo> intersectionFeatures = intersecting.stream()
-//          .sorted(Comparator.comparingDouble(f -> -f.area))
-//          .limit(pixelMaxFeatures)
-//          .toList();
-//
-//        // TODO 后续提高精度此处换为相交计算
+
+        // TODO 后续提高精度此处换为相交计算
         intersectionFeatures.forEach(info ->
           pixelFeatures.add(info.feature.copyWithNewGeometry((VectorTile.VectorGeometry) objects[1]))
         );
-
-//        if (count++ / batchSize  == 0) {
-//          FeatureMerge.mergeOverlappingPolygons(pixelFeatures, 0);
-//          pixelFeatures.clear();
-//        }
       }
     }
 
