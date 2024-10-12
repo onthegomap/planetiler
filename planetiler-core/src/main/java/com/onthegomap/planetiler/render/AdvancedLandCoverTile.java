@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -105,23 +106,27 @@ public class AdvancedLandCoverTile implements Profile {
     LOGGER.info("开始进行像素化操作！");
     StopWatch stopWatch = new StopWatch();
     stopWatch.start();
-    try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
+    try {
       // 记录已经缓存过得网格集
       List<Integer> pixelGridList = new ArrayList<>();
       for (int zoom = config.rasterizeMaxZoom() - 1; zoom >= config.rasterizeMinZoom(); zoom--) {
-        if (zoom + 1 == config.rasterizeMaxZoom()) {
-          writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
-        }
-        initPixelSize(zoom);
+        try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
+          // 每个层级重新打开存储文件，保证数据已落盘
+          if (zoom + 1 == config.rasterizeMaxZoom()) {
+            writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
+          }
+          initPixelSize(zoom);
 
-        if (zoom <= config.pixelationZoom() && !pixelGridList.contains(pixelGridSize)) {
-          initCachePixelGeom();
-          pixelGridList.add(pixelGridSize);
-        }
+          if (zoom <= config.pixelationZoom() && !pixelGridList.contains(pixelGridSize)) {
+            initCachePixelGeom();
+            pixelGridList.add(pixelGridSize);
+          }
 
 //        processTileBatch(zoom, 0, 0, 0, 0, writer);
-        processZoomLevel(zoom, writer);
-        writer.flush();
+          processZoomLevel(zoom, writer);
+        } catch (Exception e) {
+          LOGGER.error(e.getMessage(), e);
+        }
       }
       updateMetadata();
     } finally {
@@ -235,9 +240,10 @@ public class AdvancedLandCoverTile implements Profile {
     for (TileCoord tileCoord : tileCoords) {
       parents.add(tileCoord.parent());
     }
-    LinkedBlockingQueue<TileMergeRunnable> queue = new LinkedBlockingQueue<>(THREAD_NUM);
+    BlockingQueue<TileMergeRunnable> queue = new LinkedBlockingQueue<>(THREAD_NUM);
     // 总体任务数量
-    AtomicInteger atomicInteger = new AtomicInteger(parents.size());
+    AtomicInteger producerCount = new AtomicInteger(parents.size());
+    AtomicInteger consumerCount = new AtomicInteger(0);
     // 异步队列
     Runnable runnable = () -> {
       for (TileCoord parent : parents) {
@@ -248,15 +254,16 @@ public class AdvancedLandCoverTile implements Profile {
         } catch (Exception e) {
           throw new RuntimeException(e);
         } finally {
-          atomicInteger.decrementAndGet();
+          producerCount.decrementAndGet();
         }
       }
     };
-    new Thread(runnable, "TileMergeRunnableProducer").start();
+    Thread tileMergeRunnableProducer = new Thread(runnable, "TileMergeRunnableProducer");
+    tileMergeRunnableProducer.start();
     List<CompletableFuture<Void>> processTileFutures = new ArrayList<>();
     for (int i = 0; i < THREAD_NUM; i++) {
       CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-        while (atomicInteger.get() != 0) {
+        while (consumerCount.get() != parents.size()) {
           TileMergeRunnable tileMergeRunnable = null;
           try {
             tileMergeRunnable = queue.poll(10, TimeUnit.MILLISECONDS);
@@ -264,13 +271,18 @@ public class AdvancedLandCoverTile implements Profile {
             throw new RuntimeException(e);
           }
           if (tileMergeRunnable != null) {
-            tileMergeRunnable.run();
+            try {
+              tileMergeRunnable.run();
+            } finally {
+              consumerCount.incrementAndGet();
+            }
           }
         }
-      }, executorService);
+      });
       processTileFutures.add(future);
     }
     CompletableFuture.allOf(processTileFutures.toArray(new CompletableFuture[0])).join();
+    tileMergeRunnableProducer.interrupt();
   }
 
   private void processTileBatch(int z, int minX, int minY, int maxX, int maxY, Mbtiles.TileWriter writer) {

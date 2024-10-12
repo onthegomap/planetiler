@@ -840,7 +840,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     @Override
-    public void flush() {
+    public synchronized void flush() {
       batchedTileDataTableWriter.flush();
       batchedTileShallowTableWriter.flush();
     }

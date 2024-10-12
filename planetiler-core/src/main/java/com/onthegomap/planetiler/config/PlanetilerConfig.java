@@ -110,7 +110,7 @@ public record PlanetilerConfig(
   /**
    * 缓冲像素阈值，根据不同缩放级别设置不同的缓冲像素值。
    */
-  private static final String BUFFER_PIXEL_OVERRIDES_DEFAULT= null;
+  private static final String BUFFER_PIXEL_OVERRIDES_DEFAULT = null;
 
   public PlanetilerConfig {
     if (minzoom > maxzoom) {
@@ -199,7 +199,7 @@ public record PlanetilerConfig(
     boolean isRasterize = arguments.getBoolean("is_rasterize", "是否栅格化", false);
     List<String> mergeFields = arguments.getList("merge_fields", "要素合并属性字段", Collections.emptyList());
     int tileBatchSize = arguments.getInteger("tile_batch_size", "栅格化批量处理大小 ", 100);
-    int maxFeatures =  arguments.getInteger("max_features", "每个图块的最大特征数", 200000);
+    int maxFeatures = arguments.getInteger("max_features", "每个图块的最大特征数", 100 * 1024);
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
