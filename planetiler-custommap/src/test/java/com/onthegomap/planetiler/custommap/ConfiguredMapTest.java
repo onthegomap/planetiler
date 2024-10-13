@@ -81,11 +81,11 @@ class ConfiguredMapTest {
     }
   }
 
-  //  @Test --TODO FIX after adding water layer
+  @Test
   void testContainsOceanPolyons() {
     assertMinFeatures("water", Map.of(
       "natural", "water"
-    ), 0, 1, Polygon.class);
+    ), 6, 1, Polygon.class);
   }
 
   @Test

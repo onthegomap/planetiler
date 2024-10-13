@@ -65,6 +65,10 @@ A description that tells planetiler how to read geospatial objects with tags fro
   For [geofabrik](https://download.geofabrik.de/) named areas, use `geofabrik:`  prefixes, for
   example `geofabrik:rhode-island`. Can be a string or [expression](#expression) that can
   reference [argument values](#arguments).
+- `projection` - Planetiler will try to determine the projection automatically for shapefile/geopackage sources, but if
+  that is not correct you can override the projection by specifying a coordinate reference system authority code
+  like `EPSG:3857` or `EPSG:4326` here. Can be a string or [expression](#expression) that can
+  reference [argument values](#arguments).
 
 For example:
 

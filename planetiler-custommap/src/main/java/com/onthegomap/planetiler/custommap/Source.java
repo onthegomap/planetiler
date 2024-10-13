@@ -8,7 +8,8 @@ public record Source(
   String id,
   DataSourceType type,
   String url,
-  Path localPath
+  Path localPath,
+  String projection
 ) {
 
   public String defaultFileUrl() {
