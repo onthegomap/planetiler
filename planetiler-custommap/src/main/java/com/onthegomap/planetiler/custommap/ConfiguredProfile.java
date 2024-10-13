@@ -117,11 +117,16 @@ public class ConfiguredProfile implements Profile {
   public List<Source> sources() {
     List<Source> sources = new ArrayList<>();
     schema.sources().forEach((key, value) -> {
-      var url = ConfigExpressionParser.tryStaticEvaluate(rootContext, value.url(), String.class).get();
-      var path = ConfigExpressionParser.tryStaticEvaluate(rootContext, value.localPath(), String.class).get();
-      sources.add(new Source(key, value.type(), url, path == null ? null : Path.of(path)));
+      var url = evaluate(value.url(), String.class);
+      var path = evaluate(value.localPath(), String.class);
+      var projection = evaluate(value.projection(), String.class);
+      sources.add(new Source(key, value.type(), url, path == null ? null : Path.of(path), projection));
     });
     return sources;
+  }
+
+  private <T> T evaluate(Object expression, Class<T> returnType) {
+    return ConfigExpressionParser.tryStaticEvaluate(rootContext, expression, returnType).get();
   }
 
   public FeatureLayer findFeatureLayer(String layerId) {

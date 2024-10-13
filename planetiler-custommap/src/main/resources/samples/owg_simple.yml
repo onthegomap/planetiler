@@ -6,6 +6,7 @@ sources:
   water_polygons:
     type: shapefile
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+    projection: EPSG:3857
   osm:
     type: osm
     url: geofabrik:monaco

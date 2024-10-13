@@ -62,6 +62,7 @@ public class ConfiguredMapMain {
 
     DataSourceType sourceType = source.type();
     Path localPath = source.localPath();
+    String projection = source.projection();
     if (localPath == null) {
       if (source.url() == null) {
         throw new ParseException("Must provide either a url or path for " + source.id());
@@ -71,8 +72,8 @@ public class ConfiguredMapMain {
 
     switch (sourceType) {
       case OSM -> planetiler.addOsmSource(source.id(), localPath, source.url());
-      case SHAPEFILE -> planetiler.addShapefileSource(source.id(), localPath, source.url());
-      case GEOPACKAGE -> planetiler.addGeoPackageSource(source.id(), localPath, source.url());
+      case SHAPEFILE -> planetiler.addShapefileSource(projection, source.id(), localPath, source.url());
+      case GEOPACKAGE -> planetiler.addGeoPackageSource(projection, source.id(), localPath, source.url());
       default -> throw new IllegalArgumentException("Unhandled source type for " + source.id() + ": " + sourceType);
     }
   }

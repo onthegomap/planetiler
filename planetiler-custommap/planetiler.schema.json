@@ -51,6 +51,20 @@
           "local_path": {
             "description": "Local path to the file to use, inferred from `url` if missing",
             "$ref": "#/$defs/expression"
+          },
+          "projection": {
+            "description": "Override the coordinate reference system authority code for a shapefile or geopackage source if it can not be determined automatically",
+            "anyOf": [
+              {
+                "enum": [
+                  "EPSG:3857",
+                  "EPSG:4326"
+                ]
+              },
+              {
+                "type": "#/$defs/expression"
+              }
+            ]
           }
         },
         "anyOf": [

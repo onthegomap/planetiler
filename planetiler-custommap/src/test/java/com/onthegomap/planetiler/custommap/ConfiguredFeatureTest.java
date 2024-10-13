@@ -1117,6 +1117,7 @@ class ConfiguredFeatureTest {
       "osm",
       DataSourceType.OSM,
       "geofabrik:boston",
+      null,
       null
     )), loadConfig(config).sources());
 
@@ -1125,6 +1126,7 @@ class ConfiguredFeatureTest {
       "osm",
       DataSourceType.OSM,
       "geofabrik:rhode-island",
+      null,
       null
     )), loadConfig(config).sources());
 
@@ -1135,6 +1137,35 @@ class ConfiguredFeatureTest {
       "url", "https://example.com/file.osm.pbf"
     )));
     assertEquals("example.com_file.osm.pbf", loadConfig(config).sources().get(0).defaultFileUrl());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "EPSG:3875, EPSG:3875",
+    "${'EPSG:' + '3875'}, EPSG:3875",
+  })
+  void testSetProjection(String in, String out) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          projection: %s
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """.formatted(in);
+
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(List.of(new Source(
+      "osm",
+      DataSourceType.OSM,
+      "geofabrik:rhode-island",
+      null,
+      out
+    )), loadConfig(config).sources());
   }
 
   @ParameterizedTest
