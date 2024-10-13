@@ -6,7 +6,7 @@ sources:
   water_polygons:
     type: shapefile
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
-    projection: PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,ID["EPSG","7030"]],ID["EPSG","6326"]],PRIMEM["Greenwich",0,ID["EPSG","8901"]],UNIT["degree",0.0174532925199433,ID["EPSG","9122"]],ID["EPSG","4326"]],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,ID["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],ID["EPSG","3857"]]
+    projection: EPSG:3857
   osm:
     type: osm
     url: geofabrik:monaco
