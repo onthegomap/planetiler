@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 public class LanguageUtils {
   // Name tags that should be eligible for finding a latin name.
@@ -39,6 +38,10 @@ public class LanguageUtils {
     return (a == null || a.isEmpty()) ? null : a;
   }
 
+  /**
+   * @deprecated Use {@code OmtLanguageUtils.string()}
+   */
+  @Deprecated(forRemoval = true)
   public static String string(Object obj) {
     return nullIfEmpty(obj == null ? null : obj.toString());
   }
@@ -47,6 +50,10 @@ public class LanguageUtils {
     return string != null && ONLY_LATIN.test(string);
   }
 
+  /**
+   * @deprecated Use {@code Translations.transliterate(string(tags.get("name")))}
+   */
+  @Deprecated(forRemoval = true)
   public static String transliteratedName(Map<String, Object> tags) {
     return Translations.transliterate(string(tags.get("name")));
   }
@@ -73,26 +80,4 @@ public class LanguageUtils {
     return VALID_NAME_TAGS.test(tag);
   }
 
-  public static String getLatinName(Map<String, Object> tags, boolean transliterate) {
-    String name = string(tags.get("name"));
-    if (containsOnlyLatinCharacters(name)) {
-      return name;
-    } else {
-      return getNameTranslations(tags)
-        .filter(LanguageUtils::containsOnlyLatinCharacters)
-        .findFirst()
-        .orElse(transliterate ? Translations.transliterate(name) : null);
-    }
-  }
-
-
-  private static Stream<String> getNameTranslations(Map<String, Object> tags) {
-    return Stream.concat(
-      Stream.of("name:en", "int_name", "name:de").map(tag -> string(tags.get(tag))),
-      tags.entrySet().stream()
-        .filter(e -> !EN_DE_NAME_KEYS.contains(e.getKey()) && VALID_NAME_TAGS.test(e.getKey()))
-        .map(Map.Entry::getValue)
-        .map(LanguageUtils::string)
-    );
-  }
 }
