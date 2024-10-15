@@ -27,16 +27,19 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
+import com.onthegomap.planetiler.render.TileMergeRunnable;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -548,6 +551,73 @@ public class VectorTile {
       tile.addLayers(tileLayer.build());
     }
     return tile.build();
+  }
+
+  /**
+   * 仅计算要素属性 估算大小
+   *
+   * @param features
+   * @return
+   */
+  public static int cacleTile(List<VectorTile.Feature> features) {
+    final int SIZE_THRESHOLD = 1024 * 1024; // 1 MB 大小阈值
+    VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
+
+    VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
+      .setVersion(2)
+      .setName("LINESPACE_LAYER")
+      .setExtent(EXTENT)
+      .addAllKeys(features.getFirst().tags().keySet());
+
+    int size = features.getFirst().tags.size();
+    ArrayList<Integer> intCursors = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      intCursors.add(i);
+    }
+
+    VectorTileProto.Tile.Value.Builder tileValue = VectorTileProto.Tile.Value.newBuilder();
+    features.stream()
+      .flatMap(feature -> feature.tags().values().stream())
+      .distinct()
+      .forEach(value -> {
+        switch (value) {
+          case String stringValue -> tileValue.setStringValue(stringValue);
+          case Integer intValue -> tileValue.setSintValue(intValue);
+          case Long longValue -> tileValue.setSintValue(longValue);
+          case Float floatValue -> tileValue.setFloatValue(floatValue);
+          case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
+          case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
+          default -> tileValue.setStringValue(value.toString());
+        }
+      });
+    tileLayer.addValues(tileValue.build());
+
+    for (int i = 0; i < features.size(); i++) {
+      VectorTile.Feature feature = features.get(i);
+      VectorTileProto.Tile.Feature.Builder featureBuilder = VectorTileProto.Tile.Feature.newBuilder()
+        .addAllTags(intCursors)
+        .setType(feature.geometry().geomType().asProtobufType())
+        .addAllGeometry(Ints.asList(feature.geometry().commands()));
+
+      if (feature.id != NO_FEATURE_ID) {
+        featureBuilder.setId(feature.id);
+      }
+
+      // 检查添加此 feature 后的大小是否超过阈值
+      tileLayer.addFeatures(featureBuilder.build());
+      if (tileLayer.build().getSerializedSize() > SIZE_THRESHOLD) {
+        // 达到阈值时，移除最后添加的 feature 并退出
+        tileLayer.removeFeatures(tileLayer.getFeaturesCount() - 1);
+        return --i;
+      }
+    }
+
+    tile.addLayers(tileLayer.build());
+    // 同样检查添加 layer 后的 tile 大小是否超过阈值
+    if (tile.build().getSerializedSize() > SIZE_THRESHOLD) {
+      LOGGER.warn("超过阈值大小");
+    }
+    return -1;
   }
 
   /**
@@ -1066,7 +1136,7 @@ public class VectorTile {
         layer,
         id,
         newGeometry,
-        Collections.emptyMap(),
+        new HashMap<>(),
         0
       );
     }

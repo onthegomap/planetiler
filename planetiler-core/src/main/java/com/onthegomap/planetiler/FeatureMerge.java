@@ -299,7 +299,8 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
     double minHoleArea, double minDist, double buffer, List<String> mergeFields, Stats stats) throws GeometryException {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
-    Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, mergeFields, GeometryType.POLYGON);
+    Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, mergeFields,
+      GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       List<Polygon> outPolygons = new ArrayList<>();
       VectorTile.Feature feature1 = groupedFeatures.getFirst();
@@ -352,7 +353,6 @@ public class FeatureMerge {
     List<Geometry> resultGeometry = new ArrayList<>(features.size());
     Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, fields, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      List<Polygon> outPolygons = new ArrayList<>();
       VectorTile.Feature feature1 = groupedFeatures.getFirst();
       List<Geometry> geometries = new ArrayList<>(groupedFeatures.size());
       for (var feature : groupedFeatures) {
@@ -364,6 +364,7 @@ public class FeatureMerge {
       }
       Collection<List<Geometry>> groupedByProximity = groupPolygonsByProximity(geometries, minDist);
       for (List<Geometry> polygonGroup : groupedByProximity) {
+        List<Polygon> outPolygons = new ArrayList<>();
         Geometry merged;
         if (polygonGroup.size() > 1) {
           if (buffer > 0) {
@@ -382,15 +383,27 @@ public class FeatureMerge {
           }
         }
         extractPolygons(merged, outPolygons, minArea, minHoleArea);
-      }
-      if (!outPolygons.isEmpty()) {
-        outPolygons = sortByHilbertIndex(outPolygons);
-        Geometry combined = GeoUtils.combinePolygons(outPolygons);
-        result.add(feature1.copyWithNewGeometry(combined));
-        if (combined.isValid()) {
-          resultGeometry.add(combined);
+        if (!outPolygons.isEmpty()) {
+          outPolygons = sortByHilbertIndex(outPolygons);
+          Geometry combined = GeoUtils.combinePolygons(outPolygons);
+//          combined = DouglasPeuckerSimplifier.simplify(combined, 0.0625);
+          result.add(feature1.copyWithNewGeometry(combined));
+          if (combined.isValid()) {
+            resultGeometry.add(combined);
+          }
         }
       }
+    }
+
+    // TODO 检测大小并处理
+    result.sort(Comparator.comparingDouble((VectorTile.Feature e) -> {
+      Double area = (Double) e.getTag("Shape_Area");
+      return area != null ? area : Double.MIN_VALUE;
+    }).reversed());
+
+    int i = VectorTile.cacleTile(result);
+    if (i != -1) {
+      result = result.subList(0, i);
     }
 
     if (resultGeometry.isEmpty()) {

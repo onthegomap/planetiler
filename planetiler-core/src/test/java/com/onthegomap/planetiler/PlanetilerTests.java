@@ -2367,8 +2367,8 @@ class PlanetilerTests {
   @ParameterizedTest
   @ValueSource(strings = {
     " --minzoom=0 --maxzoom=14 "
-      + " --small_Feat_Strategy=square --merge_fields=DLBM,DLMC --min_dist_sizes=5=0.0625,6=0.09375,7=0.125,8=0.1875,9=0.25,10=0.375,11=0.4375,12=0.5 "
-//     +  " --output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\东北黑土区\\default\\default.mbtiles --output-layerstats  "
+      + " --small_Feat_Strategy=square --merge_fields=DLBM --min_dist_sizes=5=0.0625,6=0.09375,7=0.125,8=0.1875,9=0.25,10=0.375,11=0.4375,12=0.5 "
+      + " --output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\dltb\\合并填充\\合并填充.mbtiles "
 //      + "  --pixelation_grid_size_overrides=12=512 --is_rasterize=false --pixelation_zoom=12  --rasterize_min_zoom=12 --rasterize_max_zoom=13"
       + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=E:\\Linespace\\SceneMapServer\\Data --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
   })
@@ -2419,8 +2419,16 @@ class PlanetilerTests {
             return items;
           }
 
-          return FeatureMerge.mergeNearbyPolygonsAndFill(items, 0, 0, minDistAndBuffer, minDistAndBuffer,
+          List<VectorTile.Feature> features = FeatureMerge.mergeNearbyPolygonsAndFill(items, 0, 0, minDistAndBuffer,
+            minDistAndBuffer,
             config.mergeFields());
+
+//          features.sort(Comparator.comparingDouble(o -> (Integer) o.getTag("Shape_Area")));
+//          // 限制大小
+//          features.stream().map(feature -> {
+//            feature.
+//          })
+          return features;
         }
       })
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
@@ -2431,7 +2439,7 @@ class PlanetilerTests {
 
   private ZoomFunction<Number> createLabelGridSizeFunction() {
     Map<Integer, Number> map = new HashMap<>();
-    map.put(12, 1 / 4d);
+    map.put(12, 2d);
 //    map.put(8, 1d / 4d);
 //    map.put(6, 1d / 8d);
 //    map.put(1, 1d / 7d);
@@ -2440,7 +2448,7 @@ class PlanetilerTests {
 
   private ZoomFunction<Number> createLabelGridLimitFunction() {
     Map<Integer, Number> map = new HashMap<>();
-    map.put(12, 3d);
+    map.put(12, 13d);
 //    map.put(8, 2d);
 //    map.put(6, 2d);
 //    map.put(1, 2d);
@@ -2450,14 +2458,9 @@ class PlanetilerTests {
   // 建议的改进方案
   private ZoomFunction<Number> createMinDistSizesFunction() {
     return ZoomFunction.fromMaxZoomThresholds(Map.of(
-      5, 0.0625,
-      6, 0.09375,
-      7, 0.125,
-      8, 0.1875,
-      9, 0.25,
-      10, 0.375,
-      11, 0.4375,
-      12, 0.5
+      5, 0.01,
+      8,0.05,
+      12, 0.1
     ));
   }
 
