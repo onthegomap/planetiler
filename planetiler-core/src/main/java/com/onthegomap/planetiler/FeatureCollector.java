@@ -246,6 +246,40 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return innermostPoint(layer, 0.1);
   }
 
+
+  /**
+   * Starts building a new point map feature at the midpoint of this line, or the longest line segment if a
+   * multilinestring.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
+  public Feature lineMidpoint(String layer) {
+    try {
+      return geometry(layer, source.lineMidpoint());
+    } catch (GeometryException e) {
+      e.log(stats, "feature_line_midpoint", "Error getting midpoint for " + source);
+      return empty(layer);
+    }
+  }
+
+  /**
+   * Starts building a new point map feature at a certain ratio along the linestring or longest segment if it is a
+   * multilinestring.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @param ratio the ratio along the line: 0 for start, 1 for end, 0.5 for midpoint
+   * @return a feature that can be configured further.
+   */
+  public Feature pointAlongLine(String layer, double ratio) {
+    try {
+      return geometry(layer, source.pointAlongLine(ratio));
+    } catch (GeometryException e) {
+      e.log(stats, "feature_point_along_line", "Error getting point along line for " + source);
+      return empty(layer);
+    }
+  }
+
   /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
   public int getMinZoomForPixelSize(double pixelSize) {
     try {

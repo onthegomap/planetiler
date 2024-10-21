@@ -852,4 +852,42 @@ class FeatureCollectorTest {
     assertEquals(7, line.linearRange(0, 0.5).getMinZoomForPixelSize(50));
     assertEquals(7, line.linearRange(0, 0.25).getMinZoomForPixelSize(25));
   }
+
+
+  @Test
+  void testLineMidpoint() {
+    var sourceLine = newReaderFeature(newLineString(worldToLatLon(
+      0, 0,
+      1, 0
+    )), Map.of());
+
+    var fc = factory.get(sourceLine);
+    fc.lineMidpoint("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.5, 0)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
+
+
+  @Test
+  void testPointAlongLine() {
+    var sourceLine = newReaderFeature(newLineString(worldToLatLon(
+      0, 0,
+      1, 0
+    )), Map.of());
+
+    var fc = factory.get(sourceLine);
+    fc.pointAlongLine("layer", 0.25).setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.25, 0)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
 }
