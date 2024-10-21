@@ -4,6 +4,7 @@ import java.util.Arrays;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * Utility for extracting sub-ranges of a line.
@@ -30,6 +31,22 @@ public class LineSplitter {
   }
 
   /**
+   * Returns a point at {@code ratio} along this line segment where 0 is the beginning of the line and 1 is the end.
+   */
+  public Point get(double ratio) {
+    if (ratio < 0d || ratio > 1d) {
+      throw new IllegalArgumentException("Invalid ratio: " + ratio);
+    }
+    init();
+    double pos = ratio * length;
+    var cs = line.getCoordinateSequence();
+    var idx = Math.max(lowerIndex(pos), 0);
+    MutableCoordinateSequence result = new MutableCoordinateSequence(1);
+    addInterpolated(result, cs, idx, pos);
+    return GeoUtils.JTS_FACTORY.createPoint(result);
+  }
+
+  /**
    * Returns a partial segment of this line from {@code start} to {@code end} where 0 is the beginning of the line and 1
    * is the end.
    */
@@ -40,6 +57,24 @@ public class LineSplitter {
     if (start <= 0 && end >= 1) {
       return line;
     }
+    var cs = line.getCoordinateSequence();
+    init();
+    MutableCoordinateSequence result = new MutableCoordinateSequence();
+
+    double startPos = start * length;
+    double endPos = end * length;
+    var first = floorIndex(startPos);
+    var last = lowerIndex(endPos);
+    addInterpolated(result, cs, first, startPos);
+    for (int i = first + 1; i <= last; i++) {
+      result.addPoint(cs.getX(i), cs.getY(i));
+    }
+    addInterpolated(result, cs, last, endPos);
+
+    return GeoUtils.JTS_FACTORY.createLineString(result);
+  }
+
+  private void init() {
     var cs = line.getCoordinateSequence();
     if (nodeLocations == null) {
       nodeLocations = new double[cs.size()];
@@ -57,19 +92,6 @@ public class LineSplitter {
         y1 = y2;
       }
     }
-    MutableCoordinateSequence result = new MutableCoordinateSequence();
-
-    double startPos = start * length;
-    double endPos = end * length;
-    var first = floorIndex(startPos);
-    var last = lowerIndex(endPos);
-    addInterpolated(result, cs, first, startPos);
-    for (int i = first + 1; i <= last; i++) {
-      result.addPoint(cs.getX(i), cs.getY(i));
-    }
-    addInterpolated(result, cs, last, endPos);
-
-    return GeoUtils.JTS_FACTORY.createLineString(result);
   }
 
   private int floorIndex(double length) {

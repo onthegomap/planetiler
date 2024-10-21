@@ -1,12 +1,15 @@
 package com.onthegomap.planetiler.geo;
 
 import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.TestUtils.round;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class LineSplitterTest {
   @ParameterizedTest
@@ -54,6 +57,18 @@ class LineSplitterTest {
     assertEquals(
       newLineString(1.5, 3, 2, 4),
       l.get(0.75, 1)
+    );
+  }
+
+  @ParameterizedTest
+  @ValueSource(doubles = {
+    0, 0.00001, 0.1, 0.49999, 0.5, 0.50001, 0.9, 0.99999, 1.0
+  })
+  void testDistanceAlongLine(double ratio) {
+    var l = new LineSplitter(newLineString(0, 0, 1, 0.5, 2, 1));
+    assertEquals(
+      round(newPoint(ratio * 2, ratio)),
+      round(l.get(ratio))
     );
   }
 

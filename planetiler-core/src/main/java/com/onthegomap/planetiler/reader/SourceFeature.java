@@ -124,9 +124,35 @@ public abstract class SourceFeature implements WithTags, WithGeometryType, WithS
         innermostPointTolerance = tolerance;
       }
       return innermostPoint;
+    } else if (canBeLine()) {
+      return lineMidpoint();
     } else {
       return pointOnSurface();
     }
+  }
+
+  /**
+   * Returns the midpoint of this line, or the longest segment if it is a multilinestring.
+   */
+  public final Geometry lineMidpoint() throws GeometryException {
+    if (innermostPoint == null) {
+      innermostPoint = pointAlongLine(0.5);
+    }
+    return innermostPoint;
+  }
+
+  /**
+   * Returns along this line where {@code ratio=0} is the start {@code ratio=1} is the end and {@code ratio=0.5} is the
+   * midpoint.
+   * <p>
+   * When this is a multilinestring, the longest segment is used.
+   */
+  public final Geometry pointAlongLine(double ratio) throws GeometryException {
+    if (lineSplitter == null) {
+      var line = line();
+      lineSplitter = new LineSplitter(line instanceof MultiLineString multi ? GeoUtils.getLongestLine(multi) : line);
+    }
+    return lineSplitter.get(ratio);
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {

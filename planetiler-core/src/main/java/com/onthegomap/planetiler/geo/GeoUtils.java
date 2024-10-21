@@ -552,6 +552,21 @@ public class GeoUtils {
       PlanetilerConfig.MAX_MAXZOOM);
   }
 
+  public static LineString getLongestLine(MultiLineString multiLineString) {
+    LineString result = null;
+    double max = -1;
+    for (int i = 0; i < multiLineString.getNumGeometries(); i++) {
+      if (multiLineString.getGeometryN(i) instanceof LineString ls) {
+        double length = ls.getLength();
+        if (length > max) {
+          max = length;
+          result = ls;
+        }
+      }
+    }
+    return result;
+  }
+
   public static WKBReader wkbReader() {
     return new WKBReader(JTS_FACTORY);
   }

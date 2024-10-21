@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.geo.GeoUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.stats.Stats;
@@ -446,5 +447,14 @@ class GeoUtilsTest {
   void minZoomForPixelSizesAtZ9_10() {
     assertEquals(10, GeoUtils.minZoomForPixelSize(3.1 / (256 << 10), 3));
     assertEquals(9, GeoUtils.minZoomForPixelSize(6.1 / (256 << 10), 3));
+  }
+
+  @Test
+  void getLongestLine() {
+    var line1 = newLineString(0, 0, 1, 1);
+    var line2 = newLineString(0, 0, 2, 2);
+    assertNull(GeoUtils.getLongestLine(newMultiLineString()));
+    assertEquals(line1, GeoUtils.getLongestLine(newMultiLineString(line1)));
+    assertEquals(line2, GeoUtils.getLongestLine(newMultiLineString(line1, line2)));
   }
 }

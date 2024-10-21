@@ -15,10 +15,15 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
  */
 public class MutableCoordinateSequence extends PackedCoordinateSequence {
 
-  private final DoubleArrayList points = new DoubleArrayList();
+  private final DoubleArrayList points;
 
   public MutableCoordinateSequence() {
+    this(2);
+  }
+
+  public MutableCoordinateSequence(int size) {
     super(2, 0);
+    points = new DoubleArrayList(2 * size);
   }
 
   /**
