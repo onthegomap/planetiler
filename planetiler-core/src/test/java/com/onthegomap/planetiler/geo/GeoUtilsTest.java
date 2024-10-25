@@ -457,4 +457,38 @@ class GeoUtilsTest {
     assertEquals(line1, GeoUtils.getLongestLine(newMultiLineString(line1)));
     assertEquals(line2, GeoUtils.getLongestLine(newMultiLineString(line1, line2)));
   }
+
+
+  @Test
+  void areaInMeters() {
+    assertEquals(0, GeoUtils.areaInMeters(newLineString(0, 0, 1, 1)));
+    assertEquals(0, GeoUtils.areaInMeters(newPoint(0, 1)));
+    assertEquals(111_194, Math.sqrt(GeoUtils.areaInMeters(rectangle(-0.5, 0.5))), 1d);
+    assertEquals(GeoUtils.areaInMeters(rectangle(0, 3)) - GeoUtils.areaInMeters(rectangle(1, 2)),
+      GeoUtils.areaInMeters(newPolygon(rectangleCoordList(0, 3), List.of(rectangleCoordList(1, 2)))), 1d);
+    assertEquals(96_963, Math.sqrt(GeoUtils.areaInMeters(rectangle(40, 41))), 1d);
+    assertEquals(10_387, Math.sqrt(GeoUtils.areaInMeters(rectangle(89, 90))), 1d);
+    assertEquals(10_387, Math.sqrt(GeoUtils.areaInMeters(rectangle(-89, -90))), 1d);
+    assertEquals(5.1e14,
+      GeoUtils.areaInMeters(newPolygon(-180, -90, 180, -90, 180, 90, -180, 90, -180, -90)), 1e11);
+  }
+
+  @Test
+  void lengthInMeters() {
+    assertEquals(0, GeoUtils.lengthInMeters(rectangle(0, 1)));
+    assertEquals(0, GeoUtils.lengthInMeters(newPoint(0, 0)));
+    assertEquals(97_129, GeoUtils.lengthInMeters(newLineString(
+      -75.343, 39.984,
+      -75.534, 39.123
+    )), 1);
+    assertEquals(97_129 * 3, GeoUtils.lengthInMeters(newLineString(
+      -75.343, 39.984,
+      -75.534, 39.123,
+      -75.343, 39.984,
+      -75.534, 39.123
+    )), 1);
+    assertEquals(15051, GeoUtils.lengthInMeters(newLineString(
+      47.234, 24.235,
+      47.234 + 0.1, 24.235 - 0.1)), 1d);
+  }
 }
