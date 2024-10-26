@@ -607,14 +607,13 @@ public class GeoUtils {
    * @see <a href="https://trs.jpl.nasa.gov/handle/2014/40409">"Some Algorithms for Polygons on a Sphere", JPL
    *      Publication 07-03, Jet Propulsion * Laboratory, Pasadena, CA, June 2007</a>.
    */
-  public static double ringAreaMeters(LinearRing ring) {
+  public static double ringAreaMeters(CoordinateSequence ring) {
     double total = 0;
-    var cs = ring.getCoordinateSequence();
-    var numEdges = cs.size() - 1;
+    var numEdges = ring.size() - 1;
     for (int i = 0; i < numEdges; i++) {
-      double lowerX = cs.getX(i) * RADIANS_PER_DEGREE;
-      double midY = cs.getY(i + 1 == numEdges ? 0 : i + 1) * RADIANS_PER_DEGREE;
-      double upperX = cs.getX(i + 2 >= numEdges ? (i + 2) % numEdges : i + 2) * RADIANS_PER_DEGREE;
+      double lowerX = ring.getX(i) * RADIANS_PER_DEGREE;
+      double midY = ring.getY(i + 1 == numEdges ? 0 : i + 1) * RADIANS_PER_DEGREE;
+      double upperX = ring.getX(i + 2 >= numEdges ? (i + 2) % numEdges : i + 2) * RADIANS_PER_DEGREE;
       total += (upperX - lowerX) * Math.sin(midY);
     }
     return Math.abs(total) * AREA_FACTOR;
@@ -622,14 +621,14 @@ public class GeoUtils {
 
   /**
    * Returns the approximate area in meters of a polygon, or all polygons contained within a multigeometry using
-   * {@link #ringAreaMeters(LinearRing)}.
+   * {@link #ringAreaMeters(CoordinateSequence)}.
    */
   public static double areaInMeters(Geometry latLonGeom) {
     return switch (latLonGeom) {
       case Polygon poly -> {
-        double result = ringAreaMeters(poly.getExteriorRing());
+        double result = ringAreaMeters(poly.getExteriorRing().getCoordinateSequence());
         for (int i = 0; i < poly.getNumInteriorRing(); i++) {
-          result -= ringAreaMeters(poly.getInteriorRingN(i));
+          result -= ringAreaMeters(poly.getInteriorRingN(i).getCoordinateSequence());
         }
         yield result;
       }
