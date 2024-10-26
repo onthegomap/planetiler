@@ -43,7 +43,8 @@ public abstract class SourceFeature implements WithTags, WithGeometryType, WithS
   private Geometry validPolygon = null;
   private double area = Double.NaN;
   private double length = Double.NaN;
-  private double size = Double.NaN;
+  private double areaMeters = Double.NaN;
+  private double lengthMeters = Double.NaN;
   private LineSplitter lineSplitter;
 
   /**
@@ -283,7 +284,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType, WithS
    * {@code 1} means the area of the entire planet.
    */
   public double area() throws GeometryException {
-    return Double.isNaN(area) ? (area = canBePolygon() ? polygon().getArea() : 0) : area;
+    return Double.isNaN(area) ? (area = canBePolygon() ? Math.abs(polygon().getArea()) : 0) : area;
   }
 
   /**
@@ -297,11 +298,27 @@ public abstract class SourceFeature implements WithTags, WithGeometryType, WithS
   }
 
   /**
-   * Returns and caches sqrt of {@link #area()} if polygon or {@link #length()} if a line string.
+   * Returns the sqrt of {@link #area()} if polygon or {@link #length()} if a line string.
    */
   public double size() throws GeometryException {
-    return Double.isNaN(size) ? (size = canBePolygon() ? Math.sqrt(Math.abs(area())) : canBeLine() ? length() : 0) :
-      size;
+    return canBePolygon() ? Math.sqrt(Math.abs(area())) : canBeLine() ? length() : 0;
+  }
+
+  /** Returns and caches the approximate area of the geometry in square meters. */
+  public double areaMeters() throws GeometryException {
+    return Double.isNaN(areaMeters) ? (areaMeters =
+      (isPoint() || canBePolygon() || canBeLine()) ? GeoUtils.areaInMeters(latLonGeometry()) : 0) : areaMeters;
+  }
+
+  /** Returns and caches the approximate length of the geometry in meters. */
+  public double lengthMeters() throws GeometryException {
+    return Double.isNaN(lengthMeters) ? (lengthMeters =
+      (isPoint() || canBePolygon() || canBeLine()) ? GeoUtils.lengthInMeters(latLonGeometry()) : 0) : lengthMeters;
+  }
+
+  /** Returns the sqrt of {@link #areaMeters()} if polygon or {@link #lengthMeters()} if a line string. */
+  public double sizeMeters() throws GeometryException {
+    return canBePolygon() ? Math.sqrt(Math.abs(areaMeters())) : canBeLine() ? lengthMeters() : 0;
   }
 
   /** Returns the ID of the source that this feature came from. */

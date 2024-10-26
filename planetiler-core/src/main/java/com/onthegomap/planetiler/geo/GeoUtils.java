@@ -52,11 +52,13 @@ public class GeoUtils {
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
   private static final Polygon[] EMPTY_POLYGON_ARRAY = new Polygon[0];
   private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
-  private static final double WORLD_RADIUS_METERS = 6_378_137;
-  public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
+  private static final double WORLD_RADIUS_METERS_AT_EQUATOR = 6_378_137;
+  private static final double AVERAGE_WORLD_RADIUS_METERS = 6_371_008.8;
+  public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS_AT_EQUATOR;
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
   private static final double LOG2 = Math.log(2);
+  private static final double AREA_FACTOR = AVERAGE_WORLD_RADIUS_METERS * AVERAGE_WORLD_RADIUS_METERS / 2;
   /**
    * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
    * latitude/longitude coordinates.
@@ -573,6 +575,90 @@ public class GeoUtils {
 
   public static WKTReader wktReader() {
     return new WKTReader(JTS_FACTORY);
+  }
+
+  /** Returns the distance in meters between 2 lat/lon coordinates using the haversine formula. */
+  public static double metersBetween(double fromLon, double fromLat, double toLon, double toLat) {
+    double sinDeltaLat = Math.sin((toLat - fromLat) * RADIANS_PER_DEGREE / 2);
+    double sinDeltaLon = Math.sin((toLon - fromLon) * RADIANS_PER_DEGREE / 2);
+    double a = sinDeltaLat * sinDeltaLat +
+      sinDeltaLon * sinDeltaLon * Math.cos(fromLat * RADIANS_PER_DEGREE) * Math.cos(toLat * RADIANS_PER_DEGREE);
+    return AVERAGE_WORLD_RADIUS_METERS * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  /** Returns the sum of the length of all edges using {@link #metersBetween(double, double, double, double)}. */
+  public static double lineLengthMeters(CoordinateSequence sequence) {
+    double total = 0;
+    int numEdges = sequence.size() - 1;
+    for (int i = 0; i < numEdges; i++) {
+      double fromLon = sequence.getX(i);
+      double toLon = sequence.getX(i + 1);
+      double fromLat = sequence.getY(i);
+      double toLat = sequence.getY(i + 1);
+      total += metersBetween(fromLon, fromLat, toLon, toLat);
+    }
+
+    return total;
+  }
+
+  /**
+   * Returns the approximate area in meters of a polygon in lat/lon degree coordinates.
+   *
+   * @see <a href="https://trs.jpl.nasa.gov/handle/2014/40409">"Some Algorithms for Polygons on a Sphere", JPL
+   *      Publication 07-03, Jet Propulsion * Laboratory, Pasadena, CA, June 2007</a>.
+   */
+  public static double ringAreaMeters(CoordinateSequence ring) {
+    double total = 0;
+    var numEdges = ring.size() - 1;
+    for (int i = 0; i < numEdges; i++) {
+      double lowerX = ring.getX(i) * RADIANS_PER_DEGREE;
+      double midY = ring.getY(i + 1 == numEdges ? 0 : i + 1) * RADIANS_PER_DEGREE;
+      double upperX = ring.getX(i + 2 >= numEdges ? (i + 2) % numEdges : i + 2) * RADIANS_PER_DEGREE;
+      total += (upperX - lowerX) * Math.sin(midY);
+    }
+    return Math.abs(total) * AREA_FACTOR;
+  }
+
+  /**
+   * Returns the approximate area in meters of a polygon, or all polygons contained within a multigeometry using
+   * {@link #ringAreaMeters(CoordinateSequence)}.
+   */
+  public static double areaInMeters(Geometry latLonGeom) {
+    return switch (latLonGeom) {
+      case Polygon poly -> {
+        double result = ringAreaMeters(poly.getExteriorRing().getCoordinateSequence());
+        for (int i = 0; i < poly.getNumInteriorRing(); i++) {
+          result -= ringAreaMeters(poly.getInteriorRingN(i).getCoordinateSequence());
+        }
+        yield result;
+      }
+      case GeometryCollection collection -> {
+        double result = 0;
+        for (int i = 0; i < collection.getNumGeometries(); i++) {
+          result += areaInMeters(collection.getGeometryN(i));
+        }
+        yield result;
+      }
+      case null, default -> 0;
+    };
+  }
+
+  /**
+   * Returns the approximate length in meters of a line, or all lines contained within a multigeometry using
+   * {@link #lineLengthMeters(CoordinateSequence)}.
+   */
+  public static double lengthInMeters(Geometry latLonGeom) {
+    return switch (latLonGeom) {
+      case LineString line -> lineLengthMeters(line.getCoordinateSequence());
+      case GeometryCollection collection -> {
+        double result = 0;
+        for (int i = 0; i < collection.getNumGeometries(); i++) {
+          result += lengthInMeters(collection.getGeometryN(i));
+        }
+        yield result;
+      }
+      case null, default -> 0;
+    };
   }
 
   /** Helper class to sort polygons by area of their outer shell. */
