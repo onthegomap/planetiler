@@ -890,4 +890,37 @@ class FeatureCollectorTest {
 
     assertFalse(iter.hasNext());
   }
+
+
+  @Test
+  void testSizeInMetersOfLine() throws GeometryException {
+    var sourceLine = newReaderFeature(newLineString(
+      0, 0,
+      1, 0
+    ), Map.of());
+
+    assertEquals(111_195, sourceLine.lengthMeters(), 1d);
+    assertEquals(111_195, sourceLine.sizeMeters(), 1d);
+    assertEquals(0, sourceLine.areaMeters());
+  }
+
+
+  @Test
+  void testSizeInMetersOfPolygon() throws GeometryException {
+    var sourceLine = newReaderFeature(rectangle(0, 1), Map.of());
+
+    assertEquals(0, sourceLine.lengthMeters());
+    assertEquals(111192, sourceLine.sizeMeters(), 1d);
+    assertEquals(Math.pow(111192.25757749, 2), sourceLine.areaMeters(), 1d);
+  }
+
+
+  @Test
+  void testSizeInMetersOfPoint() throws GeometryException {
+    var sourceLine = newReaderFeature(newPoint(0, 1), Map.of());
+
+    assertEquals(0, sourceLine.lengthMeters());
+    assertEquals(0, sourceLine.sizeMeters());
+    assertEquals(0, sourceLine.areaMeters());
+  }
 }
