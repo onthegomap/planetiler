@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import java.io.IOException;
@@ -26,11 +27,16 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -48,7 +54,15 @@ public class TileMergeRunnable implements Runnable {
 
   private static final int EXTENT = 4096;
 
-  private static final int EXTENT_HALF = 2048;
+  public static final int[] gridSizeArray = new int[]{1024, 256, 128};
+
+  private static final GridEntity[] gridEntities = new GridEntity[gridSizeArray.length];
+
+  private static final int GRID_SIZE = 256;
+
+  private static final double SCALE_GEOMETRY = (double) DEFAULT_TILE_SIZE / EXTENT;
+
+  private static final int EXTENT_HALF = EXTENT / 2;
 
   private final TileCoord tileCoord;
 
@@ -58,7 +72,55 @@ public class TileMergeRunnable implements Runnable {
 
   private final PlanetilerConfig config;
 
-  Map<String, List<VectorTile.Feature>> originFeatureInfos = new ConcurrentHashMap<>();
+  Map<String, List<GeometryWithTag>> originFeatureInfos = new ConcurrentHashMap<>();
+
+  record GeometryWithTag(
+    String layer,
+    long id,
+    Map<String, Object> tags,
+    long group,
+    Geometry geometry,
+    int size,
+    double area,
+    String hash
+  ) {}
+
+  private static final Geometry[][] VECTOR_GRID = new Geometry[EXTENT][EXTENT];
+  private static final int GRID_WIDTH = EXTENT / GRID_SIZE;
+
+  static {
+    // 初始化一个网格
+    for (int i = 0; i < gridSizeArray.length; i++) {
+      gridEntities[i] = new GridEntity(gridSizeArray[i]);
+    }
+    List<Geometry> geometryList = new ArrayList<>();
+    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
+    for (int i = 0; i < EXTENT; i += GRID_WIDTH) {
+      VECTOR_GRID[i] = new Geometry[EXTENT];
+      for (int j = 0; j < EXTENT; j += GRID_WIDTH) {
+        // 创建GeometryFactory实例
+        // 创建地理点
+        if (GRID_WIDTH == 1) {
+          Coordinate coord = new Coordinate(i, j);
+          Point point = geometryFactory.createPoint(coord);
+          VECTOR_GRID[i][j] = point;
+        } else {
+          MutableCoordinateSequence sequence = new MutableCoordinateSequence();
+          sequence.addPoint(i, j);
+          sequence.addPoint(i, j + GRID_WIDTH);
+          sequence.addPoint(i + GRID_WIDTH, j + GRID_WIDTH);
+          sequence.addPoint(i + GRID_WIDTH, j);
+          sequence.addPoint(i, j);
+          Polygon polygon = geometryFactory.createPolygon(sequence);
+          VECTOR_GRID[i][j] = polygon;
+          geometryList.add(polygon);
+        }
+      }
+    }
+//    GeometryCollection gridView = geometryFactory.createGeometryCollection(
+//      geometryList.toArray(new Geometry[geometryList.size()]));
+//    int a = 0;
+  }
 
   public TileMergeRunnable(TileCoord tileCoord, Mbtiles mbtiles, Mbtiles.TileWriter writer, PlanetilerConfig config) {
     this.tileCoord = tileCoord;
@@ -88,7 +150,7 @@ public class TileMergeRunnable implements Runnable {
     try (CloseableIterator<Tile> tileIterator = mbtiles.getZoomTiles(z + 1, minChildX, minChildY, maxChildX,
       maxChildY)) {
       // 1.读取要素，拼接要素
-      int totalSize = 0;
+      long totalSize = 0;
       while (tileIterator.hasNext()) {
         Tile next = tileIterator.next();
         byte[] bytes = next.bytes();
@@ -97,20 +159,23 @@ public class TileMergeRunnable implements Runnable {
       }
       VectorTile mergedTile = new VectorTile();
       VectorTile reduceTile = new VectorTile();
-      int maxSize = config.maxFeatures();
-      double ratio = Math.max((double) totalSize / (double) maxSize, 1.0); // 表示需要压缩多少倍数据
+      long maxSize = config.maxFeatures();
       int from = 0;
       int to = 0;
-      for (Map.Entry<String, List<VectorTile.Feature>> entry : originFeatureInfos.entrySet()) {
+      for (Map.Entry<String, List<GeometryWithTag>> entry : originFeatureInfos.entrySet()) {
+        // ---------------------------V2.0---------------------------------------
+        // 2. 要素像素化
+        List<GeometryWithTag> geometryWithTags = gridMergeFeatures(entry.getValue(), totalSize, maxSize);
+        List<VectorTile.Feature> reduced = geometryToFeature(geometryWithTags);
+        reduceTile.addLayerFeatures(entry.getKey(), reduced);
+        // ---------------------------V1.0---------------------------------------
         // 2. 相同属性要素合并，不会产生空洞，不会产生数据丢失
         // 纯纯融合边界，不丢失任何数据
-        List<VectorTile.Feature> merged = mergeSameFeatures(entry.getValue());
-        mergedTile.addLayerFeatures(entry.getKey(), merged);
-        from += merged.size();
-        // 3. 要素重新排序、合并，目标是减少瓦片大小，根据瓦片大小进行，设置=2MB
-        List<VectorTile.Feature> reduced = mergeNearbyFeatures(merged, ratio);
-        reduceTile.addLayerFeatures(entry.getKey(), reduced);
-        to += reduced.size();
+//        List<GeometryWithTag> merged = mergeSameFeatures(entry.getValue());
+//        from += merged.size();
+//        // 3. 要素重新排序、合并，目标是减少瓦片大小，根据瓦片大小进行，设置=2MB
+//        List<VectorTile.Feature> reduced = mergeNearbyFeatures(merged, ratio);
+//        to += reduced.size();
       }
 
       // 4. 一个瓦片只有一个输出结果
@@ -143,12 +208,29 @@ public class TileMergeRunnable implements Runnable {
     List<VectorTile.Feature> features = VectorTile.decode(Gzip.gunzip(tile.bytes()));
     for (VectorTile.Feature feature : features) {
       try {
-        Geometry decode = feature.geometry().decode();
+        // 1、拿到4096x4096要素 16MB(每个像素一个要素，会产生16MB大小)
+        Geometry decode = feature.geometry().decode(1);
+        // 2、将要素移动新的坐标下
         Geometry transformationGeom = simulationTransformation(decode, tile.coord());
+        // 处理数据精度
+//        transformationGeom = GeoUtils.snapAndFixPolygon(transformationGeom, DefaultStats.get(), "transform",
+//          new PrecisionModel(1d));
+
         if (!transformationGeom.isEmpty()) {
-          VectorTile.VectorGeometry vectorGeometry = VectorTile.encodeGeometry(transformationGeom, 5);
+          double shapeArea = transformationGeom.getArea();
+          try {
+            if (feature.hasTag("Shape_Area")) {
+              shapeArea = Double.parseDouble(feature.getTag("Shape_Area").toString());
+            }
+          } catch (NumberFormatException ignore) {
+          }
+//          feature.setTag("SceneMap_Z", z);
+          GeometryWithTag geometryWithTags =
+            new GeometryWithTag(feature.layer(), feature.id(), feature.tags(),
+              feature.group(),
+              transformationGeom, feature.geometry().commands().length, shapeArea, feature.tags().toString());
           originFeatureInfos.computeIfAbsent(feature.layer(), k -> new ArrayList<>())
-            .add(feature.copyWithNewGeometry(vectorGeometry));
+            .add(geometryWithTags);
           LOGGER.debug("tile:{},currentZoomTiles {}", tile, originFeatureInfos.size());
         }
       } catch (AssertionError e) {
@@ -166,8 +248,8 @@ public class TileMergeRunnable implements Runnable {
     int relativeY = childTile.y() & 1;
 
     AffineTransformation transform = new AffineTransformation();
-    double translateX = relativeX * DEFAULT_TILE_SIZE * TILE_SCALE;
-    double translateY = relativeY * DEFAULT_TILE_SIZE * TILE_SCALE;
+    double translateX = relativeX * EXTENT * TILE_SCALE;
+    double translateY = relativeY * EXTENT * TILE_SCALE;
 
     Geometry geom = transform.scale(TILE_SCALE, TILE_SCALE).translate(translateX, translateY).transform(geometry);
     if (geom.isEmpty()) {
@@ -179,6 +261,138 @@ public class TileMergeRunnable implements Runnable {
     }
 
     return geom;
+  }
+
+  record GeometryWithIndex(Geometry geometry, int index) {}
+
+  private List<VectorTile.Feature> geometryToFeature(List<GeometryWithTag> list) {
+    List<VectorTile.Feature> features = new ArrayList<>();
+    AffineTransformation transform = new AffineTransformation();
+    transform.scale(SCALE_GEOMETRY, SCALE_GEOMETRY);
+    List<GeometryWithIndex> gridGeometryWithIndex = new ArrayList<>();
+    for (int i = 0; i < list.size(); i++) {
+      GeometryWithTag geometryWithTag = list.get(i);
+      Geometry geometry = geometryWithTag.geometry();
+      // 存储要素、要素ID
+      gridGeometryWithIndex.add(new GeometryWithIndex(geometry, i));
+    }
+    // 合并同类型要素
+    Map<Object, List<GeometryWithIndex>> grouped = gridGeometryWithIndex.stream()
+      .collect(Collectors.groupingBy(geometryWithIndex -> list.get(geometryWithIndex.index()).tags()));
+    List<GeometryWithIndex> geometries = new ArrayList<>();
+    // 按照要素的标签进行合并
+    grouped.forEach((o, geometryWithIndices) -> {
+      if (geometryWithIndices.isEmpty()) {
+        return;
+      }
+      // TODO: 合并，有可能存在不在一个面的情况
+      Geometry geometry = GeoUtils.createGeometryCollection(
+        geometryWithIndices.stream().map(GeometryWithIndex::geometry).collect(Collectors.toList()));
+      Geometry union = geometry.union();
+      if (union instanceof Polygon) {
+        geometries.add(new GeometryWithIndex(union, geometryWithIndices.getFirst().index()));
+      } else if (union instanceof GeometryCollection collection) {
+        for (int i = 0; i < collection.getNumGeometries(); i++) {
+          Geometry geometryN = collection.getGeometryN(i);
+          geometries.add(new GeometryWithIndex(geometryN, geometryWithIndices.getFirst().index()));
+        }
+      }
+    });
+
+    for (GeometryWithIndex geometryWithIndex : geometries) {
+      GeometryWithTag geometryWithTag = list.get(geometryWithIndex.index());
+      Geometry geometry = geometryWithIndex.geometry();
+      Geometry scaled = transform.transform(geometry);
+      try {
+        VectorTile.Feature feature = getFeature(scaled, geometryWithTag);
+        if (feature != null) {
+          features.add(feature);
+        }
+      } catch (Exception e) {
+        LOGGER.error("[geometryToFeature] {}", geometryWithTag, e);
+      }
+    }
+    return features;
+  }
+
+  private VectorTile.Feature getFeature(Geometry geometry, GeometryWithTag geometryWithTag)
+    throws GeometryException {
+    List<List<CoordinateSequence>> geoms = GeometryCoordinateSequences.extractGroups(geometry, 0);
+    if (geoms.isEmpty()) {
+      return null;
+    }
+    Geometry geom;
+    if (geometry instanceof Polygon) {
+      geom = GeometryCoordinateSequences.reassemblePolygons(geoms);
+      /*
+       * Use the very expensive, but necessary JTS Geometry#buffer(0) trick to repair invalid polygons (with self-
+       * intersections) and JTS GeometryPrecisionReducer utility to snap polygon nodes to the vector tile grid
+       * without introducing self-intersections.
+       *
+       * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
+       * coordinate rounding.
+       */
+      geom = GeoUtils.snapAndFixPolygon(geom, DefaultStats.get(), "render");
+      // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
+      // so we need outer CCW/inner clockwise
+      geom = geom.reverse();
+    } else {
+      geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
+    }
+    return new VectorTile.Feature(geometryWithTag.layer, geometryWithTag.id,
+      VectorTile.encodeGeometry(geom, 0), geometryWithTag.tags, geometryWithTag.group);
+  }
+
+  private List<GeometryWithTag> gridMergeFeatures(List<GeometryWithTag> list, long totalSize, long maxSize)
+    throws GeometryException {
+//    if (totalSize <= maxSize) {
+//      return list;
+//    }
+    double ratio = Math.max((double) totalSize / (double) maxSize, 1.0); // 表示需要压缩多少倍数据
+    int offset = Math.min((int) ratio, gridSizeArray.length - 1); // 避免超出范围
+    STRtree envelopeIndex = new STRtree();
+    // 将要素添加到R树中
+    // TODO: 要素大小排序后，做个数量限制
+    for (int i = 0; i < list.size(); i++) {
+      Geometry geometry = list.get(i).geometry();
+      Envelope env = geometry.getEnvelopeInternal().copy();
+      envelopeIndex.insert(env, i);
+    }
+    // 保存要素+标签
+    List<GeometryWithTag> result = new ArrayList<>();
+//    GridEntity gridEntity = gridEntities[offset];
+    for (int i = 0; i < EXTENT; i += GRID_WIDTH) {
+      for (int j = 0; j < EXTENT; j += GRID_WIDTH) {
+        // 获取网格
+        Geometry geometry = VECTOR_GRID[i][j];
+        if (geometry == null) {
+          continue;
+        }
+        // 找到相交的数据
+        Set<Integer> set = new HashSet<>();
+        envelopeIndex.query(geometry.getEnvelopeInternal(), object -> {
+          if (object instanceof Integer x) {
+            // 这里使用勾股定理
+            if (geometry.isWithinDistance(list.get(x).geometry(), 0)) {
+              set.add(x);
+            }
+          }
+        });
+        List<Integer> sortArea = set.stream().sorted(Comparator.comparingDouble(x -> list.get(x).area())).toList();
+        if (!sortArea.isEmpty()) {
+          // 找到真实面积最大的瓦片，当前像素归属到
+          Integer geoIndex = sortArea.getLast();
+          GeometryWithTag geometryWithTag = list.get(geoIndex);
+          // TODO: 处理边界裁剪
+          GeometryWithTag gridGeometry = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
+            geometryWithTag.tags,
+            geometryWithTag.group,
+            geometry, geometryWithTag.size, geometryWithTag.area, geometryWithTag.hash);
+          result.add(gridGeometry);
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -204,7 +418,7 @@ public class TileMergeRunnable implements Runnable {
     }
   }
 
-  public record GeometryWrapper(Geometry geometry, double area, VectorTile.Feature feature) {}
+  public record GeometryWrapper(Geometry geometry, double area, VectorTile.Feature feature, int commandLen) {}
 
   /**
    * 要素融合，会丢失数据
@@ -220,12 +434,17 @@ public class TileMergeRunnable implements Runnable {
     if (origin.getFirst().geometry().geomType() != GeometryType.POLYGON) {
       return origin;
     }
+    int totalCommand = 0;
+    for (VectorTile.Feature feature : origin) {
+      totalCommand += feature.geometry().commands().length;
+    }
     // TODO: 将这个参数提取到配置中，每一层都有同的参数
     double minDistAndBuffer = 1.0 / 16;
     // TODO: 将这个参数提取到配置中，每一层都有同的参数
-    double minArea = 1.0;
+    double minArea = 1.0 / 16;
     // 计算需要合并的要素数量
     int shrinkFeatureSize = origin.size() - (int) (origin.size() / ratio);
+    int shrinkCommandSize = totalCommand - (int) (totalCommand / ratio);
     if (shrinkFeatureSize == 0) {
       // 不需要删除
       return origin;
@@ -240,33 +459,34 @@ public class TileMergeRunnable implements Runnable {
         } catch (AssertionError e) {
           continue;
         }
-        allGeometries.add(new GeometryWrapper(decode, decode.getArea(), feature));
         // 根据像素将矢量要素简化
         fastSimplifyFeature(feature, decode, factory, allGeometries);
       } catch (GeometryException e) {
         LOGGER.debug(e.getMessage());
       }
     }
+    // TODO: 需要改成全局排序
     allGeometries.sort(Comparator.comparingDouble(GeometryWrapper::area));
     // 1、过滤出面积小于1像素（在4096*4096网格下）
     List<GeometryWrapper> small = new ArrayList<>();
     List<GeometryWrapper> middle = new ArrayList<>();
     List<GeometryWrapper> bigger = new ArrayList<>();
-    int count = 0;
+    int commandSize = 0;
     for (GeometryWrapper geometryWrapper : allGeometries) {
-      if (count < shrinkFeatureSize) {
+      if (commandSize < shrinkCommandSize) {
         if (geometryWrapper.area() < minArea) {
           small.add(geometryWrapper);
         } else {
           middle.add(geometryWrapper);
-          count++;
+          commandSize += geometryWrapper.commandLen();
         }
       } else {
         bigger.add(geometryWrapper);
       }
     }
-    // 将中型要素，融合到大型要素上
-    mergeMiddleFeatureToBigger(bigger, middle, minDistAndBuffer);
+    // TODO: 将中型要素，融合到大型要素上
+//    List<GeometryWrapper> merged = featureToGrid(middle);
+//    bigger.addAll(merged);
     return bigger.stream().map(w -> w.feature).toList();
 
 //    return bigger.stream()
@@ -295,7 +515,9 @@ public class TileMergeRunnable implements Runnable {
     }
     // 生成新的面数据
     Polygon polygon = new Polygon(new LinearRing(sequence, factory), new LinearRing[0], factory);
-    allGeometries.add(new GeometryWrapper(polygon, polygon.getArea(), feature));
+    allGeometries.add(
+      new GeometryWrapper(polygon, Double.parseDouble(feature.getTag("Shape_Area").toString()), feature,
+        feature.geometry().commands().length));
   }
 
   private static void mergeMiddleFeatureToBigger(List<GeometryWrapper> bigger, List<GeometryWrapper> middle,

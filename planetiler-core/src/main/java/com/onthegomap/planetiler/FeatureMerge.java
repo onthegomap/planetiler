@@ -448,7 +448,7 @@ public class FeatureMerge {
     return result;
   }
 
-  private static Collection<List<VectorTile.Feature>> groupByAttrs(
+  public static Collection<List<VectorTile.Feature>> groupByAttrs(
     List<VectorTile.Feature> features,
     List<VectorTile.Feature> others,
     List<String> mergeFields,

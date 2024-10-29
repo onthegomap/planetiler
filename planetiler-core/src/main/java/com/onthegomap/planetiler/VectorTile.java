@@ -27,19 +27,15 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
-import com.onthegomap.planetiler.render.TileMergeRunnable;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -201,10 +197,9 @@ public class VectorTile {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scale) throws GeometryException {
+  private static Geometry decodeCommands(GeometryType geomType, int[] commands, double scale) throws GeometryException {
     try {
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
-      double SCALE = (EXTENT << scale) / SIZE;
       int x = 0;
       int y = 0;
 
@@ -256,7 +251,7 @@ public class VectorTile {
           x = x + dx;
           y = y + dy;
 
-          currentCoordSeq.forceAddPoint(x / SCALE, y / SCALE);
+          currentCoordSeq.forceAddPoint(x / scale, y / scale);
         }
 
       }
@@ -847,6 +842,11 @@ public class VectorTile {
 
     /** Converts an encoded geometry back to a JTS geometry. */
     public Geometry decode() throws GeometryException {
+      return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
+    }
+
+    /** Converts an encoded geometry back to a JTS geometry. */
+    public Geometry decode(int scale) throws GeometryException {
       return decodeCommands(geomType, commands, scale);
     }
 

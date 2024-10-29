@@ -783,7 +783,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   }
 
-  private class BatchedCompactTileWriter implements TileWriter {
+  public class BatchedCompactTileWriter implements TileWriter {
 
     private final BatchedTileShallowTableWriter batchedTileShallowTableWriter = new BatchedTileShallowTableWriter();
     private final BatchedTileDataTableWriter batchedTileDataTableWriter = new BatchedTileDataTableWriter();

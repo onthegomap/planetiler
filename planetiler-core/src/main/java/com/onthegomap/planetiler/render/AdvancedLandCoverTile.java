@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.render;
 
+import static com.onthegomap.planetiler.render.TileMergeRunnable.gridSizeArray;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Profile;
@@ -25,6 +27,7 @@ import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.JsonUitls;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -82,11 +85,7 @@ public class AdvancedLandCoverTile implements Profile {
   /**
    * 该缓存消耗内存较大，合理设置网格集大小。每个 Object 对象大约需要 300 字节
    * <p>
-   * 预估各网格集缓存大小如下：
-   * - 256 * 256 ：20M
-   * - 512 * 512 ：70M
-   * - 1024 * 1024：310M
-   * - 2048 * 2048 : 1.2G
+   * 预估各网格集缓存大小如下： - 256 * 256 ：20M - 512 * 512 ：70M - 1024 * 1024：310M - 2048 * 2048 : 1.2G
    */
   private final ConcurrentHashMap<String, Object[]> cachePixelGeom = new ConcurrentHashMap<>();
   private final Map<TileCoord, Map<String, ConcurrentLinkedQueue<FeatureInfo>>> currentZoomTiles = new ConcurrentHashMap<>();
@@ -109,8 +108,15 @@ public class AdvancedLandCoverTile implements Profile {
     try {
       // 记录已经缓存过得网格集
       List<Integer> pixelGridList = new ArrayList<>();
+      for (int gridSize : gridSizeArray) {
+        GridEntity.getGridEntity(gridSize);
+      }
+      int tileDataIdCounter = 0;
       for (int zoom = config.rasterizeMaxZoom() - 1; zoom >= config.rasterizeMinZoom(); zoom--) {
         try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
+          if (tileDataIdCounter != 0) {
+            writer.setTileDataIdCounter(tileDataIdCounter);
+          }
           // 每个层级重新打开存储文件，保证数据已落盘
           if (zoom + 1 == config.rasterizeMaxZoom()) {
             writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
@@ -124,6 +130,15 @@ public class AdvancedLandCoverTile implements Profile {
 
 //        processTileBatch(zoom, 0, 0, 0, 0, writer);
           processZoomLevel(zoom, writer);
+          Field field = Mbtiles.BatchedCompactTileWriter.class.getDeclaredField("tileDataIdCounter");
+          field.setAccessible(true);
+          if (writer instanceof Mbtiles.BatchedCompactTileWriter batchedCompactTileWriter) {
+            Object o = field.get(batchedCompactTileWriter);
+            if (o instanceof Integer) {
+              tileDataIdCounter = (int) o;
+              tileDataIdCounter++;
+            }
+          }
         } catch (Exception e) {
           LOGGER.error(e.getMessage(), e);
         }
@@ -240,10 +255,14 @@ public class AdvancedLandCoverTile implements Profile {
     for (TileCoord tileCoord : tileCoords) {
       parents.add(tileCoord.parent());
     }
+    LOGGER.info("start process tile [{}] count={}", z, parents.size());
     BlockingQueue<TileMergeRunnable> queue = new LinkedBlockingQueue<>(THREAD_NUM);
     // 总体任务数量
-    AtomicInteger producerCount = new AtomicInteger(parents.size());
+    AtomicInteger producerCount = new AtomicInteger(0);
     AtomicInteger consumerCount = new AtomicInteger(0);
+    // 控制处理瓦片数量
+    int totalTiles = parents.size();
+    AtomicInteger processTiles = new AtomicInteger(totalTiles);
     // 异步队列
     Runnable runnable = () -> {
       for (TileCoord parent : parents) {
@@ -254,7 +273,10 @@ public class AdvancedLandCoverTile implements Profile {
         } catch (Exception e) {
           throw new RuntimeException(e);
         } finally {
-          producerCount.decrementAndGet();
+          producerCount.incrementAndGet();
+        }
+        if (producerCount.get() >= processTiles.get()) {
+          break;
         }
       }
     };
@@ -263,7 +285,7 @@ public class AdvancedLandCoverTile implements Profile {
     List<CompletableFuture<Void>> processTileFutures = new ArrayList<>();
     for (int i = 0; i < THREAD_NUM; i++) {
       CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-        while (consumerCount.get() != parents.size()) {
+        while (consumerCount.get() < processTiles.get()) {
           TileMergeRunnable tileMergeRunnable = null;
           try {
             tileMergeRunnable = queue.poll(10, TimeUnit.MILLISECONDS);
@@ -424,9 +446,9 @@ public class AdvancedLandCoverTile implements Profile {
     List<VectorTile.Feature> pixelFeatures = new ArrayList<>();
 
     // 计算每个网格平均保存的要素数量
-    int pixelMaxFeatures = Math.max(1, config.maxFeatures() / (pixelGridSize * pixelGridSize));
+    int pixelMaxFeatures = Math.max(1, (int) config.maxFeatures() / (pixelGridSize * pixelGridSize));
     // 计算剩余还可以保存的数量
-    int remain = config.maxFeatures() - pixelMaxFeatures * pixelGridSize * pixelGridSize;
+    int remain = (int) config.maxFeatures() - pixelMaxFeatures * pixelGridSize * pixelGridSize;
     int batchSize = 2000;
 
     // 计算实际的网格数量
