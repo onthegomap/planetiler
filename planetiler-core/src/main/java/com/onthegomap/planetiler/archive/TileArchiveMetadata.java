@@ -74,10 +74,15 @@ public record TileArchiveMetadata(
   private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveMetadata.class);
 
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
-    this(profile, config, null);
+    this(profile, config, null, null);
   }
 
-  public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerAttrStats.VectorLayer> vectorLayers) {
+  public TileArchiveMetadata(Envelope allBounds, Profile profile, PlanetilerConfig config) {
+    this(profile, config, null, allBounds);
+  }
+
+  public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerAttrStats.VectorLayer> vectorLayers,
+    Envelope allBounds) {
     this(
       getString(config, NAME_KEY, profile.name()),
       getString(config, DESCRIPTION_KEY, profile.description()),
@@ -85,7 +90,7 @@ public record TileArchiveMetadata(
       getString(config, VERSION_KEY, profile.version()),
       getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
       getString(config, FORMAT_KEY, MVT_FORMAT),
-      config.bounds().latLon(),
+      allBounds == null ? config.bounds().latLon() : allBounds,
       new Coordinate(
         config.bounds().latLon().centre().getX(),
         config.bounds().latLon().centre().getY(),
@@ -94,7 +99,7 @@ public record TileArchiveMetadata(
       config.minzoom(),
       config.maxzoom(),
       vectorLayers == null ? null : new TileArchiveMetadataJson(vectorLayers),
-      mergeMaps(mapWithBuildInfo(),profile.extraArchiveMetadata()),
+      mergeMaps(mapWithBuildInfo(), profile.extraArchiveMetadata()),
       config.tileCompression()
     );
   }
@@ -176,7 +181,7 @@ public record TileArchiveMetadata(
    * https://github.com/FasterXML/jackson-databind/issues/3439
    */
 
-  private static Map<String,String> mergeMaps(Map<String,String> m1, Map<String,String> m2) {
+  private static Map<String, String> mergeMaps(Map<String, String> m1, Map<String, String> m2) {
     var result = new TreeMap<>(m1);
     result.putAll(m2);
     return result;
@@ -191,6 +196,7 @@ public record TileArchiveMetadata(
   public record TileArchiveMetadataJson(
     @JsonProperty(VECTOR_LAYERS_KEY) List<LayerAttrStats.VectorLayer> vectorLayers
   ) {
+
     public TileArchiveMetadataJson withLayers(List<LayerAttrStats.VectorLayer> vectorLayers) {
       return TileArchiveMetadataJson.create(vectorLayers);
     }

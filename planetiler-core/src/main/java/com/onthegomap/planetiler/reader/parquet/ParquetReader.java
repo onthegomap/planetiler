@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.reader.parquet;
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * fields.
  */
 public class ParquetReader {
+
   public static final String DEFAULT_LAYER = "features";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ParquetReader.class);
@@ -80,6 +83,16 @@ public class ParquetReader {
       }
     }
     return fields.isEmpty() ? null : fields;
+  }
+
+  public static Envelope calcBounds(List<Planetiler.InputPath> inputPaths) {
+    Envelope maxBounds = new Envelope();
+    inputPaths
+      .forEach(inputPath -> {
+        ParquetInputFile inputFile = new ParquetInputFile(null, null, inputPath.path());
+        maxBounds.expandToInclude(inputFile.getLatLonBounds());
+      });
+    return maxBounds;
   }
 
   public void process(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) {

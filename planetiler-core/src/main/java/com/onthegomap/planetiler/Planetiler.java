@@ -50,6 +50,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.StringUtils;
+import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +118,7 @@ public class Planetiler {
   private int wikidataUpdateLimit = 0;
   private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
+  private Envelope allBounds;
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -176,9 +178,9 @@ public class Planetiler {
    * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
    *                    {@code name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
    *                    "geofabrik:australia" shorthand to find an extract by name from
-   *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
-   *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
-   *                    Open Data Registry</a>.
+   *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to
+   *                    download the latest {@code planet.osm.pbf} file from <a
+   *                    href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a>.
    * @return this runner instance for chaining
    * @see OsmInputFile
    * @see OsmReader
@@ -245,7 +247,8 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile source that will be processed using an explicit projection when {@link #run()} is called.
+   * Adds a new ESRI shapefile source that will be processed using an explicit projection when {@link #run()} is
+   * called.
    * <p>
    * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments.
    *
@@ -504,6 +507,7 @@ public class Planetiler {
     for (var path : paths) {
       inputPaths.add(new InputPath(name, path, false));
     }
+    allBounds = ParquetReader.calcBounds(inputPaths);
     var separator = Pattern.quote(paths.isEmpty() ? "/" : paths.getFirst().getFileSystem().getSeparator());
     String prefix = StringUtils.getCommonPrefix(paths.stream().map(Path::toString).toArray(String[]::new))
       .replaceAll(separator + "[^" + separator + "]*$", "");
@@ -822,7 +826,11 @@ public class Planetiler {
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
     // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
-    tileArchiveMetadata = new TileArchiveMetadata(profile, config);
+    if (allBounds == null) {
+      tileArchiveMetadata = new TileArchiveMetadata(profile, config);
+    } else {
+      tileArchiveMetadata = new TileArchiveMetadata(allBounds, profile, config);
+    }
 
     try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
       featureGroup =
@@ -867,7 +875,7 @@ public class Planetiler {
     }
 
     if (config.isRasterize()) {
-      String outputPath =  arguments.getString("output", "output tile archive URI", null);
+      String outputPath = arguments.getString("output", "output tile archive URI", null);
       if (StringUtils.isEmpty(outputPath)) {
         throw new IllegalArgumentException("栅格化输出路径不可为空！");
       }
@@ -1030,10 +1038,11 @@ public class Planetiler {
 
   private record ToDownload(String id, String url, Path path) {}
 
-  private record InputPath(String id, Path path, boolean freeAfterReading) {}
+  public record InputPath(String id, Path path, boolean freeAfterReading) {}
 
   /** An exception that occurs while running planetiler. */
   public static class PlanetilerException extends RuntimeException {
+
     public PlanetilerException(String message, Exception e) {
       super(message, e);
     }
