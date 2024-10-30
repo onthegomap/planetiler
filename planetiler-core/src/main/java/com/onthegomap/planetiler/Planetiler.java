@@ -37,6 +37,7 @@ import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -702,6 +703,21 @@ public class Planetiler {
    * @throws IllegalArgumentException if expected inputs have not been provided
    */
   public void run() {
+    // 当MBTILES存在的时候，支持断点续传
+    String outputPath = arguments.getString("output", "output tile archive URI", null);
+    if (!StringUtils.isEmpty(outputPath)) {
+      File outputFile = new File(outputPath);
+      if (outputFile.exists()) {
+        try {
+          AdvancedLandCoverTile.create(config, outputPath).run();
+          return;
+        } catch (Exception e) {
+          LOGGER.error("矢量数据栅格化失败！", e);
+          return;
+        }
+      }
+    }
+
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (buildInfo != null && LOGGER.isInfoEnabled()) {
@@ -875,7 +891,7 @@ public class Planetiler {
     }
 
     if (config.isRasterize()) {
-      String outputPath = arguments.getString("output", "output tile archive URI", null);
+      outputPath = arguments.getString("output", "output tile archive URI", null);
       if (StringUtils.isEmpty(outputPath)) {
         throw new IllegalArgumentException("栅格化输出路径不可为空！");
       }
