@@ -399,9 +399,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     if (getTileStatement == null) {
       try {
         getTileStatement = connection.prepareStatement("""
-          SELECT tile_data FROM %s
+          SELECT tile_data_id FROM %s
           WHERE %s=? AND %s=? AND %s=?
-          """.formatted(TILES_TABLE, TILES_COL_X, TILES_COL_Y, TILES_COL_Z));
+          """.formatted(TILES_SHALLOW_TABLE, TILES_COL_X, TILES_COL_Y, TILES_COL_Z));
       } catch (SQLException throwables) {
         throw new IllegalStateException(throwables);
       }
@@ -417,7 +417,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       stmt.setInt(2, (1 << z) - 1 - y);
       stmt.setInt(3, z);
       try (ResultSet rs = stmt.executeQuery()) {
-        return rs.next() ? rs.getBytes(TILES_COL_DATA) : null;
+        return rs.next() ? rs.getBytes(TILES_DATA_COL_DATA_ID) : null;
       }
     } catch (SQLException throwables) {
       throw new IllegalStateException("Could not get tile", throwables);

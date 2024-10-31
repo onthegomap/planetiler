@@ -111,7 +111,9 @@ public class AdvancedLandCoverTile implements Profile {
       for (int gridSize : gridSizeArray) {
         GridEntity.getGridEntity(gridSize);
       }
-      int tileDataIdCounter = 0;
+      // 断点续切，获取当前最大的数据ID
+      int tileDataIdCounter = mbtiles.getMaxDataTileId() + 1;
+      LOGGER.info("TileDataId={}", tileDataIdCounter);
       for (int zoom = config.rasterizeMaxZoom() - 1; zoom >= config.rasterizeMinZoom(); zoom--) {
         try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
           if (tileDataIdCounter != 0) {
@@ -256,16 +258,24 @@ public class AdvancedLandCoverTile implements Profile {
       parents.add(tileCoord.parent());
     }
     LOGGER.info("start process tile [{}] count={}", z, parents.size());
+    List<TileCoord> todoParent = new ArrayList<>();
+    for (TileCoord parent : parents) {
+      byte[] tile = mbtiles.getTile(parent.x(), parent.y(), parent.z());
+      if (tile == null) {
+        todoParent.add(parent);
+      }
+    }
+    LOGGER.info("start process tile [{}] todo={}", z, todoParent.size());
     BlockingQueue<TileMergeRunnable> queue = new LinkedBlockingQueue<>(THREAD_NUM);
     // 总体任务数量
     AtomicInteger producerCount = new AtomicInteger(0);
     AtomicInteger consumerCount = new AtomicInteger(0);
     // 控制处理瓦片数量
-    int totalTiles = parents.size();
+    int totalTiles = todoParent.size();
     AtomicInteger processTiles = new AtomicInteger(totalTiles);
     // 异步队列
     Runnable runnable = () -> {
-      for (TileCoord parent : parents) {
+      for (TileCoord parent : todoParent) {
         try {
           TileMergeRunnable tileMergeRunnable = new TileMergeRunnable(parent, mbtiles, writer, config);
           // 阻塞队列，保证并发数量，内存不会暴增
