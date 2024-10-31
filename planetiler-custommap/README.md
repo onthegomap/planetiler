@@ -414,13 +414,13 @@ value:
   water: otherwise
 ```
 
-If the values are not simple strings, then you can use an array of objects with `if` / `value` / `else` conditions:
+If the values are not simple strings, then you can use an array of objects with `if` and `value` keys and a last object with an `else` key:
 
 ```yaml
 value:
-  - value: 100000
-    if:
+  - if:
       place: city
+    value: 100000
   - value: 5000
     if:
       place: town
