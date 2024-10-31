@@ -531,7 +531,7 @@ public class TileArchiveWriter {
       // 创建tilejson文件
       if (isMbtiles) {
         // 存储本地，存储为 JSON 文件
-        Path outputPath = Paths.get(config.oosSavePath(), "tilejson.json");
+        Path outputPath = Paths.get(config.tmpDir().toString(), "tilejson.json");
         Files.write(outputPath, jsonContent.getBytes(StandardCharsets.UTF_8));
       } else {
         InputStream inputStream = new ByteArrayInputStream(jsonContent.getBytes(StandardCharsets.UTF_8));
