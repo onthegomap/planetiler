@@ -187,7 +187,13 @@ public class LoopLineMerger {
       }
       List<LineString> path = new ArrayList<>();
       path.add(edge);
-      queue.add(path);
+      if (maxLength > 0.0) {
+        if (getLength(path) <= maxLength) {
+          queue.add(path);
+        }
+      } else {
+        queue.add(path);
+      }
     }
 
     while (!queue.isEmpty()) {
