@@ -1,21 +1,19 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
-
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryComponentFilter;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
 public class LoopLineMerger {
   private HashMap<Point, Node> graph = new HashMap<>();
-  private GeometryFactory factory = null;
 
 
   public LoopLineMerger() {
@@ -26,9 +24,6 @@ public class LoopLineMerger {
       public void filter(Geometry component) {
         if (component instanceof LineString) {
           LineString lineString = (LineString) component;
-          if (factory == null) {
-            factory = lineString.getFactory();
-          }
           var segments = split(lineString);
           for (var segment : segments) {
             add(segment);
@@ -61,7 +56,7 @@ public class LoopLineMerger {
 
   }
 
-  private Coordinate roundCoordinate(Coordinate cooridnate) {
+  public static Coordinate roundCoordinate(Coordinate cooridnate) {
     Coordinate result = new Coordinate(cooridnate);
 
     double multiplier = 16.0;
@@ -72,13 +67,13 @@ public class LoopLineMerger {
     return result;
   }
 
-  private List<LineString> split(LineString lineString) {
+  public static List<LineString> split(LineString lineString) {
     List<LineString> segments = new ArrayList<>();
 
     Coordinate[] coordinates = lineString.getCoordinates();
     for (var i = 0; i < coordinates.length - 1; ++i) {
       Coordinate[] segmentCoordinates = { roundCoordinate(coordinates[i]), roundCoordinate(coordinates[i + 1]) };
-      LineString segment = factory.createLineString(segmentCoordinates);
+      LineString segment = GeoUtils.JTS_FACTORY.createLineString(segmentCoordinates);
       if (segment.getLength() > 0.0) {
         segments.add(segment);
       }
@@ -87,7 +82,7 @@ public class LoopLineMerger {
     return segments;
   }
 
-  public LineString concat(LineString A, LineString B) {
+  public static LineString concat(LineString A, LineString B) {
 
     List<Coordinate> coordinates = new ArrayList<>();
     List<Coordinate> coordsA = List.of(A.getCoordinates());
@@ -108,7 +103,7 @@ public class LoopLineMerger {
     } else {
       System.out.println("ERROR in concat().");
     }
-    return factory.createLineString(coordinates.toArray(new Coordinate[0]));
+    return GeoUtils.JTS_FACTORY.createLineString(coordinates.toArray(new Coordinate[0]));
   }
 
   private void merge() {
