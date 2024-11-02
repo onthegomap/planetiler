@@ -1602,7 +1602,4 @@ class ConfiguredFeatureTest {
     testFeature(config, sfMatch,
       any -> assertEquals(expected, (Double) any.getAttrsAtZoom(14).get("attr"), expected / 1e3), 1);
   }
-
-  // TODO: line_midpoint
-  // TODO: point_along_line(a), innermost_point(b), partial_line(a, b)
 }
