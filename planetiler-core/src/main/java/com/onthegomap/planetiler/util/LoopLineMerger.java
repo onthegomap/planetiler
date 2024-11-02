@@ -56,7 +56,7 @@ public class LoopLineMerger {
 
   }
 
-  public static Coordinate roundCoordinate(Coordinate cooridnate) {
+  protected static Coordinate roundCoordinate(Coordinate cooridnate) {
     Coordinate result = new Coordinate(cooridnate);
 
     double multiplier = 16.0;
@@ -67,7 +67,7 @@ public class LoopLineMerger {
     return result;
   }
 
-  public static List<LineString> split(LineString lineString) {
+  protected static List<LineString> split(LineString lineString) {
     List<LineString> segments = new ArrayList<>();
 
     Coordinate[] coordinates = lineString.getCoordinates();
@@ -82,7 +82,7 @@ public class LoopLineMerger {
     return segments;
   }
 
-  public static LineString concat(LineString A, LineString B) {
+  protected static LineString concat(LineString A, LineString B) {
 
     List<Coordinate> coordinates = new ArrayList<>();
     List<Coordinate> coordsA = List.of(A.getCoordinates());
@@ -175,7 +175,7 @@ public class LoopLineMerger {
     }
   }
 
-  private List<List<LineString>> findAllPaths(Point start, Point end, double maxLength) {
+  protected List<List<LineString>> findAllPaths(Point start, Point end, double maxLength) {
     List<List<LineString>> allPaths = new ArrayList<>();
     Queue<List<LineString>> queue = new LinkedList<>();
 
@@ -245,7 +245,7 @@ public class LoopLineMerger {
     return result;
   }
 
-  public static boolean hasPointAppearingMoreThanTwice(List<LineString> lineStrings) {
+  protected static boolean hasPointAppearingMoreThanTwice(List<LineString> lineStrings) {
     HashMap<Point, Integer> pointCountMap = new HashMap<>();
     for (LineString line : lineStrings) {
       Point startPoint = line.getStartPoint();
@@ -320,50 +320,50 @@ public class LoopLineMerger {
 
     return result;
   }
-}
 
-class Node {
-  private Point point;
-  private List<LineString> edges;
-
-  public Node(Point point) {
-    this.point = point;
-    this.edges = new ArrayList<>();
-  }
-
-  public Point getPoint() {
-    return point;
-  }
-
-  public void setPoint(Point point) {
-    this.point = point;
-  }
-
-  public List<LineString> getEdges() {
-    return edges;
-  }
-
-  public void addEdge(LineString edge) {
-    if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
-      edges.add(edge);
+  class Node {
+    private Point point;
+    private List<LineString> edges;
+  
+    public Node(Point point) {
+      this.point = point;
+      this.edges = new ArrayList<>();
     }
-  }
-
-  public void removeEdge(LineString edge) {
-    if (edges.contains(edge)) {
-      edges.remove(edge);
-    } else if (edges.contains(edge.reverse())) {
-      edges.remove(edge.reverse());
-    } else {
-      // nothing to do
+  
+    public Point getPoint() {
+      return point;
     }
-  }
-
-  @Override
-  public String toString() {
-    return "Node{" +
-        "point=" + point +
-        ", edges=" + edges +
-        '}';
-  }
+  
+    public void setPoint(Point point) {
+      this.point = point;
+    }
+  
+    public List<LineString> getEdges() {
+      return edges;
+    }
+  
+    public void addEdge(LineString edge) {
+      if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
+        edges.add(edge);
+      }
+    }
+  
+    public void removeEdge(LineString edge) {
+      if (edges.contains(edge)) {
+        edges.remove(edge);
+      } else if (edges.contains(edge.reverse())) {
+        edges.remove(edge.reverse());
+      } else {
+        // nothing to do
+      }
+    }
+  
+    @Override
+    public String toString() {
+      return "Node{" +
+          "point=" + point +
+          ", edges=" + edges +
+          '}';
+    }
+  }  
 }

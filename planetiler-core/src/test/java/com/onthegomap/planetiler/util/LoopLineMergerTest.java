@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
@@ -238,6 +239,76 @@ class LoopLineMergerTest {
     assertEquals(
       List.of(newLineString(0, 0, 20, 0, 30, 0, 50, 0)),
       merger.getMergedLineStrings(15, -1)
+    );
+  }
+
+  @Test
+  void testHasPointAppearingMoreThanTwice() {
+
+    // can revisit starting node once
+    assertEquals(
+      false,
+      LoopLineMerger.hasPointAppearingMoreThanTwice(
+        List.of(
+          newLineString(10, 0, 20, 0),
+          newLineString(20, 0, 20, 10),
+          newLineString(20, 10, 10, 0)
+        )
+      )
+    );
+
+    // cannot revisit starting node and continue on
+    assertEquals(
+      true,
+      LoopLineMerger.hasPointAppearingMoreThanTwice(
+        List.of(
+          newLineString(10, 0, 20, 0),
+          newLineString(20, 0, 20, 10),
+          newLineString(20, 10, 10, 0),
+          newLineString(10, 0, 10, 10)
+        )
+      )
+    );
+  }
+
+  @Test
+  void testFindAllPaths() {
+    // finds all paths and orders them by length
+    var merger = new LoopLineMerger();
+    /**                 10 20  30
+     *            10     o-----o
+     *                   |\    |
+     *                   | \   |
+     *            20     o--o--o
+     */
+    merger.add(newLineString(10, 10, 30, 10));
+    merger.add(newLineString(10, 10, 10, 20));
+    merger.add(newLineString(10, 10, 20, 20));
+    merger.add(newLineString(10, 20, 20, 20));
+    merger.add(newLineString(20, 20, 30, 20));
+    merger.add(newLineString(30, 20, 30, 10));
+
+    var allPaths = merger.findAllPaths(newPoint(10, 10), newPoint(20, 20), 1000);
+
+    assertEquals(3, allPaths.size());
+    assertEquals(
+      List.of(newLineString(10, 10, 20, 20)),
+      allPaths.get(0)
+    );
+    assertEquals(
+      List.of(
+        newLineString(10, 10, 10, 20),
+        newLineString(10, 20, 20, 20)
+      ),
+      allPaths.get(1)
+    );
+    assertEquals(
+      List.of(
+        newLineString(10, 10, 30, 10),
+        newLineString(30, 10, 30, 20),
+        newLineString(30, 20, 20, 20)
+      ),
+      allPaths.get(2)
     );
   }
   
