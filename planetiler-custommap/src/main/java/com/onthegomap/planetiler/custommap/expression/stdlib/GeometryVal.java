@@ -117,4 +117,14 @@ public class GeometryVal extends BaseVal implements Indexer, FieldTester {
       return Err.newErr(err, "Error getting %s", fieldName);
     }
   }
+
+  @Override
+  public final boolean equals(Object o) {
+    return this == o || (o instanceof GeometryVal val && val.geometry.equals(geometry));
+  }
+
+  @Override
+  public int hashCode() {
+    return geometry.hashCode();
+  }
 }

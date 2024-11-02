@@ -100,7 +100,7 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
    */
   public static <I extends ScriptContext, O> ConfigExpressionScript<I, O> parse(String string,
     ScriptEnvironment<I> description, Class<O> expected) {
-    var scriptHost = ScriptHost.newBuilder().registry(PlanetilerTypeRegistry.INSTANCE)
+    var scriptHost = ScriptHost.newBuilder().registry(new PlanetilerTypeRegistry())
       .build();
     try {
       var scriptBuilder = scriptHost.buildScript(string).withLibraries(

@@ -13,8 +13,7 @@ import org.projectnessie.cel.common.types.ref.TypeRegistry;
 import org.projectnessie.cel.common.types.ref.Val;
 
 /** Registers any types that are available to CEL expressions in planetiler configs. */
-public class PlanetilerTypeRegistry implements TypeRegistry {
-  public static final PlanetilerTypeRegistry INSTANCE = new PlanetilerTypeRegistry();
+public final class PlanetilerTypeRegistry implements TypeRegistry {
 
   @Override
   public TypeRegistry copy() {
@@ -22,10 +21,14 @@ public class PlanetilerTypeRegistry implements TypeRegistry {
   }
 
   @Override
-  public void register(Object t) {}
+  public void register(Object t) {
+    // types are defined statically
+  }
 
   @Override
-  public void registerType(Type... types) {}
+  public void registerType(Type... types) {
+    // types are defined statically
+  }
 
   @Override
   public Val nativeToValue(Object value) {
