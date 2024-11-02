@@ -1,7 +1,9 @@
 package com.onthegomap.planetiler.custommap.expression;
 
 import com.onthegomap.planetiler.custommap.TypeConversion;
+import com.onthegomap.planetiler.custommap.expression.stdlib.GeometryVal;
 import com.onthegomap.planetiler.custommap.expression.stdlib.PlanetilerStdLib;
+import com.onthegomap.planetiler.custommap.expression.stdlib.PlanetilerTypeRegistry;
 import com.onthegomap.planetiler.util.Memoized;
 import com.onthegomap.planetiler.util.Try;
 import java.util.Objects;
@@ -98,7 +100,8 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
    */
   public static <I extends ScriptContext, O> ConfigExpressionScript<I, O> parse(String string,
     ScriptEnvironment<I> description, Class<O> expected) {
-    ScriptHost scriptHost = ScriptHost.newBuilder().build();
+    var scriptHost = ScriptHost.newBuilder().registry(PlanetilerTypeRegistry.INSTANCE)
+      .build();
     try {
       var scriptBuilder = scriptHost.buildScript(string).withLibraries(
         new StringsLib(),
@@ -107,6 +110,7 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
       if (!description.declarations().isEmpty()) {
         scriptBuilder.withDeclarations(description.declarations());
       }
+      scriptBuilder.withTypes(GeometryVal.PROTO_TYPE);
       var script = scriptBuilder.build();
 
       return new ConfigExpressionScript<>(string, script, description, expected);
