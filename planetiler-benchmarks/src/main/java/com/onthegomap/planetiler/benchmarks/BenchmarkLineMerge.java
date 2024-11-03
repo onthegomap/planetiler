@@ -41,7 +41,9 @@ public class BenchmarkLineMerge {
     return time(lines, parts, geom -> {
       var merger = new LoopLineMerger();
       merger.add(geom);
-      return merger.getMergedLineStrings(0.1, 0.1);
+      merger.setLoopMinLength(0.1);
+      merger.setMinLength(0.1);
+      return merger.getMergedLineStrings();
     });
   }
 
