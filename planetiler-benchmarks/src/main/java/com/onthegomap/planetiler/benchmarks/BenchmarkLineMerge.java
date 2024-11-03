@@ -30,9 +30,8 @@ public class BenchmarkLineMerge {
         "loop line merger (/s):\t" +
           timeLoop(10, 10) + "\t" +
           timeLoop(10, 100) + "\t" +
-          timeLoop(1000, 10));
-      // TODO currently this does not finish:
-      // + "\t" + timeLoop(1000, 1000));
+          timeLoop(1000, 10) + "\t" +
+          timeLoop(1000, 1000));
       System.err.println();
     }
   }
@@ -73,14 +72,14 @@ public class BenchmarkLineMerge {
     var random = new Random(0);
     for (int i = 0; i < lines; i++) {
       Coordinate[] coords = new Coordinate[parts];
-      double x = random.nextInt(100);
-      double y = random.nextInt(100);
-      double dx = random.nextInt(-3, 3);
-      double dy = random.nextInt(-3, 3);
+      double startX = random.nextInt(100);
+      double startY = random.nextInt(100);
+      double endX = random.nextInt(100);
+      double endY = random.nextInt(100);
       for (int j = 0; j < parts; j++) {
         coords[j] = new CoordinateXY(
-          x += dx,
-          y += dy
+          j * (endX - startX) + startX,
+          j * (endY - startY) + startY
         );
       }
       result.add(GeoUtils.JTS_FACTORY.createLineString(coords));
