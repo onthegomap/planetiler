@@ -14,7 +14,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.locationtech.jts.util.GeometricShapeFactory;
 
-public class BenchmarkLoopLineMerge {
+public class BenchmarkLineMerge {
 
   public static void main(String[] args) {
     for (int i = 0; i < 10; i++) {
