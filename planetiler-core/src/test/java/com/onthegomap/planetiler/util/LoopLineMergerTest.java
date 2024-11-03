@@ -5,39 +5,46 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.PrecisionModel;
 
 class LoopLineMergerTest {
 
   @Test
-  void testRoundCoordinate() {
-    // rounds coordinates to fraction of 1 / 16 == 0.0625
-    Coordinate coordinate = new Coordinate(0.05, 0.07);
-    assertEquals(0.0625, LoopLineMerger.roundCoordinate(coordinate).getX());
-    assertEquals(0.0625, LoopLineMerger.roundCoordinate(coordinate).getY());
-  }
-
-  @Test
   void testSplit() {
+    var merger = new LoopLineMerger();
+
     // splits linestrings into linear segments
     assertEquals(
       List.of(
         newLineString(10, 10, 20, 20),
         newLineString(20, 20, 30, 30)
       ),
-      LoopLineMerger.split(newLineString(10, 10, 20, 20, 30, 30))
+      merger.split(newLineString(10, 10, 20, 20, 30, 30))
     );
 
     // does not keep zero length linestrings
-    assertEquals(0, LoopLineMerger.split(newLineString(10, 10, 10, 10)).size());
+    assertEquals(0, merger.split(newLineString(10, 10, 10, 10)).size());
 
     // rounds coordinates to 1/16 grid
+    merger = new LoopLineMerger();
     assertEquals(
       List.of(
-        newLineString(10.0625, 10.0625, 20, 20),
+        newLineString(10.0625, 10, 20, 20),
         newLineString(20, 20, 30, 30)
       ),
-      LoopLineMerger.split(newLineString(10.062343634, 10.062343634, 20, 20, 30, 30))
+      merger.split(newLineString(10.0624390, 10, 20, 20, 30, 30))
+    );
+
+    // rounds coordinates to 0.25 grid
+    merger = new LoopLineMerger()
+      .setPrecisionModel(new PrecisionModel(-0.25));
+
+    assertEquals(
+      List.of(
+        newLineString(10.25, 10, 20, 20),
+        newLineString(20, 20, 30, 30)
+      ),
+      merger.split(newLineString(10.2509803497, 10, 20, 20, 30, 30))
     );
   }
 
@@ -86,16 +93,22 @@ class LoopLineMergerTest {
   void testMerge() {
 
     // merges two touching linestrings
-    var merger = new LoopLineMerger();
+    var merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10, 10, 20, 20));
     merger.add(newLineString(20, 20, 30, 30));
     assertEquals(
       List.of(newLineString(10, 10, 20, 20, 30, 30)),
-      merger.getMergedLineStrings(-1, -1)
+      merger.getMergedLineStrings()
     );
 
     // keeps two separate linestrings separate
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10, 10, 20, 20));
     merger.add(newLineString(30, 30, 40, 40));
     assertEquals(
@@ -103,39 +116,51 @@ class LoopLineMergerTest {
         newLineString(10, 10, 20, 20),
         newLineString(30, 30, 40, 40)
       ),
-      merger.getMergedLineStrings(-1, -1)
+      merger.getMergedLineStrings()
     );
 
     // does not overcount already added linestrings
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10, 10, 20, 20));
     merger.add(newLineString(20, 20, 30, 30));
     merger.add(newLineString(20, 20, 30, 30));
     assertEquals(
       List.of(newLineString(10, 10, 20, 20, 30, 30)),
-      merger.getMergedLineStrings(-1, -1)
+      merger.getMergedLineStrings()
     );
 
     // splits linestrings into linear segments before merging
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10, 10, 20, 20, 30, 30));
     merger.add(newLineString(20, 20, 30, 30, 40, 40));
     assertEquals(
       List.of(newLineString(10, 10, 20, 20, 30, 30, 40, 40)),
-      merger.getMergedLineStrings(-1, -1)
+      merger.getMergedLineStrings()
     );
 
     // rounds coordinates to 1/16 before merging
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10.00043983098, 10, 20, 20));
     merger.add(newLineString(20, 20, 30, 30));
     assertEquals(
       List.of(newLineString(10, 10, 20, 20, 30, 30)),
-      merger.getMergedLineStrings(-1, -1)
+      merger.getMergedLineStrings()
     );
 
     // removes small loops, keeps shortes path
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(100);
+
     /**
      *              10  20 30 40
      *        10     o--o--o
@@ -163,11 +188,14 @@ class LoopLineMergerTest {
           40, 20
         )
       ),
-      merger.getMergedLineStrings(-1, 100)
+      merger.getMergedLineStrings()
     );
 
     // does not remove large loops
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(0.001);
+
     /**
      *              10 20 30  40
      *        10     o--o--o
@@ -206,23 +234,28 @@ class LoopLineMergerTest {
           20, 10
         )
       ),
-      merger.getMergedLineStrings(-1, 0.001)
+      merger.getMergedLineStrings()
     );
 
     // removes linestrings that are too short after merging
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(10)
+      .setLoopMinLength(-1);
+
     merger.add(newLineString(10, 10, 11, 11));
     merger.add(newLineString(20, 20, 30, 30));
     merger.add(newLineString(30, 30, 40, 40));
     assertEquals(
       List.of(newLineString(20, 20, 30, 30, 40, 40)),
-      merger.getMergedLineStrings(10, -1)
+      merger.getMergedLineStrings()
     );
 
     // removes first short stubs, merges again, and only then 
     // removes non-stubs that are too short
     // stub = linestring that has at least one disconnected end
-    merger = new LoopLineMerger();
+    merger = new LoopLineMerger()
+      .setMinLength(15)
+      .setLoopMinLength(-1);
 
     /**
      *            0   20  30   50
@@ -238,7 +271,7 @@ class LoopLineMergerTest {
 
     assertEquals(
       List.of(newLineString(0, 0, 20, 0, 30, 0, 50, 0)),
-      merger.getMergedLineStrings(15, -1)
+      merger.getMergedLineStrings()
     );
   }
 

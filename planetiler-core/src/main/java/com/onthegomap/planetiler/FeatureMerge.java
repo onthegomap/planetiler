@@ -34,6 +34,7 @@ import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
+import org.locationtech.jts.operation.linemerge.LineMerger;
 // import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,7 +173,9 @@ public class FeatureMerge {
       if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
         result.add(feature1);
       } else {
-        LoopLineMerger merger = new LoopLineMerger();
+        LoopLineMerger merger = new LoopLineMerger()
+          .setMinLength(lengthLimit)
+          .setLoopMinLength(lengthLimit);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
@@ -181,7 +184,7 @@ public class FeatureMerge {
           }
         }
         List<LineString> outputSegments = new ArrayList<>();
-        for (Object merged : merger.getMergedLineStrings(lengthLimit, lengthLimit)) {
+        for (Object merged : merger.getMergedLineStrings()) {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
             // re-simplify since some endpoints of merged segments may be unnecessary
             if (line.getNumPoints() > 2 && tolerance >= 0) {

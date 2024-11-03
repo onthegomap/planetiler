@@ -9,14 +9,47 @@ import java.util.Queue;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryComponentFilter;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class LoopLineMerger {
   private HashMap<Point, Node> graph = new HashMap<>();
-
+  private PrecisionModel precisionModel = new PrecisionModel(16);
+  private GeometryFactory factory = new GeometryFactory(precisionModel);
+  private double minLength = 0.0;
+  private double loopMinLength = 0.0;
 
   public LoopLineMerger() {
+  }
+
+  public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
+    this.precisionModel = precisionModel;
+    return this;
+  }
+
+  public PrecisionModel getPrecisionModel() {
+    return precisionModel;
+  }
+
+  public LoopLineMerger setMinLength(double minLength) {
+    this.minLength = minLength;
+    return this;
+  }
+
+  public double getMinLength() {
+    return minLength;
+  }
+
+  public LoopLineMerger setLoopMinLength(double loopMinLength) {
+    this.loopMinLength = loopMinLength;
+    return this;
+  }
+
+  public double getLoopMinLength() {
+    return loopMinLength;
   }
 
   public void add(Geometry geometry) {
@@ -56,24 +89,14 @@ public class LoopLineMerger {
 
   }
 
-  protected static Coordinate roundCoordinate(Coordinate cooridnate) {
-    Coordinate result = new Coordinate(cooridnate);
-
-    double multiplier = 16.0;
-
-    result.x = Math.round(result.x * multiplier) / multiplier;
-    result.y = Math.round(result.y * multiplier) / multiplier;
-
-    return result;
-  }
-
-  protected static List<LineString> split(LineString lineString) {
+  protected List<LineString> split(LineString lineString) {
     List<LineString> segments = new ArrayList<>();
 
     Coordinate[] coordinates = lineString.getCoordinates();
     for (var i = 0; i < coordinates.length - 1; ++i) {
-      Coordinate[] segmentCoordinates = { roundCoordinate(coordinates[i]), roundCoordinate(coordinates[i + 1]) };
-      LineString segment = GeoUtils.JTS_FACTORY.createLineString(segmentCoordinates);
+      Coordinate[] segmentCoordinates = { coordinates[i], coordinates[i + 1] };
+      LineString segment = factory.createLineString(segmentCoordinates);
+      segment = (LineString) GeometryPrecisionReducer.reduce((Geometry) segment, precisionModel);
       if (segment.getLength() > 0.0) {
         segments.add(segment);
       }
@@ -292,7 +315,7 @@ public class LoopLineMerger {
     }
   }
 
-  public List<LineString> getMergedLineStrings(double minLength, double loopMinLength) {
+  public List<LineString> getMergedLineStrings() {
     merge();
 
     if (loopMinLength > 0.0) {
