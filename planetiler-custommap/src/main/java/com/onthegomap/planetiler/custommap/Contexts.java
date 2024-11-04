@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.expression.ParseException;
 import com.onthegomap.planetiler.custommap.expression.ScriptContext;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
+import com.onthegomap.planetiler.custommap.expression.stdlib.GeometryVal;
 import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithGeometryType;
@@ -362,6 +363,7 @@ public class Contexts {
     private static final String FEATURE_OSM_USER_ID = "feature.osm_user_id";
     private static final String FEATURE_OSM_USER_NAME = "feature.osm_user_name";
     private static final String FEATURE_OSM_TYPE = "feature.osm_type";
+    private static final String FEATURE_GEOMETRY = "feature";
 
     public static ScriptEnvironment<ProcessFeature> description(Root root) {
       return root.description()
@@ -376,7 +378,8 @@ public class Contexts {
           Decls.newVar(FEATURE_OSM_TIMESTAMP, Decls.Int),
           Decls.newVar(FEATURE_OSM_USER_ID, Decls.Int),
           Decls.newVar(FEATURE_OSM_USER_NAME, Decls.String),
-          Decls.newVar(FEATURE_OSM_TYPE, Decls.String)
+          Decls.newVar(FEATURE_OSM_TYPE, Decls.String),
+          Decls.newVar(FEATURE_GEOMETRY, GeometryVal.PROTO_TYPE)
         );
     }
 
@@ -388,6 +391,7 @@ public class Contexts {
           case FEATURE_ID -> feature.id();
           case FEATURE_SOURCE -> feature.getSource();
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());
+          case FEATURE_GEOMETRY -> new GeometryVal(feature);
           default -> {
             OsmElement elem = feature instanceof OsmSourceFeature osm ? osm.originalElement() : null;
             if (FEATURE_OSM_TYPE.equals(key)) {

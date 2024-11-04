@@ -1518,4 +1518,88 @@ class ConfiguredFeatureTest {
     testFeature(config, sfNoMatch, any -> {
     }, 1);
   }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "feature.length('z0 px'); 3.0712E-5",
+    "feature.length('z0 tiles'); 0.007862",
+    "feature.length('m'); 314283",
+    "feature.length('km'); 314.28",
+    "feature.length('nm'); 169.7",
+    "feature.length('ft'); 1031114",
+    "feature.length('yd'); 343704",
+    "feature.length('mi'); 195.287",
+    "feature.bbox.area('mi2'); 19068",
+    "feature.centroid.lat; 3",
+    "feature.centroid.lon; 2",
+    "feature.innermost_point.lat; 3",
+    "feature.innermost_point(0.01).lat; 3",
+    "feature.line_midpoint.lat; 3",
+    "feature.point_along_line(0).lat; 2",
+    "feature.point_along_line(1.0).lat; 4",
+    "feature.partial_line(0.0, 0.1).centroid.lat; 2.1",
+  }, delimiter = ';')
+  void testGeometryAttributesLine(String expression, double expected) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          attributes:
+          - key: attr
+            value: ${%s}
+      """.formatted(expression);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(newLineString(1, 2, 3, 4), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    testFeature(config, sfMatch,
+      any -> assertEquals(expected, (Double) any.getAttrsAtZoom(14).get("attr"), expected / 1e3), 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "feature.area('z0 px2'); 1.17743E-10",
+    "feature.area('z0 tiles'); 7.7164E-6",
+    "feature.area('sm'); 1.2364E10",
+    "feature.area('km2'); 12363",
+    "feature.area('ft2'); 1.3308E11",
+    "feature.area('a'); 1.23637E8",
+    "feature.area('ac'); 3055141",
+    "feature.area('acres'); 3055141",
+    "feature.area('ha'); 1236371",
+    "feature.area('mi2'); 4773.7",
+    "feature.bbox.area('mi2'); 4773.7",
+    "feature.centroid.lat; 0.5",
+    "feature.centroid.lon; 0.5",
+    "feature.centroid_if_convex.lon; 0.5",
+    "feature.point_on_surface.lat; 0.5",
+    "feature.innermost_point.lat; 0.5",
+    "feature.validated_polygon.area('mi2'); 4773.7",
+  }, delimiter = ';')
+  void testGeometryAttributesArea(String expression, double expected) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          attributes:
+          - key: attr
+            value: ${%s}
+      """.formatted(expression);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(rectangle(0, 1), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    testFeature(config, sfMatch,
+      any -> assertEquals(expected, (Double) any.getAttrsAtZoom(14).get("attr"), expected / 1e3), 1);
+  }
 }

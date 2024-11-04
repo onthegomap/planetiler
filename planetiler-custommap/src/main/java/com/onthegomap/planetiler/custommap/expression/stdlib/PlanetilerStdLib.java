@@ -3,6 +3,9 @@ package com.onthegomap.planetiler.custommap.expression.stdlib;
 import static org.projectnessie.cel.checker.Decls.newOverload;
 
 import com.google.api.expr.v1alpha1.Type;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.Unit;
+import com.onthegomap.planetiler.geo.WithGeometry;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.DoubleBinaryOperator;
@@ -162,6 +165,83 @@ public class PlanetilerStdLib extends PlanetilerLib {
           Decls.newOverload("max_double", List.of(Decls.newListType(Decls.Double)), Decls.Double)
         ),
         Overload.unary("max", list -> reduceNumeric(list, Math::max, Math::max))
+      ),
+
+      new BuiltInFunction(
+        Decls.newFunction("area",
+          Decls.newInstanceOverload("area", List.of(GeometryVal.PROTO_TYPE, Decls.String), Decls.Double)
+        ),
+        Overload.binary("area",
+          (a, b) -> DoubleT
+            .doubleOf(a.convertToNative(WithGeometry.class).area(Unit.Area.from(b.convertToNative(String.class)))))
+      ),
+
+      new BuiltInFunction(
+        Decls.newFunction("length",
+          Decls.newInstanceOverload("length", List.of(GeometryVal.PROTO_TYPE, Decls.String), Decls.Double)
+        ),
+        Overload.binary("length",
+          (a, b) -> DoubleT
+            .doubleOf(a.convertToNative(WithGeometry.class).length(Unit.Length.from(b.convertToNative(String.class)))))
+      ),
+
+      new BuiltInFunction(
+        Decls.newFunction("point_along_line",
+          Decls.newInstanceOverload("point_along_line_double", List.of(GeometryVal.PROTO_TYPE, Decls.Double),
+            GeometryVal.PROTO_TYPE),
+          Decls.newInstanceOverload("point_along_line_int", List.of(GeometryVal.PROTO_TYPE, Decls.Int),
+            GeometryVal.PROTO_TYPE)
+        ),
+        Overload.binary("point_along_line",
+          (a, b) -> {
+            try {
+              return GeometryVal.fromWorldGeom(a.convertToNative(WithGeometry.class).pointAlongLine(b.doubleValue()));
+            } catch (GeometryException e) {
+              return Err.newErr(e, "Unable to compute point_along_line(%d)", b.doubleValue());
+            }
+          })
+      ),
+
+      new BuiltInFunction(
+        Decls.newFunction("innermost_point",
+          Decls.newInstanceOverload("innermost_point_double", List.of(GeometryVal.PROTO_TYPE, Decls.Double),
+            GeometryVal.PROTO_TYPE),
+          Decls.newInstanceOverload("innermost_point_int", List.of(GeometryVal.PROTO_TYPE, Decls.Int),
+            GeometryVal.PROTO_TYPE)
+        ),
+        Overload.binary("innermost_point",
+          (a, b) -> {
+            try {
+              return GeometryVal.fromWorldGeom(a.convertToNative(WithGeometry.class).innermostPoint(b.doubleValue()));
+            } catch (GeometryException e) {
+              return Err.newErr(e, "Unable to compute innermost_point(%d)", b.doubleValue());
+            }
+          })
+      ),
+
+      new BuiltInFunction(
+        Decls.newFunction("partial_line",
+          Decls.newInstanceOverload("partial_line_double_double",
+            List.of(GeometryVal.PROTO_TYPE, Decls.Double, Decls.Double),
+            GeometryVal.PROTO_TYPE),
+          Decls.newInstanceOverload("partial_line_double_int", List.of(GeometryVal.PROTO_TYPE, Decls.Double, Decls.Int),
+            GeometryVal.PROTO_TYPE),
+          Decls.newInstanceOverload("partial_line_int_double", List.of(GeometryVal.PROTO_TYPE, Decls.Int, Decls.Double),
+            GeometryVal.PROTO_TYPE),
+          Decls.newInstanceOverload("partial_line_int_int", List.of(GeometryVal.PROTO_TYPE, Decls.Int, Decls.Int),
+            GeometryVal.PROTO_TYPE)
+        ),
+        Overload.function("partial_line",
+          (Val[] args) -> {
+            Val a = args[0];
+            double b = args[1].doubleValue(), c = args[2].doubleValue();
+            try {
+              return GeometryVal
+                .fromWorldGeom(a.convertToNative(WithGeometry.class).partialLine(b, c));
+            } catch (GeometryException e) {
+              return Err.newErr(e, "Unable to compute partial_line(%d, %d)", b, c);
+            }
+          })
       )
     ));
   }

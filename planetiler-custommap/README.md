@@ -506,6 +506,38 @@ Additional variables, on top of the root context:
 - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
 - `feature.osm_type` - type of the OSM element as a string: `"node"`, `"way"`, or `"relation"`
 
+On the original feature or any accessor that returns a geometry, you can also use:
+
+- `feature.length("unit")` - length of the feature if it is a line, 0 otherwise. Allowed units: "meters"/"m", "feet"
+  /"ft", "yards"/"yd", "nautical miles"/"nm", "kilometer"/"km" for units relative to the size in meters, or "z0 tiles"/"
+  z0 ti", "z0 pixels"/"z0 px" for sizes relative to the size of the geometry when projected into a z0 web mercator tile
+  containing the entire world.
+- `feature.area("unit")` - area of the feature if it is a polygon, 0 otherwise. Allowed units: any length unit like "
+  km2", "mi2", or "z0 px2" or also "acres"/"ac", "hectares"/"ha", or "ares"/"a".
+- `feature.min_lat` / `feature.min_lon` / `feature.max_lat` / `feature.max_lon` - returns coordinates from the bounding
+  box of this geometry
+- `feature.lat` / `feature.lon` - returns the coordinate of an arbitrary point on this shape (useful to get the lat/lon
+  of a point)
+- `feature.bbox` - returns the rectangle bounding box that contains this entire shape
+- `feature.centroid` - returns the weighted center point of the geometry, which may fall outside the the shape
+- `feature.point_on_surface` - returns a point that is within the shape (on the line, or inside the polygon)
+- `feature.validated_polygon` - if this is a polygon, fixes any self-intersections and returns the result
+- `feature.centroid_if_convex` - returns point_on_surface if this is a concave polygon, or centroid if convex
+- `feature.line_midpoint` - returns midpoint of this feature if it is a line
+- `feature.point_along_line(amount)` - when amount=0 returns the start of the line, when amount=1 returns the end,
+  otherwise a point at a certain ratio along the line
+- `feature.partial_line(start, end)` - returns a partial line segment from start to end where 0=the beginning of the
+  line and 1=the end
+- `feature.innermost_point` / `feature.innermost_point(tolerance)` - returns the midpoint of a line, or
+  the [pole of inaccessibility](https://en.wikipedia.org/wiki/Pole_of_inaccessibility) if it is a polygon
+
+For example:
+
+```yaml
+key: bbox_area_km2
+value: ${ feature.bbox.area('km2') }
+```
+
 ##### 3. Post-Match Context
 
 Context available after a feature has matched, for example computing an attribute value.
