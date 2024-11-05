@@ -1,11 +1,21 @@
 package com.onthegomap.planetiler.util;
+
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBReader;
 
 class LoopLineMergerTest {
 
@@ -162,11 +172,7 @@ class LoopLineMergerTest {
       .setLoopMinLength(100);
 
     /**
-     *              10  20 30 40
-     *        10     o--o--o
-     *                   \ |
-     *                    \|
-     *        20           o--o          
+     * 10 20 30 40 10 o--o--o \ | \| 20 o--o
      */
     merger.add(newLineString(
       10, 10,
@@ -197,11 +203,7 @@ class LoopLineMergerTest {
       .setLoopMinLength(0.001);
 
     /**
-     *              10 20 30  40
-     *        10     o--o--o
-     *                   \ |
-     *                    \|
-     *        20           o--o          
+     * 10 20 30 40 10 o--o--o \ | \| 20 o--o
      */
     merger.add(newLineString(
       10, 10,
@@ -250,7 +252,7 @@ class LoopLineMergerTest {
       merger.getMergedLineStrings()
     );
 
-    // removes first short stubs, merges again, and only then 
+    // removes first short stubs, merges again, and only then
     // removes non-stubs that are too short
     // stub = linestring that has at least one disconnected end
     merger = new LoopLineMerger()
@@ -258,10 +260,7 @@ class LoopLineMergerTest {
       .setLoopMinLength(-1);
 
     /**
-     *            0   20  30   50
-     *       0    o----o--o----o
-     *                 |  |
-     *       10        o  o
+     * 0 20 30 50 0 o----o--o----o | | 10 o o
      */
     merger.add(newLineString(0, 0, 20, 0));
     merger.add(newLineString(20, 0, 30, 0));
@@ -308,11 +307,8 @@ class LoopLineMergerTest {
   void testFindAllPaths() {
     // finds all paths and orders them by length
     var merger = new LoopLineMerger();
-    /**                 10 20  30
-     *            10     o-----o
-     *                   |\    |
-     *                   | \   |
-     *            20     o--o--o
+    /**
+     * 10 20 30 10 o-----o |\ | | \ | 20 o--o--o
      */
     merger.add(newLineString(10, 10, 30, 10));
     merger.add(newLineString(10, 10, 10, 20));
@@ -344,5 +340,32 @@ class LoopLineMergerTest {
       allPaths.get(2)
     );
   }
-  
+
+
+  @ParameterizedTest
+  @CsvSource({
+    "mergelines_1759_point_line.wkb.gz,0,4",
+    "mergelines_1759_point_line.wkb.gz,1,2",
+
+    "mergelines_200433_lines.wkb.gz,0,35160",
+    "mergelines_200433_lines.wkb.gz,0.1,22403",
+    "mergelines_200433_lines.wkb.gz,1,1516",
+
+    "mergelines_239823_lines.wkb.gz,0,19632",
+    "mergelines_239823_lines.wkb.gz,0.1,13861",
+    "mergelines_239823_lines.wkb.gz,1,1585",
+  })
+  void testOnRealWorldData(String file, double minLengths, int expected)
+    throws IOException, ParseException {
+    // finds all paths and orders them by length
+    Geometry geom = new WKBReader(GeoUtils.JTS_FACTORY).read(
+      Gzip.gunzip(Files.readAllBytes(TestUtils.pathToResource("mergelines").resolve(file))));
+    var merger = new LoopLineMerger();
+    merger.setMinLength(minLengths);
+    merger.setLoopMinLength(minLengths);
+    merger.add(geom);
+    merger.getMergedLineStrings();
+    assertEquals(expected, merger.getMergedLineStrings().size());
+  }
+
 }
