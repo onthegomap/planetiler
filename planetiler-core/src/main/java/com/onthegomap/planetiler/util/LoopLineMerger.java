@@ -1,26 +1,49 @@
 package com.onthegomap.planetiler.util;
 
-import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryComponentFilter;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class LoopLineMerger {
-  private HashMap<Point, Node> graph = new HashMap<>();
+  private final List<LineString> input = new ArrayList<>();
+  private final List<Node> output = new ArrayList<>();
+  int ids = 0;
   private PrecisionModel precisionModel = new PrecisionModel(16);
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
+
+  private static double getLength(List<Edge> lines) {
+    double result = 0.0;
+    for (var line : lines) {
+      result += line.length;
+    }
+    return result;
+  }
+
+  static boolean hasPointAppearingMoreThanTwice(List<Edge> edges) {
+    HashMap<Node, Integer> pointCountMap = new HashMap<>();
+    for (Edge edge : edges) {
+      if (pointCountMap.merge(edge.from, 1, Integer::sum) > 2) {
+        return true;
+      }
+      if (pointCountMap.merge(edge.to, 1, Integer::sum) > 2) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
@@ -41,139 +64,37 @@ public class LoopLineMerger {
   public void add(Geometry geometry) {
     geometry.apply((GeometryComponentFilter) component -> {
       if (component instanceof LineString lineString) {
-        var segments = split(lineString);
-        for (var segment : segments) {
-          add(segment);
-        }
+        input.add(lineString);
       }
     });
   }
 
-  private void add(LineString lineString) {
-    var A = lineString.getStartPoint();
-    if (graph.containsKey(A)) {
-      var node = graph.get(A);
-      node.addEdge(lineString);
-    } else {
-      var node = new Node(A);
-      node.addEdge(lineString);
-      graph.put(A, node);
-    }
-
-    var B = lineString.getEndPoint();
-    if (graph.containsKey(B)) {
-      var node = graph.get(B);
-      node.addEdge(lineString);
-    } else {
-      var node = new Node(B);
-      node.addEdge(lineString);
-      graph.put(B, node);
-    }
-
-  }
-
-  protected List<LineString> split(LineString lineString) {
-    List<LineString> segments = new ArrayList<>();
-
-    Coordinate[] coordinates = lineString.getCoordinates();
-    for (var i = 0; i < coordinates.length - 1; ++i) {
-      Coordinate[] segmentCoordinates = {coordinates[i], coordinates[i + 1]};
-      LineString segment = factory.createLineString(segmentCoordinates);
-      segment = (LineString) GeometryPrecisionReducer.reduce(segment, precisionModel);
-      if (segment.getLength() > 0.0) {
-        segments.add(segment);
-      }
-    }
-
-    return segments;
-  }
-
-  protected static LineString concat(LineString A, LineString B) {
-
-    List<Coordinate> coordinates = new ArrayList<>();
-    List<Coordinate> coordsA = List.of(A.getCoordinates());
-    List<Coordinate> coordsB = List.of(B.getCoordinates());
-
-    if (A.getEndPoint().equals(B.getStartPoint())) {
-      coordinates.addAll(coordsA);
-      coordinates.addAll(coordsB.subList(1, coordsB.size()));
-    } else if (B.getEndPoint().equals(A.getStartPoint())) {
-      coordinates.addAll(coordsB);
-      coordinates.addAll(coordsA.subList(1, coordsA.size()));
-    } else if (A.getStartPoint().equals(B.getStartPoint())) {
-      coordinates.addAll(coordsA.reversed());
-      coordinates.addAll(coordsB.subList(1, coordsB.size()));
-    } else if (A.getEndPoint().equals(B.getEndPoint())) {
-      coordinates.addAll(coordsA);
-      coordinates.addAll(coordsB.reversed().subList(1, coordsB.size()));
-    } else {
-      System.out.println("ERROR in concat().");
-    }
-    return GeoUtils.JTS_FACTORY.createLineString(coordinates.toArray(new Coordinate[0]));
-  }
-
   private void merge() {
-    for (var point : graph.keySet()) {
-      var node = graph.get(point);
+    for (var node : output) {
       if (node.getEdges().size() == 2) {
-
-        var A = node.getEdges().get(0);
-        var B = node.getEdges().get(1);
-
-        graph.get(A.getStartPoint()).removeEdge(A);
-        graph.get(A.getEndPoint()).removeEdge(A);
-
-        graph.get(B.getStartPoint()).removeEdge(B);
-        graph.get(B.getEndPoint()).removeEdge(B);
-
-        var C = concat(A, B);
-
-        graph.get(C.getStartPoint()).addEdge((LineString) C.copy());
-        graph.get(C.getEndPoint()).addEdge((LineString) C.copy());
+        Edge a = node.getEdges().getFirst();
+        Edge b = node.getEdges().get(1);
+        node.getEdges().clear();
+        List<Coordinate> coordinates = new ArrayList<>();
+        coordinates.addAll(a.coordinates.reversed());
+        coordinates.addAll(b.coordinates.subList(1, b.coordinates.size()));
+        Edge c = new Edge(a.to, b.to, coordinates, a.length + b.length);
+        a.to.removeEdge(a.reversed);
+        b.to.removeEdge(b.reversed);
+        a.to.addEdge(c);
+        b.to.addEdge(c.reversed);
       }
     }
-
-    // remove nodes that do not have edges attached anymore
-    graph.entrySet().removeIf(entry -> entry.getValue().getEdges().size() == 0);
   }
 
-  private void removeLoops(double loopMinLength) {
-
-    var points = new ArrayList<>(graph.keySet());
-    for (var currentPoint : points) {
-
-      var node = graph.get(currentPoint);
-      if (node == null) {
-        continue;
-      }
-
-      var edges = new ArrayList<>(node.getEdges());
-      while (edges.size() > 0) {
-        var currentEdge = edges.get(0);
-        edges.remove(0);
-
-        if (!node.getEdges().contains(currentEdge)) {
-          continue;
-        }
-
-        var A = currentEdge.getStartPoint();
-        var B = currentEdge.getEndPoint();
-
-        var end = currentPoint.equals(A) ? B : A;
-        var allPaths = findAllPaths(currentPoint, end, loopMinLength);
-
+  private void removeLoops() {
+    for (var node : output) {
+      for (var edge : List.copyOf(node.getEdges())) {
+        var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
         if (allPaths.size() > 1) {
           for (var path : allPaths.subList(1, allPaths.size())) {
-            if (path.size() > 0) {
-              var firstEdge = path.get(0);
-              var startNode = graph.get(firstEdge.getStartPoint());
-              if (startNode != null) {
-                startNode.removeEdge(firstEdge);
-              }
-              var endNode = graph.get(firstEdge.getEndPoint());
-              if (endNode != null) {
-                endNode.removeEdge(firstEdge);
-              }
+            for (var toRemove : path) {
+              toRemove.remove();
             }
           }
         }
@@ -181,20 +102,15 @@ public class LoopLineMerger {
     }
   }
 
-  protected List<List<LineString>> findAllPaths(Point start, Point end, double maxLength) {
-    List<List<LineString>> allPaths = new ArrayList<>();
-    Queue<List<LineString>> queue = new LinkedList<>();
+  List<List<Edge>> findAllPaths(Node start, Node end, double maxLength) {
+    List<List<Edge>> allPaths = new ArrayList<>();
+    Queue<List<Edge>> queue = new LinkedList<>();
 
-    Node node = graph.get(start);
-    for (var edge : node.getEdges()) {
-      var forward = start.equals(edge.getStartPoint());
-      if (!forward) {
-        edge = edge.reverse();
-      }
-      List<LineString> path = new ArrayList<>();
+    for (var edge : start.getEdges()) {
+      List<Edge> path = new ArrayList<>();
       path.add(edge);
       if (maxLength > 0.0) {
-        if (getLength(path) <= maxLength) {
+        if (edge.length <= maxLength) {
           queue.add(path);
         }
       } else {
@@ -203,26 +119,15 @@ public class LoopLineMerger {
     }
 
     while (!queue.isEmpty()) {
-      List<LineString> currentPath = queue.poll();
-      Point currentPoint = currentPath.get(currentPath.size() - 1).getEndPoint();
+      List<Edge> currentPath = queue.poll();
+      Node currentPoint = currentPath.getLast().to;
 
-      if (currentPoint.equals(end)) {
+      if (currentPoint == end) {
         allPaths.add(new ArrayList<>(currentPath));
       } else {
-        node = graph.get(currentPoint);
-        if (node != null) {
-          for (var edge : node.getEdges()) {
-
-            if (currentPath.contains(edge) || currentPath.contains(edge.reverse())) {
-              continue;
-            }
-
-            var forward = currentPoint.equals(edge.getStartPoint());
-            if (!forward) {
-              edge = edge.reverse();
-            }
-
-            List<LineString> newPath = new ArrayList<>(currentPath);
+        for (var edge : currentPoint.getEdges()) {
+          if (!currentPath.contains(edge)) {
+            List<Edge> newPath = new ArrayList<>(currentPath);
             newPath.add(edge);
             if (maxLength > 0.0) {
               if (getLength(newPath) <= maxLength) {
@@ -236,140 +141,257 @@ public class LoopLineMerger {
       }
     }
 
-    allPaths.removeIf(a -> hasPointAppearingMoreThanTwice(a));
+    allPaths.removeIf(LoopLineMerger::hasPointAppearingMoreThanTwice);
 
-    allPaths.sort((a, b) -> Double.compare(getLength(a), getLength(b)));
+    allPaths.sort(Comparator.comparingDouble(LoopLineMerger::getLength));
 
     return allPaths;
   }
 
-  private static double getLength(List<LineString> lines) {
-    double result = 0.0;
-    for (var line : lines) {
-      result += line.getLength();
-    }
-    return result;
-  }
-
-  protected static boolean hasPointAppearingMoreThanTwice(List<LineString> lineStrings) {
-    HashMap<Point, Integer> pointCountMap = new HashMap<>();
-    for (LineString line : lineStrings) {
-      Point startPoint = line.getStartPoint();
-      Point endPoint = line.getEndPoint();
-      pointCountMap.put(startPoint, pointCountMap.getOrDefault(startPoint, 0) + 1);
-      pointCountMap.put(endPoint, pointCountMap.getOrDefault(endPoint, 0) + 1);
-    }
-    for (int count : pointCountMap.values()) {
-      if (count > 2) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private void removeShortStubEdges(double minLength) {
-    for (var node : graph.values()) {
-      for (var edge : new ArrayList<>(node.getEdges())) {
-        if (edge.getLength() < minLength) {
-          boolean remove = false;
-          if (graph.get(edge.getStartPoint()).getEdges().size() == 1) {
-            remove = true;
-          }
-          if (graph.get(edge.getEndPoint()).getEdges().size() == 1) {
-            remove = true;
-          }
-          if (remove) {
-            graph.get(edge.getStartPoint()).removeEdge(edge);
-            graph.get(edge.getEndPoint()).removeEdge(edge);
-          }
+  private void removeShortStubEdges() {
+    for (var node : output) {
+      for (var edge : List.copyOf(node.getEdges())) {
+        if (edge.length < minLength && (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1)) {
+          edge.remove();
         }
       }
     }
   }
 
-  private void removeShortEdges(double minLength) {
-    for (var node : graph.values()) {
-      for (var edge : new ArrayList<>(node.getEdges())) {
-        if (edge.getLength() < minLength) {
-          graph.get(edge.getStartPoint()).removeEdge(edge);
-          graph.get(edge.getEndPoint()).removeEdge(edge);
+  private void removeShortEdges() {
+    for (var node : output) {
+      for (var edge : List.copyOf(node.getEdges())) {
+        if (edge.length < minLength) {
+          edge.remove();
         }
       }
     }
   }
 
   public List<LineString> getMergedLineStrings() {
+    List<List<Coordinate>> edges = nodeLines(input);
+    buildNodes(edges);
+
     merge();
 
     if (loopMinLength > 0.0) {
-      removeLoops(loopMinLength);
+      removeLoops();
       merge();
     }
 
     if (minLength > 0.0) {
-      removeShortStubEdges(minLength);
+      removeShortStubEdges();
       merge();
-      removeShortEdges(minLength);
+      removeShortEdges();
       merge();
     }
 
     List<LineString> result = new ArrayList<>();
 
-    for (var node : graph.values()) {
+    for (var node : output) {
       for (var edge : node.getEdges()) {
-        if (result.contains(edge) || result.contains(edge.reverse())) {
-          continue;
+        if (edge.main) {
+          result.add(factory.createLineString(edge.coordinates.toArray(Coordinate[]::new)));
         }
-        result.add(edge);
       }
     }
 
     return result;
   }
 
+  private double length(List<Coordinate> edge) {
+    Coordinate last = null;
+    double length = 0;
+    // we only care about the length of lines if they are < the limit
+    // so stop counting once we exceed it
+    double maxLengthToTrack = Math.max(minLength, loopMinLength);
+    if (maxLengthToTrack <= 0) {
+      return Double.POSITIVE_INFINITY;
+    }
+    for (Coordinate coord : edge) {
+      if (last != null) {
+        length += last.distance(coord);
+        if (length > maxLengthToTrack) {
+          return Double.POSITIVE_INFINITY;
+        }
+      }
+      last = coord;
+    }
+    return length;
+  }
+
+  private void buildNodes(List<List<Coordinate>> edges) {
+    Map<Coordinate, Node> nodes = new HashMap<>();
+    for (var coordinateSequence : edges) {
+      Coordinate first = coordinateSequence.getFirst();
+      Node firstNode = nodes.get(first);
+      if (firstNode == null) {
+        firstNode = new Node();
+        nodes.put(first, firstNode);
+        output.add(firstNode);
+      }
+
+      Coordinate last = coordinateSequence.getLast();
+      Node lastNode = nodes.get(last);
+      if (lastNode == null) {
+        lastNode = new Node();
+        nodes.put(last, lastNode);
+        output.add(lastNode);
+      }
+
+      double length = length(coordinateSequence);
+
+      Edge edge = new Edge(firstNode, lastNode, coordinateSequence, length);
+
+      firstNode.addEdge(edge);
+      lastNode.addEdge(edge.reversed);
+    }
+  }
+
+  private List<List<Coordinate>> nodeLines(List<LineString> input) {
+    Map<Coordinate, Integer> nodeCounts = new HashMap<>();
+    List<List<Coordinate>> coords = new ArrayList<>(input.size());
+    for (var line : input) {
+      var coordinateSequence = line.getCoordinateSequence();
+      List<Coordinate> snapped = new ArrayList<>();
+      Coordinate last = null;
+      for (int i = 0; i < coordinateSequence.size(); i++) {
+        Coordinate current = new CoordinateXY(coordinateSequence.getX(i), coordinateSequence.getY(i));
+        precisionModel.makePrecise(current);
+        if (last == null || !last.equals(current)) {
+          snapped.add(current);
+          nodeCounts.merge(current, 1, Integer::sum);
+        }
+        last = current;
+      }
+      if (snapped.size() >= 2) {
+        coords.add(snapped);
+      }
+    }
+
+    List<List<Coordinate>> result = new ArrayList<>(input.size());
+    for (var coordinateSequence : coords) {
+      int start = 0;
+      for (int i = 0; i < coordinateSequence.size(); i++) {
+        Coordinate coordinate = coordinateSequence.get(i);
+        if (i > 0 && i < coordinateSequence.size() - 1 && nodeCounts.get(coordinate) > 1) {
+          result.add(coordinateSequence.subList(start, i + 1));
+          start = i;
+        }
+      }
+      if (start < coordinateSequence.size()) {
+        var sublist = start == 0 ? coordinateSequence : coordinateSequence.subList(start, coordinateSequence.size());
+        result.add(sublist);
+      }
+    }
+    return result;
+  }
+
   class Node {
-    private Point point;
-    private List<LineString> edges;
+    int id = ids++;
+    List<Edge> edge = new ArrayList<>();
 
-    public Node(Point point) {
-      this.point = point;
-      this.edges = new ArrayList<>();
-    }
-
-    public Point getPoint() {
-      return point;
-    }
-
-    public void setPoint(Point point) {
-      this.point = point;
-    }
-
-    public List<LineString> getEdges() {
-      return edges;
-    }
-
-    public void addEdge(LineString edge) {
-      if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
-        edges.add(edge);
+    void addEdge(Edge edge) {
+      for (Edge other : this.edge) {
+        if (other.coordinates.equals(edge.coordinates)) {
+          return;
+        }
       }
+      this.edge.add(edge);
     }
 
-    public void removeEdge(LineString edge) {
-      if (edges.contains(edge)) {
-        edges.remove(edge);
-      } else if (edges.contains(edge.reverse())) {
-        edges.remove(edge.reverse());
-      } else {
-        // nothing to do
-      }
+    List<Edge> getEdges() {
+      return edge;
+    }
+
+    void removeEdge(Edge edge) {
+      this.edge.remove(edge);
     }
 
     @Override
     public String toString() {
-      return "Node{" +
-        "point=" + point +
-        ", edges=" + edges +
-        '}';
+      return "Node{" + id + ": " + edge + '}';
     }
   }
+
+  class Edge {
+    Node from;
+    Node to;
+    double length;
+    List<Coordinate> coordinates;
+    boolean main;
+    Edge reversed;
+
+
+    private Edge(Node from, Node to, List<Coordinate> coordinateSequence, double length) {
+      this(from, to, length, coordinateSequence, true, null);
+      reversed = new Edge(to, from, length, coordinateSequence.reversed(), false, this);
+    }
+
+    public Edge(Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
+      this.from = from;
+      this.to = to;
+      this.length = length;
+      this.coordinates = coordinates;
+      this.main = main;
+      this.reversed = reversed;
+    }
+
+    public void remove() {
+      from.removeEdge(this);
+      to.removeEdge(reversed);
+    }
+
+    @Override
+    public String toString() {
+      return "Edge{" + from.id + "->" + to.id + (main ? "" : "(R)") + ": [" + coordinates.getFirst() + ".." +
+        coordinates.getLast() + "], length=" + length + '}';
+    }
+  }
+
+  //  class Node {
+  //    private Point point;
+  //    private List<LineString> edges;
+  //
+  //    public Node(Point point) {
+  //      this.point = point;
+  //      this.edges = new ArrayList<>();
+  //    }
+  //
+  //    public Point getPoint() {
+  //      return point;
+  //    }
+  //
+  //    public void setPoint(Point point) {
+  //      this.point = point;
+  //    }
+  //
+  //    public List<LineString> getEdges() {
+  //      return edges;
+  //    }
+  //
+  //    public void addEdge(LineString edge) {
+  //      if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
+  //        edges.add(edge);
+  //      }
+  //    }
+  //
+  //    public void removeEdge(LineString edge) {
+  //      if (edges.contains(edge)) {
+  //        edges.remove(edge);
+  //      } else if (edges.contains(edge.reverse())) {
+  //        edges.remove(edge.reverse());
+  //      } else {
+  //        // nothing to do
+  //      }
+  //    }
+  //
+  //    @Override
+  //    public String toString() {
+  //      return "Node{" +
+  //        "point=" + point +
+  //        ", edges=" + edges +
+  //        '}';
+  //    }
+  //  }
 }
