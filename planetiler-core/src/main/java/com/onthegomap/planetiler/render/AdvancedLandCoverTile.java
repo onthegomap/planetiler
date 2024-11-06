@@ -1,7 +1,5 @@
 package com.onthegomap.planetiler.render;
 
-import static com.onthegomap.planetiler.render.TileMergeRunnable.gridSizeArray;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Profile;
@@ -91,6 +89,8 @@ public class AdvancedLandCoverTile implements Profile {
   private final Map<TileCoord, Map<String, ConcurrentLinkedQueue<FeatureInfo>>> currentZoomTiles = new ConcurrentHashMap<>();
   private Mbtiles mbtiles;
 
+  private final GridEntityCache gridEntityCache = new GridEntityCache();
+
   public AdvancedLandCoverTile(PlanetilerConfig config, Mbtiles mbtiles) {
     this.config = config;
     this.mbtiles = mbtiles;
@@ -106,29 +106,22 @@ public class AdvancedLandCoverTile implements Profile {
     StopWatch stopWatch = new StopWatch();
     stopWatch.start();
     try {
-      // 记录已经缓存过得网格集
-      List<Integer> pixelGridList = new ArrayList<>();
-      for (int gridSize : gridSizeArray) {
-        GridEntity.getGridEntity(gridSize);
-      }
       // 断点续切，获取当前最大的数据ID
       int tileDataIdCounter = mbtiles.getMaxDataTileId() + 1;
       LOGGER.info("TileDataId={}", tileDataIdCounter);
       for (int zoom = config.rasterizeMaxZoom() - 1; zoom >= config.rasterizeMinZoom(); zoom--) {
         try (Mbtiles.TileWriter writer = mbtiles.newTileWriter()) {
-          if (tileDataIdCounter != 0) {
-            writer.setTileDataIdCounter(tileDataIdCounter);
-          }
-          // 每个层级重新打开存储文件，保证数据已落盘
-          if (zoom + 1 == config.rasterizeMaxZoom()) {
-            writer.setTileDataIdCounter(mbtiles.getMaxDataTileId() + 1);
-          }
-          initPixelSize(zoom);
+          writer.setTileDataIdCounter(tileDataIdCounter);
 
-          if (zoom <= config.pixelationZoom() && !pixelGridList.contains(pixelGridSize)) {
-            initCachePixelGeom();
-            pixelGridList.add(pixelGridSize);
-          }
+          // 初始化网格集
+          gridEntityCache.getOrCreateGridEntity(getPixelationGridSizeAtZoom(zoom));
+
+//          initPixelSize(zoom);
+
+//          if (zoom <= config.pixelationZoom() && !pixelGridList.contains(pixelGridSize)) {
+//            initCachePixelGeom();
+//            pixelGridList.add(pixelGridSize);
+//          }
 
 //        processTileBatch(zoom, 0, 0, 0, 0, writer);
           processZoomLevel(zoom, writer);
@@ -273,11 +266,15 @@ public class AdvancedLandCoverTile implements Profile {
     // 控制处理瓦片数量
     int totalTiles = todoParent.size();
     AtomicInteger processTiles = new AtomicInteger(totalTiles);
+
+    // 获取当前层级网格集
+    GridEntity gridEntity = gridEntityCache.getOrCreateGridEntity(getPixelationGridSizeAtZoom(z));
+
     // 异步队列
     Runnable runnable = () -> {
       for (TileCoord parent : todoParent) {
         try {
-          TileMergeRunnable tileMergeRunnable = new TileMergeRunnable(parent, mbtiles, writer, config);
+          TileMergeRunnable tileMergeRunnable = new TileMergeRunnable(parent, mbtiles, writer, config, gridEntity);
           // 阻塞队列，保证并发数量，内存不会暴增
           queue.put(tileMergeRunnable);
         } catch (Exception e) {
@@ -570,7 +567,7 @@ public class AdvancedLandCoverTile implements Profile {
         , "rasterize_max_zoom", 14
         , "bounds", "120.65834964097692, 30.358135461680284,122.98862516825757,32.026462694269135"
         , "pixelation_zoom", 12
-//        , "pixelation_grid_size_overrides", "12=512"
+        , "pixelation_grid_size_overrides", "12=256,11=512,10=1024,9=2048"
       )
     );
     try (WriteableTileArchive archive = TileArchives.newWriter(Paths.get(mbtilesPath), planetilerConfig)) {
