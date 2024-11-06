@@ -48,9 +48,8 @@ public class BenchmarkLineMerge {
         lm.add(geom);
         return lm.getMergedLineStrings();
       });
-      System.out.println(numLines);
-      numLines = 0;
     }
+    System.err.println(numLines);
   }
 
   private static void time(String name, Function<Geometry, Collection<LineString>> fn) throws Exception {
