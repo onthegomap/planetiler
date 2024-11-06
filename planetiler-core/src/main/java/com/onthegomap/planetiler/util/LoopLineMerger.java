@@ -22,16 +22,10 @@ public class LoopLineMerger {
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
 
-  public LoopLineMerger() {
-  }
-
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
+    factory = new GeometryFactory(precisionModel);
     return this;
-  }
-
-  public PrecisionModel getPrecisionModel() {
-    return precisionModel;
   }
 
   public LoopLineMerger setMinLength(double minLength) {
@@ -39,28 +33,17 @@ public class LoopLineMerger {
     return this;
   }
 
-  public double getMinLength() {
-    return minLength;
-  }
-
   public LoopLineMerger setLoopMinLength(double loopMinLength) {
     this.loopMinLength = loopMinLength;
     return this;
   }
 
-  public double getLoopMinLength() {
-    return loopMinLength;
-  }
-
   public void add(Geometry geometry) {
-    geometry.apply(new GeometryComponentFilter() {
-      public void filter(Geometry component) {
-        if (component instanceof LineString) {
-          LineString lineString = (LineString) component;
-          var segments = split(lineString);
-          for (var segment : segments) {
-            add(segment);
-          }
+    geometry.apply((GeometryComponentFilter) component -> {
+      if (component instanceof LineString lineString) {
+        var segments = split(lineString);
+        for (var segment : segments) {
+          add(segment);
         }
       }
     });
@@ -94,9 +77,9 @@ public class LoopLineMerger {
 
     Coordinate[] coordinates = lineString.getCoordinates();
     for (var i = 0; i < coordinates.length - 1; ++i) {
-      Coordinate[] segmentCoordinates = { coordinates[i], coordinates[i + 1] };
+      Coordinate[] segmentCoordinates = {coordinates[i], coordinates[i + 1]};
       LineString segment = factory.createLineString(segmentCoordinates);
-      segment = (LineString) GeometryPrecisionReducer.reduce((Geometry) segment, precisionModel);
+      segment = (LineString) GeometryPrecisionReducer.reduce(segment, precisionModel);
       if (segment.getLength() > 0.0) {
         segments.add(segment);
       }
@@ -347,30 +330,30 @@ public class LoopLineMerger {
   class Node {
     private Point point;
     private List<LineString> edges;
-  
+
     public Node(Point point) {
       this.point = point;
       this.edges = new ArrayList<>();
     }
-  
+
     public Point getPoint() {
       return point;
     }
-  
+
     public void setPoint(Point point) {
       this.point = point;
     }
-  
+
     public List<LineString> getEdges() {
       return edges;
     }
-  
+
     public void addEdge(LineString edge) {
       if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
         edges.add(edge);
       }
     }
-  
+
     public void removeEdge(LineString edge) {
       if (edges.contains(edge)) {
         edges.remove(edge);
@@ -380,13 +363,13 @@ public class LoopLineMerger {
         // nothing to do
       }
     }
-  
+
     @Override
     public String toString() {
       return "Node{" +
-          "point=" + point +
-          ", edges=" + edges +
-          '}';
+        "point=" + point +
+        ", edges=" + edges +
+        '}';
     }
-  }  
+  }
 }
