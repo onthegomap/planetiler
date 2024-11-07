@@ -98,7 +98,13 @@ public class LoopLineMerger {
     List<Edge> removedEdges = new ArrayList<>();
     for (var node : output) {
       for (var edge : List.copyOf(node.getEdges())) {
-        if (removedEdges.contains(edge) || edge.from == edge.to) {
+        if (removedEdges.contains(edge)) {
+          continue;
+        }
+        if (edge.from == edge.to && edge.length <= loopMinLength) {
+          // self-closing short loop
+          removedEdges.add(edge);
+          edge.remove();
           continue;
         }
         try {
