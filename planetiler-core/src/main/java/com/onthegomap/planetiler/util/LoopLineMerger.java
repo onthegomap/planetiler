@@ -107,14 +107,8 @@ public class LoopLineMerger {
     Queue<List<Edge>> queue = new LinkedList<>();
 
     for (var edge : start.getEdges()) {
-      List<Edge> path = new ArrayList<>();
-      path.add(edge);
-      if (maxLength > 0.0) {
-        if (edge.length <= maxLength) {
-          queue.add(path);
-        }
-      } else {
-        queue.add(path);
+      if (edge.length <= maxLength) {
+        queue.add(List.of(edge));
       }
     }
 
@@ -126,22 +120,16 @@ public class LoopLineMerger {
         allPaths.add(new ArrayList<>(currentPath));
       } else {
         for (var edge : currentPoint.getEdges()) {
-          if (!currentPath.contains(edge)) {
+          if (!currentPath.contains(edge) && !currentPath.contains(edge.reversed)) {
             List<Edge> newPath = new ArrayList<>(currentPath);
             newPath.add(edge);
-            if (maxLength > 0.0) {
-              if (getLength(newPath) <= maxLength) {
-                queue.add(newPath);
-              }
-            } else {
+            if (getLength(newPath) <= maxLength && !hasPointAppearingMoreThanTwice(newPath)) {
               queue.add(newPath);
             }
           }
         }
       }
     }
-
-    allPaths.removeIf(LoopLineMerger::hasPointAppearingMoreThanTwice);
 
     allPaths.sort(Comparator.comparingDouble(LoopLineMerger::getLength));
 
@@ -348,50 +336,4 @@ public class LoopLineMerger {
         coordinates.getLast() + "], length=" + length + '}';
     }
   }
-
-  //  class Node {
-  //    private Point point;
-  //    private List<LineString> edges;
-  //
-  //    public Node(Point point) {
-  //      this.point = point;
-  //      this.edges = new ArrayList<>();
-  //    }
-  //
-  //    public Point getPoint() {
-  //      return point;
-  //    }
-  //
-  //    public void setPoint(Point point) {
-  //      this.point = point;
-  //    }
-  //
-  //    public List<LineString> getEdges() {
-  //      return edges;
-  //    }
-  //
-  //    public void addEdge(LineString edge) {
-  //      if (!edges.contains(edge) && !edges.contains(edge.reverse())) {
-  //        edges.add(edge);
-  //      }
-  //    }
-  //
-  //    public void removeEdge(LineString edge) {
-  //      if (edges.contains(edge)) {
-  //        edges.remove(edge);
-  //      } else if (edges.contains(edge.reverse())) {
-  //        edges.remove(edge.reverse());
-  //      } else {
-  //        // nothing to do
-  //      }
-  //    }
-  //
-  //    @Override
-  //    public String toString() {
-  //      return "Node{" +
-  //        "point=" + point +
-  //        ", edges=" + edges +
-  //        '}';
-  //    }
-  //  }
 }

@@ -48,6 +48,13 @@ public class BenchmarkLineMerge {
         lm.add(geom);
         return lm.getMergedLineStrings();
       });
+      // time("loop(20.0)", geom -> {
+      //   var lm = new LoopLineMerger();
+      //   lm.setLoopMinLength(20.0);
+      //   lm.setMinLength(0.1);
+      //   lm.add(geom);
+      //   return lm.getMergedLineStrings();
+      // });
     }
     System.err.println(numLines);
   }
