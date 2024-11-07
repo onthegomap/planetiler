@@ -105,6 +105,11 @@ public class LoopLineMerger {
             }
           }
         }
+        else {
+          // MAX_RECURSION_DEPTH was reached. On other edges of the graph the same
+          // will happen. Abort merging loops...
+          return;
+        }
       }
     }
   }
@@ -119,7 +124,17 @@ public class LoopLineMerger {
       }
     }
 
+    var MAX_RECURSION_DEPTH = 1e6;
+    var currentDepth = 0;
+
     while (!queue.isEmpty()) {
+
+      currentDepth += 1;
+      if (currentDepth > MAX_RECURSION_DEPTH) {
+        System.out.println("Warning: max recursion depth reached. Unable to perform loop merging...");
+        return new ArrayList<>();
+      }
+
       List<Edge> currentPath = queue.poll();
       Node currentPoint = currentPath.getLast().to;
 
