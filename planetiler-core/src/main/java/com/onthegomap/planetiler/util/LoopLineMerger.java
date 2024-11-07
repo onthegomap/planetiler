@@ -93,8 +93,8 @@ public class LoopLineMerger {
         var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
         if (allPaths.size() > 1) {
           for (var path : allPaths.subList(1, allPaths.size())) {
-            for (var toRemove : path) {
-              toRemove.remove();
+            if (path.size() > 0) {
+              path.get(0).remove();
             }
           }
         }
