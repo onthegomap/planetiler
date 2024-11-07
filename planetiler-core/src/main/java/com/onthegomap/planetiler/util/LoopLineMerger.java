@@ -16,6 +16,12 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
 
+class RecursionDepthException extends Exception {
+  public RecursionDepthException(String message) {
+      super(message);
+  }
+}
+
 public class LoopLineMerger {
   private final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
@@ -95,25 +101,26 @@ public class LoopLineMerger {
         if (removedEdges.contains(edge) || edge.from == edge.to) {
           continue;
         }
-        var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
-        if (allPaths.size() > 1) {
-          for (var path : allPaths.subList(1, allPaths.size())) {
-            if (path.size() > 0) {
-              removedEdges.add(path.get(0));
-              path.get(0).remove();
+        try {
+          var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
+          if (allPaths.size() > 1) {
+            for (var path : allPaths.subList(1, allPaths.size())) {
+              if (path.size() > 0) {
+                removedEdges.add(path.get(0));
+                path.get(0).remove();
+              }
             }
           }
-        }
-        else {
+        } catch (RecursionDepthException e) {
           // MAX_RECURSION_DEPTH was reached. On other edges of the graph the same
           // will happen. Abort merging loops...
           return;
-        }
+        }  
       }
     }
   }
 
-  List<List<Edge>> findAllPaths(Node start, Node end, double maxLength) {
+  List<List<Edge>> findAllPaths(Node start, Node end, double maxLength) throws RecursionDepthException {
     List<List<Edge>> allPaths = new ArrayList<>();
     Queue<List<Edge>> queue = new LinkedList<>();
 
@@ -131,7 +138,7 @@ public class LoopLineMerger {
       currentDepth += 1;
       if (currentDepth > MAX_RECURSION_DEPTH) {
         System.out.println("Warning: max recursion depth reached. Unable to perform loop merging...");
-        return new ArrayList<>();
+        throw new RecursionDepthException("Warning: max recursion depth reached. Unable to perform loop merging...");
       }
 
       List<Edge> currentPath = queue.poll();
