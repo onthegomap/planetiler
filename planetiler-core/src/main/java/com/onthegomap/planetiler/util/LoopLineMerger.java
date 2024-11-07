@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Queue;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -88,12 +90,17 @@ public class LoopLineMerger {
   }
 
   private void removeLoops() {
+    List<Edge> removedEdges = new ArrayList<>();
     for (var node : output) {
       for (var edge : List.copyOf(node.getEdges())) {
+        if (removedEdges.contains(edge) || edge.from == edge.to) {
+          continue;
+        }
         var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
         if (allPaths.size() > 1) {
           for (var path : allPaths.subList(1, allPaths.size())) {
             if (path.size() > 0) {
+              removedEdges.add(path.get(0));
               path.get(0).remove();
             }
           }
@@ -139,7 +146,7 @@ public class LoopLineMerger {
   private void removeShortStubEdges() {
     for (var node : output) {
       for (var edge : List.copyOf(node.getEdges())) {
-        if (edge.length < minLength && (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1)) {
+        if (edge.length < minLength && (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to)) {
           edge.remove();
         }
       }

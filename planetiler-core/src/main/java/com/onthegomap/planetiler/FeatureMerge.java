@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -189,10 +190,17 @@ public class FeatureMerge {
           }
         }
         List<LineString> outputSegments = new ArrayList<>();
+        var i = 0;
         for (Object merged : merger.getMergedLineStrings()) {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
-            result.add(feature1.copyWithNewGeometry(((LineString) merged).getStartPoint()));
-            result.add(feature1.copyWithNewGeometry(((LineString) merged).getEndPoint()));
+            // TODO remove debug features comment
+            // Map<String, Object> attrs = new HashMap<>();
+            // attrs.put("idx", i++);
+            // result.add(feature1.copyWithNewGeometry(((LineString) merged).getStartPoint()).copyWithExtraAttrs(attrs));
+            // result.add(feature1.copyWithNewGeometry((LineString) merged).copyWithExtraAttrs(attrs));
+            // attrs.put("end", "yes");
+            // result.add(feature1.copyWithNewGeometry(((LineString) merged).getEndPoint()).copyWithExtraAttrs(attrs));
+
             // re-simplify since some endpoints of merged segments may be unnecessary
             if (line.getNumPoints() > 2 && tolerance >= 0) {
               Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
