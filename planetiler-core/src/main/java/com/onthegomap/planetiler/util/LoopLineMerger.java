@@ -1,13 +1,12 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
 import java.util.Queue;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -21,7 +20,7 @@ public class LoopLineMerger {
   private final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
   int ids = 0;
-  private PrecisionModel precisionModel = new PrecisionModel(16);
+  private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.TILE_PRECISION);
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
