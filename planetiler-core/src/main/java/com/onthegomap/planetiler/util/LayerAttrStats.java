@@ -2,10 +2,12 @@ package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -85,27 +87,37 @@ public class LayerAttrStats {
     @JsonProperty("fields") Map<String, FieldType> fields,
     @JsonProperty("description") Optional<String> description,
     @JsonProperty("minzoom") OptionalInt minzoom,
-    @JsonProperty("maxzoom") OptionalInt maxzoom
+    @JsonProperty("maxzoom") OptionalInt maxzoom,
+    @JsonProperty("geometryTypes") Optional<Set<String>> geometryTypes
   ) {
 
     public VectorLayer(String id, Map<String, FieldType> fields) {
-      this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty());
+      this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty(), null);
     }
 
     public VectorLayer(String id, Map<String, FieldType> fields, int minzoom, int maxzoom) {
-      this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom));
+      this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom), null);
+    }
+
+    public VectorLayer(String id, Map<String, FieldType> fields, Optional<String> description, OptionalInt minzoom,
+      OptionalInt maxzoom) {
+      this(id, fields, description, minzoom, maxzoom, null);
     }
 
     public VectorLayer withDescription(String newDescription) {
-      return new VectorLayer(id, fields, Optional.of(newDescription), minzoom, maxzoom);
+      return new VectorLayer(id, fields, Optional.of(newDescription), minzoom, maxzoom, null);
     }
 
     public VectorLayer withMinzoom(int newMinzoom) {
-      return new VectorLayer(id, fields, description, OptionalInt.of(newMinzoom), maxzoom);
+      return new VectorLayer(id, fields, description, OptionalInt.of(newMinzoom), maxzoom, null);
     }
 
     public VectorLayer withMaxzoom(int newMaxzoom) {
-      return new VectorLayer(id, fields, description, minzoom, OptionalInt.of(newMaxzoom));
+      return new VectorLayer(id, fields, description, minzoom, OptionalInt.of(newMaxzoom), null);
+    }
+
+    public VectorLayer withGeometryTypes(Set<String> geometryTypes) {
+      return new VectorLayer(id, fields, description, minzoom, maxzoom, Optional.of(geometryTypes));
     }
   }
 
