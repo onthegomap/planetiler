@@ -180,7 +180,7 @@ public class FeatureMerge {
       } else {
         LoopLineMerger merger = new LoopLineMerger()
           .setMinLength(lengthLimit)
-          .setLoopMinLength(lengthLimit);
+          .setLoopMinLength(loopMinLength);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
