@@ -18,9 +18,10 @@ import org.locationtech.jts.geom.PrecisionModel;
 
 class RecursionDepthException extends Exception {
   public RecursionDepthException(String message) {
-      super(message);
+    super(message);
   }
 }
+
 
 public class LoopLineMerger {
   private final List<LineString> input = new ArrayList<>();
@@ -89,7 +90,9 @@ public class LoopLineMerger {
         a.to.removeEdge(a.reversed);
         b.to.removeEdge(b.reversed);
         a.to.addEdge(c);
-        b.to.addEdge(c.reversed);
+        if (a.to != b.to) {
+          b.to.addEdge(c.reversed);
+        }
       }
     }
   }
@@ -121,7 +124,7 @@ public class LoopLineMerger {
           // MAX_RECURSION_DEPTH was reached. On other edges of the graph the same
           // will happen. Abort merging loops...
           return;
-        }  
+        }
       }
     }
   }
@@ -173,7 +176,8 @@ public class LoopLineMerger {
   private void removeShortStubEdges() {
     for (var node : output) {
       for (var edge : List.copyOf(node.getEdges())) {
-        if (edge.length < minLength && (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to)) {
+        if (edge.length < minLength &&
+          (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to)) {
           edge.remove();
         }
       }

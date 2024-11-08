@@ -23,86 +23,6 @@ import org.locationtech.jts.operation.linemerge.LineMerger;
 
 class LoopLineMergerTest {
 
-  //  @Test
-  //  void testSplit() {
-  //    var merger = new LoopLineMerger();
-  //
-  //    // splits linestrings into linear segments
-  //    assertEquals(
-  //      List.of(
-  //        newLineString(10, 10, 20, 20),
-  //        newLineString(20, 20, 30, 30)
-  //      ),
-  //      merger.split(newLineString(10, 10, 20, 20, 30, 30))
-  //    );
-  //
-  //    // does not keep zero length linestrings
-  //    assertEquals(0, merger.split(newLineString(10, 10, 10, 10)).size());
-  //
-  //    // rounds coordinates to 1/16 grid
-  //    merger = new LoopLineMerger();
-  //    assertEquals(
-  //      List.of(
-  //        newLineString(10.0625, 10, 20, 20),
-  //        newLineString(20, 20, 30, 30)
-  //      ),
-  //      merger.split(newLineString(10.0624390, 10, 20, 20, 30, 30))
-  //    );
-  //
-  //    // rounds coordinates to 0.25 grid
-  //    merger = new LoopLineMerger()
-  //      .setPrecisionModel(new PrecisionModel(-0.25));
-  //
-  //    assertEquals(
-  //      List.of(
-  //        newLineString(10.25, 10, 20, 20),
-  //        newLineString(20, 20, 30, 30)
-  //      ),
-  //      merger.split(newLineString(10.2509803497, 10, 20, 20, 30, 30))
-  //    );
-  //  }
-
-  //  @Test
-  //  void testConcat() {
-  //    // concatenates forward A followed by forward B
-  //    assertEquals(
-  //      newLineString(10, 10, 20, 20, 30, 30),
-  //      LoopLineMerger.concat(
-  //        newLineString(10, 10, 20, 20),
-  //        newLineString(20, 20, 30, 30)
-  //      )
-  //    );
-  //
-  //    // concatenates forward B followed by forward A
-  //    assertEquals(
-  //      newLineString(10, 10, 20, 20, 30, 30),
-  //      LoopLineMerger.concat(
-  //        newLineString(20, 20, 30, 30),
-  //        newLineString(10, 10, 20, 20)
-  //      )
-  //    );
-  //
-  //    // concatenates A and B with same start point to backward A forward B
-  //    assertEquals(
-  //      newLineString(10, 10, 20, 20, 30, 30),
-  //      LoopLineMerger.concat(
-  //        newLineString(20, 20, 10, 10),
-  //        newLineString(20, 20, 30, 30)
-  //      )
-  //    );
-  //
-  //    // concatenates A and B with same end point to forward A backward B
-  //    assertEquals(
-  //      newLineString(10, 10, 20, 20, 30, 30),
-  //      LoopLineMerger.concat(
-  //        newLineString(10, 10, 20, 20),
-  //        newLineString(30, 30, 20, 20)
-  //      )
-  //    );
-  //
-  //    // TODO: handle and test the case when A/B do not share end/start points
-  //  }
-
   @Test
   void testMergeTouchingLinestrings() {
     var merger = new LoopLineMerger()
@@ -290,74 +210,52 @@ class LoopLineMergerTest {
     );
   }
 
-  //  @Test
-  //  void testHasPointAppearingMoreThanTwice() {
-  //
-  //    // can revisit starting node once
-  //    assertEquals(
-  //      false,
-  //      LoopLineMerger.hasPointAppearingMoreThanTwice(
-  //        List.of(
-  //          newLineString(10, 0, 20, 0),
-  //          newLineString(20, 0, 20, 10),
-  //          newLineString(20, 10, 10, 0)
-  //        )
-  //      )
-  //    );
-  //
-  //    // cannot revisit starting node and continue on
-  //    assertEquals(
-  //      true,
-  //      LoopLineMerger.hasPointAppearingMoreThanTwice(
-  //        List.of(
-  //          newLineString(10, 0, 20, 0),
-  //          newLineString(20, 0, 20, 10),
-  //          newLineString(20, 10, 10, 0),
-  //          newLineString(10, 0, 10, 10)
-  //        )
-  //      )
-  //    );
-  //  }
-  //
-  //  @Test
-  //  void testFindAllPaths() {
-  //    // finds all paths and orders them by length
-  //    var merger = new LoopLineMerger();
-  //    /**
-  //     * 10 20 30 10 o-----o |\ | | \ | 20 o--o--o
-  //     */
-  //    merger.add(newLineString(10, 10, 30, 10));
-  //    merger.add(newLineString(10, 10, 10, 20));
-  //    merger.add(newLineString(10, 10, 20, 20));
-  //    merger.add(newLineString(10, 20, 20, 20));
-  //    merger.add(newLineString(20, 20, 30, 20));
-  //    merger.add(newLineString(30, 20, 30, 10));
-  //
-  //    var allPaths = merger.findAllPaths(newPoint(10, 10), newPoint(20, 20), 1000);
-  //
-  //    assertEquals(3, allPaths.size());
-  //    assertEquals(
-  //      List.of(newLineString(10, 10, 20, 20)),
-  //      allPaths.get(0)
-  //    );
-  //    assertEquals(
-  //      List.of(
-  //        newLineString(10, 10, 10, 20),
-  //        newLineString(10, 20, 20, 20)
-  //      ),
-  //      allPaths.get(1)
-  //    );
-  //    assertEquals(
-  //      List.of(
-  //        newLineString(10, 10, 30, 10),
-  //        newLineString(30, 10, 30, 20),
-  //        newLineString(30, 20, 20, 20)
-  //      ),
-  //      allPaths.get(2)
-  //    );
-  //  }
+  @Test
+  void testMergeCarriagewaysWithOneSplitShorterThanLoopMinLength() {
+    var merger = new LoopLineMerger()
+      .setMinLength(20)
+      .setLoopMinLength(20);
 
-  //  @Disabled
+    merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0));
+    merger.add(newLineString(30, 0, 20, 0, 15, 1, 10, 0, 0, 0));
+
+    assertEquals(
+      List.of(newLineString(30, 0, 20, 0, 10, 0, 0, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeCarriagewaysWithOneSplitLongerThanLoopMinLength() {
+    var merger = new LoopLineMerger()
+      .setMinLength(5)
+      .setLoopMinLength(5);
+
+    merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0));
+    merger.add(newLineString(30, 0, 20, 0, 15, 1, 10, 0, 0, 0));
+
+    assertEquals(
+      // ideally loop merging should connect long line strings and represent loops as separate segments off of the edges
+      List.of(newLineString(30, 0, 20, 0, 10, 0, 0, 0), newLineString(20, 0, 15, 1, 10, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeCarriagewaysWithTwoSplits() {
+    var merger = new LoopLineMerger()
+      .setMinLength(20)
+      .setLoopMinLength(20);
+
+    merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0, 40, 0));
+    merger.add(newLineString(40, 0, 30, 0, 25, 5, 20, 0, 15, 5, 10, 0, 0, 0));
+
+    assertEquals(
+      List.of(newLineString(40, 0, 30, 0, 20, 0, 10, 0, 0, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
   @ParameterizedTest
   @CsvSource({
     "mergelines_1759_point_line.wkb.gz,0,4",
@@ -371,16 +269,16 @@ class LoopLineMergerTest {
     "mergelines_239823_lines.wkb.gz,0.1,14196",
     "mergelines_239823_lines.wkb.gz,1,1673",
 
-    "i90.wkb.gz,0,1",
-    "i90.wkb.gz,1,1",
-    "i90.wkb.gz,20,1",
+    "i90.wkb.gz,0,95",
+    "i90.wkb.gz,1,65",
+    "i90.wkb.gz,20,4",
+    "i90.wkb.gz,30,1",
   })
   void testOnRealWorldData(String file, double minLengths, int expected)
     throws IOException, ParseException {
     Geometry geom = new WKBReader(GeoUtils.JTS_FACTORY).read(
       Gzip.gunzip(Files.readAllBytes(TestUtils.pathToResource("mergelines").resolve(file))));
     var merger = new LoopLineMerger();
-    //    merger.setPrecisionModel(new PrecisionModel(16));
     merger.setMinLength(minLengths);
     merger.setLoopMinLength(minLengths);
     merger.add(geom);
