@@ -370,12 +370,17 @@ class LoopLineMergerTest {
     "mergelines_239823_lines.wkb.gz,0,19669",
     "mergelines_239823_lines.wkb.gz,0.1,14196",
     "mergelines_239823_lines.wkb.gz,1,1673",
+
+    "i90.wkb.gz,0,1",
+    "i90.wkb.gz,1,1",
+    "i90.wkb.gz,20,1",
   })
   void testOnRealWorldData(String file, double minLengths, int expected)
     throws IOException, ParseException {
     Geometry geom = new WKBReader(GeoUtils.JTS_FACTORY).read(
       Gzip.gunzip(Files.readAllBytes(TestUtils.pathToResource("mergelines").resolve(file))));
     var merger = new LoopLineMerger();
+    //    merger.setPrecisionModel(new PrecisionModel(16));
     merger.setMinLength(minLengths);
     merger.setLoopMinLength(minLengths);
     merger.add(geom);
