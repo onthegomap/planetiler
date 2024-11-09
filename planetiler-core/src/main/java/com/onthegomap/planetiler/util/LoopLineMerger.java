@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.util;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -123,13 +122,11 @@ public class LoopLineMerger {
 
   private double shortestDistance(Node start, Node end, Node exclude, double maxLength) {
     Map<Integer, Double> bestDistance = new HashMap<>();
-    BitSet visitedNodes = new BitSet();
-    visitedNodes.set(exclude.id);
+    //    BitSet visitedNodes = new BitSet();
     record Candidate(Node node, double cost, double heuristic) {}
     PriorityQueue<Candidate> frontier = new PriorityQueue<>(Comparator.comparingDouble(Candidate::heuristic));
-    if (!visitedNodes.get(start.id)) {
+    if (exclude != start) {
       frontier.offer(new Candidate(start, 0, start.distance(end)));
-      visitedNodes.set(start.id);
     }
     while (!frontier.isEmpty()) {
       Candidate candidate = frontier.poll();
@@ -140,7 +137,7 @@ public class LoopLineMerger {
 
       for (var edge : current.getEdges()) {
         var neighbor = edge.to;
-        if (!visitedNodes.get(neighbor.id)) {
+        if (neighbor != exclude) {
           double newDist = candidate.cost + edge.length;
           double prev = bestDistance.getOrDefault(neighbor.id, Double.POSITIVE_INFINITY);
           if (newDist < prev) {
@@ -148,7 +145,7 @@ public class LoopLineMerger {
             double heuristic = newDist + neighbor.distance(end);
             if (heuristic <= maxLength) {
               frontier.offer(new Candidate(neighbor, newDist, heuristic));
-              visitedNodes.set(neighbor.id);
+              //              visitedNodes.set(neighbor.id);
             }
           }
         }
