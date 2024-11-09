@@ -104,7 +104,7 @@ public class LoopLineMerger {
         }
         for (var other : node.getEdges()) {
           double distance = other.length +
-            shortestDistance(other.to, current.to, current, loopMinLength - other.length);
+            shortestDistance(other.to, current.to, current.from, loopMinLength - other.length);
           if (distance <= loopMinLength) {
             loops.add(new HasLoop(other, distance));
           }
@@ -121,10 +121,10 @@ public class LoopLineMerger {
     }
   }
 
-  private double shortestDistance(Node start, Node end, Edge exclude, double maxLength) {
+  private double shortestDistance(Node start, Node end, Node exclude, double maxLength) {
     Map<Integer, Double> bestDistance = new HashMap<>();
     BitSet visitedNodes = new BitSet();
-    visitedNodes.set(exclude.from.id);
+    visitedNodes.set(exclude.id);
     record Candidate(Node node, double cost, double heuristic) {}
     PriorityQueue<Candidate> frontier = new PriorityQueue<>(Comparator.comparingDouble(Candidate::heuristic));
     if (!visitedNodes.get(start.id)) {
@@ -140,7 +140,7 @@ public class LoopLineMerger {
 
       for (var edge : current.getEdges()) {
         var neighbor = edge.to;
-        if (edge.id != exclude.id && !visitedNodes.get(neighbor.id)) {
+        if (!visitedNodes.get(neighbor.id)) {
           double newDist = candidate.cost + edge.length;
           double prev = bestDistance.getOrDefault(neighbor.id, Double.POSITIVE_INFINITY);
           if (newDist < prev) {
