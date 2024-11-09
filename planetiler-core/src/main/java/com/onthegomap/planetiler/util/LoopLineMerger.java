@@ -122,7 +122,6 @@ public class LoopLineMerger {
 
   private double shortestDistance(Node start, Node end, Node exclude, double maxLength) {
     Map<Integer, Double> bestDistance = new HashMap<>();
-    //    BitSet visitedNodes = new BitSet();
     record Candidate(Node node, double cost, double heuristic) {}
     PriorityQueue<Candidate> frontier = new PriorityQueue<>(Comparator.comparingDouble(Candidate::heuristic));
     if (exclude != start) {
@@ -145,7 +144,6 @@ public class LoopLineMerger {
             double heuristic = newDist + neighbor.distance(end);
             if (heuristic <= maxLength) {
               frontier.offer(new Candidate(neighbor, newDist, heuristic));
-              //              visitedNodes.set(neighbor.id);
             }
           }
         }
