@@ -259,7 +259,7 @@ class LoopLineMergerTest {
   @Test
   void testRealWorldHarkingen() {
     var merger = new LoopLineMerger()
-      .setMinLength(0)
+      .setMinLength(4 * 0.0625)
       .setLoopMinLength(8 * 0.0625);
 
     merger.add(newLineString(99.185791015625,109.83056640625, 99.202392578125,109.8193359375, 99.21337890625,109.810302734375, 99.222412109375,109.8017578125, 99.229736328125,109.793701171875, 99.241943359375,109.779541015625));
