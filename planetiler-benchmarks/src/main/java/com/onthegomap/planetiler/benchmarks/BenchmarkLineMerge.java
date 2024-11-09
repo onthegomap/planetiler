@@ -2,9 +2,9 @@ package com.onthegomap.planetiler.benchmarks;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.LoopLineMerger;
-import com.onthegomap.planetiler.util.Try;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -14,7 +14,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -29,19 +28,19 @@ public class BenchmarkLineMerge {
 
   public static void main(String[] args) throws Exception {
     for (int i = 0; i < 10; i++) {
-      time("      JTS", geom -> {
+      time("       JTS", geom -> {
         var lm = new LineMerger();
         lm.add(geom);
         return lm.getMergedLineStrings();
       });
-      time("  loop(0)", geom -> {
+      time("   loop(0)", geom -> {
         var lm = new LoopLineMerger();
         lm.setLoopMinLength(0);
         lm.setMinLength(0);
         lm.add(geom);
         return lm.getMergedLineStrings();
       });
-      time("loop(0.1)", geom -> {
+      time(" loop(0.1)", geom -> {
         var lm = new LoopLineMerger();
         lm.setLoopMinLength(0.1);
         lm.setMinLength(0.1);
@@ -59,37 +58,39 @@ public class BenchmarkLineMerge {
     System.err.println(numLines);
   }
 
-  private static void time(String name, Function<Geometry, Collection<LineString>> fn) throws Exception {
+  private static void time(String name, FunctionThatThrows<Geometry, Collection<LineString>> fn) throws Exception {
     System.err.println(String.join("\t",
       name,
-      timeMillis(() -> fn.apply(read("mergelines_200433_lines.wkb.gz"))),
-      timeMillis(() -> fn.apply(read("mergelines_239823_lines.wkb.gz"))),
+      timeMillis(read("mergelines_200433_lines.wkb.gz"), fn),
+      timeMillis(read("mergelines_239823_lines.wkb.gz"), fn),
       "(/s):",
-      timePerSec(() -> fn.apply(read("mergelines_1759_point_line.wkb.gz"))),
-      timePerSec(() -> fn.apply(makeLines(50, 2))),
-      timePerSec(() -> fn.apply(makeLines(10, 10))),
-      timePerSec(() -> fn.apply(makeLines(2, 50)))
+      timePerSec(read("mergelines_1759_point_line.wkb.gz"), fn),
+      timePerSec(makeLines(50, 2), fn),
+      timePerSec(makeLines(10, 10), fn),
+      timePerSec(makeLines(2, 50), fn)
     ));
   }
 
-  private static String timePerSec(Try.SupplierThatThrows<Collection<LineString>> fn) throws Exception {
+  private static String timePerSec(Geometry geometry, FunctionThatThrows<Geometry, Collection<LineString>> fn)
+    throws Exception {
     long start = System.nanoTime();
     long end = start + Duration.ofSeconds(1).toNanos();
     int num = 0;
     for (; System.nanoTime() < end;) {
-      numLines += fn.get().size();
+      numLines += fn.apply(geometry).size();
       num++;
     }
     return Format.defaultInstance()
       .numeric(Math.round(num * 1d / ((System.nanoTime() - start) * 1d / Duration.ofSeconds(1).toNanos())), true);
   }
 
-  private static String timeMillis(Try.SupplierThatThrows<Collection<LineString>> fn) throws Exception {
+  private static String timeMillis(Geometry geometry, FunctionThatThrows<Geometry, Collection<LineString>> fn)
+    throws Exception {
     long start = System.nanoTime();
     long end = start + Duration.ofSeconds(1).toNanos();
     int num = 0;
     for (; System.nanoTime() < end;) {
-      numLines += fn.get().size();
+      numLines += fn.apply(geometry).size();
       num++;
     }
     // equivalent of toPrecision(3)

@@ -2,12 +2,12 @@ package com.onthegomap.planetiler.util;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
+import java.util.PriorityQueue;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -16,17 +16,11 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
 
-class RecursionDepthException extends Exception {
-  public RecursionDepthException(String message) {
-    super(message);
-  }
-}
-
-
 public class LoopLineMerger {
-  private final List<LineString> input = new ArrayList<>();
+  final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
-  int ids = 0;
+  int nodes = 0;
+  int edges = 0;
   private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.TILE_PRECISION);
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
@@ -97,81 +91,70 @@ public class LoopLineMerger {
     }
   }
 
-  private void removeLoops() {
-    List<Edge> removedEdges = new ArrayList<>();
+  private void breakLoops() {
     for (var node : output) {
-      for (var edge : List.copyOf(node.getEdges())) {
-        if (removedEdges.contains(edge) || removedEdges.contains(edge.reversed)) {
+      if (node.getEdges().size() <= 1) {
+        continue;
+      }
+      for (var current : List.copyOf(node.getEdges())) {
+        record HasLoop(Edge edge, double distance) {}
+        List<HasLoop> loops = new ArrayList<>();
+        if (!node.getEdges().contains(current)) {
           continue;
         }
-        if (edge.from == edge.to && edge.length <= loopMinLength) {
-          // self-closing short loop
-          removedEdges.add(edge);
-          edge.remove();
-          continue;
+        for (var other : node.getEdges()) {
+          double distance = other.length +
+            shortestDistance(other.to, current.to, current, loopMinLength - other.length);
+          if (distance <= loopMinLength) {
+            loops.add(new HasLoop(other, distance));
+          }
         }
-        try {
-          var allPaths = findAllPaths(edge.from, edge.to, loopMinLength);
-          if (allPaths.size() > 1) {
-            var firstEdgeShortestPath = allPaths.get(0).getFirst();
-            for (var path : allPaths.subList(1, allPaths.size())) {
-              if (path.size() > 0 && !firstEdgeShortestPath.equals(path.get(0))) {
-                removedEdges.add(path.get(0));
-                path.get(0).remove();
-              }
+        if (loops.size() > 1) {
+          HasLoop min = loops.stream().min(Comparator.comparingDouble(HasLoop::distance)).get();
+          for (var loop : loops) {
+            if (loop != min) {
+              loop.edge.remove();
             }
           }
-        } catch (RecursionDepthException e) {
-          // MAX_RECURSION_DEPTH was reached. On other edges of the graph the same
-          // will happen. Abort merging loops...
-          return;
         }
       }
     }
   }
 
-  List<List<Edge>> findAllPaths(Node start, Node end, double maxLength) throws RecursionDepthException {
-    List<List<Edge>> allPaths = new ArrayList<>();
-    Queue<List<Edge>> queue = new LinkedList<>();
-
-    for (var edge : start.getEdges()) {
-      if (edge.length <= maxLength) {
-        queue.add(List.of(edge));
-      }
+  private double shortestDistance(Node start, Node end, Edge exclude, double maxLength) {
+    Map<Integer, Double> bestDistance = new HashMap<>();
+    BitSet visitedNodes = new BitSet();
+    visitedNodes.set(exclude.from.id);
+    record Candidate(Node node, double cost, double heuristic) {}
+    PriorityQueue<Candidate> frontier = new PriorityQueue<>(Comparator.comparingDouble(Candidate::heuristic));
+    if (!visitedNodes.get(start.id)) {
+      frontier.offer(new Candidate(start, 0, start.distance(end)));
+      visitedNodes.set(start.id);
     }
-
-    var MAX_RECURSION_DEPTH = 1e6;
-    var currentDepth = 0;
-
-    while (!queue.isEmpty()) {
-
-      currentDepth += 1;
-      if (currentDepth > MAX_RECURSION_DEPTH) {
-        System.out.println("Warning: max recursion depth reached. Unable to perform loop merging...");
-        throw new RecursionDepthException("Warning: max recursion depth reached. Unable to perform loop merging...");
+    while (!frontier.isEmpty()) {
+      Candidate candidate = frontier.poll();
+      Node current = candidate.node;
+      if (current == end) {
+        return candidate.cost;
       }
 
-      List<Edge> currentPath = queue.poll();
-      Node currentPoint = currentPath.getLast().to;
-
-      if (currentPoint == end) {
-        allPaths.add(new ArrayList<>(currentPath));
-      } else {
-        for (var edge : currentPoint.getEdges()) {
-          if (!currentPath.contains(edge) && !currentPath.contains(edge.reversed)) {
-            List<Edge> newPath = new ArrayList<>(currentPath);
-            newPath.add(edge);
-            if (getLength(newPath) <= maxLength && !hasPointAppearingMoreThanTwice(newPath)) {
-              queue.add(newPath);
+      for (var edge : current.getEdges()) {
+        var neighbor = edge.to;
+        if (edge.id != exclude.id && !visitedNodes.get(neighbor.id)) {
+          double newDist = candidate.cost + edge.length;
+          double prev = bestDistance.getOrDefault(neighbor.id, Double.POSITIVE_INFINITY);
+          if (newDist < prev) {
+            bestDistance.put(neighbor.id, newDist);
+            double heuristic = newDist + neighbor.distance(end);
+            if (heuristic <= maxLength) {
+              frontier.offer(new Candidate(neighbor, newDist, heuristic));
+              visitedNodes.set(neighbor.id);
             }
           }
         }
       }
     }
-
-    allPaths.sort(Comparator.comparingDouble(LoopLineMerger::getLength));
-
-    return allPaths;
+    return Double.POSITIVE_INFINITY;
   }
 
   private void removeShortStubEdges() {
@@ -202,7 +185,7 @@ public class LoopLineMerger {
     merge();
 
     if (loopMinLength > 0.0) {
-      removeLoops();
+      breakLoops();
       merge();
     }
 
@@ -315,7 +298,7 @@ public class LoopLineMerger {
   }
 
   class Node {
-    int id = ids++;
+    int id = nodes++;
     List<Edge> edge = new ArrayList<>();
 
     void addEdge(Edge edge) {
@@ -339,9 +322,20 @@ public class LoopLineMerger {
     public String toString() {
       return "Node{" + id + ": " + edge + '}';
     }
+
+    public double distance(Node end) {
+      if (!getEdges().isEmpty() && !end.getEdges().isEmpty()) {
+        Coordinate a = getEdges().getFirst().coordinates.getFirst();
+        Coordinate b = end.getEdges().getFirst().coordinates.getFirst();
+        return a.distance(b);
+      }
+      return Double.POSITIVE_INFINITY;
+    }
   }
 
   class Edge {
+
+    public int id;
     Node from;
     Node to;
     double length;
@@ -351,11 +345,13 @@ public class LoopLineMerger {
 
 
     private Edge(Node from, Node to, List<Coordinate> coordinateSequence, double length) {
-      this(from, to, length, coordinateSequence, true, null);
-      reversed = new Edge(to, from, length, coordinateSequence.reversed(), false, this);
+      this(edges, from, to, length, coordinateSequence, true, null);
+      reversed = new Edge(edges, to, from, length, coordinateSequence.reversed(), false, this);
+      edges++;
     }
 
-    public Edge(Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
+    public Edge(int id, Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
+      this.id = id;
       this.from = from;
       this.to = to;
       this.length = length;
