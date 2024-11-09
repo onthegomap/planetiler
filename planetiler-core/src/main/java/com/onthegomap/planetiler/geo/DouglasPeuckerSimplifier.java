@@ -38,7 +38,7 @@ public class DouglasPeuckerSimplifier {
    * @return the simplified geometry
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance) {
-    if (geom.isEmpty()) {
+    if (geom.isEmpty() || (distanceTolerance < 0.0)) {
       return geom.copy();
     }
 
