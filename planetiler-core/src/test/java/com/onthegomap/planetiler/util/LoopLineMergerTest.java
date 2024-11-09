@@ -277,9 +277,7 @@ class LoopLineMergerTest {
     merger.add(newLineString(98.879150390625, 109.885498046875, 98.94091796875, 109.86572265625, 98.968017578125,
       109.859130859375, 99.017578125, 109.847412109375, 99.056396484375, 109.83984375, 99.09814453125, 109.831298828125,
       99.163330078125, 109.81982421875));
-    System.err.println(GeoUtils.createMultiLineString(merger.input));
     var merged = merger.getMergedLineStrings();
-    System.err.println(GeoUtils.createMultiLineString(merged));
 
     assertEquals(
       1,
