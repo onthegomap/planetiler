@@ -191,7 +191,7 @@ public class FeatureMerge {
         List<LineString> outputSegments = new ArrayList<>();
         var i = 0;
         for (Object merged : merger.getMergedLineStrings()) {
-          if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
+          if (merged instanceof LineString line) {
             // TODO remove debug features comment
             // Map<String, Object> attrs = new HashMap<>();
             // attrs.put("idx", i++);
@@ -216,10 +216,23 @@ public class FeatureMerge {
             }
           }
         }
+        
+        merger = new LoopLineMerger();
+        for (var outputSegment : outputSegments) {
+          merger.add(outputSegment);
+        }
+        outputSegments = merger.getMergedByAngle();
+
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
           result.add(feature1.copyWithNewGeometry(newGeometry));
+          // i = 0;
+          // for (var outputSegment : outputSegments) {
+          //   Map<String, Object> attrs = new HashMap<>();
+          //   attrs.put("idx", ++i);
+          //   result.add(feature1.copyWithNewGeometry(outputSegment).copyWithExtraAttrs(attrs));
+          // }
         }
       }
     }

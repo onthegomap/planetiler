@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import org.locationtech.jts.algorithm.Angle;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -14,6 +15,7 @@ import org.locationtech.jts.geom.GeometryComponentFilter;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
+
 
 public class LoopLineMerger {
   final List<LineString> input = new ArrayList<>();
@@ -75,16 +77,48 @@ public class LoopLineMerger {
       if (node.getEdges().size() == 2) {
         Edge a = node.getEdges().getFirst();
         Edge b = node.getEdges().get(1);
-        node.getEdges().clear();
-        List<Coordinate> coordinates = new ArrayList<>();
-        coordinates.addAll(a.coordinates.reversed());
-        coordinates.addAll(b.coordinates.subList(1, b.coordinates.size()));
-        Edge c = new Edge(a.to, b.to, coordinates, a.length + b.length);
-        a.to.removeEdge(a.reversed);
-        b.to.removeEdge(b.reversed);
-        a.to.addEdge(c);
-        if (a.to != b.to) {
-          b.to.addEdge(c.reversed);
+        mergeTwoEdges(a, b);
+      }
+    }
+  }
+
+  private void mergeTwoEdges(Edge a, Edge b) {
+    assert a.to == b.from;
+    a.to.getEdges().remove(a);
+    b.from.getEdges().remove(b);
+    List<Coordinate> coordinates = new ArrayList<>();
+    coordinates.addAll(a.coordinates.reversed());
+    coordinates.addAll(b.coordinates.subList(1, b.coordinates.size()));
+    Edge c = new Edge(a.to, b.to, coordinates, a.length + b.length);
+    a.to.removeEdge(a.reversed);
+    b.to.removeEdge(b.reversed);
+    a.to.addEdge(c);
+    if (a.to != b.to) {
+      b.to.addEdge(c.reversed);
+    }
+  }
+
+  private void mergeByAngle() {
+    for (var node : output) {
+      List<Edge> edges = List.copyOf(node.getEdges());
+      if (edges.size() >= 3) {
+        record AngledPair(Edge a, Edge b, double angle) {}
+        List<AngledPair> angledPairs = new ArrayList<>();
+        for (var i = 0; i < edges.size(); ++i) {
+          for (var j = i + 1; j < edges.size(); ++j) {
+            double angle = edges.get(i).angleTo(edges.get(j));
+            angledPairs.add(new AngledPair(edges.get(i), edges.get(j), angle));
+          }
+        }
+        angledPairs.sort(Comparator.comparingDouble(angledPair -> angledPair.angle));
+        List<Edge> merged = new ArrayList<>();
+        for (var angledPair : angledPairs.reversed()) {
+          if (merged.contains(angledPair.a) || merged.contains(angledPair.b)) {
+            continue;
+          }
+          mergeTwoEdges(angledPair.a, angledPair.b);
+          merged.add(angledPair.a);
+          merged.add(angledPair.b);
         }
       }
     }
@@ -152,10 +186,10 @@ public class LoopLineMerger {
     return Double.POSITIVE_INFINITY;
   }
 
-  private void removeShortStubEdges() {
+  private void removeShortStubEdges(double stubMinLength) {
     for (var node : output) {
       for (var edge : List.copyOf(node.getEdges())) {
-        if (edge.length < minLength &&
+        if (edge.length < stubMinLength &&
           (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to)) {
           edge.remove();
         }
@@ -185,11 +219,36 @@ public class LoopLineMerger {
     }
 
     if (minLength > 0.0) {
-      removeShortStubEdges();
+      double step = 1.0 / precisionModel.getScale();
+      for (double stubMinLength = 0.0; stubMinLength < minLength; stubMinLength += step) {
+        removeShortStubEdges(stubMinLength);
+        merge();
+      }
+      removeShortStubEdges(minLength);
       merge();
-      removeShortEdges();
-      merge();
+      // minLength = 10 * 0.0625;
+      // removeShortEdges();
+      // merge();
     }
+
+    List<LineString> result = new ArrayList<>();
+
+    for (var node : output) {
+      for (var edge : node.getEdges()) {
+        if (edge.main) {
+          result.add(factory.createLineString(edge.coordinates.toArray(Coordinate[]::new)));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  public List<LineString> getMergedByAngle() {
+    List<List<Coordinate>> edges = nodeLines(input);
+    buildNodes(edges);
+
+    mergeByAngle();
 
     List<LineString> result = new ArrayList<>();
 
@@ -358,6 +417,16 @@ public class LoopLineMerger {
     public void remove() {
       from.removeEdge(this);
       to.removeEdge(reversed);
+    }
+
+    double angleTo(Edge other) {
+      assert from.equals(other.from); 
+      assert coordinates.size() >= 2;
+
+      double angle = Angle.angle(coordinates.get(0), coordinates.get(1));
+      double angleOther = Angle.angle(other.coordinates.get(0), other.coordinates.get(1));
+      
+      return Math.abs(Angle.normalize(angle - angleOther));
     }
 
     @Override

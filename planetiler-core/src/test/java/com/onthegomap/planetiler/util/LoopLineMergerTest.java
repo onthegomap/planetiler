@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.operation.linemerge.LineMerger;
@@ -84,6 +85,24 @@ class LoopLineMergerTest {
   }
 
   @Test
+  void testProgressiveStubRemoval() {
+    var merger = new LoopLineMerger()
+      .setMinLength(4)
+      .setPrecisionModel(new PrecisionModel(-1.0));
+
+    merger.add(newLineString(0, 0, 5, 0)); // stub length 5
+    merger.add(newLineString(5, 0, 6, 0)); // mid piece
+    merger.add(newLineString(6, 0, 8, 0)); // stub length 2
+    merger.add(newLineString(5, 0, 5, 1)); // stub length 1
+    merger.add(newLineString(6, 0, 6, 1)); // stub length 1
+
+    assertEquals(
+      List.of(newLineString(8, 0, 6, 0, 5, 0, 0, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
   void testRoundCoordinatesBeforeMerging() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
@@ -126,6 +145,19 @@ class LoopLineMergerTest {
           10, 10
         )
       ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testRemoveSelfClosingLoops() {
+    var merger = new LoopLineMerger()
+      .setMinLength(-1)
+      .setLoopMinLength(10);
+
+    merger.add(newLineString(1, 0, 1, 1, 1, 2, 0, 2, 0, 1, 1, 1, 2, 1));
+    assertEquals(
+      List.of(newLineString(1, 0, 1, 1, 2, 1)),
       merger.getMergedLineStrings()
     );
   }
