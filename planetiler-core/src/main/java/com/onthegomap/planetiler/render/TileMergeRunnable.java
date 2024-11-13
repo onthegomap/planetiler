@@ -72,6 +72,8 @@ public class TileMergeRunnable implements Runnable {
 
   private final PlanetilerConfig config;
 
+  private final GridEntity gridEntity;
+
   Map<String, List<GeometryWithTag>> originFeatureInfos = new ConcurrentHashMap<>();
 
   record GeometryWithTag(
@@ -85,48 +87,50 @@ public class TileMergeRunnable implements Runnable {
     String hash
   ) {}
 
-  private static final Geometry[][] VECTOR_GRID = new Geometry[EXTENT][EXTENT];
-  private static final int GRID_WIDTH = EXTENT / GRID_SIZE;
+//  private static final Geometry[][] VECTOR_GRID = new Geometry[EXTENT][EXTENT];
+//  private static final int GRID_WIDTH = EXTENT / GRID_SIZE;
+//
+//  static {
+//    // 初始化一个网格
+//    for (int i = 0; i < gridSizeArray.length; i++) {
+//      gridEntities[i] = new GridEntity(gridSizeArray[i]);
+//    }
+//    List<Geometry> geometryList = new ArrayList<>();
+//    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
+//    for (int i = 0; i < EXTENT; i += GRID_WIDTH) {
+//      VECTOR_GRID[i] = new Geometry[EXTENT];
+//      for (int j = 0; j < EXTENT; j += GRID_WIDTH) {
+//        // 创建GeometryFactory实例
+//        // 创建地理点
+//        if (GRID_WIDTH == 1) {
+//          Coordinate coord = new Coordinate(i, j);
+//          Point point = geometryFactory.createPoint(coord);
+//          VECTOR_GRID[i][j] = point;
+//        } else {
+//          MutableCoordinateSequence sequence = new MutableCoordinateSequence();
+//          sequence.addPoint(i, j);
+//          sequence.addPoint(i, j + GRID_WIDTH);
+//          sequence.addPoint(i + GRID_WIDTH, j + GRID_WIDTH);
+//          sequence.addPoint(i + GRID_WIDTH, j);
+//          sequence.addPoint(i, j);
+//          Polygon polygon = geometryFactory.createPolygon(sequence);
+//          VECTOR_GRID[i][j] = polygon;
+//          geometryList.add(polygon);
+//        }
+//      }
+//    }
+////    GeometryCollection gridView = geometryFactory.createGeometryCollection(
+////      geometryList.toArray(new Geometry[geometryList.size()]));
+////    int a = 0;
+//  }
 
-  static {
-    // 初始化一个网格
-    for (int i = 0; i < gridSizeArray.length; i++) {
-      gridEntities[i] = new GridEntity(gridSizeArray[i]);
-    }
-    List<Geometry> geometryList = new ArrayList<>();
-    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
-    for (int i = 0; i < EXTENT; i += GRID_WIDTH) {
-      VECTOR_GRID[i] = new Geometry[EXTENT];
-      for (int j = 0; j < EXTENT; j += GRID_WIDTH) {
-        // 创建GeometryFactory实例
-        // 创建地理点
-        if (GRID_WIDTH == 1) {
-          Coordinate coord = new Coordinate(i, j);
-          Point point = geometryFactory.createPoint(coord);
-          VECTOR_GRID[i][j] = point;
-        } else {
-          MutableCoordinateSequence sequence = new MutableCoordinateSequence();
-          sequence.addPoint(i, j);
-          sequence.addPoint(i, j + GRID_WIDTH);
-          sequence.addPoint(i + GRID_WIDTH, j + GRID_WIDTH);
-          sequence.addPoint(i + GRID_WIDTH, j);
-          sequence.addPoint(i, j);
-          Polygon polygon = geometryFactory.createPolygon(sequence);
-          VECTOR_GRID[i][j] = polygon;
-          geometryList.add(polygon);
-        }
-      }
-    }
-//    GeometryCollection gridView = geometryFactory.createGeometryCollection(
-//      geometryList.toArray(new Geometry[geometryList.size()]));
-//    int a = 0;
-  }
-
-  public TileMergeRunnable(TileCoord tileCoord, Mbtiles mbtiles, Mbtiles.TileWriter writer, PlanetilerConfig config) {
+  public TileMergeRunnable(TileCoord tileCoord, Mbtiles mbtiles, Mbtiles.TileWriter writer, PlanetilerConfig config,
+    GridEntity gridEntity) {
     this.tileCoord = tileCoord;
     this.mbtiles = mbtiles;
     this.writer = writer;
     this.config = config;
+    this.gridEntity = gridEntity;
   }
 
   public TileCoord getTileCoord() {
@@ -361,10 +365,12 @@ public class TileMergeRunnable implements Runnable {
     // 保存要素+标签
     List<GeometryWithTag> result = new ArrayList<>();
 //    GridEntity gridEntity = gridEntities[offset];
-    for (int i = 0; i < EXTENT; i += GRID_WIDTH) {
-      for (int j = 0; j < EXTENT; j += GRID_WIDTH) {
+    int gridWidth = gridEntity.getGridWidth();
+    Geometry[][] vectorGrid = gridEntity.getVectorGrid();
+    for (int i = 0; i < EXTENT; i += gridWidth) {
+      for (int j = 0; j < EXTENT; j += gridWidth) {
         // 获取网格
-        Geometry geometry = VECTOR_GRID[i][j];
+        Geometry geometry = vectorGrid[i][j];
         if (geometry == null) {
           continue;
         }

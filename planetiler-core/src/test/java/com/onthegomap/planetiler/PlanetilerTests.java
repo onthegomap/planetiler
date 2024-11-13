@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -19,6 +20,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -35,6 +37,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.JsonUitls;
 import com.onthegomap.planetiler.util.SortKey;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.ZoomFunction;
@@ -52,6 +55,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -63,6 +67,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.util.StringUtils;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
@@ -2406,6 +2411,73 @@ class PlanetilerTests {
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
       .setOutput(outputPath)
       .run();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    " --minzoom=0 --maxzoom=14 "
+//      + "--output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\矢量\\polygon-华山_建筑\\default.mbtiles"
+      + " --is_rasterize=false --pixelation_zoom=-1  --rasterize_min_zoom=0 --rasterize_max_zoom=14"
+      + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz  --force"
+//      + " -oosSavePath=E:\\Linespace\\SceneMapServer\\Data\\parquet --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 ",
+  })
+  void testPlanetilerRunnerParquetGeometryType(String args) throws Exception {
+    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\矢量";
+    String tempDir = basePath + "\\line-HS_L_4525-1";
+    String outputPath = basePath + "\\line-HS_L_4525-1\\default.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\line-HS_L_4525-1.parquet").map(Paths::get).toList();
+
+    Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
+      (args + " --tmpdir=" + tempDir).split("\\s+")));
+    PlanetilerConfig config = planetiler.config();
+    Map<String, HashSet<String>> geomTypes = new ConcurrentHashMap<>();
+    planetiler
+      .setProfile((source, features) -> {
+        try {
+          FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
+            .setSortKey(SortKey
+              .orderByDouble(source.area(), 1d, 0, 1 << (SORT_KEY_BITS - 7) - 1)
+              .get())
+            .setPointLabelGridPixelSize(createLabelGridSizeFunction())
+            .setPointLabelGridLimit(createLabelGridLimitFunction())
+            //              .setBufferPixelOverrides(createBufferPixelFunction())
+            .setPixelToleranceAtAllZooms(0)
+            .setMinPixelSizeAtAllZooms(0);
+
+          String geometryType = null;
+          if (source.isPoint()) {
+            geometryType = GeometryType.POINT.name();
+          } else if (source.canBePolygon()) {
+            geometryType = GeometryType.POLYGON.name();
+          } else if (source.canBeLine()) {
+            geometryType = GeometryType.LINE.name();
+          }
+
+          if (StringUtils.isNotBlank(geometryType)) {
+            geomTypes.computeIfAbsent(feature.getLayer(), k -> new HashSet<>()).add(geometryType);
+          }
+          source.tags().forEach(feature::setAttr);
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      })
+      .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
+      .setOutput(outputPath)
+      .run();
+
+    // 数据写入json
+    try (Mbtiles mbtiles = (Mbtiles) TileArchives.newWriter(Paths.get(outputPath), config)) {
+      updateMetadata(mbtiles, geomTypes);
+    }
+  }
+
+  private void updateMetadata(Mbtiles mbtiles, Map<String, HashSet<String>> geomTypes) {
+    Mbtiles.Metadata metadata = mbtiles.metadataTable();
+    TileArchiveMetadata archiveMetadata = metadata.get();
+    TileArchiveMetadata.TileArchiveMetadataJson metadataJson = TileArchiveMetadata.TileArchiveMetadataJson.create(
+      archiveMetadata.json().vectorLayers().stream()
+        .map(vectorLayer -> vectorLayer.withGeometryTypes(geomTypes.get(vectorLayer.id()))).toList());
+    metadata.updateMetadata(Map.of("json", JsonUitls.toJsonString(metadataJson)));
   }
 
   @ParameterizedTest

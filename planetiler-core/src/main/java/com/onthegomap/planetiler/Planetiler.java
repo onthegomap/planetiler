@@ -891,6 +891,9 @@ public class Planetiler {
     }
 
     if (config.isRasterize()) {
+      // 删除临时文件
+      FileUtils.delete(nodeDbPath, featureDbPath, multipolygonPath);
+
       outputPath = arguments.getString("output", "output tile archive URI", null);
       if (StringUtils.isEmpty(outputPath)) {
         throw new IllegalArgumentException("栅格化输出路径不可为空！");
