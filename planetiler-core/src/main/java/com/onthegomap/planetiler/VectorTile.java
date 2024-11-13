@@ -464,6 +464,24 @@ public class VectorTile {
   }
 
   /**
+   * Returns the encoded geometry for a polygon that fills an entire tile plus {@code buffer} pixels as a shortcut to
+   * avoid needing to create an extra JTS geometry for encoding.
+   */
+  public static VectorGeometry encodeFill(double buffer) {
+    int min = (int) Math.round(EXTENT * buffer / 256d);
+    int width = EXTENT + min + min;
+    return new VectorGeometry(new int[]{
+      CommandEncoder.commandAndLength(Command.MOVE_TO, 1),
+      zigZagEncode(-min), zigZagEncode(-min),
+      CommandEncoder.commandAndLength(Command.LINE_TO, 3),
+      zigZagEncode(width), 0,
+      0, zigZagEncode(width),
+      zigZagEncode(-width), 0,
+      CommandEncoder.commandAndLength(Command.CLOSE_PATH, 1)
+    }, GeometryType.POLYGON, 0);
+  }
+
+  /**
    * Adds features in a layer to this tile.
    *
    * @param layerName name of the layer in this tile to add the features to

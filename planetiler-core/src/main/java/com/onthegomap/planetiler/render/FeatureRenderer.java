@@ -28,7 +28,6 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +38,6 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
-  private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
-    .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
-      -5, -5,
-      261, -5,
-      261, 261,
-      -5, 261,
-      -5, -5
-    }, 2, 0))));
   private final PlanetilerConfig config;
   private final Consumer<RenderedFeature> consumer;
   private final Stats stats;
@@ -282,13 +273,13 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     // polygons that span multiple tiles contain detail about the outer edges separate from the filled tiles, so emit
     // filled tiles now
     if (feature.isPolygon()) {
-      emitted += emitFilledTiles(id, feature, sliced);
+      emitted += emitFilledTiles(zoom, id, feature, sliced);
     }
 
     stats.emittedFeatures(zoom, feature.getLayer(), emitted);
   }
 
-  private int emitFilledTiles(long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
+  private int emitFilledTiles(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
     Optional<RenderedFeature.Group> groupInfo = Optional.empty();
     /*
      * Optimization: large input polygons that generate many filled interior tiles (i.e. the ocean), the encoder avoids
@@ -298,7 +289,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     VectorTile.Feature vectorTileFeature = new VectorTile.Feature(
       feature.getLayer(),
       id,
-      FILL,
+      VectorTile.encodeFill(feature.getBufferPixelsAtZoom(zoom)),
       feature.getAttrsAtZoom(sliced.zoomLevel())
     );
 
