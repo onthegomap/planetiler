@@ -814,7 +814,7 @@ class FeatureRendererTest {
         tileRight(1)
       ),
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        newPolygon(tileFill(5), List.of()) // <<<<---- the filled tile!
+        newPolygon(tileFill(1), List.of()) // <<<<---- the filled tile!
       ),
       TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2, 14), List.of(
         tileLeft(1)
@@ -1173,7 +1173,7 @@ class FeatureRendererTest {
     var rendered = renderGeometry(feature);
     var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
     assertEquals(1, innerTile.size());
-    assertEquals(new TestUtils.NormGeometry(rectangle(-5, 256 + 5)),
+    assertEquals(new TestUtils.NormGeometry(rectangle(-1, 256 + 1)),
       new TestUtils.NormGeometry(innerTile.iterator().next()));
   }
 

@@ -770,7 +770,7 @@ class PlanetilerTests {
         ), Map.of())
       )),
       newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2 + 1, 14, List.of(
-        feature(newPolygon(tileFill(5), List.of()), Map.of())
+        feature(newPolygon(tileFill(4), List.of()), Map.of())
       )),
       newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 1, 14, List.of(
         feature(tileLeft(4), Map.of())
@@ -814,7 +814,7 @@ class PlanetilerTests {
     );
 
     assertEquals(List.of(
-      feature(newPolygon(tileFill(5)), Map.of())
+      feature(newPolygon(tileFill(4)), Map.of())
     ), results.tiles.get(TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15)));
   }
 
@@ -832,7 +832,7 @@ class PlanetilerTests {
 
     assertEquals(5461, results.tiles.size());
     // spot-check one filled tile
-    assertEquals(List.of(rectangle(-5, 256 + 5).norm()), results.tiles.get(TileCoord.ofXYZ(
+    assertEquals(List.of(rectangle(-4, 256 + 4).norm()), results.tiles.get(TileCoord.ofXYZ(
       Z4_TILES / 2, Z4_TILES / 2, 4
     )).stream().map(d -> d.geometry().geom().norm()).toList());
   }
@@ -2449,7 +2449,7 @@ class PlanetilerTests {
       ),
       (in, features) -> features.polygon("layer")
         .setZoomRange(0, 2)
-        .setBufferPixels(0)
+        .setBufferPixels(1)
     );
   }
 
