@@ -40,12 +40,27 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
+  /**
+   * Returns a new multi-expression from {@code expressions} where multiple expressions for the same key get OR'd
+   * together.
+   * <p>
+   * If the order in which expresions match matter, use {@link #ofOrdered(List)} instead.
+   */
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
     LinkedHashMap<T, Expression> map = new LinkedHashMap<>();
     for (var expression : expressions) {
       map.merge(expression.result, expression.expression, Expression::or);
     }
-    return new MultiExpression<>(map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).collect(Collectors.toList()));
+    return new MultiExpression<>(
+      map.entrySet().stream().map(e -> entry(e.getKey(), e.getValue())).collect(Collectors.toList()));
+  }
+
+  /**
+   * Returns a new multi-expression from {@code expressions} where multiple expressions for the same key stay separate,
+   * in cases where the order in which expressions matches is important.
+   */
+  public static <T> MultiExpression<T> ofOrdered(List<Entry<T>> expressions) {
+    return new MultiExpression<>(new ArrayList<>(expressions));
   }
 
   public static <T> Entry<T> entry(T result, Expression expression) {
@@ -63,8 +78,8 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
       case Expression.Not(var child) -> !mustAlwaysEvaluate(child);
       case Expression.MatchAny any when any.mustAlwaysEvaluate() -> true;
       case null, default -> !(expression instanceof Expression.MatchAny) &&
-          !(expression instanceof Expression.MatchField) &&
-          !FALSE.equals(expression);
+        !(expression instanceof Expression.MatchField) &&
+        !FALSE.equals(expression);
     };
   }
 

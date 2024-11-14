@@ -1602,4 +1602,38 @@ class ConfiguredFeatureTest {
     testFeature(config, sfMatch,
       any -> assertEquals(expected, (Double) any.getAttrsAtZoom(14).get("attr"), expected / 1e3), 1);
   }
+
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testMatchOrdering(boolean withFallback) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          attributes:
+            - key: attr
+              value:
+              - if: {natural: tree}
+                value: green
+              - if: {historic: memorial}
+                value: black
+              - if: {tourism: viewpoint}
+                value: green
+              - if: ${%s}
+                value: fallback
+
+      """.formatted(withFallback ? "true" : "false");
+    testFeature(config, SimpleFeature.createFakeOsmFeature(newPoint(0, 0), Map.of(
+      "historic", "memorial",
+      "tourism", "viewpoint"
+    ), "osm", null, 1, emptyList(), OSM_INFO), feature -> assertEquals("black", feature.getAttrsAtZoom(14).get("attr")),
+      1);
+  }
 }

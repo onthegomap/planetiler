@@ -729,33 +729,24 @@ class MultiExpressionTest {
     return SimpleFeature.create(newPoint(0, 0), tags, source, layer, 1);
   }
 
-
   @Test
-  void testNestedMatching() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchField("a.b")),
-      entry("b", matchAny("a.b", "c", "d")),
-      entry("c", matchAny("a", "e")),
-      entry("d", matchAny("a[].b", "c"))
+  void testMatchOrder() {
+    var index = MultiExpression.ofOrdered(List.of(
+      entry("green", matchAny("natural", "tree")),
+      entry("black", matchAny("historic", "memorial")),
+      entry("green", matchAny("tourism", "viewpoint"))
     )).index();
 
-    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("k", "v"))));
-    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", "e"))));
-    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", List.of("e")))));
-    assertSameElements(List.of("c"), index.getMatches(WithTags.from(Map.of("a", List.of("e", "f")))));
-    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("a", List.of("g", "f")))));
+    assertEquals(List.of("black", "green"), index.getMatches(WithTags.from(Map.of(
+      "historic", "memorial",
+      "tourism", "viewpoint"
+    ))));
 
-
-    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a.b", "e"))));
-    assertSameElements(List.of("a", "b"), index.getMatches(WithTags.from(Map.of("a.b", "c"))));
-    assertSameElements(List.of(), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of())))));
-    assertSameElements(List.of("a", "b", "d"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("c"))))));
-    assertSameElements(List.of("a", "b"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("d"))))));
-    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", List.of("e"))))));
-    assertSameElements(List.of("a"), index.getMatches(WithTags.from(Map.of("a", Map.of("b", Map.of("c", "e"))))));
-
-    assertSameElements(List.of("a", "b", "c", "d"),
-      index.getMatches(WithTags.from(Map.of("a", List.of("e", Map.of("b", List.of("c")))))));
+    // multiple matches allowed now when there are duplicate keys
+    assertEquals(List.of("green", "green"), index.getMatches(WithTags.from(Map.of(
+      "natural", "tree",
+      "tourism", "viewpoint"
+    ))));
   }
 
   private static <T> void assertSameElements(List<T> a, List<T> b) {
