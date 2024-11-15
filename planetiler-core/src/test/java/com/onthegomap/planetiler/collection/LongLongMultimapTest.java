@@ -11,18 +11,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public abstract class LongLongMultimapTest {
+abstract class LongLongMultimapTest {
 
   protected LongLongMultimap map;
   protected boolean retainInputOrder = false;
 
   @Test
-  public void missingValue() {
+  void missingValue() {
     assertTrue(map.get(0).isEmpty());
   }
 
   @Test
-  public void oneValue() {
+  void oneValue() {
     put(1, 1);
     assertResultLists(LongArrayList.from(), map.get(0));
     assertResultLists(LongArrayList.from(1), map.get(1));
@@ -50,7 +50,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void twoConsecutiveValues() {
+  void twoConsecutiveValues() {
     put(1, 1);
     put(2, 2);
     assertResultLists(LongArrayList.from(), map.get(0));
@@ -60,7 +60,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void twoNonconsecutiveValues() {
+  void twoNonconsecutiveValues() {
     put(1, 1);
     put(3, 3);
     assertResultLists(LongArrayList.from(), map.get(0));
@@ -71,7 +71,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void returnToFirstKey() {
+  void returnToFirstKey() {
     if (retainInputOrder) {
       return;
     }
@@ -91,7 +91,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void manyInsertsOrdered() {
+  void manyInsertsOrdered() {
     long[] toInsert = new long[10];
     for (int i = 0; i < 100; i++) {
       for (int j = 0; j < 10; j++) {
@@ -128,7 +128,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void manyInsertsUnordered() {
+  void manyInsertsUnordered() {
     for (long i = 99; i >= 0; i--) {
       putAll(i, LongArrayList.from(
         i * 10 + 10,
@@ -160,7 +160,7 @@ public abstract class LongLongMultimapTest {
   }
 
   @Test
-  public void multiInsert() {
+  void multiInsert() {
     putAll(1, LongArrayList.from(1, 2, 3));
     put(0, 3);
     assertResultLists(LongArrayList.from(3), map.get(0));
@@ -168,35 +168,35 @@ public abstract class LongLongMultimapTest {
     assertResultLists(LongArrayList.from(), map.get(2));
   }
 
-  public static class SparseUnorderedTest extends LongLongMultimapTest {
+  static class SparseUnorderedTest extends LongLongMultimapTest {
 
     @BeforeEach
-    public void setup() {
+    void setup() {
       this.map = LongLongMultimap.newAppendableMultimap();
     }
   }
 
-  public static class DenseOrderedTest extends LongLongMultimapTest {
+  static class DenseOrderedTest extends LongLongMultimapTest {
 
     @BeforeEach
-    public void setup() {
+    void setup() {
       retainInputOrder = true;
       this.map =
         LongLongMultimap.newInMemoryReplaceableMultimap();
     }
   }
 
-  public static class DenseOrderedMmapTest extends LongLongMultimapTest {
+  static class DenseOrderedMmapTest extends LongLongMultimapTest {
 
     @BeforeEach
-    public void setup(@TempDir Path dir) {
+    void setup(@TempDir Path dir) {
       retainInputOrder = true;
       this.map =
         LongLongMultimap.newReplaceableMultimap(Storage.MMAP, new Storage.Params(dir.resolve("multimap"), true));
     }
 
     @AfterEach
-    public void teardown() {
+    void teardown() {
       this.map.close();
     }
   }

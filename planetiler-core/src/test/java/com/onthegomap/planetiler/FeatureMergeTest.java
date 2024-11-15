@@ -638,6 +638,7 @@ class FeatureMergeTest {
     );
   }
 
+  @Slow
   @ParameterizedTest
   @CsvSource({
     "bostonbuildings.mbtiles, 2477, 3028, 13, 1141",

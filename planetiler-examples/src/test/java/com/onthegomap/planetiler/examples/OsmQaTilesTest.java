@@ -91,7 +91,7 @@ class OsmQaTilesTest {
       // Override input source locations
       "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
       // Override temp dir location
-      "tmp", tmpDir.toString(),
+      "tmpdir", tmpDir.toString(),
       // Override output location
       "output", dbPath.toString()
     ));

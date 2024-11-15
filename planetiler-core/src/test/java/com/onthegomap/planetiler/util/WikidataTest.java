@@ -111,7 +111,7 @@ class WikidataTest {
   List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
     Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-    Wikidata fixture = new Wikidata(writer, client, 2, profile, config);
+    Wikidata fixture = createFixture(writer, client, 2);
     fixture.fetch(1L);
     Mockito.verifyNoInteractions(client);
     Mockito.when(client.send(Mockito.any()))
@@ -142,7 +142,7 @@ class WikidataTest {
       dynamicTest("do not re-request on subsequent loads", () -> {
         StringWriter writer2 = new StringWriter();
         Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-        Wikidata fixture2 = new Wikidata(writer2, client2, 2, profile, config);
+        Wikidata fixture2 = createFixture(writer2, client2, 2);
         fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
         fixture2.fetch(1L);
         fixture2.fetch(2L);
@@ -157,7 +157,7 @@ class WikidataTest {
   void testRetryFailedRequestOnce() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
     Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-    Wikidata fixture = new Wikidata(writer, client, 1, profile, config);
+    Wikidata fixture = createFixture(writer, client, 1);
     Mockito.when(client.send(Mockito.any()))
       // fail once then succeed
       .thenThrow(IOException.class)
@@ -235,5 +235,14 @@ class WikidataTest {
       }
     }));
     return stringSubscriber.getBody().toCompletableFuture().join();
+  }
+
+  private Wikidata createFixture(StringWriter writer, Wikidata.Client client, int batchSize) {
+    return new Wikidata(writer, client, batchSize, profile, config) {
+      @Override
+      protected void sleep(Duration duration) {
+        // don't sleep in tests
+      }
+    };
   }
 }

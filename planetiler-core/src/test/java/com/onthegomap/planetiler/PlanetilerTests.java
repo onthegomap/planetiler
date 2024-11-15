@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
  */
+@Slow
 class PlanetilerTests {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlanetilerTests.class);

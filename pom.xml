@@ -236,11 +236,15 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
-        <!-- by default surefire excludes tests on nested classes https://github.com/junit-team/junit5/issues/1377 -->
         <configuration>
+          <!-- by default surefire excludes tests on nested classes https://github.com/junit-team/junit5/issues/1377 -->
           <excludes>
             <exclude/>
           </excludes>
+          <!-- by default surefire only includes tests matching Test*.java *Test.java or *TestCase.java -->
+          <includes>
+            <include>**/*.java</include>
+          </includes>
         </configuration>
       </plugin>
       <plugin>
@@ -437,6 +441,22 @@
                 </goals>
               </execution>
             </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!-- run with -Pfast to skip slow tests -->
+    <profile>
+      <id>fast</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <groups>!slow</groups>
+              <forkCount>1C</forkCount>
+            </configuration>
           </plugin>
         </plugins>
       </build>

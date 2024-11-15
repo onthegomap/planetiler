@@ -62,8 +62,8 @@ public class Wikidata {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Logger LOGGER = LoggerFactory.getLogger(Wikidata.class);
-  private static final Pattern wikidataIRIMatcher = Pattern.compile("http://www.wikidata.org/entity/Q([0-9]+)");
-  private static final Pattern qidPattern = Pattern.compile("Q([0-9]+)");
+  private static final Pattern wikidataIRIMatcher = Pattern.compile("http://www.wikidata.org/entity/Q(\\d+)");
+  private static final Pattern qidPattern = Pattern.compile("Q(\\d+)");
   private final Counter.Readable blocks = Counter.newMultiThreadCounter();
   private final Counter.Readable nodes = Counter.newMultiThreadCounter();
   private final Counter.Readable ways = Counter.newMultiThreadCounter();
@@ -128,7 +128,7 @@ public class Wikidata {
 
     var timer = stats.startStage("wikidata");
     int processThreads = Math.max(1, config.threads() - 1);
-    LOGGER.info("Starting with " + processThreads + " process threads");
+    LOGGER.info("Starting with {} process threads", processThreads);
 
     WikidataTranslations oldMappings = load(outfile, maxAge, updateLimit);
     try (
@@ -166,7 +166,7 @@ public class Wikidata {
         .addPipelineStats(pipeline);
 
       pipeline.awaitAndLog(loggers, config.logInterval());
-      LOGGER.info("DONE fetched:" + fetcher.wikidatas.get());
+      LOGGER.info("DONE fetched: {}", fetcher.wikidatas.get());
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -192,10 +192,14 @@ public class Wikidata {
       try (BufferedReader fis = Files.newBufferedReader(path)) {
         WikidataTranslations result = load(fis, maxAge, updateLimit, Clock.systemUTC());
         LOGGER.info(
-          "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
+          "loaded from {} mappings from {} in {}",
+          result.getAll().size(),
+          path.toAbsolutePath(),
+          timer.stop()
+        );
         return result;
       } catch (IOException e) {
-        LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
+        LOGGER.info("error loading {}: {}", path.toAbsolutePath(), e);
         return new WikidataTranslations();
       }
     }
@@ -247,7 +251,7 @@ public class Wikidata {
       String idText = matcher.group(1);
       return Long.parseLong(idText);
     } else {
-      throw new RuntimeException("Unexpected response IRI: " + iri);
+      throw new IllegalStateException("Unexpected response IRI: " + iri);
     }
   }
 
@@ -277,14 +281,13 @@ public class Wikidata {
           blockRelations++;
         }
         Object wikidata = elem.getString("wikidata");
-        if (wikidata instanceof String wikidataString) {
-          if (profile.caresAboutWikidataTranslation(elem)) {
-            long qid = parseQid(wikidataString);
-            if (qid > 0) {
-              next.accept(qid);
-            }
+        if (wikidata instanceof String wikidataString && profile.caresAboutWikidataTranslation(elem)) {
+          long qid = parseQid(wikidataString);
+          if (qid > 0) {
+            next.accept(qid);
           }
         }
+
       }
       blocks.inc();
       nodes.incBy(blockNodes);
@@ -356,12 +359,12 @@ public class Wikidata {
       } catch (IOException e) {
         boolean lastTry = i == config.httpRetries();
         if (!lastTry) {
-          LOGGER.warn("sparql query failed, retrying: " + e);
+          LOGGER.warn("sparql query failed, retrying: {}", e.toString());
         } else {
-          LOGGER.error("sparql query failed, exhausted retries: " + e);
+          LOGGER.error("sparql query failed, exhausted retries: {}", e.toString());
           throw e;
         }
-        Thread.sleep(config.httpRetryWait());
+        sleep(config.httpRetryWait());
       }
     }
 
@@ -372,11 +375,15 @@ public class Wikidata {
     }
   }
 
+  protected void sleep(Duration duration) throws InterruptedException {
+    Thread.sleep(duration.toMillis());
+  }
+
   void loadExisting(WikidataTranslations oldMappings) throws IOException {
     LongObjectMap<Map<String, String>> alreadyHave = oldMappings.getAll();
     LongObjectMap<Instant> alreadyHaveUpdateTimes = oldMappings.getUpdateTimes();
     if (!alreadyHave.isEmpty()) {
-      LOGGER.info("skipping " + alreadyHave.size() + " mappings we already have");
+      LOGGER.info("skipping {} mappings we already have", alreadyHave.size());
       writeTranslations(alreadyHave, alreadyHaveUpdateTimes);
       for (LongObjectCursor<Map<String, String>> cursor : alreadyHave) {
         visited.add(cursor.key);
@@ -405,12 +412,12 @@ public class Wikidata {
   interface Client {
 
     static Client wrap(HttpClient client) {
-      return (req) -> {
+      return req -> {
         var response = client.send(req, BodyHandlers.ofInputStream());
         if (response.statusCode() >= 400) {
           String body;
-          try {
-            body = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
+          try (var responseBody = response.body()) {
+            body = new String(responseBody.readAllBytes(), StandardCharsets.UTF_8);
           } catch (IOException e) {
             body = "Error reading body: " + e;
           }
@@ -434,8 +441,6 @@ public class Wikidata {
 
     private final LongObjectMap<Map<String, String>> data = Hppc.newLongObjectHashMap();
     private final LongObjectMap<Instant> updateTimes = Hppc.newLongObjectHashMap();
-
-    public WikidataTranslations() {}
 
     /** Returns a map from language code to translated name for {@code qid}. */
     public Map<String, String> get(long qid) {
