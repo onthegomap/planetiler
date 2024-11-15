@@ -3,7 +3,9 @@ package com.onthegomap.planetiler.collection;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.IOException;
 import java.nio.file.Path;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,6 +17,11 @@ abstract class AppendStoreTest {
   abstract static class IntsTest {
 
     protected AppendStore.Ints store;
+
+    @AfterEach
+    void close() throws IOException {
+      store.close();
+    }
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
@@ -44,6 +51,11 @@ abstract class AppendStoreTest {
 
     protected AppendStore.Longs store;
 
+    @AfterEach
+    void close() throws IOException {
+      store.close();
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
     void writeThenRead(int num) {
@@ -57,10 +69,11 @@ abstract class AppendStoreTest {
       assertThrows(IndexOutOfBoundsException.class, () -> store.getLong(num + 1));
     }
 
-    private static final long maxInt = Integer.MAX_VALUE;
+    private static final long MAX_INT = Integer.MAX_VALUE;
 
     @ParameterizedTest
-    @ValueSource(longs = {maxInt - 1, maxInt, maxInt + 1, 2 * maxInt - 1, 2 * maxInt, 5 * maxInt - 1, 5 * maxInt + 1})
+    @ValueSource(longs = {MAX_INT - 1,
+      MAX_INT, MAX_INT + 1, 2 * MAX_INT - 1, 2 * MAX_INT, 5 * MAX_INT - 1, 5 * MAX_INT + 1})
     void readBig(long value) {
       store.appendLong(value);
       assertEquals(value, store.getLong(0));
@@ -121,7 +134,7 @@ abstract class AppendStoreTest {
     @BeforeEach
     void setup(@TempDir Path path) {
       this.store = new AppendStore.SmallLongs(
-        (i) -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2, true));
+        i -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2, true));
     }
   }
 
@@ -129,7 +142,7 @@ abstract class AppendStoreTest {
 
     @BeforeEach
     void setup() {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(false, 4 << 2));
+      this.store = new AppendStore.SmallLongs(i -> new AppendStoreRam.Ints(false, 4 << 2));
     }
   }
 
@@ -137,7 +150,7 @@ abstract class AppendStoreTest {
 
     @BeforeEach
     void setup() {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(true, 4 << 2));
+      this.store = new AppendStore.SmallLongs(i -> new AppendStoreRam.Ints(true, 4 << 2));
     }
   }
 }
