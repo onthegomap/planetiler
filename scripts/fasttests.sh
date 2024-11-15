@@ -4,4 +4,4 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-./mvnw -Pfast clean test
+./mvnw -T 1C -Pfast clean test

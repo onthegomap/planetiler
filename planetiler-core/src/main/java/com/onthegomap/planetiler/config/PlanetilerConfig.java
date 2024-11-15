@@ -124,7 +124,7 @@ public record PlanetilerConfig(
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
-    Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
+    Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
 
     return new PlanetilerConfig(
       arguments,
