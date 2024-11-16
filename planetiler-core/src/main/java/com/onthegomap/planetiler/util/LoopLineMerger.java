@@ -187,6 +187,7 @@ public class LoopLineMerger {
   }
 
   public List<LineString> getMergedLineStrings() {
+    output.clear();
     List<List<Coordinate>> edges = nodeLines(input);
     buildNodes(edges);
 
