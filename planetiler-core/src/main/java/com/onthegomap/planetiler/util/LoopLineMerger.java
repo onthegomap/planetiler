@@ -199,34 +199,10 @@ public class LoopLineMerger {
   }
 
   private void simplify() {
-    Map<Edge, LineString> mainEdgeToLineString = new HashMap<>();
     for (var node : output) {
       for (var edge : node.getEdges()) {
         if (edge.main) {
-          mainEdgeToLineString.put(edge, factory.createLineString(edge.coordinates.toArray(Coordinate[]::new)));
-        }
-      }
-    }
-    for (var mainEdge : mainEdgeToLineString.keySet()) {
-      var line = mainEdgeToLineString.get(mainEdge);
-      if (line.getNumPoints() <= 2) {
-        continue;
-      }
-      Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
-      if (simplified instanceof LineString simpleLineString) {
-        mainEdgeToLineString.put(mainEdge, simpleLineString);
-      } else {
-        // TODO handle error
-        // LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
-      }
-    }
-    for (var node : output) {
-      for (var edge : node.getEdges()) {
-        if (edge.main) {
-          edge.setCoordinates(List.of(mainEdgeToLineString.get(edge).getCoordinates()));
-        }
-        else {
-          edge.setCoordinates(List.of(mainEdgeToLineString.get(edge.reversed).getCoordinates()).reversed());
+          edge.simplify();
         }
       }
     }
@@ -460,13 +436,20 @@ public class LoopLineMerger {
     }
 
     double angleTo(Edge other) {
-      assert from.equals(other.from); 
+      assert from.equals(other.from);
       assert coordinates.size() >= 2;
 
       double angle = Angle.angle(coordinates.get(0), coordinates.get(1));
       double angleOther = Angle.angle(other.coordinates.get(0), other.coordinates.get(1));
-      
+
       return Math.abs(Angle.normalize(angle - angleOther));
+    }
+
+    public void simplify() {
+      coordinates = DouglasPeuckerSimplifier.simplify(coordinates, tolerance, false);
+      if (reversed != null) {
+        reversed.coordinates = coordinates.reversed();
+      }
     }
 
     @Override
