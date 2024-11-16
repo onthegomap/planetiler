@@ -184,30 +184,28 @@ public class FeatureMerge {
         }
         List<LineString> outputSegments = new ArrayList<>();
         var i = 0;
-        for (Object merged : merger.getMergedLineStrings()) {
-          if (merged instanceof LineString line) {
-            // TODO remove debug features comment
-            // Map<String, Object> attrs = new HashMap<>();
-            // attrs.put("idx", i++);
-            // result.add(feature1.copyWithNewGeometry(((LineString) merged).getStartPoint()).copyWithExtraAttrs(attrs));
-            // result.add(feature1.copyWithNewGeometry((LineString) merged).copyWithExtraAttrs(attrs));
-            // attrs.put("end", "yes");
-            // result.add(feature1.copyWithNewGeometry(((LineString) merged).getEndPoint()).copyWithExtraAttrs(attrs));
+        for (var line : merger.getMergedLineStrings()) {
+          // TODO remove debug features comment
+          // Map<String, Object> attrs = new HashMap<>();
+          // attrs.put("idx", i++);
+          // result.add(feature1.copyWithNewGeometry(((LineString) merged).getStartPoint()).copyWithExtraAttrs(attrs));
+          // result.add(feature1.copyWithNewGeometry((LineString) merged).copyWithExtraAttrs(attrs));
+          // attrs.put("end", "yes");
+          // result.add(feature1.copyWithNewGeometry(((LineString) merged).getEndPoint()).copyWithExtraAttrs(attrs));
 
-            // re-simplify since some endpoints of merged segments may be unnecessary
-            if (line.getNumPoints() > 2 && tolerance >= 0) {
-              Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
-              if (simplified instanceof LineString simpleLineString) {
-                line = simpleLineString;
-              } else {
-                LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
-              }
-            }
-            if (buffer >= 0) {
-              removeDetailOutsideTile(line, buffer, outputSegments);
+          // re-simplify since some endpoints of merged segments may be unnecessary
+          if (line.getNumPoints() > 2 && tolerance >= 0) {
+            Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
+            if (simplified instanceof LineString simpleLineString) {
+              line = simpleLineString;
             } else {
-              outputSegments.add(line);
+              LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
             }
+          }
+          if (buffer >= 0) {
+            removeDetailOutsideTile(line, buffer, outputSegments);
+          } else {
+            outputSegments.add(line);
           }
         }
         
