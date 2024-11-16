@@ -27,27 +27,6 @@ public class LoopLineMerger {
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
 
-  private static double getLength(List<Edge> lines) {
-    double result = 0.0;
-    for (var line : lines) {
-      result += line.length;
-    }
-    return result;
-  }
-
-  static boolean hasPointAppearingMoreThanTwice(List<Edge> edges) {
-    HashMap<Node, Integer> pointCountMap = new HashMap<>();
-    for (Edge edge : edges) {
-      if (pointCountMap.merge(edge.from, 1, Integer::sum) > 2) {
-        return true;
-      }
-      if (pointCountMap.merge(edge.to, 1, Integer::sum) > 2) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
     factory = new GeometryFactory(precisionModel);
