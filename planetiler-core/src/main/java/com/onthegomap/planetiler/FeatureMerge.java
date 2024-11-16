@@ -82,7 +82,7 @@ public class FeatureMerge {
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer, boolean resimplify) {
-    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer, resimplify, 0);
+    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer, resimplify);
   }
 
   /**
@@ -92,11 +92,6 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer) {
     return mergeLineStrings(features, minLength, tolerance, buffer, false);
-  }
-
-  public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
-    double minLength, double tolerance, double buffer, double loopMinLength) {
-    return mergeLineStrings(features, map -> minLength, tolerance, buffer, false, loopMinLength);
   }
 
   /** Merges points with the same attributes into multipoints. */
@@ -154,7 +149,7 @@ public class FeatureMerge {
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer) {
-    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false, 0);
+    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false);
   }
 
   /**
@@ -162,8 +157,7 @@ public class FeatureMerge {
    * except with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
-    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify,
-    double loopMinLength) {
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -180,7 +174,7 @@ public class FeatureMerge {
       } else {
         LoopLineMerger merger = new LoopLineMerger()
           .setMinLength(lengthLimit)
-          .setLoopMinLength(loopMinLength);
+          .setLoopMinLength(lengthLimit);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
