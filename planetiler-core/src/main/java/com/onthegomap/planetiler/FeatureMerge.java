@@ -4,7 +4,6 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
 import com.onthegomap.planetiler.collection.Hppc;
-import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
@@ -173,6 +172,8 @@ public class FeatureMerge {
         result.add(feature1);
       } else {
         LoopLineMerger merger = new LoopLineMerger()
+          .setTolerance(tolerance)
+          .setMergeStrokes(true)
           .setMinLength(lengthLimit)
           .setLoopMinLength(lengthLimit);
         for (VectorTile.Feature feature : groupedFeatures) {
@@ -188,20 +189,11 @@ public class FeatureMerge {
           // TODO remove debug features comment
           // Map<String, Object> attrs = new HashMap<>();
           // attrs.put("idx", i++);
-          // result.add(feature1.copyWithNewGeometry(((LineString) merged).getStartPoint()).copyWithExtraAttrs(attrs));
-          // result.add(feature1.copyWithNewGeometry((LineString) merged).copyWithExtraAttrs(attrs));
+          // result.add(feature1.copyWithNewGeometry(line.getStartPoint()).copyWithExtraAttrs(attrs));
+          // result.add(feature1.copyWithNewGeometry(line).copyWithExtraAttrs(attrs));
           // attrs.put("end", "yes");
-          // result.add(feature1.copyWithNewGeometry(((LineString) merged).getEndPoint()).copyWithExtraAttrs(attrs));
+          // result.add(feature1.copyWithNewGeometry(line.getEndPoint()).copyWithExtraAttrs(attrs));
 
-          // re-simplify since some endpoints of merged segments may be unnecessary
-          if (line.getNumPoints() > 2 && tolerance >= 0) {
-            Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
-            if (simplified instanceof LineString simpleLineString) {
-              line = simpleLineString;
-            } else {
-              LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
-            }
-          }
           if (buffer >= 0) {
             removeDetailOutsideTile(line, buffer, outputSegments);
           } else {
@@ -209,12 +201,6 @@ public class FeatureMerge {
           }
         }
         
-        merger = new LoopLineMerger();
-        for (var outputSegment : outputSegments) {
-          merger.add(outputSegment);
-        }
-        outputSegments = merger.getMergedByAngle();
-
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);

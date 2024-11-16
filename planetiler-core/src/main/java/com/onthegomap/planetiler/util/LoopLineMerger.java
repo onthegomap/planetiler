@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,6 +27,8 @@ public class LoopLineMerger {
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
+  private double tolerance = 0.0;
+  private boolean mergeStrokes = false;
 
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
@@ -43,6 +46,16 @@ public class LoopLineMerger {
     return this;
   }
 
+  public LoopLineMerger setTolerance(double tolerance) {
+    this.tolerance = tolerance;
+    return this;
+  }
+
+  public LoopLineMerger setMergeStrokes(boolean mergeStrokes) {
+    this.mergeStrokes = mergeStrokes;
+    return this;
+  }
+
   public void add(Geometry geometry) {
     geometry.apply((GeometryComponentFilter) component -> {
       if (component instanceof LineString lineString) {
@@ -51,20 +64,19 @@ public class LoopLineMerger {
     });
   }
 
-  private void merge() {
+  private void degreeTwoMerge() {
     for (var node : output) {
       if (node.getEdges().size() == 2) {
         Edge a = node.getEdges().getFirst();
         Edge b = node.getEdges().get(1);
-        mergeTwoEdges(a, b);
+        mergeTwoEdges(node, a, b);
       }
     }
   }
 
-  private void mergeTwoEdges(Edge a, Edge b) {
-    assert a.to == b.from;
-    a.to.getEdges().remove(a);
-    b.from.getEdges().remove(b);
+  private void mergeTwoEdges(Node node, Edge a, Edge b) {
+    node.getEdges().remove(a);
+    node.getEdges().remove(b);
     List<Coordinate> coordinates = new ArrayList<>();
     coordinates.addAll(a.coordinates.reversed());
     coordinates.addAll(b.coordinates.subList(1, b.coordinates.size()));
@@ -77,7 +89,7 @@ public class LoopLineMerger {
     }
   }
 
-  private void mergeByAngle() {
+  private void strokeMerge() {
     for (var node : output) {
       List<Edge> edges = List.copyOf(node.getEdges());
       if (edges.size() >= 3) {
@@ -95,7 +107,7 @@ public class LoopLineMerger {
           if (merged.contains(angledPair.a) || merged.contains(angledPair.b)) {
             continue;
           }
-          mergeTwoEdges(angledPair.a, angledPair.b);
+          mergeTwoEdges(angledPair.a.from, angledPair.a, angledPair.b);
           merged.add(angledPair.a);
           merged.add(angledPair.b);
         }
@@ -186,49 +198,93 @@ public class LoopLineMerger {
     }
   }
 
+  private void simplify() {
+    Map<Edge, LineString> mainEdgeToLineString = new HashMap<>();
+    for (var node : output) {
+      for (var edge : node.getEdges()) {
+        if (edge.main) {
+          mainEdgeToLineString.put(edge, factory.createLineString(edge.coordinates.toArray(Coordinate[]::new)));
+        }
+      }
+    }
+    for (var mainEdge : mainEdgeToLineString.keySet()) {
+      var line = mainEdgeToLineString.get(mainEdge);
+      if (line.getNumPoints() <= 2) {
+        continue;
+      }
+      Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
+      if (simplified instanceof LineString simpleLineString) {
+        mainEdgeToLineString.put(mainEdge, simpleLineString);
+      } else {
+        // TODO handle error
+        // LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
+      }
+    }
+    for (var node : output) {
+      for (var edge : node.getEdges()) {
+        if (edge.main) {
+          edge.setCoordinates(List.of(mainEdgeToLineString.get(edge).getCoordinates()));
+        }
+        else {
+          edge.setCoordinates(List.of(mainEdgeToLineString.get(edge.reversed).getCoordinates()).reversed());
+        }
+      }
+    }
+  }
+
+  private void removeDuplicatedEdges() {
+    for (var node : output) {
+      List<Edge> toRemove = new ArrayList<>();
+      for (var i = 0; i < node.getEdges().size(); ++i) {
+        Edge a = node.getEdges().get(i);
+        for (var j = i + 1; j < node.getEdges().size(); ++j) {
+          Edge b = node.getEdges().get(j);
+          if (a.coordinates.equals(b.coordinates)) {
+            toRemove.add(b);
+          }
+        }
+      }
+      for (var edge : toRemove) {
+        edge.remove();
+      }
+    }
+  }
+
   public List<LineString> getMergedLineStrings() {
     output.clear();
     List<List<Coordinate>> edges = nodeLines(input);
     buildNodes(edges);
 
-    merge();
+    degreeTwoMerge();
 
     if (loopMinLength > 0.0) {
       breakLoops();
-      merge();
+      degreeTwoMerge();
     }
 
     if (minLength > 0.0) {
       double step = 1.0 / precisionModel.getScale();
       for (double stubMinLength = 0.0; stubMinLength < minLength; stubMinLength += step) {
         removeShortStubEdges(stubMinLength);
-        merge();
+        degreeTwoMerge();
       }
       removeShortStubEdges(minLength);
-      merge();
-      // minLength = 10 * 0.0625;
-      // removeShortEdges();
-      // merge();
+      degreeTwoMerge();
     }
 
-    List<LineString> result = new ArrayList<>();
-
-    for (var node : output) {
-      for (var edge : node.getEdges()) {
-        if (edge.main) {
-          result.add(factory.createLineString(edge.coordinates.toArray(Coordinate[]::new)));
-        }
-      }
+    if (tolerance >= 0.0) {
+      simplify();
+      removeDuplicatedEdges();
+      degreeTwoMerge();
     }
 
-    return result;
-  }
+    if (mergeStrokes) {
+      strokeMerge();
+    }
 
-  public List<LineString> getMergedByAngle() {
-    List<List<Coordinate>> edges = nodeLines(input);
-    buildNodes(edges);
-
-    mergeByAngle();
+    if (minLength > 0) {
+      removeShortEdges();
+    }
 
     List<LineString> result = new ArrayList<>();
 
@@ -397,6 +453,10 @@ public class LoopLineMerger {
     public void remove() {
       from.removeEdge(this);
       to.removeEdge(reversed);
+    }
+
+    public void setCoordinates(List<Coordinate> coordinates) {
+      this.coordinates = new ArrayList<>(coordinates);
     }
 
     double angleTo(Edge other) {
