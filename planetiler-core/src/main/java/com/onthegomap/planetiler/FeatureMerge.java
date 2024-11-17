@@ -217,6 +217,69 @@ public class FeatureMerge {
     return result;
   }
 
+  public static List<VectorTile.Feature> mergeLineStringsAllParams(List<VectorTile.Feature> features,
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify, double loopMinLength, double stubMinLength) {
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
+    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
+      double lengthLimit = lengthLimitCalculator.apply(feature1.tags());
+
+      // as a shortcut, can skip line merging only if:
+      // - only 1 element in the group
+      // - it doesn't need to be clipped
+      // - and it can't possibly be filtered out for being too short
+      // - and it does not need to be simplified
+      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
+        result.add(feature1);
+      } else {
+        LoopLineMerger merger = new LoopLineMerger()
+          .setTolerance(tolerance)
+          .setMergeStrokes(true)
+          .setMinLength(lengthLimit)
+          .setLoopMinLength(loopMinLength)
+          .setStubMinLength(stubMinLength);
+        for (VectorTile.Feature feature : groupedFeatures) {
+          try {
+            merger.add(feature.geometry().decode());
+          } catch (GeometryException e) {
+            e.log("Error decoding vector tile feature for line merge: " + feature);
+          }
+        }
+        List<LineString> outputSegments = new ArrayList<>();
+        var i = 0;
+        for (var line : merger.getMergedLineStrings()) {
+          // TODO remove debug features comment
+          // Map<String, Object> attrs = new HashMap<>();
+          // attrs.put("idx", i++);
+          // result.add(feature1.copyWithNewGeometry(line.getStartPoint()).copyWithExtraAttrs(attrs));
+          // result.add(feature1.copyWithNewGeometry(line).copyWithExtraAttrs(attrs));
+          // attrs.put("end", "yes");
+          // result.add(feature1.copyWithNewGeometry(line.getEndPoint()).copyWithExtraAttrs(attrs));
+
+          if (buffer >= 0) {
+            removeDetailOutsideTile(line, buffer, outputSegments);
+          } else {
+            outputSegments.add(line);
+          }
+        }
+        
+        if (!outputSegments.isEmpty()) {
+          outputSegments = sortByHilbertIndex(outputSegments);
+          Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
+          result.add(feature1.copyWithNewGeometry(newGeometry));
+          // i = 0;
+          // for (var outputSegment : outputSegments) {
+          //   Map<String, Object> attrs = new HashMap<>();
+          //   attrs.put("idx", ++i);
+          //   result.add(feature1.copyWithNewGeometry(outputSegment).copyWithExtraAttrs(attrs));
+          // }
+        }
+      }
+    }
+    return result;
+  }
+
   /**
    * Removes any segments from {@code input} where both the start and end are outside the tile boundary (plus {@code
    * buffer}) and puts the resulting segments into {@code output}.

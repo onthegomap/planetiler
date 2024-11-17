@@ -27,6 +27,7 @@ public class LoopLineMerger {
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
+  private double stubMinLength = 0.0;
   private double tolerance = 0.0;
   private boolean mergeStrokes = false;
 
@@ -43,6 +44,11 @@ public class LoopLineMerger {
 
   public LoopLineMerger setLoopMinLength(double loopMinLength) {
     this.loopMinLength = loopMinLength;
+    return this;
+  }
+
+  public LoopLineMerger setStubMinLength(double stubMinLength) {
+    this.stubMinLength = stubMinLength;
     return this;
   }
 
@@ -238,13 +244,13 @@ public class LoopLineMerger {
       degreeTwoMerge();
     }
 
-    if (minLength > 0.0) {
+    if (stubMinLength > 0.0) {
       double step = 1.0 / precisionModel.getScale();
-      for (double stubMinLength = 0.0; stubMinLength < minLength; stubMinLength += step) {
-        removeShortStubEdges(stubMinLength);
+      for (double current = step; current < stubMinLength; current += step) {
+        removeShortStubEdges(current);
         degreeTwoMerge();
       }
-      removeShortStubEdges(minLength);
+      removeShortStubEdges(stubMinLength);
       degreeTwoMerge();
     }
 
