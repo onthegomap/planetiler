@@ -175,7 +175,8 @@ public class FeatureMerge {
           .setTolerance(tolerance)
           .setMergeStrokes(true)
           .setMinLength(lengthLimit)
-          .setLoopMinLength(lengthLimit);
+          .setLoopMinLength(lengthLimit)
+          .setStubMinLength(0.5);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
@@ -200,7 +201,7 @@ public class FeatureMerge {
             outputSegments.add(line);
           }
         }
-        
+
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
@@ -218,7 +219,8 @@ public class FeatureMerge {
   }
 
   public static List<VectorTile.Feature> mergeLineStringsAllParams(List<VectorTile.Feature> features,
-    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify, double loopMinLength, double stubMinLength) {
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify,
+    double loopMinLength, double stubMinLength) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -263,7 +265,7 @@ public class FeatureMerge {
             outputSegments.add(line);
           }
         }
-        
+
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);

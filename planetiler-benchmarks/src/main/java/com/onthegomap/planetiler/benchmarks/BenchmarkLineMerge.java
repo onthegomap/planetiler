@@ -33,29 +33,21 @@ public class BenchmarkLineMerge {
         lm.add(geom);
         return lm.getMergedLineStrings();
       });
-      time("   loop(0)", geom -> {
-        var lm = new LoopLineMerger();
-        lm.setLoopMinLength(0);
-        lm.setMinLength(0);
-        lm.add(geom);
-        return lm.getMergedLineStrings();
-      });
-      time(" loop(0.1)", geom -> {
-        var lm = new LoopLineMerger();
-        lm.setLoopMinLength(0.1);
-        lm.setMinLength(0.1);
-        lm.add(geom);
-        return lm.getMergedLineStrings();
-      });
-      time("loop(20.0)", geom -> {
-        var lm = new LoopLineMerger();
-        lm.setLoopMinLength(20.0);
-        lm.setMinLength(0.1);
-        lm.add(geom);
-        return lm.getMergedLineStrings();
-      });
+      time("   loop(0)", geom -> loopMerger(0).add(geom).getMergedLineStrings());
+      time(" loop(0.1)", geom -> loopMerger(0.1).add(geom).getMergedLineStrings());
+      time("loop(20.0)", geom -> loopMerger(20).add(geom).getMergedLineStrings());
     }
     System.err.println(numLines);
+  }
+
+  private static LoopLineMerger loopMerger(double minLength) {
+    var lm = new LoopLineMerger();
+    lm.setMinLength(minLength);
+    lm.setStubMinLength(minLength);
+    lm.setLoopMinLength(minLength);
+    lm.setTolerance(1);
+    lm.setMergeStrokes(true);
+    return lm;
   }
 
   private static void time(String name, FunctionThatThrows<Geometry, Collection<LineString>> fn) throws Exception {

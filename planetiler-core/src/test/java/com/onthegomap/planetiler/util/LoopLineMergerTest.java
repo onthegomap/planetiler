@@ -342,6 +342,8 @@ class LoopLineMergerTest {
     var merger = new LoopLineMerger();
     merger.setMinLength(minLengths);
     merger.setLoopMinLength(minLengths);
+    merger.setStubMinLength(minLengths);
+    merger.setMergeStrokes(true);
     merger.add(geom);
     var merged = merger.getMergedLineStrings();
     Set<List<Coordinate>> lines = new HashSet<>();
