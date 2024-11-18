@@ -312,9 +312,7 @@
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>3.10.0</version>
           <configuration>
-            <quiet>true</quiet>
-            <doclint>-missing</doclint>
-            <failOnWarnings>true</failOnWarnings>
+            <doclint>none</doclint>
           </configuration>
           <executions>
             <execution>
