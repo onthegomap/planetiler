@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.util.Wikidata;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -214,6 +215,10 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
    */
   default boolean caresAboutSource(String name) {
     return true;
+  }
+
+  default Map<String, HashSet<String>> geomTypes() {
+    return null;
   }
 
   /**

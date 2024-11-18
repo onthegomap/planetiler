@@ -2,12 +2,16 @@ package com.onthegomap.planetiler.layers;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.util.ZoomFunction;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,8 +19,32 @@ public class Poi implements Profile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Poi.class);
 
+  public static final String LINESPACE_POI = "LINESPACE_POI";
+
+  /**
+   * 默认瓦片最大点数量 256 * 256 * 2
+   */
+  public static final Long POI_MAX_NUMS = 131072L;
+
+  /**
+   * 默认网格集大小
+   */
+  private static final int EXTENT = 256;
+
+  /**
+   * 默认像素大小
+   */
+  private static final int PIXEL_SIZE = 1;
+
+  /**
+   * TODO 该计算方式，瓦片点最大数量可能不完全等于POI_MAX_NUMS
+   */
+  private static final int GRID_SIZE = (int) Math.ceil((double) POI_MAX_NUMS / (EXTENT * EXTENT));
+
   private final PoiTilingConfig poiTileConfig;
   private final PlanetilerConfig config;
+
+  private Map<String, HashSet<String>> geomTypes = new HashMap<>();
 
   public Poi(PlanetilerConfig config, PoiTilingConfig poiTileConfig) {
     this.poiTileConfig = poiTileConfig;
@@ -25,7 +53,8 @@ public class Poi implements Profile {
 
   @Override
   public void processFeature(SourceFeature source, FeatureCollector features) {
-    FeatureCollector.Feature feature = features.anyGeometry(config.layerName());
+    String layerName = StringUtils.isBlank(config.layerName()) ? LINESPACE_POI : config.layerName();
+    FeatureCollector.Feature feature = features.anyGeometry(layerName);
     configureFeature(feature);
 
     var tags = source.tags();
@@ -41,11 +70,29 @@ public class Poi implements Profile {
     if (rankOrder != null) {
       feature.setSortKey(rankOrder);
     }
+
+    String geometryType = null;
+    if (source.isPoint()) {
+      geometryType = GeometryType.POINT.name();
+    } else if (source.canBePolygon()) {
+      geometryType = GeometryType.POLYGON.name();
+    } else if (source.canBeLine()) {
+      geometryType = GeometryType.LINE.name();
+    }
+
+    if (StringUtils.isNotBlank(geometryType)) {
+      geomTypes.computeIfAbsent(feature.getLayer(), k -> new HashSet<>()).add(geometryType);
+    }
   }
 
   @Override
   public String name() {
-    return config.layerName();
+    return StringUtils.isBlank(config.layerName()) ? LINESPACE_POI : config.layerName();
+  }
+
+  @Override
+  public Map<String, HashSet<String>> geomTypes() {
+    return geomTypes;
   }
 
   private void configureFeature(FeatureCollector.Feature feature) {
@@ -58,14 +105,13 @@ public class Poi implements Profile {
       } else {
         feature.setBufferPixelOverrides(config.labelGridPixelSize());
       }
-    }
-
-    if (config.minFeatureSizeOverrides() != null) {
-      feature.setMinPixelSizeOverrides(config.minFeatureSizeOverrides());
-    }
-
-    if (config.simplifyToleranceOverrides() != null) {
-      feature.setPixelToleranceOverrides(config.simplifyToleranceOverrides());
+    } else {
+      // 根据系统默认瓦片最大点数量限制瓦片大小,最高层级 14需要展示所有数据
+      ZoomFunction<Number> gridPixelSize = ZoomFunction.fromMaxZoomThresholds(Map.of(), PIXEL_SIZE);
+      ZoomFunction<Number> gridLimit = ZoomFunction.fromMaxZoomThresholds(Map.of(13, GRID_SIZE));
+      feature.setPointLabelGridPixelSize(gridPixelSize)
+        .setPointLabelGridLimit(gridLimit)
+        .setBufferPixelOverrides(gridPixelSize);
     }
   }
 
@@ -110,8 +156,8 @@ public class Poi implements Profile {
 
     return priorityLevelsMap.keySet().stream()
       .map(priorityKey -> Optional.ofNullable(tags.get(priorityKey))
-        .map(value -> priorityLevelsMap.get(priorityKey).getOrDefault(value.toString(), FeatureGroup.SORT_KEY_MAX))
-        .orElse(FeatureGroup.SORT_KEY_MAX))
+        .map(value -> priorityLevelsMap.get(priorityKey).getOrDefault(value.toString(), 10000))
+        .orElse(10000))
       .min(Integer::compare)
       .orElse(null);
   }

@@ -2476,8 +2476,8 @@ class PlanetilerTests {
   @ParameterizedTest
   @ValueSource(strings = {
     " --minzoom=0 --maxzoom=14 "
-      + " --output=G:\\数据\\六大类数据\\1.矢量\\parquet\\陕西POI\\POI\\default.mbtiles "
-      + "  --label_grid_pixel_size=12=8,5=1 --label_grid_limit=12=10 --layer_name=shanxi-poi "
+      + " --output=G:\\数据\\六大类数据\\1.矢量\\parquet\\陕西POI\\POI\\default.mbtiles --layer_name=shanxi-poi  "
+//      + "  --label_grid_pixel_size=12=8,5=1 --label_grid_limit=12=10 "
       + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=E:\\Linespace\\SceneMapServer\\Data --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
   })
   void testPlanetilerRunnerParquetPOI(String args) throws Exception {
@@ -2502,6 +2502,7 @@ class PlanetilerTests {
     mainClassMap.put("休闲娱乐", 12);
     mainClassMap.put("商务住宅", 13);
     mainClassMap.put("科教文化", 14);
+    mainClassMap.put("其他", 14);
     zoomLevelMap.put("大类", mainClassMap);
 
     Map<String, Map<String, Integer>> priorityLevelsMap = new HashMap<>();
@@ -2518,10 +2519,16 @@ class PlanetilerTests {
     Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
       (args + " --tmpdir=" + tempDir).split("\\s+")));
     PlanetilerConfig config = planetiler.config();
-    planetiler.setProfile(new Poi(config, poiTilingConfig))
+    Poi poi = new Poi(config, poiTilingConfig);
+    planetiler.setProfile(poi)
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
       .setOutput(outputPath)
       .run();
+
+    // 数据写入json
+    try (Mbtiles mbtiles = (Mbtiles) TileArchives.newWriter(Paths.get(outputPath), config)) {
+      updateMetadata(mbtiles, poi.geomTypes());
+    }
   }
 
 
