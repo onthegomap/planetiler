@@ -289,6 +289,24 @@ class LoopLineMergerTest {
   }
 
   @Test
+  void testMergeLoopAttachedToStub() {
+    var merger = new LoopLineMerger()
+      .setMinLength(10)
+      .setLoopMinLength(10)
+      .setStubMinLength(10)
+      .setTolerance(-1);
+
+    merger.add(newLineString(-20, 0, 0, 0, 20, 0));
+    merger.add(newLineString(0, 0, 0, 1));
+    merger.add(newLineString(0, 1, 1, 2, 1, 1, 0, 1));
+
+    assertEquals(
+      List.of(newLineString(-20, 0, 0, 0, 20, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
   void testRealWorldHarkingen() {
     var merger = new LoopLineMerger()
       .setMinLength(4 * 0.0625)

@@ -201,18 +201,35 @@ public class LoopLineMerger {
     }
     while (!toRemove.isEmpty()) {
       var edge = toRemove.poll();
+      if (edge.removed) {
+        continue;
+      }
       edge.remove();
       if (degreeTwoMerge(edge.from) instanceof Edge merged && isShortStubEdge(merged)) {
         toRemove.offer(merged);
       }
-      if (degreeTwoMerge(edge.to) instanceof Edge merged && isShortStubEdge(merged)) {
-        toRemove.offer(merged);
+      if (edge.from.getEdges().size() == 1) {
+        var other = edge.from.getEdges().getFirst();
+        if (isShortStubEdge(other)) {
+          toRemove.offer(other);
+        }
+      }
+      if (edge.from != edge.to) {
+        if (degreeTwoMerge(edge.to) instanceof Edge merged && isShortStubEdge(merged)) {
+          toRemove.offer(merged);
+        }
+        if (edge.to.getEdges().size() == 1) {
+          var other = edge.to.getEdges().getFirst();
+          if (isShortStubEdge(other)) {
+            toRemove.offer(other);
+          }
+        }
       }
     }
   }
 
   private boolean isShortStubEdge(Edge edge) {
-    return edge != null && edge.main && edge.length < stubMinLength &&
+    return edge != null && !edge.removed && edge.length < stubMinLength &&
       (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to);
   }
 
@@ -420,6 +437,7 @@ public class LoopLineMerger {
     final Node to;
     final double length;
     final boolean main;
+    boolean removed;
 
     Edge reversed;
     List<Coordinate> coordinates;
@@ -442,8 +460,11 @@ public class LoopLineMerger {
     }
 
     public void remove() {
-      from.removeEdge(this);
-      to.removeEdge(reversed);
+      if (!removed) {
+        from.removeEdge(this);
+        to.removeEdge(reversed);
+        removed = true;
+      }
     }
 
     double angleTo(Edge other) {
