@@ -23,6 +23,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.layers.Poi;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -2470,6 +2471,59 @@ class PlanetilerTests {
       updateMetadata(mbtiles, geomTypes);
     }
   }
+
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    " --minzoom=0 --maxzoom=14 "
+      + " --output=G:\\数据\\六大类数据\\1.矢量\\parquet\\陕西POI\\POI\\default.mbtiles "
+      + "  --label_grid_pixel_size=12=8,5=1 --label_grid_limit=12=10 --layer_name=shanxi-poi "
+      + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz -oosSavePath=E:\\Linespace\\SceneMapServer\\Data --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 --force",
+  })
+  void testPlanetilerRunnerParquetPOI(String args) throws Exception {
+    String basePath = "G:\\数据\\六大类数据\\1.矢量\\parquet\\陕西POI";
+    String tempDir = basePath + "\\POI";
+    String outputPath = basePath + "\\POI\\default.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\陕西POI.parquet").map(Paths::get).toList();
+
+    Map<String, Map<String, Integer>> zoomLevelMap = new HashMap<>();
+    Map<String, Integer> mainClassMap = new HashMap<>();
+    mainClassMap.put("交通设施", 0);
+    mainClassMap.put("医疗保健", 1);
+    mainClassMap.put("汽车相关", 2);
+    mainClassMap.put("餐饮美食", 4);
+    mainClassMap.put("生活服务", 5);
+    mainClassMap.put("旅游景点", 6);
+    mainClassMap.put("住宿酒店", 7);
+    mainClassMap.put("购物消费", 8);
+    mainClassMap.put("金融机构", 9);
+    mainClassMap.put("运动健身", 10);
+    mainClassMap.put("公司企业", 11);
+    mainClassMap.put("休闲娱乐", 12);
+    mainClassMap.put("商务住宅", 13);
+    mainClassMap.put("科教文化", 14);
+    zoomLevelMap.put("大类", mainClassMap);
+
+    Map<String, Map<String, Integer>> priorityLevelsMap = new HashMap<>();
+    Map<String, Integer> mediumClassMap = new HashMap<>();
+    mediumClassMap.put("飞机", 10);
+    mediumClassMap.put("公交站", 50);
+    mediumClassMap.put("火车", 20);
+    mediumClassMap.put("港口码头", 40);
+    mediumClassMap.put("地铁", 30);
+    priorityLevelsMap.put("中类", mediumClassMap);
+
+    Poi.PoiTilingConfig poiTilingConfig = new Poi.PoiTilingConfig(priorityLevelsMap, zoomLevelMap, null, false);
+
+    Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
+      (args + " --tmpdir=" + tempDir).split("\\s+")));
+    PlanetilerConfig config = planetiler.config();
+    planetiler.setProfile(new Poi(config, poiTilingConfig))
+      .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
+      .setOutput(outputPath)
+      .run();
+  }
+
 
   private void updateMetadata(Mbtiles mbtiles, Map<String, HashSet<String>> geomTypes) {
     Mbtiles.Metadata metadata = mbtiles.metadataTable();

@@ -705,7 +705,7 @@ public class Planetiler {
   public void run() {
     // 当MBTILES存在的时候，支持断点续传
     String outputPath = arguments.getString("output", "output tile archive URI", null);
-    if (!StringUtils.isEmpty(outputPath)) {
+    if (config.isRasterize() && !StringUtils.isEmpty(outputPath)) {
       File outputFile = new File(outputPath);
       if (outputFile.exists()) {
         try {
