@@ -28,7 +28,7 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import org.geotools.geometry.jts.JTSFactoryFinder;
+import kotlin.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -36,7 +36,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -51,6 +50,7 @@ public class TileMergeRunnable implements Runnable {
 
   private static final int DEFAULT_TILE_SIZE = 256;
   private static final double TILE_SCALE = 0.5d;
+  public static final String LINESPACE_AREA = "Linespace_Area";
 
   private static final int EXTENT = 4096;
 
@@ -169,7 +169,7 @@ public class TileMergeRunnable implements Runnable {
       for (Map.Entry<String, List<GeometryWithTag>> entry : originFeatureInfos.entrySet()) {
         // ---------------------------V2.0---------------------------------------
         // 2. 要素像素化
-        List<GeometryWithTag> geometryWithTags = gridMergeFeatures(entry.getValue(), totalSize, maxSize);
+        List<GeometryWithTag> geometryWithTags = gridMergeFeatures(entry.getValue(), totalSize, maxSize, z);
         List<VectorTile.Feature> reduced = geometryToFeature(geometryWithTags);
         reduceTile.addLayerFeatures(entry.getKey(), reduced);
         // ---------------------------V1.0---------------------------------------
@@ -221,14 +221,13 @@ public class TileMergeRunnable implements Runnable {
 //          new PrecisionModel(1d));
 
         if (!transformationGeom.isEmpty()) {
-          double shapeArea = transformationGeom.getArea();
+          double shapeArea = Double.parseDouble(feature.getTag(LINESPACE_AREA).toString());
           try {
             if (feature.hasTag("Shape_Area")) {
-              shapeArea = Double.parseDouble(feature.getTag("Shape_Area").toString());
+//              shapeArea = Double.parseDouble(feature.getTag("Shape_Area").toString());
             }
           } catch (NumberFormatException ignore) {
           }
-//          feature.setTag("SceneMap_Z", z);
           GeometryWithTag geometryWithTags =
             new GeometryWithTag(feature.layer(), feature.id(), feature.tags(),
               feature.group(),
@@ -347,7 +346,9 @@ public class TileMergeRunnable implements Runnable {
       VectorTile.encodeGeometry(geom, 0), geometryWithTag.tags, geometryWithTag.group);
   }
 
-  private List<GeometryWithTag> gridMergeFeatures(List<GeometryWithTag> list, long totalSize, long maxSize)
+  private final Map<String, Pair<Double, Double>> pixelCache = new ConcurrentHashMap<>();
+
+  private List<GeometryWithTag> gridMergeFeatures(List<GeometryWithTag> list, long totalSize, long maxSize, int z)
     throws GeometryException {
 //    if (totalSize <= maxSize) {
 //      return list;
@@ -364,9 +365,16 @@ public class TileMergeRunnable implements Runnable {
     }
     // 保存要素+标签
     List<GeometryWithTag> result = new ArrayList<>();
-//    GridEntity gridEntity = gridEntities[offset];
     int gridWidth = gridEntity.getGridWidth();
     Geometry[][] vectorGrid = gridEntity.getVectorGrid();
+
+    // 计算网格集单个像素的面积大小
+    String key = z + ":" + EXTENT;
+    Pair<Double, Double> pixelArea = pixelCache.computeIfAbsent(key, k -> {
+      double areaPerPixel = GeoUtils.areaPerPixelAtEquator(z, EXTENT);
+      return new Pair<>(Math.pow(gridWidth, 2) * areaPerPixel, areaPerPixel);
+    });
+
     for (int i = 0; i < EXTENT; i += gridWidth) {
       for (int j = 0; j < EXTENT; j += gridWidth) {
         // 获取网格
@@ -389,12 +397,27 @@ public class TileMergeRunnable implements Runnable {
           // 找到真实面积最大的瓦片，当前像素归属到
           Integer geoIndex = sortArea.getLast();
           GeometryWithTag geometryWithTag = list.get(geoIndex);
-          // TODO: 处理边界裁剪
-          GeometryWithTag gridGeometry = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
-            geometryWithTag.tags,
-            geometryWithTag.group,
-            geometry, geometryWithTag.size, geometryWithTag.area, geometryWithTag.hash);
-          result.add(gridGeometry);
+
+          // 计算要素与像素的比值
+          double areaRatio = geometryWithTag.area / pixelArea.getFirst();
+          Geometry gridGeometry;
+          if (areaRatio >= config.rasterizeAreaThreshold()) {
+            // TODO: 处理边界裁剪 当大于阈值时，像素归属该要素
+            gridGeometry = geometry;
+          }
+          else if (geometryWithTag.area > pixelArea.getSecond()) {
+            // TODO 计算包络框面积大小 当小于阈值时，计算要素与像素相交范围，获取相交范围的包络框
+            gridGeometry = geometry.intersection(geometryWithTag.geometry).getEnvelope();
+          }
+          else {
+            //TODO 小于最小像素点 1/4096 ，直接丢弃 ，是否可考虑生成一个最小的像素点 1/4096
+            continue;
+          }
+
+          GeometryWithTag resultGeom = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
+            geometryWithTag.tags, geometryWithTag.group, gridGeometry, geometryWithTag.size, geometryWithTag.area,
+            geometryWithTag.hash);
+          result.add(resultGeom);
         }
       }
     }

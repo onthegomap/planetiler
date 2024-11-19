@@ -34,6 +34,7 @@ import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.render.TileMergeRunnable;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
@@ -2416,17 +2417,17 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    " --minzoom=0 --maxzoom=14 "
-//      + "--output=E:\\Linespace\\SceneMapServer\\Data\\parquet\\矢量\\polygon-华山_建筑\\default.mbtiles"
-      + " --is_rasterize=false --pixelation_zoom=-1  --rasterize_min_zoom=0 --rasterize_max_zoom=14"
+    " --minzoom=13 --maxzoom=14 "
+      + " --output=G:\\数据\\1.六大类数据\\1.矢量\\parquet\\dltb\\default\\default.mbtiles "
+      + " --is_rasterize=true --pixelation_zoom=-1  --rasterize_min_zoom=0 --rasterize_max_zoom=13 --rasterize_area_threshold=0.5"
       + " --outputType=mbtiles  --temp_nodes=F:\\test --temp_multipolygons=E:\\test --tile_weights=D:\\Project\\Java\\server-code\\src\\main\\resources\\planetiler\\tile_weights.tsv.gz  --force"
 //      + " -oosSavePath=E:\\Linespace\\SceneMapServer\\Data\\parquet --oosCorePoolSize=4 --oosMaxPoolSize=4 --bucketName=linespace --accessKey=linespace_test --secretKey=linespace_test --endpoint=http://123.139.158.75:9325 ",
   })
   void testPlanetilerRunnerParquetGeometryType(String args) throws Exception {
-    String basePath = "E:\\Linespace\\SceneMapServer\\Data\\parquet\\矢量";
-    String tempDir = basePath + "\\line-HS_L_4525-1";
-    String outputPath = basePath + "\\line-HS_L_4525-1\\default.mbtiles";
-    List<Path> inputPaths = Stream.of(basePath + "\\line-HS_L_4525-1.parquet").map(Paths::get).toList();
+    String basePath = "G:\\数据\\1.六大类数据\\1.矢量\\parquet\\dltb";
+    String tempDir = basePath + "\\default";
+    String outputPath = basePath + "\\default\\default.mbtiles";
+    List<Path> inputPaths = Stream.of(basePath + "\\dltb.parquet").map(Paths::get).toList();
 
     Planetiler planetiler = Planetiler.create(Arguments.fromArgs(
       (args + " --tmpdir=" + tempDir).split("\\s+")));
@@ -2434,33 +2435,37 @@ class PlanetilerTests {
     Map<String, HashSet<String>> geomTypes = new ConcurrentHashMap<>();
     planetiler
       .setProfile((source, features) -> {
+        FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
+          .setPixelToleranceAtAllZooms(0)
+          .setMinPixelSizeAtAllZooms(0);
+
+        double area;
         try {
-          FeatureCollector.Feature feature = features.anyGeometry("linespace_layer")
-            .setSortKey(SortKey
-              .orderByDouble(source.area(), 1d, 0, 1 << (SORT_KEY_BITS - 7) - 1)
-              .get())
-            .setPointLabelGridPixelSize(createLabelGridSizeFunction())
-            .setPointLabelGridLimit(createLabelGridLimitFunction())
-            //              .setBufferPixelOverrides(createBufferPixelFunction())
-            .setPixelToleranceAtAllZooms(0)
-            .setMinPixelSizeAtAllZooms(0);
-
-          String geometryType = null;
-          if (source.isPoint()) {
-            geometryType = GeometryType.POINT.name();
-          } else if (source.canBePolygon()) {
-            geometryType = GeometryType.POLYGON.name();
-          } else if (source.canBeLine()) {
-            geometryType = GeometryType.LINE.name();
-          }
-
-          if (StringUtils.isNotBlank(geometryType)) {
-            geomTypes.computeIfAbsent(feature.getLayer(), k -> new HashSet<>()).add(geometryType);
-          }
-          source.tags().forEach(feature::setAttr);
-        } catch (GeometryException e) {
-          throw new RuntimeException(e);
+          area = GeoUtils.calculateRealAreaLatLon(source.latLonGeometry());
+        } catch (Exception e) {
+          LOGGER.error("计算要素真实面积异常", e);
+          area = 0.0;
         }
+
+        String geometryType = null;
+        if (source.isPoint()) {
+          geometryType = GeometryType.POINT.name();
+        } else if (source.canBePolygon()) {
+          geometryType = GeometryType.POLYGON.name();
+        } else if (source.canBeLine()) {
+          geometryType = GeometryType.LINE.name();
+        }
+
+        if (StringUtils.isNotBlank(geometryType)) {
+          geomTypes.computeIfAbsent(feature.getLayer(), k -> new HashSet<>()).add(geometryType);
+        }
+
+//        String objectid = source.getTag("OBJECTID").toString();
+//        if ("92072".equalsIgnoreCase(objectid)) {
+//          System.out.println("objectid = " + objectid);
+//        }
+        source.tags().forEach(feature::setAttr);
+        feature.setAttr(TileMergeRunnable.LINESPACE_AREA, area);
       })
       .addParquetSource("parquet", inputPaths, false, null, props -> props.get("linespace_layer"))
       .setOutput(outputPath)

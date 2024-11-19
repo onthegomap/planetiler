@@ -92,7 +92,8 @@ public record PlanetilerConfig(
   ZoomFunction<Number> bufferPixelOverrides,
   ZoomFunction<Number> pixelationGridSizeOverrides,
   ZoomFunction<Number> minDistSizes,
-  int featureSourceIdMultiplier
+  int featureSourceIdMultiplier,
+  double rasterizeAreaThreshold
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -332,7 +333,12 @@ public record PlanetilerConfig(
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
-        10)
+        10),
+      arguments.getDouble("rasterize_area_threshold",
+        "要素像素化阈值，当要素的面积与像素点的比值大于该值时，像素整个归属该要素；"
+          + "当小于阈值时，计算要素与像素相交范围，获取范围的包络框，赋值要素属性；"
+          + "小于最小像素点 1/4096 ，直接丢弃",
+        0.5)
     );
   }
 

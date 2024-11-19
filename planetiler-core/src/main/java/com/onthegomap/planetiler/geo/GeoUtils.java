@@ -90,6 +90,7 @@ public class GeoUtils {
   };
 
   private static class TileToLatLonTransformer extends GeometryTransformer {
+
     private final int tileX;
     private final int tileY;
     private final int zoom;
@@ -130,7 +131,8 @@ public class GeoUtils {
   public static final Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
 
   // should not instantiate
-  private GeoUtils() {}
+  private GeoUtils() {
+  }
 
   /**
    * Returns a copy of {@code geom} transformed from latitude/longitude coordinates to web mercator where top-left
@@ -270,6 +272,76 @@ public class GeoUtils {
     return WORLD_CIRCUMFERENCE_METERS / Math.pow(2d, zoom + 8d);
   }
 
+  /**
+   * 计算给定网格分辨率下每像素的地面距离
+   * @param zoom 缩放级别
+   * @param tileResolution 单瓦片的像素分辨率（如 256, 512, 1024）
+   * @return 每像素的地面距离（米）
+   */
+  public static double metersPerPixelAtEquator(int zoom, int tileResolution) {
+    return WORLD_CIRCUMFERENCE_METERS / (Math.pow(2d, zoom) * tileResolution);
+  }
+
+  /**
+   * 计算给定网格分辨率下每像素的地面距离
+   * @param zoom 缩放级别
+   * @param tileResolution 单瓦片的像素分辨率（如 256, 512, 1024）
+   * @return 每像素的地面距离（米）
+   */
+  public static double areaPerPixelAtEquator(int zoom, int tileResolution) {
+    double meters = metersPerPixelAtEquator(zoom, tileResolution);
+    return meters * meters;
+  }
+
+
+  /**
+   * 计算 EPSG:4326 几何的真实地理面积（单位：平方米）
+   *
+   * @param geometry EPSG:4326 几何对象（支持 Polygon 或 MultiPolygon）
+   * @return 真实地理面积（单位：平方米）
+   */
+  public static double calculateRealAreaLatLon(Geometry geometry) {
+    if (geometry instanceof Polygon polygon) {
+      return calculatePolygonArea(polygon);
+    } else if (geometry.getGeometryType().equals("MultiPolygon")) {
+      double totalArea = 0.0;
+      for (int i = 0; i < geometry.getNumGeometries(); i++) {
+        totalArea += calculatePolygonArea((Polygon) geometry.getGeometryN(i));
+      }
+      return totalArea;
+    } else {
+      return 0.0;
+    }
+  }
+
+  /**
+   * 计算单个多边形的球面面积
+   *
+   * @param polygon EPSG:4326 的多边形
+   * @return 球面面积（平方米）
+   */
+  private static double calculatePolygonArea(Polygon polygon) {
+    Coordinate[] coords = polygon.getExteriorRing().getCoordinates();
+    double area = 0.0;
+
+    for (int i = 0; i < coords.length - 1; i++) {
+      Coordinate p1 = coords[i];
+      Coordinate p2 = coords[i + 1];
+
+      double lon1 = Math.toRadians(p1.x);
+      double lat1 = Math.toRadians(p1.y);
+      double lon2 = Math.toRadians(p2.x);
+      double lat2 = Math.toRadians(p2.y);
+
+      area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+
+    // 转换为实际面积
+    area = Math.abs(area) * 6371000 * 6371000 / 2.0;
+    return area;
+  }
+
+
   /** Returns the length in pixels for a given number of meters on a 256x256 px tile at the given {@code zoom} level. */
   public static double metersToPixelAtEquator(int zoom, double meters) {
     return meters / metersPerPixelAtEquator(zoom);
@@ -344,7 +416,8 @@ public class GeoUtils {
    * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION } and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, PrecisionModel precisionModel) throws GeometryException {
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage, PrecisionModel precisionModel)
+    throws GeometryException {
     return snapAndFixPolygon(geom, precisionModel, stats, stage);
   }
 
@@ -623,7 +696,7 @@ public class GeoUtils {
     return new WKTReader(JTS_FACTORY);
   }
 
-  public static Geometry createSmallSquareWithCentroid(Coordinate coordinate , double precisionScale, int zoom) {
+  public static Geometry createSmallSquareWithCentroid(Coordinate coordinate, double precisionScale, int zoom) {
     // 当前缩放级别下的每个像素所代表的相对单位长度
     double tileUnit = 1.0 / Math.pow(2, zoom);
     // 计算最小分辨单位
