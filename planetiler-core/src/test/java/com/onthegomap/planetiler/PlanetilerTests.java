@@ -2460,10 +2460,6 @@ class PlanetilerTests {
           geomTypes.computeIfAbsent(feature.getLayer(), k -> new HashSet<>()).add(geometryType);
         }
 
-//        String objectid = source.getTag("OBJECTID").toString();
-//        if ("92072".equalsIgnoreCase(objectid)) {
-//          System.out.println("objectid = " + objectid);
-//        }
         source.tags().forEach(feature::setAttr);
         feature.setAttr(TileMergeRunnable.LINESPACE_AREA, area);
       })

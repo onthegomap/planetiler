@@ -98,7 +98,7 @@ class ParquetPrimitiveConverter extends PrimitiveConverter {
           return new Interval(Period.ofMonths(months).plusDays(days), Duration.ofMillis(millis));
         });
         case LogicalTypeAnnotation.DecimalLogicalTypeAnnotation decimal -> {
-          int scale = -decimal.getScale();
+          int scale = decimal.getScale();
           yield new BinaryConverer(context,
             binary -> new BigDecimal(new BigInteger(binary.getBytes()), scale).doubleValue());
         }

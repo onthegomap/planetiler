@@ -224,7 +224,7 @@ public class TileMergeRunnable implements Runnable {
           double shapeArea = Double.parseDouble(feature.getTag(LINESPACE_AREA).toString());
           try {
             if (feature.hasTag("Shape_Area")) {
-//              shapeArea = Double.parseDouble(feature.getTag("Shape_Area").toString());
+              shapeArea = Double.parseDouble(feature.getTag("Shape_Area").toString());
             }
           } catch (NumberFormatException ignore) {
           }
