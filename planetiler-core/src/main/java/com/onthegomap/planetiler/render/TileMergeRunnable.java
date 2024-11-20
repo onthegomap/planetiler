@@ -28,7 +28,6 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import kotlin.Pair;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -51,6 +50,7 @@ public class TileMergeRunnable implements Runnable {
   private static final int DEFAULT_TILE_SIZE = 256;
   private static final double TILE_SCALE = 0.5d;
   public static final String LINESPACE_AREA = "Linespace_Area";
+  public static final String EXPAND_MAX = "expand_max";
 
   private static final int EXTENT = 4096;
 
@@ -73,6 +73,8 @@ public class TileMergeRunnable implements Runnable {
   private final PlanetilerConfig config;
 
   private final GridEntity gridEntity;
+
+  private final double gridArea;
 
   Map<String, List<GeometryWithTag>> originFeatureInfos = new ConcurrentHashMap<>();
 
@@ -131,6 +133,7 @@ public class TileMergeRunnable implements Runnable {
     this.writer = writer;
     this.config = config;
     this.gridEntity = gridEntity;
+    this.gridArea = GeoUtils.getGridGeographicArea(tileCoord.x(), tileCoord.y(), tileCoord.z(), EXTENT, gridEntity.getGridWidth());
   }
 
   public TileCoord getTileCoord() {
@@ -342,11 +345,14 @@ public class TileMergeRunnable implements Runnable {
     } else {
       geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
     }
+
+    if (geom.isEmpty()) {
+      return null;
+    }
+
     return new VectorTile.Feature(geometryWithTag.layer, geometryWithTag.id,
       VectorTile.encodeGeometry(geom, 0), geometryWithTag.tags, geometryWithTag.group);
   }
-
-  private final Map<String, Pair<Double, Double>> pixelCache = new ConcurrentHashMap<>();
 
   private List<GeometryWithTag> gridMergeFeatures(List<GeometryWithTag> list, long totalSize, long maxSize, int z)
     throws GeometryException {
@@ -367,13 +373,6 @@ public class TileMergeRunnable implements Runnable {
     List<GeometryWithTag> result = new ArrayList<>();
     int gridWidth = gridEntity.getGridWidth();
     Geometry[][] vectorGrid = gridEntity.getVectorGrid();
-
-    // 计算网格集单个像素的面积大小
-    String key = z + ":" + EXTENT;
-    Pair<Double, Double> pixelArea = pixelCache.computeIfAbsent(key, k -> {
-      double areaPerPixel = GeoUtils.areaPerPixelAtEquator(z, EXTENT);
-      return new Pair<>(Math.pow(gridWidth, 2) * areaPerPixel, areaPerPixel);
-    });
 
     for (int i = 0; i < EXTENT; i += gridWidth) {
       for (int j = 0; j < EXTENT; j += gridWidth) {
@@ -398,24 +397,51 @@ public class TileMergeRunnable implements Runnable {
           Integer geoIndex = sortArea.getLast();
           GeometryWithTag geometryWithTag = list.get(geoIndex);
 
-          // 计算要素与像素的比值
-          double areaRatio = geometryWithTag.area / pixelArea.getFirst();
+          // 计算像素与要素的比值
+          double areaRatio = gridArea / geometryWithTag.area;
+          Map<String, Object> tags = geometryWithTag.tags;
           Geometry gridGeometry;
-          if (areaRatio >= config.rasterizeAreaThreshold()) {
-            // TODO: 处理边界裁剪 当大于阈值时，像素归属该要素
+          if (areaRatio < config.rasterizeAreaThreshold() || config.rasterizeMaxZoom() - 1 == z) {
+            // TODO: 处理边界裁剪 当像素膨胀率小于指定值或者当前层级为栅格化最大层级时  直接使用单位大小的像素
             gridGeometry = geometry;
-          }
-          else if (geometryWithTag.area > pixelArea.getSecond()) {
-            // TODO 计算包络框面积大小 当小于阈值时，计算要素与像素相交范围，获取相交范围的包络框
-            gridGeometry = geometry.intersection(geometryWithTag.geometry).getEnvelope();
-          }
-          else {
-            //TODO 小于最小像素点 1/4096 ，直接丢弃 ，是否可考虑生成一个最小的像素点 1/4096
-            continue;
+          } else {
+
+            if (z == config.rasterizeMaxZoom() - 1) {
+              // TODO 栅格化开始要素膨胀比例就超过阈值 如何处理更好？ 是否可以考虑向上查找，
+//              // 计算需要向上提升多少层级才能满足阈值要求
+//              double targetRatio = config.rasterizeAreaThreshold();
+//              double currentRatio = gridArea / geometryWithTag.area;
+//
+//              // 计算需要向上提升的层级数
+//              int levelsUp = (int) Math.ceil(Math.log(currentRatio / targetRatio) / Math.log(4));
+//              int referenceZ = z + Math.max(1, levelsUp); // 至少提升一个层级
+//
+//              tags.put(EXPAND_MAX, referenceZ);
+            }
+
+            // 如果是第一次超过阈值并且不是最高栅格化层级，记录当z + 1层级为最后膨胀层级
+            int expandZ = Integer.parseInt(tags.computeIfAbsent(EXPAND_MAX, k -> z + 1).toString());
+            int levelDiff = z - expandZ;
+            // 每层级缩放2倍
+            double scaleFactor = Math.pow(2, -levelDiff);
+            AffineTransformation scaleDown = AffineTransformation.scaleInstance(scaleFactor, scaleFactor);
+            gridGeometry = scaleDown.transform(geometry);
+
+            double originalArea = geometry.getArea();
+            double scaledArea = gridGeometry.getArea();
+            double expectedArea = originalArea * scaleFactor * scaleFactor;
+
+            // 验证缩放结果
+            LOGGER.debug("Z={}: Area verification - original={}, scaled={}, expected={}",
+              z, originalArea, scaledArea, expectedArea);
+
+            // 添加断言来捕获异常情况
+            assert Math.abs(scaledArea - expectedArea) < 0.001 :
+              String.format("Scaling error at z=%d: expected=%f, actual=%f", z, expectedArea, scaledArea);
           }
 
           GeometryWithTag resultGeom = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
-            geometryWithTag.tags, geometryWithTag.group, gridGeometry, geometryWithTag.size, geometryWithTag.area,
+            tags, geometryWithTag.group, gridGeometry, geometryWithTag.size, geometryWithTag.area,
             geometryWithTag.hash);
           result.add(resultGeom);
         }

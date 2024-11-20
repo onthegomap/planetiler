@@ -6,6 +6,9 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -293,6 +296,139 @@ public class GeoUtils {
     return meters * meters;
   }
 
+  /**
+   * 计算给定网格分辨率和纬度下每像素的地面距离
+   * @param zoom 缩放级别
+   * @param tileResolution 单瓦片的像素分辨率（如 256, 512, 1024）
+   * @param latitude 纬度（角度）
+   * @return 每像素的地面面积（米^2）
+   */
+  public static double areaPerPixelAtLatitude(int zoom, int tileResolution, double latitude) {
+    // 使用地球的椭球体模型来考虑纬度影响
+    double metersPerPixelAtEquator = metersPerPixelAtEquator(zoom, tileResolution);
+
+    // 计算纬度上的调整因子
+    double latitudeAdjustment = Math.cos(Math.toRadians(latitude));
+
+    // 调整后的每像素的地面距离
+    double adjustedMetersPerPixel = metersPerPixelAtEquator * latitudeAdjustment;
+
+    // 返回每像素的地面面积
+    return adjustedMetersPerPixel * adjustedMetersPerPixel;
+  }
+
+  /**
+   * 转换 Geometry 的经纬度顺序，将 (x, y) 转换为 (y, x)
+   */
+  private static final GeometryTransformer SWITCH_LAT_LON_ORDER = new GeometryTransformer() {
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
+      // 使用相同的坐标序列类型，创建新的序列
+      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
+      for (int i = 0; i < coords.size(); i++) {
+        copy.setOrdinate(i, 0, coords.getOrdinate(i, 1));
+        copy.setOrdinate(i, 1, coords.getOrdinate(i, 0));
+      }
+      return copy;
+    }
+  };
+
+  /**
+   * 切换经纬度顺序
+   *
+   * @param geometry 输入的 Geometry 对象
+   * @return 返回经纬度顺序切换后的 Geometry 对象
+   */
+  public static Geometry switchLatLonOrder(Geometry geometry) {
+    return SWITCH_LAT_LON_ORDER.transform(geometry);
+  }
+
+  public static double calculateRealAreaLatLonImproved(Geometry geometry) {
+    try {
+      geometry = switchLatLonOrder(geometry);
+      MathTransform transform = CRS.findMathTransform(CRS.decode("EPSG:4326"), CRS.decode("EPSG:3857"), true);
+      Geometry projected = JTS.transform(geometry, transform);
+      return projected.getArea();
+    } catch (Exception e) {
+      throw new RuntimeException("Error calculating real area of geometry", e);
+    }
+  }
+
+  public static double getGridGeographicArea(int x, int y, int z, int extend, int width) {
+    Envelope bounds = getTileGeographicBounds(x, y, z);
+    double tileArea = calculateTileArea(bounds);
+    double pixelArea = calculatePixelArea(tileArea, extend);
+    return pixelArea * width * width;
+  }
+
+
+  /**
+   * 获取瓦片的地理边界 (经纬度范围)。
+   *
+   * @param x 瓦片的列号
+   * @param y 瓦片的行号
+   * @param z 缩放级别
+   * @return 包含地理边界的 Envelope (minLon, maxLon, minLat, maxLat)
+   */
+  public static Envelope getTileGeographicBounds(int x, int y, int z) {
+    double minLon = tileToLongitude(x, z);
+    double maxLon = tileToLongitude(x + 1, z);
+    double minLat = tileToLatitude(y + 1, z);
+    double maxLat = tileToLatitude(y, z);
+    return new Envelope(minLon, maxLon, minLat, maxLat);
+  }
+
+  /**
+   * 计算瓦片的经度 (longitude)。
+   */
+  private static double tileToLongitude(int x, int z) {
+    return x / Math.pow(2.0, z) * 360.0 - 180;
+  }
+
+  /**
+   * 计算瓦片的纬度 (latitude)。
+   */
+  private static double tileToLatitude(int y, int z) {
+    double n = Math.PI - (2.0 * Math.PI * y) / Math.pow(2.0, z);
+    return Math.toDegrees(Math.atan(Math.sinh(n)));
+  }
+
+  /**
+   * 计算瓦片的真实面积 (平方米)。
+   *
+   * @param bounds 瓦片的地理边界 (Envelope)
+   * @return 瓦片的真实面积 (平方米)
+   */
+  public static double calculateTileArea(Envelope bounds) {
+    // 获取瓦片的四个角点
+    double minLon = bounds.getMinX();
+    double maxLon = bounds.getMaxX();
+    double minLat = bounds.getMinY();
+    double maxLat = bounds.getMaxY();
+
+    // 将纬度转换为弧度
+    double minLatRad = Math.toRadians(minLat);
+    double maxLatRad = Math.toRadians(maxLat);
+
+    // 计算瓦片宽度 (经度跨度)
+    double width = Math.toRadians(maxLon - minLon) * WORLD_RADIUS_METERS;
+
+    // 计算瓦片高度 (纬度跨度，考虑球面投影)
+    double height = WORLD_RADIUS_METERS * (Math.sin(maxLatRad) - Math.sin(minLatRad));
+
+    // 返回瓦片的面积
+    return Math.abs(width * height);
+  }
+
+  /**
+   * TODO 计算瓦片中每像素的面积 (平方米)。 当前计算方式可能存在一定偏差？？？
+   *
+   * @param tileArea 瓦片的总面积
+   * @return 每像素的面积 (平方米)
+   */
+  public static double calculatePixelArea(double tileArea, Integer extend) {
+    return tileArea / (extend * extend);
+  }
 
   /**
    * 计算 EPSG:4326 几何的真实地理面积（单位：平方米）
