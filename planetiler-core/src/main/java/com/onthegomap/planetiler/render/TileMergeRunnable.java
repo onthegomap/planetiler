@@ -133,7 +133,8 @@ public class TileMergeRunnable implements Runnable {
     this.writer = writer;
     this.config = config;
     this.gridEntity = gridEntity;
-    this.gridArea = GeoUtils.getGridGeographicArea(tileCoord.x(), tileCoord.y(), tileCoord.z(), EXTENT, gridEntity.getGridWidth());
+    this.gridArea = GeoUtils.getGridGeographicArea(tileCoord.x(), tileCoord.y(), tileCoord.z(), EXTENT,
+      gridEntity.getGridWidth());
   }
 
   public TileCoord getTileCoord() {
@@ -421,11 +422,11 @@ public class TileMergeRunnable implements Runnable {
 
             // 如果是第一次超过阈值并且不是最高栅格化层级，记录当z + 1层级为最后膨胀层级
             int expandZ = Integer.parseInt(tags.computeIfAbsent(EXPAND_MAX, k -> z + 1).toString());
-            int levelDiff = z - expandZ;
+            int levelDiff = expandZ - z;
             // 每层级缩放2倍
             double scaleFactor = Math.pow(2, -levelDiff);
-            AffineTransformation scaleDown = AffineTransformation.scaleInstance(scaleFactor, scaleFactor);
-            gridGeometry = scaleDown.transform(geometry);
+            AffineTransformation scaleTransformation = AffineTransformation.scaleInstance(scaleFactor, scaleFactor, i, j);
+            gridGeometry = scaleTransformation.transform(geometry);
 
             double originalArea = geometry.getArea();
             double scaledArea = gridGeometry.getArea();
