@@ -8,7 +8,7 @@ Requirements:
   - on mac: `brew install --cask temurin`
 - [Maven](https://maven.apache.org/install.html)
   - on mac: `brew install maven`
-- [Node.js](https://nodejs.org/en/download/)
+- [Node.js](https://nodejs.org/en/download/package-manager)
   - on mac: `brew install node`
 - [TileServer GL](https://github.com/maptiler/tileserver-gl)
   - `npm install -g tileserver-gl-light`
