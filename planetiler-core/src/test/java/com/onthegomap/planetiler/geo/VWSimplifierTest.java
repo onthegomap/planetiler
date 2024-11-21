@@ -3,13 +3,12 @@ package com.onthegomap.planetiler.geo;
 import static com.onthegomap.planetiler.TestUtils.assertSameNormalizedFeature;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
-import static com.onthegomap.planetiler.TestUtils.rectangle;
 
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
-public class VisvalingamWhyattSimplifierTest {
+class VWSimplifierTest {
 
   final int[] rotations = new int[]{0, 45, 90, 180, 270};
 
@@ -19,6 +18,10 @@ public class VisvalingamWhyattSimplifierTest {
       assertSameNormalizedFeature(
         rotate.transform(expected),
         new VWSimplifier().setTolerance(amount).setWeight(0).transform(rotate.transform(in))
+      );
+      assertSameNormalizedFeature(
+        rotate.transform(expected.reverse()),
+        new VWSimplifier().setTolerance(amount).setWeight(0).transform(rotate.transform(in.reverse()))
       );
     }
   }
@@ -62,10 +65,16 @@ public class VisvalingamWhyattSimplifierTest {
   @Test
   void testPolygonLeaveAPoint() {
     testSimplify(
-      rectangle(0, 10),
       newPolygon(
         0, 0,
-        0, 10,
+        10, 10,
+        9, 10,
+        0, 8,
+        0, 0
+      ),
+      newPolygon(
+        0, 0,
+        0, 8,
         10, 10,
         0, 0
       ),
