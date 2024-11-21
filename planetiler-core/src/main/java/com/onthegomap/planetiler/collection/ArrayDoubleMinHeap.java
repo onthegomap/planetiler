@@ -12,7 +12,7 @@ import java.util.function.IntBinaryOperator;
  * "https://github.com/graphhopper/graphhopper/blob/master/core/src/main/java/com/graphhopper/coll/MinHeapWithUpdate.java">GraphHopper</a>
  * and:
  * <ul>
- * <li>modified to use {@code long} values instead of {@code float}</li>
+ * <li>modified to use {@code double} values instead of {@code float}</li>
  * <li>extracted a common interface for subclass implementations</li>
  * <li>modified so that each element has 4 children instead of 2 (improves performance by 5-10%)</li>
  * <li>performance improvements to minimize array lookups</li>

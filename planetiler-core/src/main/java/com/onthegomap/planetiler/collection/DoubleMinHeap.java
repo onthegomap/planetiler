@@ -20,7 +20,7 @@ package com.onthegomap.planetiler.collection;
 import java.util.function.IntBinaryOperator;
 
 /**
- * API for min-heaps that keeps track of {@code int} keys in a range from {@code [0, size)} ordered by {@code long}
+ * API for min-heaps that keeps track of {@code int} keys in a range from {@code [0, size)} ordered by {@code double}
  * values.
  * <p>
  * Ported from <a href=
