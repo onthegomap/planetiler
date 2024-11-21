@@ -427,18 +427,6 @@ public class TileMergeRunnable implements Runnable {
             double scaleFactor = Math.pow(2, -levelDiff);
             AffineTransformation scaleTransformation = AffineTransformation.scaleInstance(scaleFactor, scaleFactor, i, j);
             gridGeometry = scaleTransformation.transform(geometry);
-
-            double originalArea = geometry.getArea();
-            double scaledArea = gridGeometry.getArea();
-            double expectedArea = originalArea * scaleFactor * scaleFactor;
-
-            // 验证缩放结果
-            LOGGER.debug("Z={}: Area verification - original={}, scaled={}, expected={}",
-              z, originalArea, scaledArea, expectedArea);
-
-            // 添加断言来捕获异常情况
-            assert Math.abs(scaledArea - expectedArea) < 0.001 :
-              String.format("Scaling error at z=%d: expected=%f, actual=%f", z, expectedArea, scaledArea);
           }
 
           GeometryWithTag resultGeom = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,

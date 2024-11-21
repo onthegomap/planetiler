@@ -361,6 +361,15 @@ public class GeoUtils {
     return pixelArea * width * width;
   }
 
+  public static void main(String[] args) {
+//    Envelope bounds = getTileGeographicBounds(828, 405, 10);
+    Envelope bounds = getTileGeographicBounds(53034, 25943, 16);
+    double tileArea = calculateTileArea(bounds);
+    System.out.println("tileArea = " + tileArea);
+    double pixelArea = calculatePixelArea(tileArea, 4096);
+    double v = pixelArea * 16 * 16;
+    System.out.println("v = " + v);
+  }
 
   /**
    * 获取瓦片的地理边界 (经纬度范围)。
