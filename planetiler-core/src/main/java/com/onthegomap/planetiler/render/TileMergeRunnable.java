@@ -405,34 +405,16 @@ public class TileMergeRunnable implements Runnable {
           if (areaRatio < config.rasterizeAreaThreshold() || config.rasterizeMaxZoom() - 1 == z) {
             // TODO: 处理边界裁剪 当像素膨胀率小于指定值或者当前层级为栅格化最大层级时  直接使用单位大小的像素
             gridGeometry = geometry;
+            GeometryWithTag resultGeom = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
+              tags, geometryWithTag.group, gridGeometry, geometryWithTag.size, geometryWithTag.area,
+              geometryWithTag.hash);
+            result.add(resultGeom);
+
           } else {
-
-            if (z == config.rasterizeMaxZoom() - 1) {
-              // TODO 栅格化开始要素膨胀比例就超过阈值 如何处理更好？ 是否可以考虑向上查找，
-//              // 计算需要向上提升多少层级才能满足阈值要求
-//              double targetRatio = config.rasterizeAreaThreshold();
-//              double currentRatio = gridArea / geometryWithTag.area;
-//
-//              // 计算需要向上提升的层级数
-//              int levelsUp = (int) Math.ceil(Math.log(currentRatio / targetRatio) / Math.log(4));
-//              int referenceZ = z + Math.max(1, levelsUp); // 至少提升一个层级
-//
-//              tags.put(EXPAND_MAX, referenceZ);
+            for (Integer integer : sortArea) {
+              result.add(list.get(integer));
             }
-
-            // 如果是第一次超过阈值并且不是最高栅格化层级，记录当z + 1层级为最后膨胀层级
-            int expandZ = Integer.parseInt(tags.computeIfAbsent(EXPAND_MAX, k -> z + 1).toString());
-            int levelDiff = expandZ - z;
-            // 每层级缩放2倍
-            double scaleFactor = Math.pow(2, -levelDiff);
-            AffineTransformation scaleTransformation = AffineTransformation.scaleInstance(scaleFactor, scaleFactor, i, j);
-            gridGeometry = scaleTransformation.transform(geometry);
           }
-
-          GeometryWithTag resultGeom = new GeometryWithTag(geometryWithTag.layer, geometryWithTag.id,
-            tags, geometryWithTag.group, gridGeometry, geometryWithTag.size, geometryWithTag.area,
-            geometryWithTag.hash);
-          result.add(resultGeom);
         }
       }
     }
