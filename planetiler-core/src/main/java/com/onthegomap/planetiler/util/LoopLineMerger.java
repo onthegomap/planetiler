@@ -392,7 +392,7 @@ public class LoopLineMerger {
       Coordinate first = coordinateSequence.getFirst();
       Node firstNode = nodes.get(first);
       if (firstNode == null) {
-        firstNode = new Node();
+        firstNode = new Node(first);
         nodes.put(first, firstNode);
         output.add(firstNode);
       }
@@ -400,7 +400,7 @@ public class LoopLineMerger {
       Coordinate last = coordinateSequence.getLast();
       Node lastNode = nodes.get(last);
       if (lastNode == null) {
-        lastNode = new Node();
+        lastNode = new Node(last);
         nodes.put(last, lastNode);
         output.add(lastNode);
       }
@@ -456,6 +456,11 @@ public class LoopLineMerger {
   private class Node {
     final int id = nodes++;
     final List<Edge> edge = new ArrayList<>();
+    Coordinate coordinate;
+
+    public Node(Coordinate coordinate) {
+      this.coordinate = coordinate;
+    }
 
     void addEdge(Edge edge) {
       for (Edge other : this.edge) {
@@ -480,12 +485,7 @@ public class LoopLineMerger {
     }
 
     public double distance(Node end) {
-      if (!getEdges().isEmpty() && !end.getEdges().isEmpty()) {
-        Coordinate a = getEdges().getFirst().coordinates.getFirst();
-        Coordinate b = end.getEdges().getFirst().coordinates.getFirst();
-        return a.distance(b);
-      }
-      return Double.POSITIVE_INFINITY;
+      return coordinate.distance(end.coordinate);
     }
   }
 
