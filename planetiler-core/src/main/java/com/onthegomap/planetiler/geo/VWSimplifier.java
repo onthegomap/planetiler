@@ -24,9 +24,10 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
   }
 
   /**
-   * Apply a penalty to filter-out sharp corners: {@code k=0} means no penalty, {@code k=0.5} makes the effective area
-   * of shallow corners 50% larger than sharp corners, and {@code k=1} makes the effective area of shallow corners
-   * double that of sharp corners.
+   * Apply a penalty from {@code k=0} to {@code k=1} to drop more sharp corners from the resulting geometry.
+   * <p>
+   * {@code k=0} is the default to apply no penalty for corner sharpness and just drop based on effective triangle area
+   * at the vertex. {@code k=0.7} is the recommended setting to drop corners based on weighted effective area.
    */
   public VWSimplifier setWeight(double k) {
     this.k = k;
@@ -79,6 +80,7 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
 
     DoubleMinHeap heap = DoubleMinHeap.newArrayHeap(num, Integer::compare);
     Vertex[] points = new Vertex[num];
+    // TODO
     //    Stack<Vertex> intersecting = new Stack<>();
     Vertex prev = null;
     for (int i = 0; i < num; i++) {
@@ -103,6 +105,7 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
       if (point.area > tolerance || left <= min) {
         break;
       }
+      // TODO
       //    // Check that the new segment doesn’t intersect with
       //    // any existing segments, except for the point’s
       //    // immediate neighbours.
