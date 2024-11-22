@@ -17,7 +17,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.operation.linemerge.LineMerger;
@@ -28,6 +27,8 @@ class LoopLineMergerTest {
   void testMergeTouchingLinestrings() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
+      .setStubMinLength(-1)
+      .setTolerance(-1)
       .setLoopMinLength(-1);
 
     merger.add(newLineString(10, 10, 20, 20));
@@ -59,6 +60,8 @@ class LoopLineMergerTest {
   void testDoesNotOvercountAlreadyAddedLines() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
+      .setTolerance(-1)
+      .setStubMinLength(-1)
       .setLoopMinLength(-1);
 
     merger.add(newLineString(10, 10, 20, 20));
@@ -74,12 +77,14 @@ class LoopLineMergerTest {
   void testSplitLinestringsBeforeMerging() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
-      .setLoopMinLength(-1);
+      .setLoopMinLength(-1)
+      .setStubMinLength(-1)
+      .setTolerance(-1);
 
     merger.add(newLineString(10, 10, 20, 20, 30, 30));
     merger.add(newLineString(20, 20, 30, 30, 40, 40));
     assertEquals(
-      List.of(newLineString(40, 40, 30, 30, 20, 20, 10, 10)),
+      List.of(newLineString(10, 10, 20, 20, 30, 30, 40, 40)),
       merger.getMergedLineStrings()
     );
   }
@@ -87,8 +92,10 @@ class LoopLineMergerTest {
   @Test
   void testProgressiveStubRemoval() {
     var merger = new LoopLineMerger()
-      .setMinLength(4)
-      .setPrecisionModel(new PrecisionModel(-1.0));
+      .setMinLength(-1)
+      .setStubMinLength(4)
+      .setLoopMinLength(-1)
+      .setTolerance(-1);
 
     merger.add(newLineString(0, 0, 5, 0)); // stub length 5
     merger.add(newLineString(5, 0, 6, 0)); // mid piece
@@ -97,7 +104,7 @@ class LoopLineMergerTest {
     merger.add(newLineString(6, 0, 6, 1)); // stub length 1
 
     assertEquals(
-      List.of(newLineString(8, 0, 6, 0, 5, 0, 0, 0)),
+      List.of(newLineString(0, 0, 5, 0, 6, 0, 8, 0)),
       merger.getMergedLineStrings()
     );
   }
@@ -106,7 +113,9 @@ class LoopLineMergerTest {
   void testRoundCoordinatesBeforeMerging() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
-      .setLoopMinLength(-1);
+      .setLoopMinLength(-1)
+      .setStubMinLength(-1)
+      .setTolerance(-1);
 
     merger.add(newLineString(10.00043983098, 10, 20, 20));
     merger.add(newLineString(20, 20, 30, 30));
@@ -120,11 +129,10 @@ class LoopLineMergerTest {
   void testRemoveSmallLoops() {
     var merger = new LoopLineMerger()
       .setMinLength(-1)
+      .setStubMinLength(-1)
+      .setTolerance(-1)
       .setLoopMinLength(100);
 
-    /*
-     * 10 20 30 40 10 o--o--o \ | \| 20 o--o
-     */
     merger.add(newLineString(
       10, 10,
       20, 10,
@@ -139,10 +147,10 @@ class LoopLineMergerTest {
     assertEquals(
       List.of(
         newLineString(
-          40, 20,
-          30, 20,
+          10, 10,
           20, 10,
-          10, 10
+          30, 20,
+          40, 20
         )
       ),
       merger.getMergedLineStrings()
@@ -151,13 +159,24 @@ class LoopLineMergerTest {
 
   @Test
   void testRemoveSelfClosingLoops() {
+    // Note that self-closing loops are considered stubs.
+    // They are removed by stubMinLength, not loopMinLength...
     var merger = new LoopLineMerger()
       .setMinLength(-1)
-      .setLoopMinLength(10);
+      .setTolerance(-1)
+      .setStubMinLength(5)
+      .setLoopMinLength(-1);
 
-    merger.add(newLineString(1, 0, 1, 1, 1, 2, 0, 2, 0, 1, 1, 1, 2, 1));
+    merger.add(newLineString(
+      1, -10, 
+      1, 1, 
+      1, 2, 
+      0, 2, 
+      0, 1, 
+      1, 1, 
+      10, 1));
     assertEquals(
-      List.of(newLineString(1, 0, 1, 1, 2, 1)),
+      List.of(newLineString(1, -10, 1, 1, 10, 1)),
       merger.getMergedLineStrings()
     );
   }
@@ -168,9 +187,6 @@ class LoopLineMergerTest {
       .setMinLength(-1)
       .setLoopMinLength(0.001);
 
-    /*
-     * 10 20 30 40 10 o--o--o \ | \| 20 o--o
-     */
     merger.add(newLineString(
       10, 10,
       20, 10,
@@ -207,9 +223,11 @@ class LoopLineMergerTest {
   }
 
   @Test
-  void testRemoveShortStubs() {
+  void testRemoveShortLine() {
     var merger = new LoopLineMerger()
       .setMinLength(10)
+      .setStubMinLength(-1)
+      .setTolerance(-1)
       .setLoopMinLength(-1);
 
     merger.add(newLineString(10, 10, 11, 11));
@@ -224,12 +242,11 @@ class LoopLineMergerTest {
   @Test
   void testRemovesShortStubsTheNonStubsThatAreTooShort() {
     var merger = new LoopLineMerger()
-      .setMinLength(15)
-      .setLoopMinLength(-1);
+      .setMinLength(0)
+      .setLoopMinLength(-1)
+      .setStubMinLength(15)
+      .setTolerance(-1);
 
-    /*
-     * 0 20 30 50 0 o----o--o----o | | 10 o o
-     */
     merger.add(newLineString(0, 0, 20, 0));
     merger.add(newLineString(20, 0, 30, 0));
     merger.add(newLineString(30, 0, 50, 0));
@@ -237,7 +254,7 @@ class LoopLineMergerTest {
     merger.add(newLineString(30, 0, 30, 10));
 
     assertEquals(
-      List.of(newLineString(50, 0, 30, 0, 20, 0, 0, 0)),
+      List.of(newLineString(0, 0, 20, 0, 30, 0, 50, 0)),
       merger.getMergedLineStrings()
     );
   }
