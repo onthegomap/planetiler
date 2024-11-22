@@ -17,7 +17,9 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
 
-
+/**
+ * A utility class for merging and simplifying linestrings and removing small loops.
+ */
 public class LoopLineMerger {
   final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
@@ -31,37 +33,84 @@ public class LoopLineMerger {
   private double tolerance = 0.0;
   private boolean mergeStrokes = false;
 
+  /**
+   * Sets the precision model used for coordinate calculations.
+   *
+   * @param precisionModel the {@link PrecisionModel} to use
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
     factory = new GeometryFactory(precisionModel);
     return this;
   }
 
+  /**
+   * Sets the minimum length for retaining linestrings in the resulting geometry.
+   * Linestrings shorter than this value will be removed.
+   *
+   * @param minLength the minimum length. A value <= 0.0 disables removal.
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setMinLength(double minLength) {
     this.minLength = minLength;
     return this;
   }
 
+  /**
+   * Sets the minimum loop length for breaking loops in the merged geometry.
+   * Loops that are shorter than loopMinLength are broken up.
+   *
+   * @param loopMinLength the minimum loop length. A value <= 0.0 disables loop breaking.
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setLoopMinLength(double loopMinLength) {
     this.loopMinLength = loopMinLength;
     return this;
   }
 
+  /**
+   * Sets the minimum length of stubs to be removed during processing.
+   * Stubs are linestrings which have at least one end that is not connected to another linestring.
+   *
+   * @param stubMinLength the minimum stub length. A value <= 0.0 to disables stub removal.
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setStubMinLength(double stubMinLength) {
     this.stubMinLength = stubMinLength;
     return this;
   }
 
+  /**
+   * Sets the tolerance for simplifying linestrings during processing.
+   *
+   * @param tolerance the simplification tolerance
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setTolerance(double tolerance) {
     this.tolerance = tolerance;
     return this;
   }
 
+  /**
+   * Enables or disables stroke merging.
+   * Stroke merging connects linestrings at junctions with 3 or more attached linestrings 
+   * and uses the angle between them.
+   *
+   * @param mergeStrokes {@code true} to enable stroke merging, {@code false} to disable
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger setMergeStrokes(boolean mergeStrokes) {
     this.mergeStrokes = mergeStrokes;
     return this;
   }
 
+  /**
+   * Adds a geometry to the merger. Only linestrings from the input geometry are considered.
+   *
+   * @param geometry the {@link Geometry} to add
+   * @return this {@code LoopLineMerger} instance for method chaining
+   */
   public LoopLineMerger add(Geometry geometry) {
     geometry.apply((GeometryComponentFilter) component -> {
       if (component instanceof LineString lineString) {
@@ -276,6 +325,11 @@ public class LoopLineMerger {
     }
   }
 
+  /**
+   * Processes the added geometries and returns the merged linestrings.
+   *
+   * @return a list of merged {@link LineString}s
+   */
   public List<LineString> getMergedLineStrings() {
     output.clear();
     List<List<Coordinate>> edges = nodeLines(input);
