@@ -103,6 +103,7 @@ Some common arguments:
 
 - `--output` tells planetiler where to write output to, and what format to write it in. For
   example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
+  It is best to specify the full path to the file. In docker image you should be using `/data/australia.pmtiles` to let the docker know where to write the file.
 - `--download` downloads input sources automatically and `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
