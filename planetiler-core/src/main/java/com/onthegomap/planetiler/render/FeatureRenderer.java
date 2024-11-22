@@ -6,7 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.geo.SimplifyStrategy;
+import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.geo.VWSimplifier;
@@ -205,7 +205,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     int z, double minSize, boolean area) {
     double scale = 1 << z;
     double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
-    SimplifyStrategy strategy = feature.getSimplifyStrategyAtZoom(z);
+    SimplifyMethod simplifyMethod = feature.getSimplifyMethodAtZoom(z);
     double buffer = feature.getBufferPixelsAtZoom(z) / 256;
     TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
 
@@ -214,10 +214,10 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
     TiledGeometry sliced;
     // TODO replace with geometry pipeline when available
-    Geometry geom = switch (strategy) {
+    Geometry geom = switch (simplifyMethod) {
       case RETAIN_IMPORTANT_POINTS -> DouglasPeuckerSimplifier.simplify(scaled, tolerance);
-      // Douglas Peucker tolerance is distance off the line, and VW tolerance is area, so square what the user entered
-      // to convert from DP to VW tolerance
+      // DP tolerance is displacement, and VW tolerance is area, so square what the user entered to convert from
+      // DP to VW tolerance
       case RETAIN_EFFECTIVE_AREAS -> new VWSimplifier().setTolerance(tolerance * tolerance).transform(scaled);
       case RETAIN_WEIGHTED_EFFECTIVE_AREAS ->
         new VWSimplifier().setWeight(0.7).setTolerance(tolerance * tolerance).transform(scaled);

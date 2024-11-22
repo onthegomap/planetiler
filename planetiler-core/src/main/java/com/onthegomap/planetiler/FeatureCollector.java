@@ -6,7 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
-import com.onthegomap.planetiler.geo.SimplifyStrategy;
+import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
 import com.onthegomap.planetiler.render.FeatureRenderer;
@@ -503,8 +503,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double pixelToleranceAtMaxZoom = config.simplifyToleranceAtMaxZoom();
     private ZoomFunction<Number> pixelTolerance = null;
 
-    private SimplifyStrategy defaultSimplifyStrategy = SimplifyStrategy.DOUGLAS_PEUCKER;
-    private ZoomFunction<SimplifyStrategy> simplifyStrategy = null;
+    private SimplifyMethod defaultSimplifyMethod = SimplifyMethod.DOUGLAS_PEUCKER;
+    private ZoomFunction<SimplifyMethod> simplifyMethod = null;
 
     private String numPointsAttr = null;
     private List<OverrideCommand> partialOverrides = null;
@@ -719,25 +719,25 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the fallback line and polygon simplify method when not overriden by
-     * {@link #setSimplifyStrategyOverrides(ZoomFunction)}.
+     * Sets the fallback line and polygon simplify method when not overriden by *
+     * {@link #setSimplifyMethodOverrides(ZoomFunction)}.
      */
-    public FeatureCollector.Feature setSimplifyStrategy(SimplifyStrategy strategy) {
-      defaultSimplifyStrategy = strategy;
+    public FeatureCollector.Feature setSimplifyMethod(SimplifyMethod strategy) {
+      defaultSimplifyMethod = strategy;
       return this;
     }
 
-    /** Set simplify strategy to use at different zoom levels. */
-    public FeatureCollector.Feature setSimplifyStrategyOverrides(ZoomFunction<SimplifyStrategy> overrides) {
-      simplifyStrategy = overrides;
+    /** Set simplification algorithm to use at different zoom levels. */
+    public FeatureCollector.Feature setSimplifyMethodOverrides(ZoomFunction<SimplifyMethod> overrides) {
+      simplifyMethod = overrides;
       return this;
     }
 
     /**
-     * Returns the simplification strategy for lines and polygons in tile pixels at {@code zoom}.
+     * Returns the simplification method for lines and polygons in tile pixels at {@code zoom}.
      */
-    public SimplifyStrategy getSimplifyStrategyAtZoom(int zoom) {
-      return ZoomFunction.applyOrElse(simplifyStrategy, zoom, defaultSimplifyStrategy);
+    public SimplifyMethod getSimplifyMethodAtZoom(int zoom) {
+      return ZoomFunction.applyOrElse(simplifyMethod, zoom, defaultSimplifyMethod);
     }
 
     /**

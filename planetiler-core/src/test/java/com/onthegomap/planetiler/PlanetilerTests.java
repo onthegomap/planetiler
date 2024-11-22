@@ -18,7 +18,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.geo.SimplifyStrategy;
+import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -436,7 +436,7 @@ class PlanetilerTests {
     "false,RETAIN_WEIGHTED_EFFECTIVE_AREAS",
     "true,RETAIN_IMPORTANT_POINTS",
   })
-  void testLineString(boolean anyGeom, SimplifyStrategy simplifyStrategy) throws Exception {
+  void testLineString(boolean anyGeom, SimplifyMethod simplifyStrategy) throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -460,7 +460,7 @@ class PlanetilerTests {
       (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.line("layer"))
         .setZoomRange(13, 14)
         .setPixelTolerance(1)
-        .setSimplifyStrategy(simplifyStrategy)
+        .setSimplifyMethod(simplifyStrategy)
         .setBufferPixels(4)
     );
 
@@ -2567,7 +2567,7 @@ class PlanetilerTests {
     "RETAIN_EFFECTIVE_AREAS",
     "RETAIN_WEIGHTED_EFFECTIVE_AREAS",
   })
-  void testSimplePolygon(SimplifyStrategy strategy) throws Exception {
+  void testSimplePolygon(SimplifyMethod strategy) throws Exception {
     List<Coordinate> points = z14PixelRectangle(0, 40);
 
     var results = runWithReaderFeatures(
@@ -2579,7 +2579,7 @@ class PlanetilerTests {
         .setZoomRange(0, 14)
         .setBufferPixels(0)
         .setPixelTolerance(1)
-        .setSimplifyStrategy(strategy)
+        .setSimplifyMethod(strategy)
         .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
     );
 
