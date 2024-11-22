@@ -1,25 +1,41 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.DoubleMinHeap;
+import java.util.function.Function;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
-public class VWSimplifier extends GeometryTransformer {
+/**
+ * A utility to simplify geometries using Visvalingam Whyatt simplification algorithm without any attempt to repair
+ * geometries that become invalid due to simplification.
+ */
+public class VWSimplifier extends GeometryTransformer implements Function<Geometry, Geometry> {
 
   private double tolerance;
   private double k;
 
+  /** Sets the minimum effective triangle area created by 3 consecutive vertices in order to retain that vertex. */
   public VWSimplifier setTolerance(double tolerance) {
     this.tolerance = tolerance;
     return this;
   }
 
+  /**
+   * Apply a penalty to filter-out sharp corners: {@code k=0} means no penalty, {@code k=0.5} makes the effective area
+   * of shallow corners 50% larger than sharp corners, and {@code k=1} makes the effective area of shallow corners
+   * double that of sharp corners.
+   */
   public VWSimplifier setWeight(double k) {
     this.k = k;
     return this;
+  }
+
+  @Override
+  public Geometry apply(Geometry geometry) {
+    return transform(geometry);
   }
 
   private class Vertex {
