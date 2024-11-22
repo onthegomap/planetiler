@@ -72,11 +72,11 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
   @Override
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
     boolean area = parent instanceof LinearRing;
-    if (coords.size() == 0) {
+    int num = coords.size();
+    if (num == 0) {
       return coords;
     }
 
-    int num = coords.size();
     DoubleMinHeap heap = DoubleMinHeap.newArrayHeap(num, Integer::compare);
     Vertex[] points = new Vertex[num];
     //    Stack<Vertex> intersecting = new Stack<>();
@@ -91,9 +91,7 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
       }
       prev = cur;
     }
-    if (prev != null) {
-      heap.push(prev.idx, prev.updateArea());
-    }
+    heap.push(prev.idx, prev.updateArea());
 
     int left = num;
     int min = area ? 4 : 2;
