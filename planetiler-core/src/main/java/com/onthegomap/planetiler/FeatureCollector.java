@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.geo.SimplifyStrategy;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
 import com.onthegomap.planetiler.render.FeatureRenderer;
@@ -502,6 +503,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double pixelToleranceAtMaxZoom = config.simplifyToleranceAtMaxZoom();
     private ZoomFunction<Number> pixelTolerance = null;
 
+    private SimplifyStrategy defaultSimplifyStrategy = SimplifyStrategy.DOUGLAS_PEUCKER;
+    private ZoomFunction<SimplifyStrategy> simplifyStrategy = null;
+
     private String numPointsAttr = null;
     private List<OverrideCommand> partialOverrides = null;
 
@@ -712,6 +716,28 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public double getPixelToleranceAtZoom(int zoom) {
       return zoom == config.maxzoomForRendering() ? pixelToleranceAtMaxZoom :
         ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
+    }
+
+    /**
+     * Sets the fallback line and polygon simplify method when not overriden by
+     * {@link #setSimplifyStrategyOverrides(ZoomFunction)}.
+     */
+    public FeatureCollector.Feature setSimplifyStrategy(SimplifyStrategy strategy) {
+      defaultSimplifyStrategy = strategy;
+      return this;
+    }
+
+    /** Set simplify strategy to use at different zoom levels. */
+    public FeatureCollector.Feature setSimplifyStrategyOverrides(ZoomFunction<SimplifyStrategy> overrides) {
+      simplifyStrategy = overrides;
+      return this;
+    }
+
+    /**
+     * Returns the simplification strategy for lines and polygons in tile pixels at {@code zoom}.
+     */
+    public SimplifyStrategy getSimplifyStrategyAtZoom(int zoom) {
+      return ZoomFunction.applyOrElse(simplifyStrategy, zoom, defaultSimplifyStrategy);
     }
 
     /**

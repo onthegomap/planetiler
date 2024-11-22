@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.SimplifyStrategy;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -429,26 +430,37 @@ class PlanetilerTests {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testLineString(boolean anyGeom) throws Exception {
+  @CsvSource({
+    "false,RETAIN_IMPORTANT_POINTS",
+    "false,RETAIN_EFFECTIVE_AREAS",
+    "false,RETAIN_WEIGHTED_EFFECTIVE_AREAS",
+    "true,RETAIN_IMPORTANT_POINTS",
+  })
+  void testLineString(boolean anyGeom, SimplifyStrategy simplifyStrategy) throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
     double y2 = y1 + Z14_WIDTH;
+    double ymid = (y1 + y2) / 2;
+    double xmid = (x1 + x2) / 2;
     double lat1 = GeoUtils.getWorldLat(y1);
     double lng1 = GeoUtils.getWorldLon(x1);
+    double latMid = GeoUtils.getWorldLat(ymid);
+    double lngMid = GeoUtils.getWorldLon(xmid);
     double lat2 = GeoUtils.getWorldLat(y2);
     double lng2 = GeoUtils.getWorldLon(x2);
 
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(
-        newReaderFeature(newLineString(lng1, lat1, lng2, lat2), Map.of(
+        newReaderFeature(newLineString(lng1, lat1, lngMid, latMid, lng2, lat2), Map.of(
           "attr", "value"
         ))
       ),
       (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.line("layer"))
         .setZoomRange(13, 14)
+        .setPixelTolerance(1)
+        .setSimplifyStrategy(simplifyStrategy)
         .setBufferPixels(4)
     );
 
@@ -2549,8 +2561,13 @@ class PlanetilerTests {
     assertEquals(bboxResult.tiles, polyResult.tiles);
   }
 
-  @Test
-  void testSimplePolygon() throws Exception {
+  @ParameterizedTest
+  @CsvSource({
+    "RETAIN_IMPORTANT_POINTS",
+    "RETAIN_EFFECTIVE_AREAS",
+    "RETAIN_WEIGHTED_EFFECTIVE_AREAS",
+  })
+  void testSimplePolygon(SimplifyStrategy strategy) throws Exception {
     List<Coordinate> points = z14PixelRectangle(0, 40);
 
     var results = runWithReaderFeatures(
@@ -2561,6 +2578,8 @@ class PlanetilerTests {
       (in, features) -> features.polygon("layer")
         .setZoomRange(0, 14)
         .setBufferPixels(0)
+        .setPixelTolerance(1)
+        .setSimplifyStrategy(strategy)
         .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
     );
 
