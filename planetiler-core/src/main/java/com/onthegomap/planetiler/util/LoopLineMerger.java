@@ -86,7 +86,12 @@ public class LoopLineMerger {
     return null;
   }
 
-  private Edge mergeTwoEdges(Node node, Edge a, Edge b) {
+  private Edge mergeTwoEdges(Node node, Edge edge1, Edge edge2) {
+    // attempt to preserve segment directions from the original line
+    // when: A << N -- B then output C reversed from B to A
+    // when: A >> N -- B then output C from A to B
+    Edge a = edge1.main ? edge2 : edge1;
+    Edge b = edge1.main ? edge1 : edge2;
     node.getEdges().remove(a);
     node.getEdges().remove(b);
     List<Coordinate> coordinates = new ArrayList<>();
