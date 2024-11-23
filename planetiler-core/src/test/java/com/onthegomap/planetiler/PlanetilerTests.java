@@ -2088,10 +2088,13 @@ class PlanetilerTests {
     "--tile-compression=none",
     "--tile-compression=gzip",
     "--output-layerstats",
-    "--max-point-buffer=1"
+    "--max-point-buffer=1",
+    "--osm-test-path=monaco-latest.lz4.osm.pbf",
   })
   void testPlanetilerRunner(String args) throws Exception {
-    Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
+    var argParsed = Arguments.fromArgs(args.split(" "));
+    Path originalOsm =
+      TestUtils.pathToResource(argParsed.getString("osm-test-path", "osm-test-path", "monaco-latest.osm.pbf"));
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     final TileCompression tileCompression = extractTileCompression(args);
 

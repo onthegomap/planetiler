@@ -22,11 +22,10 @@ import java.util.NoSuchElementException;
 import java.util.function.IntUnaryOperator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
-import org.locationtech.jts.geom.Envelope;
-
 import net.jpountz.lz4.LZ4Exception;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
+import org.locationtech.jts.geom.Envelope;
 
 /**
  * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an iterator over blocks
@@ -84,10 +83,12 @@ public class PbfDecoder implements Iterable<OsmElement> {
       LZ4FastDecompressor decompressor = factory.fastDecompressor();
       blobData = new byte[decompressedLength];
       try {
-        int decompressedLength2 = decompressor.decompress(blob.getLz4Data().toByteArray(), 0, blobData, 0, decompressedLength);
-        if (decompressedLength != decompressedLength) {
-          // System.out.println("uncompressed size mismatch: "+decompressedLength2+" != "+decompressedLength);
-          throw new FileFormatException("Unable to decompress PBF blob. uncompressed size mismatch");
+        int compressedBytesRead =
+          decompressor.decompress(blob.getLz4Data().toByteArray(), 0, blobData, 0, decompressedLength);
+        int compressedBytesExpected = blob.getLz4Data().size();
+        if (compressedBytesRead != compressedBytesExpected) {
+          throw new FileFormatException("Unable to decompress PBF blob. read %d compressed bytes but expected %d"
+            .formatted(decompressedLength, compressedBytesExpected));
         }
       } catch (LZ4Exception e) {
         throw new FileFormatException("Unable to decompress PBF blob.", e);
