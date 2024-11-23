@@ -94,7 +94,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
         throw new FileFormatException("Unable to decompress PBF blob.", e);
       }
     } else {
-      throw new FileFormatException("PBF blob uses unsupported compression, only raw or zlib may be used.");
+      throw new FileFormatException("PBF blob uses unsupported compression, only lz4, zlib, or raw may be used.");
     }
 
     return blobData;
