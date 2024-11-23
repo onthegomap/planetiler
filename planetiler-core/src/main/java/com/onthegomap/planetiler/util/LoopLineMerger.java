@@ -16,9 +16,25 @@ import org.locationtech.jts.geom.GeometryComponentFilter;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.operation.linemerge.LineMerger;
 
 /**
- * A utility class for merging and simplifying linestrings and removing small loops.
+ * A utility class for merging, simplifying, and connecting linestrings and removing small loops.
+ * <p>
+ * Compared to JTS {@link LineMerger} which only connects when 2 lines meet at a single point, this utility:
+ * <ul>
+ * <li>snap-rounds points to a grid
+ * <li>splits lines that intersect at a midpoint
+ * <li>breaks small loops less than {@code loopMinLength} so only the shortest path connects both endpoints of the loop
+ * <li>removes short "hair" edges less than {@code stubMinLength} coming off the side of longer segments
+ * <li>simplifies linestrings, without touching the points shared between multiple lines to avoid breaking connections
+ * <li>removes any duplicate edges
+ * <li>at any remaining 3+ way intersections, connect pairs of edges that form the straightest path through the node
+ * <li>remove any remaining edges shorter than {@code minLength}
+ * </ul>
+ *
+ * @see <a href= "https://oliverwipfli.ch/improving-linestring-merging-in-planetiler-2024-10-30/">Improving Linestring
+ *      Merging in Planetiler</a>
  */
 public class LoopLineMerger {
   final List<LineString> input = new ArrayList<>();
@@ -34,10 +50,10 @@ public class LoopLineMerger {
   private boolean mergeStrokes = false;
 
   /**
-   * Sets the precision model used for coordinate calculations.
-   *
-   * @param precisionModel the {@link PrecisionModel} to use
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * Sets the precision model used to snap points to a grid.
+   * <p>
+   * Use {@link PrecisionModel#FLOATING} to not snap points at all, or {@code new PrecisionModel(4)} to snap to a 0.25px
+   * grid.
    */
   public LoopLineMerger setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
@@ -47,10 +63,8 @@ public class LoopLineMerger {
 
   /**
    * Sets the minimum length for retaining linestrings in the resulting geometry.
-   * Linestrings shorter than this value will be removed.
-   *
-   * @param minLength the minimum length. A value <= 0.0 disables removal.
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * <p>
+   * Linestrings shorter than this value will be removed. {@code minLength <= 0} disables min length removal.
    */
   public LoopLineMerger setMinLength(double minLength) {
     this.minLength = minLength;
@@ -59,10 +73,9 @@ public class LoopLineMerger {
 
   /**
    * Sets the minimum loop length for breaking loops in the merged geometry.
-   * Loops that are shorter than loopMinLength are broken up.
-   *
-   * @param loopMinLength the minimum loop length. A value <= 0.0 disables loop breaking.
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * <p>
+   * Loops that are shorter than loopMinLength are broken up so that only the shortest path between loop endpoints
+   * remains. This should be {@code >= minLength}. {@code loopMinLength <= 0} disables loop removal.
    */
   public LoopLineMerger setLoopMinLength(double loopMinLength) {
     this.loopMinLength = loopMinLength;
@@ -71,10 +84,9 @@ public class LoopLineMerger {
 
   /**
    * Sets the minimum length of stubs to be removed during processing.
-   * Stubs are linestrings which have at least one end that is not connected to another linestring.
-   *
-   * @param stubMinLength the minimum stub length. A value <= 0.0 to disables stub removal.
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * <p>
+   * Stubs are short "hair" line segments that hang off of a longer linestring without connecting to anything else.
+   * {@code stubMinLength <= 0} disables stub removal.
    */
   public LoopLineMerger setStubMinLength(double stubMinLength) {
     this.stubMinLength = stubMinLength;
@@ -82,10 +94,11 @@ public class LoopLineMerger {
   }
 
   /**
-   * Sets the tolerance for simplifying linestrings during processing.
-   *
-   * @param tolerance the simplification tolerance
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * Sets the tolerance for simplifying linestrings during processing. Lines are simplified between endpoints to avoid
+   * breaking intersections.
+   * <p>
+   * {@code tolerance = 0} still removes collinear points, so you need to set {@code tolerance <= 0} to disable
+   * simplification.
    */
   public LoopLineMerger setTolerance(double tolerance) {
     this.tolerance = tolerance;
@@ -93,12 +106,8 @@ public class LoopLineMerger {
   }
 
   /**
-   * Enables or disables stroke merging.
-   * Stroke merging connects linestrings at junctions with 3 or more attached linestrings 
-   * and uses the angle between them.
-   *
-   * @param mergeStrokes {@code true} to enable stroke merging, {@code false} to disable
-   * @return this {@code LoopLineMerger} instance for method chaining
+   * Enables or disables stroke merging. Stroke merging connects the straightest pairs of linestrings at junctions with
+   * 3 or more attached linestrings based on the angle between them.
    */
   public LoopLineMerger setMergeStrokes(boolean mergeStrokes) {
     this.mergeStrokes = mergeStrokes;
@@ -107,9 +116,6 @@ public class LoopLineMerger {
 
   /**
    * Adds a geometry to the merger. Only linestrings from the input geometry are considered.
-   *
-   * @param geometry the {@link Geometry} to add
-   * @return this {@code LoopLineMerger} instance for method chaining
    */
   public LoopLineMerger add(Geometry geometry) {
     geometry.apply((GeometryComponentFilter) component -> {
@@ -327,8 +333,8 @@ public class LoopLineMerger {
 
   /**
    * Processes the added geometries and returns the merged linestrings.
-   *
-   * @return a list of merged {@link LineString}s
+   * <p>
+   * Can be called more than once.
    */
   public List<LineString> getMergedLineStrings() {
     output.clear();
