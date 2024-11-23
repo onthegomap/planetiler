@@ -46,7 +46,7 @@ public class LoopLineMerger {
   private double minLength = 0.0;
   private double loopMinLength = 0.0;
   private double stubMinLength = 0.0;
-  private double tolerance = 0.0;
+  private double tolerance = -1.0;
   private boolean mergeStrokes = false;
 
   /**
