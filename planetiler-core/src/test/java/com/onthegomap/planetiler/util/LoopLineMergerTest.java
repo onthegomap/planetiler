@@ -364,13 +364,13 @@ class LoopLineMergerTest {
 
     "mergelines_200433_lines.wkb.gz,0,false,9103",
     "mergelines_200433_lines.wkb.gz,0.1,false,8834",
-    "mergelines_200433_lines.wkb.gz,1,false,878",
-    "mergelines_200433_lines.wkb.gz,1,true,527",
+    "mergelines_200433_lines.wkb.gz,1,false,861",
+    "mergelines_200433_lines.wkb.gz,1,true,508",
 
     "mergelines_239823_lines.wkb.gz,0,false,6188",
     "mergelines_239823_lines.wkb.gz,0.1,false,5941",
-    "mergelines_239823_lines.wkb.gz,1,false,832",
-    "mergelines_239823_lines.wkb.gz,1,true,688",
+    "mergelines_239823_lines.wkb.gz,1,false,826",
+    "mergelines_239823_lines.wkb.gz,1,true,681",
 
     "i90.wkb.gz,0,false,17",
     "i90.wkb.gz,1,false,18",
@@ -409,4 +409,110 @@ class LoopLineMergerTest {
     assertEquals(expected, merged.size());
   }
 
+  @Test
+  void testMergeStrokesAt3WayIntersectionWithLoop() {
+    var merger = new LoopLineMerger()
+      .setMinLength(1)
+      .setLoopMinLength(1)
+      .setStubMinLength(1)
+      .setMergeStrokes(true);
+
+    merger.add(newLineString(-5, 0, 0, 0));
+    merger.add(newLineString(0, 0, 5, 0, 5, 5, 0, 5, 0, 0));
+
+    assertEquals(
+      List.of(
+        newLineString(-5, 0, 0, 0, 5, 0, 5, 5, 0, 5, 0, 0)
+      ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeStrokesAt3WayIntersectionWithLoop2() {
+    var merger = new LoopLineMerger()
+      .setMinLength(1)
+      .setLoopMinLength(1)
+      .setStubMinLength(1)
+      .setMergeStrokes(true);
+
+    merger.add(newLineString(-5, 0, 0, 0));
+    merger.add(newLineString(0, 0, 0, -1, 5, 0, 5, 5, 0, 5, 0, 0));
+
+    assertEquals(
+      List.of(
+        newLineString(
+          -5, 0, 0, 0, 0, -1, 5, 0, 5, 5, 0, 5, 0, 0
+        )
+      ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeStrokesAt3WayIntersection() {
+    var merger = new LoopLineMerger()
+      .setMinLength(1)
+      .setLoopMinLength(1)
+      .setStubMinLength(1)
+      .setMergeStrokes(true);
+
+    merger.add(newLineString(-5, 0, 0, 0));
+    merger.add(newLineString(0, 0, 5, 0));
+    merger.add(newLineString(0, 0, 0, 5));
+
+    assertEquals(
+      List.of(
+        newLineString(-5, 0, 0, 0, 5, 0),
+        newLineString(0, 0, 0, 5)
+      ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeStrokesAt4WayIntersection() {
+    var merger = new LoopLineMerger()
+      .setMinLength(1)
+      .setLoopMinLength(1)
+      .setStubMinLength(1)
+      .setMergeStrokes(true);
+
+    merger.add(newLineString(-5, 0, 0, 0));
+    merger.add(newLineString(0, 0, 5, 0));
+    merger.add(newLineString(0, 0, 0, 5));
+    merger.add(newLineString(0, 0, 0, -5));
+
+    assertEquals(
+      List.of(
+        newLineString(-5, 0, 0, 0, 5, 0),
+        newLineString(0, -5, 0, 0, 0, 5)
+      ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testMergeStrokesAt5WayIntersection() {
+    var merger = new LoopLineMerger()
+      .setMinLength(1)
+      .setLoopMinLength(1)
+      .setStubMinLength(1)
+      .setMergeStrokes(true);
+
+    merger.add(newLineString(-5, 0, 0, 0));
+    merger.add(newLineString(0, 0, 5, 0));
+    merger.add(newLineString(0, 0, 0, 5));
+    merger.add(newLineString(0, 0, 0, -5));
+    merger.add(newLineString(0, 0, 5, 5));
+
+    assertEquals(
+      List.of(
+        newLineString(-5, 0, 0, 0, 5, 0),
+        newLineString(0, 0, 5, 5),
+        newLineString(0, -5, 0, 0, 0, 5)
+      ),
+      merger.getMergedLineStrings()
+    );
+  }
 }

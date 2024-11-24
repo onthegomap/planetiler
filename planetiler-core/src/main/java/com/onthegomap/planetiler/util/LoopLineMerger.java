@@ -39,8 +39,8 @@ import org.locationtech.jts.operation.linemerge.LineMerger;
 public class LoopLineMerger {
   private final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
-  private int nodes = 0;
-  private int edges = 0;
+  private int numNodes = 0;
+  private int numEdges = 0;
   private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.TILE_PRECISION);
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
@@ -136,7 +136,10 @@ public class LoopLineMerger {
     if (node.getEdges().size() == 2) {
       Edge a = node.getEdges().getFirst();
       Edge b = node.getEdges().get(1);
-      return mergeTwoEdges(node, a, b);
+      // if one side is a loop, degree is actually > 2
+      if (!a.isLoop() && !b.isLoop()) {
+        return mergeTwoEdges(node, a, b);
+      }
     }
     return null;
   }
@@ -165,13 +168,17 @@ public class LoopLineMerger {
   private void strokeMerge() {
     for (var node : output) {
       List<Edge> edges = List.copyOf(node.getEdges());
-      if (edges.size() >= 3) {
+      if (edges.size() >= 2) {
         record AngledPair(Edge a, Edge b, double angle) {}
         List<AngledPair> angledPairs = new ArrayList<>();
         for (var i = 0; i < edges.size(); ++i) {
+          var edgei = edges.get(i);
           for (var j = i + 1; j < edges.size(); ++j) {
-            double angle = edges.get(i).angleTo(edges.get(j));
-            angledPairs.add(new AngledPair(edges.get(i), edges.get(j), angle));
+            var edgej = edges.get(j);
+            if (edgei != edgej.reversed) {
+              double angle = edgei.angleTo(edgej);
+              angledPairs.add(new AngledPair(edgei, edgej, angle));
+            }
           }
         }
         angledPairs.sort(Comparator.comparingDouble(angledPair -> angledPair.angle));
@@ -251,37 +258,39 @@ public class LoopLineMerger {
   }
 
   private void removeShortStubEdges() {
-    PriorityQueue<Edge> toRemove = new PriorityQueue<>(Comparator.comparingDouble(Edge::length));
+    PriorityQueue<Edge> toCheck = new PriorityQueue<>(Comparator.comparingDouble(Edge::length));
     for (var node : output) {
       for (var edge : node.getEdges()) {
         if (isShortStubEdge(edge)) {
-          toRemove.offer(edge);
+          toCheck.offer(edge);
         }
       }
     }
-    while (!toRemove.isEmpty()) {
-      var edge = toRemove.poll();
+    while (!toCheck.isEmpty()) {
+      var edge = toCheck.poll();
       if (edge.removed) {
         continue;
       }
-      edge.remove();
-      if (degreeTwoMerge(edge.from) instanceof Edge merged && isShortStubEdge(merged)) {
-        toRemove.offer(merged);
+      if (isShortStubEdge(edge)) {
+        edge.remove();
+      }
+      if (degreeTwoMerge(edge.from) instanceof Edge merged) {
+        toCheck.offer(merged);
       }
       if (edge.from.getEdges().size() == 1) {
         var other = edge.from.getEdges().getFirst();
         if (isShortStubEdge(other)) {
-          toRemove.offer(other);
+          toCheck.offer(other);
         }
       }
       if (edge.from != edge.to) {
-        if (degreeTwoMerge(edge.to) instanceof Edge merged && isShortStubEdge(merged)) {
-          toRemove.offer(merged);
+        if (degreeTwoMerge(edge.to) instanceof Edge merged) {
+          toCheck.offer(merged);
         }
         if (edge.to.getEdges().size() == 1) {
           var other = edge.to.getEdges().getFirst();
           if (isShortStubEdge(other)) {
-            toRemove.offer(other);
+            toCheck.offer(other);
           }
         }
       }
@@ -290,7 +299,7 @@ public class LoopLineMerger {
 
   private boolean isShortStubEdge(Edge edge) {
     return edge != null && !edge.removed && edge.length < stubMinLength &&
-      (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.from == edge.to);
+      (edge.from.getEdges().size() == 1 || edge.to.getEdges().size() == 1 || edge.isLoop());
   }
 
   private void removeShortEdges() {
@@ -422,7 +431,9 @@ public class LoopLineMerger {
       Edge edge = new Edge(firstNode, lastNode, coordinateSequence, length);
 
       firstNode.addEdge(edge);
-      lastNode.addEdge(edge.reversed);
+      if (firstNode != lastNode) {
+        lastNode.addEdge(edge.reversed);
+      }
     }
   }
 
@@ -466,7 +477,7 @@ public class LoopLineMerger {
   }
 
   private class Node {
-    final int id = nodes++;
+    final int id = numNodes++;
     final List<Edge> edge = new ArrayList<>();
     Coordinate coordinate;
 
@@ -515,9 +526,9 @@ public class LoopLineMerger {
 
 
     private Edge(Node from, Node to, List<Coordinate> coordinateSequence, double length) {
-      this(edges, from, to, length, coordinateSequence, true, null);
-      reversed = new Edge(edges, to, from, length, coordinateSequence.reversed(), false, this);
-      edges++;
+      this(numEdges, from, to, length, coordinateSequence, true, null);
+      reversed = new Edge(numEdges, to, from, length, coordinateSequence.reversed(), false, this);
+      numEdges++;
     }
 
     private Edge(int id, Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
@@ -562,6 +573,10 @@ public class LoopLineMerger {
     boolean isCollapsed() {
       return coordinates.size() < 2 ||
         (coordinates.size() == 2 && coordinates.getFirst().equals(coordinates.getLast()));
+    }
+
+    boolean isLoop() {
+      return from == to;
     }
 
     @Override
