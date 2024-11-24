@@ -308,7 +308,8 @@ public class LoopLineMerger {
     for (var node : output) {
       for (var edge : node.getEdges()) {
         if (edge.main) {
-          if (!edge.simplify()) {
+          edge.simplify();
+          if (edge.isCollapsed()) {
             toRemove.add(edge);
           }
         }
@@ -551,13 +552,16 @@ public class LoopLineMerger {
       return length;
     }
 
-    /** Returns {@code false} if simplifying this edge collapsed it to {@code length=0}. */
-    boolean simplify() {
+    void simplify() {
       coordinates = DouglasPeuckerSimplifier.simplify(coordinates, tolerance, false);
       if (reversed != null) {
         reversed.coordinates = coordinates.reversed();
       }
-      return coordinates.size() != 2 || !coordinates.getFirst().equals(coordinates.getLast());
+    }
+
+    boolean isCollapsed() {
+      return coordinates.size() < 2 ||
+        (coordinates.size() == 2 && coordinates.getFirst().equals(coordinates.getLast()));
     }
 
     @Override
