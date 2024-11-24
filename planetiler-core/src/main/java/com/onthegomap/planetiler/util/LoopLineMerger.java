@@ -37,10 +37,10 @@ import org.locationtech.jts.operation.linemerge.LineMerger;
  *      Merging in Planetiler</a>
  */
 public class LoopLineMerger {
-  final List<LineString> input = new ArrayList<>();
+  private final List<LineString> input = new ArrayList<>();
   private final List<Node> output = new ArrayList<>();
-  int nodes = 0;
-  int edges = 0;
+  private int nodes = 0;
+  private int edges = 0;
   private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.TILE_PRECISION);
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
@@ -304,13 +304,17 @@ public class LoopLineMerger {
   }
 
   private void simplify() {
+    List<Edge> toRemove = new ArrayList<>();
     for (var node : output) {
       for (var edge : node.getEdges()) {
         if (edge.main) {
-          edge.simplify();
+          if (!edge.simplify()) {
+            toRemove.add(edge);
+          }
         }
       }
     }
+    toRemove.forEach(Edge::remove);
   }
 
   private void removeDuplicatedEdges() {
@@ -320,7 +324,7 @@ public class LoopLineMerger {
         Edge a = node.getEdges().get(i);
         for (var j = i + 1; j < node.getEdges().size(); ++j) {
           Edge b = node.getEdges().get(j);
-          if (a.coordinates.equals(b.coordinates)) {
+          if (b.to == a.to && a.coordinates.equals(b.coordinates)) {
             toRemove.add(b);
           }
         }
@@ -361,6 +365,7 @@ public class LoopLineMerger {
 
     if (mergeStrokes) {
       strokeMerge();
+      degreeTwoMerge();
     }
 
     if (minLength > 0) {
@@ -380,7 +385,7 @@ public class LoopLineMerger {
     return result;
   }
 
-  private double length(List<Coordinate> edge) {
+  private static double length(List<Coordinate> edge) {
     Coordinate last = null;
     double length = 0;
     for (Coordinate coord : edge) {
@@ -464,7 +469,7 @@ public class LoopLineMerger {
     final List<Edge> edge = new ArrayList<>();
     Coordinate coordinate;
 
-    public Node(Coordinate coordinate) {
+    Node(Coordinate coordinate) {
       this.coordinate = coordinate;
     }
 
@@ -490,7 +495,7 @@ public class LoopLineMerger {
       return "Node{" + id + ": " + edge + '}';
     }
 
-    public double distance(Node end) {
+    double distance(Node end) {
       return coordinate.distance(end.coordinate);
     }
   }
@@ -514,7 +519,7 @@ public class LoopLineMerger {
       edges++;
     }
 
-    public Edge(int id, Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
+    private Edge(int id, Node from, Node to, double length, List<Coordinate> coordinates, boolean main, Edge reversed) {
       this.id = id;
       this.from = from;
       this.to = to;
@@ -524,7 +529,7 @@ public class LoopLineMerger {
       this.reversed = reversed;
     }
 
-    public void remove() {
+    void remove() {
       if (!removed) {
         from.removeEdge(this);
         to.removeEdge(reversed);
@@ -546,11 +551,13 @@ public class LoopLineMerger {
       return length;
     }
 
-    public void simplify() {
+    /** Returns {@code false} if simplifying this edge collapsed it to {@code length=0}. */
+    boolean simplify() {
       coordinates = DouglasPeuckerSimplifier.simplify(coordinates, tolerance, false);
       if (reversed != null) {
         reversed.coordinates = coordinates.reversed();
       }
+      return coordinates.size() != 2 || !coordinates.getFirst().equals(coordinates.getLast());
     }
 
     @Override

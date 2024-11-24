@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.operation.linemerge.LineMerger;
@@ -168,12 +169,12 @@ class LoopLineMergerTest {
       .setLoopMinLength(-1);
 
     merger.add(newLineString(
-      1, -10, 
-      1, 1, 
-      1, 2, 
-      0, 2, 
-      0, 1, 
-      1, 1, 
+      1, -10,
+      1, 1,
+      1, 2,
+      0, 2,
+      0, 1,
+      1, 1,
       10, 1));
     assertEquals(
       List.of(newLineString(1, -10, 1, 1, 10, 1)),
@@ -263,13 +264,14 @@ class LoopLineMergerTest {
   void testMergeCarriagewaysWithOneSplitShorterThanLoopMinLength() {
     var merger = new LoopLineMerger()
       .setMinLength(20)
+      .setMergeStrokes(true)
       .setLoopMinLength(20);
 
     merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0));
     merger.add(newLineString(30, 0, 20, 0, 15, 1, 10, 0, 0, 0));
 
     assertEquals(
-      List.of(newLineString(30, 0, 20, 0, 10, 0, 0, 0)),
+      List.of(newLineString(0, 0, 10, 0, 20, 0, 30, 0)),
       merger.getMergedLineStrings()
     );
   }
@@ -278,6 +280,7 @@ class LoopLineMergerTest {
   void testMergeCarriagewaysWithOneSplitLongerThanLoopMinLength() {
     var merger = new LoopLineMerger()
       .setMinLength(5)
+      .setMergeStrokes(true)
       .setLoopMinLength(5);
 
     merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0));
@@ -285,7 +288,7 @@ class LoopLineMergerTest {
 
     assertEquals(
       // ideally loop merging should connect long line strings and represent loops as separate segments off of the edges
-      List.of(newLineString(30, 0, 20, 0, 10, 0, 0, 0), newLineString(20, 0, 15, 1, 10, 0)),
+      List.of(newLineString(0, 0, 10, 0, 20, 0, 30, 0), newLineString(20, 0, 15, 1, 10, 0)),
       merger.getMergedLineStrings()
     );
   }
@@ -294,13 +297,14 @@ class LoopLineMergerTest {
   void testMergeCarriagewaysWithTwoSplits() {
     var merger = new LoopLineMerger()
       .setMinLength(20)
+      .setMergeStrokes(true)
       .setLoopMinLength(20);
 
     merger.add(newLineString(0, 0, 10, 0, 20, 0, 30, 0, 40, 0));
     merger.add(newLineString(40, 0, 30, 0, 25, 5, 20, 0, 15, 5, 10, 0, 0, 0));
 
     assertEquals(
-      List.of(newLineString(40, 0, 30, 0, 20, 0, 10, 0, 0, 0)),
+      List.of(newLineString(0, 0, 10, 0, 20, 0, 30, 0, 40, 0)),
       merger.getMergedLineStrings()
     );
   }
@@ -354,23 +358,26 @@ class LoopLineMergerTest {
 
   @ParameterizedTest
   @CsvSource({
-    "mergelines_1759_point_line.wkb.gz,0,4",
-    "mergelines_1759_point_line.wkb.gz,1,2",
+    "mergelines_1759_point_line.wkb.gz,0,false,3",
+    "mergelines_1759_point_line.wkb.gz,1,false,2",
+    "mergelines_1759_point_line.wkb.gz,1,true,2",
 
-    "mergelines_200433_lines.wkb.gz,0,35249",
-    "mergelines_200433_lines.wkb.gz,0.1,23034",
-    "mergelines_200433_lines.wkb.gz,1,1499",
+    "mergelines_200433_lines.wkb.gz,0,false,9103",
+    "mergelines_200433_lines.wkb.gz,0.1,false,8834",
+    "mergelines_200433_lines.wkb.gz,1,false,878",
+    "mergelines_200433_lines.wkb.gz,1,true,527",
 
-    "mergelines_239823_lines.wkb.gz,0,19656",
-    "mergelines_239823_lines.wkb.gz,0.1,13851",
-    "mergelines_239823_lines.wkb.gz,1,1593",
+    "mergelines_239823_lines.wkb.gz,0,false,6188",
+    "mergelines_239823_lines.wkb.gz,0.1,false,5941",
+    "mergelines_239823_lines.wkb.gz,1,false,832",
+    "mergelines_239823_lines.wkb.gz,1,true,688",
 
-    "i90.wkb.gz,0,95",
-    "i90.wkb.gz,1,65",
-    "i90.wkb.gz,20,4",
-    "i90.wkb.gz,30,1",
+    "i90.wkb.gz,0,false,17",
+    "i90.wkb.gz,1,false,18",
+    "i90.wkb.gz,20,false,4",
+    "i90.wkb.gz,30,false,1",
   })
-  void testOnRealWorldData(String file, double minLengths, int expected)
+  void testOnRealWorldData(String file, double minLengths, boolean simplify, int expected)
     throws IOException, ParseException {
     Geometry geom = new WKBReader(GeoUtils.JTS_FACTORY).read(
       Gzip.gunzip(Files.readAllBytes(TestUtils.pathToResource("mergelines").resolve(file))));
@@ -379,6 +386,7 @@ class LoopLineMergerTest {
     merger.setLoopMinLength(minLengths);
     merger.setStubMinLength(minLengths);
     merger.setMergeStrokes(true);
+    merger.setTolerance(simplify ? 1 : -1);
     merger.add(geom);
     var merged = merger.getMergedLineStrings();
     Set<List<Coordinate>> lines = new HashSet<>();
@@ -386,11 +394,17 @@ class LoopLineMergerTest {
     for (var line : merged) {
       merger2.add(line);
       assertTrue(lines.add(Arrays.asList(line.getCoordinates())), "contained duplicate: " + line);
-      if (minLengths > 0) {
+      if (minLengths > 0 && !simplify) { // simplification can make an edge < min length
         assertTrue(line.getLength() >= minLengths, "line < " + minLengths + ": " + line);
       }
     }
     // ensure there are no more opportunities for simplification found by JTS:
+    List<LineString> loop = List.copyOf(merged);
+    List<LineString> jts = merger2.getMergedLineStrings().stream().map(LineString.class::cast).toList();
+    List<LineString> missing = jts.stream().filter(l -> !loop.contains(l)).toList();
+    List<LineString> extra = loop.stream().filter(l -> !jts.contains(l)).toList();
+    assertEquals(List.of(), missing, "missing edges");
+    assertEquals(List.of(), extra, "extra edges");
     assertEquals(merged.size(), merger2.getMergedLineStrings().size());
     assertEquals(expected, merged.size());
   }
