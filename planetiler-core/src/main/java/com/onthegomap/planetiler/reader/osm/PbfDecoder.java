@@ -22,6 +22,9 @@ import java.util.NoSuchElementException;
 import java.util.function.IntUnaryOperator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import net.jpountz.lz4.LZ4Exception;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4FastDecompressor;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -74,8 +77,24 @@ public class PbfDecoder implements Iterable<OsmElement> {
         throw new FileFormatException("PBF blob contains incomplete compressed data.");
       }
       inflater.end();
+    } else if (blob.hasLz4Data()) {
+      final int decompressedLength = blob.getRawSize();
+      LZ4Factory factory = LZ4Factory.fastestInstance();
+      LZ4FastDecompressor decompressor = factory.fastDecompressor();
+      blobData = new byte[decompressedLength];
+      try {
+        int compressedBytesRead =
+          decompressor.decompress(blob.getLz4Data().toByteArray(), 0, blobData, 0, decompressedLength);
+        int compressedBytesExpected = blob.getLz4Data().size();
+        if (compressedBytesRead != compressedBytesExpected) {
+          throw new FileFormatException("Unable to decompress PBF blob. read %d compressed bytes but expected %d"
+            .formatted(decompressedLength, compressedBytesExpected));
+        }
+      } catch (LZ4Exception e) {
+        throw new FileFormatException("Unable to decompress PBF blob.", e);
+      }
     } else {
-      throw new FileFormatException("PBF blob uses unsupported compression, only raw or zlib may be used.");
+      throw new FileFormatException("PBF blob uses unsupported compression, only lz4, zlib, or raw may be used.");
     }
 
     return blobData;

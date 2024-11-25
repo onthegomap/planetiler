@@ -146,7 +146,7 @@ public class ConfigExpressionParser<I extends ScriptContext> {
     } else {
       throw new ParseException("Invalid match block. Expected a list or map, but got: " + match);
     }
-    return ConfigExpression.match(signature(output), MultiExpression.of(List.copyOf(conditions)), fallback);
+    return ConfigExpression.match(signature(output), MultiExpression.ofOrdered(List.copyOf(conditions)), fallback);
   }
 
   private <O> Signature<I, O> signature(Class<O> outputClass) {

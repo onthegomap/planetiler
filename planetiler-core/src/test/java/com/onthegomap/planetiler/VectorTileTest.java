@@ -692,6 +692,18 @@ class VectorTileTest {
     }
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "0, 0, 256",
+    "1, -1, 257",
+    "10, -10, 266",
+  })
+  void testFill(double buffer, double min, double max) throws GeometryException {
+    var geom = VectorTile.encodeFill(buffer);
+    assertSameGeometry(rectangle(min, max), geom.decode());
+    assertArrayEquals(VectorTile.encodeGeometry(rectangle(min, max)).commands(), geom.commands());
+  }
+
   private static void assertArrayEquals(int[] a, int[] b) {
     assertEquals(
       IntStream.of(a).boxed().toList(),

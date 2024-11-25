@@ -16,8 +16,8 @@
   </parent>
 
   <properties>
-    <geotools.version>32.0</geotools.version>
-    <log4j.version>2.24.1</log4j.version>
+    <geotools.version>32.1</geotools.version>
+    <log4j.version>2.24.2</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
     <protobuf.version>4.28.1</protobuf.version>
@@ -180,6 +180,11 @@
       <groupId>blue.strategic.parquet</groupId>
       <artifactId>parquet-floor</artifactId>
       <version>1.48</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+      <version>1.8.0</version>
     </dependency>
 
   </dependencies>

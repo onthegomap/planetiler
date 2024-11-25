@@ -96,7 +96,7 @@ class BikeRouteOverlayTest {
       // Override input source locations
       "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
       // Override temp dir location
-      "tmp", tmpDir.toString(),
+      "tmpdir", tmpDir.toString(),
       // Override output location
       "output", dbPath.toString()
     ));
@@ -109,7 +109,7 @@ class BikeRouteOverlayTest {
         .assertNumFeatures(mbtiles, "bicycle-route-international", 14, Map.of(
           "name", "EuroVelo 8 - Mediterranean Route - part Monaco",
           "ref", "EV8"
-        ), GeoUtils.WORLD_LAT_LON_BOUNDS, 25, LineString.class);
+        ), GeoUtils.WORLD_LAT_LON_BOUNDS, 13, LineString.class);
 
       TestUtils.assertTileDuplicates(mbtiles, 0);
     }

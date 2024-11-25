@@ -152,7 +152,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
         if (Expression.TRUE.equals(expression.expression())) {
           return new Match<>(
             signature,
-            MultiExpression.of(expressions.stream().limit(i).toList()),
+            MultiExpression.ofOrdered(expressions.stream().limit(i).toList()),
             expression.result()
           );
         }
