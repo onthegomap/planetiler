@@ -2714,6 +2714,17 @@ class PlanetilerTests {
     assertTrue(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 7 / 8, 8)));
   }
 
+  @Test
+  void testDefaultLanguages() {
+    var planetiler = Planetiler.create(Arguments.of("languages", "default,en"))
+      .setDefaultLanguages(List.of("jbo", "tlh"));
+    var translations = planetiler.translations();
+    assertTrue(translations.careAboutLanguage("jbo"));
+    assertTrue(translations.careAboutLanguage("tlh"));
+    assertTrue(translations.careAboutLanguage("en"));
+    assertFalse(translations.careAboutLanguage("fr"));
+  }
+
   @FunctionalInterface
   private interface ReadableTileArchiveFactory {
     ReadableTileArchive create(Path p) throws IOException;

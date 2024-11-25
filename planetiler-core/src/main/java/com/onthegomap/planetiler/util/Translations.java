@@ -22,15 +22,31 @@ public class Translations {
     ThreadLocal.withInitial(() -> new ThreadLocalTransliterator().getInstance("Any-Latin"));
 
   private boolean shouldTransliterate = true;
-  private final Set<String> languageSet;
   private final List<TranslationProvider> providers = new ArrayList<>();
+  private final Set<String> includeLanguages;
+  private final Set<String> excludeLanguages;
+  private boolean defaultInclude = false;
 
   private Translations(List<String> languages) {
-    this.languageSet = new HashSet<>();
+    this.includeLanguages = new HashSet<>();
+    this.excludeLanguages = new HashSet<>();
+
     for (String language : languages) {
+      if (language.equals("*")) {
+        defaultInclude = true;
+        continue;
+      }
+
+      boolean include = true;
+      if (language.startsWith("-")) {
+        language = language.replaceFirst("^-", "");
+        include = false;
+      }
+
       String withoutPrefix = language.replaceFirst("^name:", "");
-      languageSet.add(withoutPrefix);
-      languageSet.add("name:" + withoutPrefix);
+      Set<String> set = include ? this.includeLanguages : this.excludeLanguages;
+      set.add(withoutPrefix);
+      set.add("name:" + withoutPrefix);
     }
   }
 
@@ -85,7 +101,7 @@ public class Translations {
       if (translations != null && !translations.isEmpty()) {
         for (var entry : translations.entrySet()) {
           String key = entry.getKey();
-          if (languageSet.contains(key)) {
+          if (careAboutLanguage(key)) {
             output.putIfAbsent(key.startsWith("name:") ? key : "name:" + key, entry.getValue());
           }
         }
@@ -105,7 +121,11 @@ public class Translations {
 
   /** Returns true if {@code language} is in the set of language translations to use. */
   public boolean careAboutLanguage(String language) {
-    return languageSet.contains(language);
+    if (excludeLanguages.contains(language))
+      return false;
+    if (includeLanguages.contains(language))
+      return true;
+    return defaultInclude;
   }
 
   /** A source of name translations. */

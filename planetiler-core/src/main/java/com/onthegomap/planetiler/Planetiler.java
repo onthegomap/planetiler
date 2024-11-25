@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +104,7 @@ public class Planetiler {
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
-  private List<String> languages = List.of(
+  private List<String> defaultLanguages = List.of(
     "en", "ru", "ar", "zh", "ja", "ko", "fr",
     "de", "fi", "pl", "es", "be", "br", "he"
   );
@@ -547,7 +548,7 @@ public class Planetiler {
    * @return this runner instance for chaining
    */
   public Planetiler setDefaultLanguages(List<String> languages) {
-    this.languages = languages;
+    this.defaultLanguages = languages;
     return this;
   }
 
@@ -587,7 +588,13 @@ public class Planetiler {
   public Translations translations() {
     if (translations == null) {
       boolean transliterate = arguments.getBoolean("transliterate", "attempt to transliterate latin names", true);
-      List<String> languages = arguments.getList("languages", "languages to use", this.languages);
+      List<String> languages = arguments.getList("languages", "Languages to include labels for. \"default\" expands to the default set of languages configured by the profile. \"-lang\" excludes \"lang\". \"*\" includes every language not listed.", this.defaultLanguages);
+      if (languages.contains("default")) {
+        languages = Stream.concat(
+          languages.stream().filter(language -> !language.equals("default")),
+          this.defaultLanguages.stream()
+        ).toList();
+      }
       translations = Translations.defaultProvider(languages).setShouldTransliterate(transliterate);
     }
     return translations;

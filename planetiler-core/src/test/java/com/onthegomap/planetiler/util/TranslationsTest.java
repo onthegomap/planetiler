@@ -1,10 +1,16 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class TranslationsTest {
 
@@ -32,5 +38,26 @@ class TranslationsTest {
   @Test
   void testTransliterate() {
     assertEquals("rì běn", Translations.transliterate("日本"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("includeExcludeCases")
+  void testIncludeExclude(List<String> languages, List<String> shouldCare, List<String> shouldNotCare) {
+    var translations = Translations.nullProvider(languages);
+    for (var lang : shouldCare) {
+      assertTrue(translations.careAboutLanguage(lang));
+    }
+    for (var lang : shouldNotCare) {
+      assertFalse(translations.careAboutLanguage(lang));
+    }
+  }
+
+  private static Stream<Arguments> includeExcludeCases() {
+    return Stream.of(
+      Arguments.of(List.of("jbo", "tlh"), List.of("jbo", "tlh"), List.of("en", "fr")),
+      Arguments.of(List.of("*"), List.of("jbo", "tlh", "en", "fr"), List.of()),
+      Arguments.of(List.of("*", "-tlh"), List.of("jbo", "fr"), List.of("tlh")),
+      Arguments.of(List.of("tlh", "-tlh"), List.of(), List.of("tlh", "en"))
+    );
   }
 }
