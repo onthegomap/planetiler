@@ -16,7 +16,6 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.LineString;
@@ -91,7 +90,6 @@ class BikeRouteOverlayTest {
   }
 
   @Test
-  @Disabled
   void integrationTest(@TempDir Path tmpDir) throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     BikeRouteOverlay.run(Arguments.of(
