@@ -28,6 +28,7 @@ import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
 import java.util.PriorityQueue;
 import java.util.Random;
+import java.util.function.IntBinaryOperator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -39,12 +40,112 @@ import org.junit.jupiter.params.provider.CsvSource;
  * and modified to use long instead of float values, use stable random seed for reproducibility, and to use new
  * implementations.
  */
-class LongMinHeapTest {
+abstract class MinHeapTest {
 
   protected LongMinHeap heap;
 
-  void create(int capacity) {
-    heap = LongMinHeap.newArrayHeap(capacity, Integer::compare);
+  final void create(int capacity) {
+    create(capacity, Integer::compare);
+  }
+
+  abstract void create(int capacity, IntBinaryOperator tieBreaker);
+
+
+  static class LongMinHeapTest extends MinHeapTest {
+
+    @Override
+    void create(int capacity, IntBinaryOperator tieBreaker) {
+      heap = LongMinHeap.newArrayHeap(capacity, tieBreaker);
+    }
+  }
+
+  static class DoubleMinHeapTest extends MinHeapTest {
+
+    private DoubleMinHeap doubleHeap;
+
+    @Test
+    void testDoubles() {
+      create(5);
+
+      doubleHeap.push(4, 1.5d);
+      doubleHeap.push(1, 1.4d);
+      assertEquals(2, doubleHeap.size());
+      assertEquals(1, doubleHeap.peekId());
+      assertEquals(1.4d, doubleHeap.peekValue());
+      assertEquals(1, doubleHeap.poll());
+      assertEquals(4, doubleHeap.poll());
+      assertTrue(heap.isEmpty());
+    }
+
+    @Test
+    void testDoublesReverse() {
+      create(5);
+
+      doubleHeap.push(4, 1.4d);
+      doubleHeap.push(1, 1.5d);
+      assertEquals(2, doubleHeap.size());
+      assertEquals(4, doubleHeap.peekId());
+      assertEquals(1.4d, doubleHeap.peekValue());
+      assertEquals(4, doubleHeap.poll());
+      assertEquals(1, doubleHeap.poll());
+      assertTrue(heap.isEmpty());
+    }
+
+    @Override
+    void create(int capacity, IntBinaryOperator tieBreaker) {
+      doubleHeap = DoubleMinHeap.newArrayHeap(capacity, tieBreaker);
+      heap = new LongMinHeap() {
+        @Override
+        public int size() {
+          return doubleHeap.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+          return doubleHeap.isEmpty();
+        }
+
+        @Override
+        public void push(int id, long value) {
+          doubleHeap.push(id, value);
+        }
+
+        @Override
+        public boolean contains(int id) {
+          return doubleHeap.contains(id);
+        }
+
+        @Override
+        public void update(int id, long value) {
+          doubleHeap.update(id, value);
+        }
+
+        @Override
+        public void updateHead(long value) {
+          doubleHeap.updateHead(value);
+        }
+
+        @Override
+        public int peekId() {
+          return doubleHeap.peekId();
+        }
+
+        @Override
+        public long peekValue() {
+          return (long) doubleHeap.peekValue();
+        }
+
+        @Override
+        public int poll() {
+          return doubleHeap.poll();
+        }
+
+        @Override
+        public void clear() {
+          doubleHeap.clear();
+        }
+      };
+    }
   }
 
   @Test

@@ -45,6 +45,15 @@ public interface ZoomFunction<T> extends IntFunction<T> {
     return result == null ? defaultValue : result.intValue();
   }
 
+  /** Invoke a function at a zoom level and returns {@code defaultValue} if the function or result were null. */
+  static <T> T applyOrElse(ZoomFunction<T> fn, int zoom, T defaultValue) {
+    if (fn == null) {
+      return defaultValue;
+    }
+    T result = fn.apply(zoom);
+    return result == null ? defaultValue : result;
+  }
+
   /**
    * Returns a zoom function that returns the value from the next higher key in {@code thresholds} or {@code null} if
    * over the max key.

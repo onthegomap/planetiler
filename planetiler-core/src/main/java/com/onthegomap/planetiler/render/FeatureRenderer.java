@@ -6,8 +6,10 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
+import com.onthegomap.planetiler.geo.VWSimplifier;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.Closeable;
 import java.io.IOException;
@@ -194,6 +196,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     int z, double minSize, boolean area) {
     double scale = 1 << z;
     double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
+    SimplifyMethod simplifyMethod = feature.getSimplifyMethodAtZoom(z);
     double buffer = feature.getBufferPixelsAtZoom(z) / 256;
     TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
 
@@ -201,7 +204,15 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
     Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
     TiledGeometry sliced;
-    Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+    // TODO replace with geometry pipeline when available
+    Geometry geom = switch (simplifyMethod) {
+      case RETAIN_IMPORTANT_POINTS -> DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+      // DP tolerance is displacement, and VW tolerance is area, so square what the user entered to convert from
+      // DP to VW tolerance
+      case RETAIN_EFFECTIVE_AREAS -> new VWSimplifier().setTolerance(tolerance * tolerance).transform(scaled);
+      case RETAIN_WEIGHTED_EFFECTIVE_AREAS ->
+        new VWSimplifier().setWeight(0.7).setTolerance(tolerance * tolerance).transform(scaled);
+    };
     List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
     try {
       sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
