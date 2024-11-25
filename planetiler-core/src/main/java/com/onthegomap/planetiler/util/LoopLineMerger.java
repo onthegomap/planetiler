@@ -130,6 +130,27 @@ public class LoopLineMerger {
     for (var node : output) {
       degreeTwoMerge(node);
     }
+    output.removeIf(node -> node.getEdges().isEmpty());
+    assert valid();
+  }
+
+  private boolean valid() {
+    // when run from a unit test, ensure some basic conditions always hold...
+    for (var node : output) {
+      for (var edge : node.getEdges()) {
+        assert edge.isLoop() || edge.to.getEdges().contains(edge.reversed) : edge.to + " does not contain " +
+          edge.reversed;
+        for (var other : node.getEdges()) {
+          if (edge != other) {
+            assert edge != other.reversed : "node contained edge and its reverse " + node;
+            assert !edge.coordinates.equals(other.coordinates) : "duplicate edges " + edge + " and " + other;
+          }
+        }
+      }
+      assert node.getEdges().size() != 2 || node.getEdges().stream().anyMatch(Edge::isLoop) : "degree 2 node found " +
+        node;
+    }
+    return true;
   }
 
   private Edge degreeTwoMerge(Node node) {
