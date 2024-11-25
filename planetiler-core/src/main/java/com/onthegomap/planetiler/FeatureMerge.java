@@ -4,13 +4,13 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
 import com.onthegomap.planetiler.collection.Hppc;
-import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.LoopLineMerger;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -171,7 +171,12 @@ public class FeatureMerge {
       if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
         result.add(feature1);
       } else {
-        LineMerger merger = new LineMerger();
+        LoopLineMerger merger = new LoopLineMerger()
+          .setTolerance(tolerance)
+          .setMergeStrokes(true)
+          .setMinLength(lengthLimit)
+          .setLoopMinLength(lengthLimit)
+          .setStubMinLength(0.5);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
@@ -180,24 +185,14 @@ public class FeatureMerge {
           }
         }
         List<LineString> outputSegments = new ArrayList<>();
-        for (Object merged : merger.getMergedLineStrings()) {
-          if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
-            // re-simplify since some endpoints of merged segments may be unnecessary
-            if (line.getNumPoints() > 2 && tolerance >= 0) {
-              Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
-              if (simplified instanceof LineString simpleLineString) {
-                line = simpleLineString;
-              } else {
-                LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
-              }
-            }
-            if (buffer >= 0) {
-              removeDetailOutsideTile(line, buffer, outputSegments);
-            } else {
-              outputSegments.add(line);
-            }
+        for (var line : merger.getMergedLineStrings()) {
+          if (buffer >= 0) {
+            removeDetailOutsideTile(line, buffer, outputSegments);
+          } else {
+            outputSegments.add(line);
           }
         }
+
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);

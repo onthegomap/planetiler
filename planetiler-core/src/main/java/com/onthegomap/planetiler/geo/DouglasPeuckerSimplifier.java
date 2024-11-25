@@ -11,6 +11,8 @@
  */
 package com.onthegomap.planetiler.geo;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -43,6 +45,22 @@ public class DouglasPeuckerSimplifier {
     }
 
     return (new DPTransformer(distanceTolerance)).transform(geom);
+  }
+
+  /**
+   * Returns a copy of {@code coords}, simplified using Douglas Peucker Algorithm.
+   *
+   * @param coords            the coordinate list to simplify
+   * @param distanceTolerance the threshold below which we discard points
+   * @param area              true if this is a polygon to retain at least 4 points to avoid collapse
+   * @return the simplified coordinate list
+   */
+  public static List<Coordinate> simplify(List<Coordinate> coords, double distanceTolerance, boolean area) {
+    if (coords.isEmpty()) {
+      return List.of();
+    }
+
+    return (new DPTransformer(distanceTolerance)).transformCoordinateList(coords, area);
   }
 
   private static class DPTransformer extends GeometryTransformer {
@@ -84,6 +102,42 @@ public class DouglasPeuckerSimplifier {
       return dx * dx + dy * dy;
     }
 
+    private void subsimplify(List<Coordinate> in, List<Coordinate> out, int first, int last, int numForcedPoints) {
+      // numForcePoints lets us keep some points even if they are below simplification threshold
+      boolean force = numForcedPoints > 0;
+      double maxSqDist = force ? -1 : sqTolerance;
+      int index = -1;
+      Coordinate p1 = in.get(first);
+      Coordinate p2 = in.get(last);
+      double p1x = p1.x;
+      double p1y = p1.y;
+      double p2x = p2.x;
+      double p2y = p2.y;
+
+      int i = first + 1;
+      Coordinate furthest = null;
+      for (Coordinate coord : in.subList(first + 1, last)) {
+        double sqDist = getSqSegDist(coord.x, coord.y, p1x, p1y, p2x, p2y);
+
+        if (sqDist > maxSqDist) {
+          index = i;
+          furthest = coord;
+          maxSqDist = sqDist;
+        }
+        i++;
+      }
+
+      if (force || maxSqDist > sqTolerance) {
+        if (index - first > 1) {
+          subsimplify(in, out, first, index, numForcedPoints - 1);
+        }
+        out.add(furthest);
+        if (last - index > 1) {
+          subsimplify(in, out, index, last, numForcedPoints - 2);
+        }
+      }
+    }
+
     private void subsimplify(CoordinateSequence in, MutableCoordinateSequence out, int first, int last,
       int numForcedPoints) {
       // numForcePoints lets us keep some points even if they are below simplification threshold
@@ -115,6 +169,20 @@ public class DouglasPeuckerSimplifier {
           subsimplify(in, out, index, last, numForcedPoints - 2);
         }
       }
+    }
+
+    protected List<Coordinate> transformCoordinateList(List<Coordinate> coords, boolean area) {
+      if (coords.isEmpty()) {
+        return coords;
+      }
+      // make sure we include the first and last points even if they are closer than the simplification threshold
+      List<Coordinate> result = new ArrayList<>();
+      result.add(coords.getFirst());
+      // for polygons, additionally keep at least 2 intermediate points even if they are below simplification threshold
+      // to avoid collapse.
+      subsimplify(coords, result, 0, coords.size() - 1, area ? 2 : 0);
+      result.add(coords.getLast());
+      return result;
     }
 
     @Override
