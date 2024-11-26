@@ -21,6 +21,16 @@ class TranslationsTest {
   }
 
   @Test
+  void testWildcard() {
+    var translations = Translations.defaultProvider(List.of("*"));
+    assertEquals(Map.of("name:en", "name"), translations.getTranslations(Map.of("name:en", "name")));
+    assertEquals(Map.of("name:sr-Latn", "name"), translations.getTranslations(Map.of("name:sr-Latn", "name")));
+    assertEquals(Map.of("name:zh-Hant-TW", "name"), translations.getTranslations(Map.of("name:zh-Hant-TW", "name")));
+    assertEquals(Map.of(), translations.getTranslations(Map.of("name:left", "name")));
+    assertEquals(Map.of(), translations.getTranslations(Map.of("name:etymology:wikidata", "name")));
+  }
+
+  @Test
   void testDefaultProvider() {
     var translations = Translations.defaultProvider(List.of("en"));
     assertEquals(Map.of("name:en", "name"), translations.getTranslations(Map.of("name:en", "name", "name:de", "de")));
