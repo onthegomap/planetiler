@@ -148,7 +148,7 @@ public class Translations {
       Map<String, String> result = new HashMap<>();
       for (var entry : tags.entrySet()) {
         String key = entry.getKey();
-        if (key.startsWith("name:") && entry.getValue() instanceof String stringVal) {
+        if (LanguageUtils.isValidOsmNameTag(key) && entry.getValue() instanceof String stringVal) {
           result.put(key, stringVal);
         }
       }

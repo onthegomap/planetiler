@@ -10,7 +10,7 @@ public class LanguageUtils {
   // See https://wiki.openstreetmap.org/wiki/Multilingual_names
   public static final Predicate<String> VALID_NAME_TAGS =
     Pattern
-      .compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_](x-)?[a-z]{2,})?(-([a-z]{2}|[0-9]{3}))?$", Pattern.CASE_INSENSITIVE)
+      .compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_](x-)?[a-z]{2,})?(-([a-z]{2}|\\d{3}))?$", Pattern.CASE_INSENSITIVE)
       .asMatchPredicate();
   // See https://github.com/onthegomap/planetiler/issues/86
   // Match strings that only contain latin characters.
