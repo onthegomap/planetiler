@@ -29,6 +29,7 @@ class LanguageUtilsTest {
   @CsvSource(value = {
     "name:es, true",
     "name:en-US, true",
+    "name:en-001, true",
     "name:fr-x-gallo, true",
     "name:ko-Latn, true",
     "name:be-tarask, true",
@@ -45,6 +46,11 @@ class LanguageUtilsTest {
     "nombre, false",
     "name:, false",
     "name:xxxxx, false",
+    "name:tec, true",
+    "name:TEC, false",
+    "name:be-tarask, true",
+    "name:nan-Latn-pehoeji, true",
+    "name:zh-Latn-pinyin, true",
   }, nullValues = "null")
   void testIsValidOsmNameTag(String in, boolean out) {
     assertEquals(out, LanguageUtils.isValidOsmNameTag(in));
