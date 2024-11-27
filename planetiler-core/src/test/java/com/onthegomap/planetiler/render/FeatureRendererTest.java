@@ -71,6 +71,19 @@ class FeatureRendererTest {
     return result;
   }
 
+  private Set<List<?>> renderedTileFeatures(FeatureCollector.Feature feature, TileCoord coord) {
+    return renderFeatures(feature).get(coord).stream()
+      .map(RenderedFeature::vectorTileFeature)
+      .map(d -> {
+        try {
+          return List.of(d.geometry().decode(), d.tags());
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      })
+      .collect(Collectors.toSet());
+  }
+
   private static final int Z14_TILES = 1 << 14;
   private static final double Z14_WIDTH = 1d / Z14_TILES;
   private static final double Z14_PX = Z14_WIDTH / 256;
@@ -1486,6 +1499,22 @@ class FeatureRendererTest {
           }
         })
         .collect(Collectors.toSet())
+    );
+  }
+
+  @Test
+  void testGeometryPipeline() {
+    var feature = lineFeature(
+      newLineString(
+        0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
+        0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
+      )
+    ).setGeometryTransform(Geometry::getCentroid).setAttr("k", "v");
+    assertEquals(
+      Set.of(
+        List.of(newPoint(128 + 5, 128), Map.of("k", "v"))
+      ),
+      renderedTileFeatures(feature, TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
     );
   }
 }
