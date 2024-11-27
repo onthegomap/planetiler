@@ -1123,6 +1123,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return rangesWithGeometries;
     }
 
+    public SourceFeature source() {
+      return source;
+    }
+
 
     /**
      * A builder that can be used to configure linear-scoped attributes for a partial segment of a line feature.

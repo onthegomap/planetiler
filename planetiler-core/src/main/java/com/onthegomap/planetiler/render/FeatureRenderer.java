@@ -86,10 +86,12 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       } else {
         if (minSize > 0) {
           if (geometry instanceof Puntal) {
-            double size = feature.getSourceFeaturePixelSizeAtZoom(zoom);
-            if (size > 0 && size < minSize) {
-              // don't emit points if the source feature it came from was too small
-              continue;
+            if (!feature.source().isPoint()) {
+              double size = feature.getSourceFeaturePixelSizeAtZoom(zoom);
+              if (size < minSize) {
+                // don't emit points if the source feature it came from was too small
+                continue;
+              }
             }
           } else if (simpleLineLength >= 0 && simpleLineLength * scale * 256 < minSize) {
             // skip processing lines that are too short
