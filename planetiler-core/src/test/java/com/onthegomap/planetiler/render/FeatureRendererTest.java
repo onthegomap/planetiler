@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.stats.Stats;
@@ -1513,6 +1514,25 @@ class FeatureRendererTest {
     assertEquals(
       Set.of(
         List.of(newPoint(128 + 5, 128), Map.of("k", "v"))
+      ),
+      renderedTileFeatures(feature, TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
+    );
+  }
+
+  @Test
+  void testGeometryPipelineSimplify() {
+    var feature = lineFeature(
+      newLineString(
+        0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
+        0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
+      )
+    ).setGeometryTransform(
+      GeometryPipeline.simplifyVW(1).setWeight(0.9)
+        .andThen(GeometryPipeline.simplifyDP(1))
+    ).setAttr("k", "v");
+    assertEquals(
+      Set.of(
+        List.of(newLineString(128, 128, 128 + 10, 128), Map.of("k", "v"))
       ),
       renderedTileFeatures(feature, TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
     );

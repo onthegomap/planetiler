@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.DoubleMinHeap;
-import java.util.function.Function;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
@@ -12,7 +11,7 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * A utility to simplify geometries using Visvalingam Whyatt simplification algorithm without any attempt to repair
  * geometries that become invalid due to simplification.
  */
-public class VWSimplifier extends GeometryTransformer implements Function<Geometry, Geometry> {
+public class VWSimplifier extends GeometryTransformer implements GeometryPipeline {
 
   private double tolerance;
   private double k;
