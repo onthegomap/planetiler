@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private final PlanetilerConfig config;
   private final Consumer<RenderedFeature> consumer;
@@ -63,23 +65,38 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   @Override
   public void accept(FeatureCollector.Feature feature) {
     var geometry = feature.getGeometry();
+    double simpleLineLength =
+      geometry instanceof Lineal && geometry.getNumGeometries() == 1 ? geometry.getLength() : -1;
     if (geometry.isEmpty()) {
       LOGGER.warn("Empty geometry {}", feature);
       return;
     }
+    // geometries are filtered by min size after processing before they are emitted, but do cheap pre-filtering here
+    // to avoid processing features that won't emit anything
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
+      double scale = 1 << zoom;
       double minSize = feature.getMinPixelSizeAtZoom(zoom);
-      double size = feature.getSourceFeaturePixelSizeAtZoom(zoom);
       if (feature.hasLinearRanges()) {
+        double length = simpleLineLength * scale * 256;
         for (var range : feature.getLinearRangesAtZoom(zoom)) {
-          if (size * (range.end() - range.start()) > minSize) {
+          if (minSize > 0 && length * (range.end() - range.start()) > minSize) {
             accept(zoom, range.geom(), range.attrs(), feature);
           }
         }
       } else {
-        if (minSize == 0 || size >= minSize) {
-          accept(zoom, feature.getGeometry(), feature.getAttrsAtZoom(zoom), feature);
+        if (minSize > 0) {
+          if (geometry instanceof Puntal) {
+            double size = feature.getSourceFeaturePixelSizeAtZoom(zoom);
+            if (size > 0 && size < minSize) {
+              // don't emit points if the source feature it came from was too small
+              continue;
+            }
+          } else if (simpleLineLength >= 0 && simpleLineLength * scale * 256 < minSize) {
+            // skip processing lines that are too short
+            continue;
+          }
         }
+        accept(zoom, geometry, feature.getAttrsAtZoom(zoom), feature);
       }
     }
   }
