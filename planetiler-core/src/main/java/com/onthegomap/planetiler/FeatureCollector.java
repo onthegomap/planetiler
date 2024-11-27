@@ -507,8 +507,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private SimplifyMethod defaultSimplifyMethod = SimplifyMethod.DOUGLAS_PEUCKER;
     private ZoomFunction<SimplifyMethod> simplifyMethod = null;
 
-    private GeometryPipeline defaultGeometryTransform = null;
-    private ZoomFunction<GeometryPipeline> geometryTransformByZoom = null;
+    private GeometryPipeline defaultGeometryPipeline = null;
+    private ZoomFunction<GeometryPipeline> geometryPipelineByZoom = null;
 
     private String numPointsAttr = null;
     private List<OverrideCommand> partialOverrides = null;
@@ -744,18 +744,32 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return ZoomFunction.applyOrElse(simplifyMethod, zoom, defaultSimplifyMethod);
     }
 
-    public Feature setGeometryTransform(GeometryPipeline pipeline) {
-      this.defaultGeometryTransform = pipeline;
+    /**
+     * Sets the default pipeline to apply to geometries scaled to tile coordinates right before emitting vector tile
+     * features. This function gets run instead of simplification, so should include any simplification if you want
+     * that.
+     */
+    public Feature setGeometryPipeline(GeometryPipeline pipeline) {
+      this.defaultGeometryPipeline = pipeline;
       return this;
     }
 
-    public Feature setGeometryTransformByZoom(ZoomFunction<GeometryPipeline> overrides) {
-      this.geometryTransformByZoom = overrides;
+    /**
+     * Sets the per-zoom geometry pipeline to apply to geometries scaled to tile coordinates right before emitting
+     * vector tile features. These functions get run instead of simplification, so should include any simplification if
+     * you want that.
+     */
+    public Feature setGeometryPipelineByZoom(ZoomFunction<GeometryPipeline> overrides) {
+      this.geometryPipelineByZoom = overrides;
       return this;
     }
 
-    public GeometryPipeline getGeometryTransformAtZoom(int zoom) {
-      return ZoomFunction.applyOrElse(geometryTransformByZoom, zoom, defaultGeometryTransform);
+    /**
+     * Returns the geometry transform function to apply to scaled geometries at {@code zoom}, or null to not update them
+     * at all.
+     */
+    public GeometryPipeline getGeometryPipelineAtZoom(int zoom) {
+      return ZoomFunction.applyOrElse(geometryPipelineByZoom, zoom, defaultGeometryPipeline);
     }
 
     /**

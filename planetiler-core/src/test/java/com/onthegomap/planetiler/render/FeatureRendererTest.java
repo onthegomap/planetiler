@@ -1510,7 +1510,7 @@ class FeatureRendererTest {
         0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
         0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
       )
-    ).setGeometryTransform(Geometry::getCentroid).setAttr("k", "v");
+    ).setGeometryPipeline(Geometry::getCentroid).setAttr("k", "v");
     assertEquals(
       Set.of(
         List.of(newPoint(128 + 5, 128), Map.of("k", "v"))
@@ -1526,7 +1526,7 @@ class FeatureRendererTest {
         0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
         0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
       )
-    ).setGeometryTransform(
+    ).setGeometryPipeline(
       GeometryPipeline.simplifyVW(1).setWeight(0.9)
         .andThen(GeometryPipeline.simplifyDP(1))
     ).setAttr("k", "v");
