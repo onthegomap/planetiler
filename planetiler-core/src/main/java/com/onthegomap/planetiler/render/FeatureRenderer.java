@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
@@ -30,6 +31,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,22 +62,68 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
   @Override
   public void accept(FeatureCollector.Feature feature) {
-    renderGeometry(feature.getGeometry(), feature);
+    var geometry = feature.getGeometry();
+    if (geometry.isEmpty()) {
+      LOGGER.warn("Empty geometry {}", feature);
+      return;
+    }
+    for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
+      double minSize = feature.getMinPixelSizeAtZoom(zoom);
+      double size = feature.getSourceFeaturePixelSizeAtZoom(zoom);
+      if (feature.hasLinearRanges()) {
+        for (var range : feature.getLinearRangesAtZoom(zoom)) {
+          if (size * (range.end() - range.start()) > minSize) {
+            accept(zoom, range.geom(), range.attrs(), feature);
+          }
+        }
+      } else {
+        if (minSize == 0 || size >= minSize) {
+          accept(zoom, feature.getGeometry(), feature.getAttrsAtZoom(zoom), feature);
+        }
+      }
+    }
   }
 
-  private void renderGeometry(Geometry geom, FeatureCollector.Feature feature) {
-    if (geom.isEmpty()) {
-      LOGGER.warn("Empty geometry {}", feature);
+  private void accept(int zoom, Geometry geom, Map<String, Object> attrs, FeatureCollector.Feature feature) {
+    double scale = 1 << zoom;
+    geom = AffineTransformation.scaleInstance(scale, scale).transform(geom);
+    GeometryPipeline pipeline = feature.getGeometryTransformAtZoom(zoom);
+    if (pipeline != null) {
+      geom = pipeline.apply(geom);
+    } else if (!(geom instanceof Puntal)) {
+      geom = simplify(zoom, geom, feature);
+    }
+
+    renderGeometry(zoom, geom, attrs, feature);
+  }
+
+  private static Geometry simplify(int zoom, Geometry scaled, FeatureCollector.Feature feature) {
+    double tolerance = feature.getPixelToleranceAtZoom(zoom) / 256d;
+    SimplifyMethod simplifyMethod = feature.getSimplifyMethodAtZoom(zoom);
+    scaled = switch (simplifyMethod) {
+      case RETAIN_IMPORTANT_POINTS -> DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+      // DP tolerance is displacement, and VW tolerance is area, so square what the user entered to convert from
+      // DP to VW tolerance
+      case RETAIN_EFFECTIVE_AREAS -> new VWSimplifier().setTolerance(tolerance * tolerance).transform(scaled);
+      case RETAIN_WEIGHTED_EFFECTIVE_AREAS ->
+        new VWSimplifier().setWeight(0.7).setTolerance(tolerance * tolerance).transform(scaled);
+    };
+    return scaled;
+  }
+
+  private void renderGeometry(int zoom, Geometry geom, Map<String, Object> attrs, FeatureCollector.Feature feature) {
+    if (geom == null || geom.isEmpty()) {
+      // skip this feature
     } else if (geom instanceof Point point) {
-      renderPoint(feature, point.getCoordinates());
+      renderPoint(zoom, attrs, feature, point.getCoordinates());
     } else if (geom instanceof MultiPoint points) {
-      renderPoint(feature, points);
+      renderPoint(zoom, attrs, feature, points);
     } else if (geom instanceof Polygon || geom instanceof MultiPolygon || geom instanceof LineString ||
       geom instanceof MultiLineString) {
-      renderLineOrPolygon(feature, geom);
+      renderLineOrPolygon(zoom, attrs, feature, geom);
     } else if (geom instanceof GeometryCollection collection) {
       for (int i = 0; i < collection.getNumGeometries(); i++) {
-        renderGeometry(collection.getGeometryN(i), feature);
+        renderGeometry(zoom, collection.getGeometryN(i), attrs, feature);
       }
     } else {
       LOGGER.warn("Unrecognized JTS geometry type for {}: {}", feature.getClass().getSimpleName(),
@@ -83,54 +131,37 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     }
   }
 
-  private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
+  private void renderPoint(int zoom, Map<String, Object> attrs, FeatureCollector.Feature feature,
+    Coordinate... coords) {
     boolean hasLabelGrid = feature.hasLabelGrid();
-    Coordinate[] coords = new Coordinate[origCoords.length];
-    for (int i = 0; i < origCoords.length; i++) {
-      coords[i] = origCoords[i].copy();
-    }
-    for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
-      double minSize = feature.getMinPixelSizeAtZoom(zoom);
-      if (minSize > 0 && feature.getSourceFeaturePixelSizeAtZoom(zoom) < minSize) {
-        continue;
-      }
-      Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
-      double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
-      int tilesAtZoom = 1 << zoom;
-      // scale coordinates for this zoom
-      for (int i = 0; i < coords.length; i++) {
-        var orig = origCoords[i];
-        coords[i].setX(orig.x * tilesAtZoom);
-        coords[i].setY(orig.y * tilesAtZoom);
-      }
+    double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
+    int tilesAtZoom = 1 << zoom;
 
-
-      // for "label grid" point density limiting, compute the grid square that this point sits in
-      // only valid if not a multipoint
-      RenderedFeature.Group groupInfo = null;
-      if (hasLabelGrid && coords.length == 1) {
-        double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
-        groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
-          GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coords[0]),
-          feature.getPointLabelGridLimitAtZoom(zoom)
-        );
-      }
-
-      // compute the tile coordinate of every tile these points should show up in at the given buffer size
-      TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
-      int emitted = 0;
-      for (var entry : tiled.getTileData().entrySet()) {
-        TileCoord tile = entry.getKey();
-        List<List<CoordinateSequence>> result = entry.getValue();
-        Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
-        encodeAndEmitFeature(feature, feature.getId(), attrs, tile, geom, groupInfo, 0);
-        emitted++;
-      }
-      stats.emittedFeatures(zoom, feature.getLayer(), emitted);
+    // for "label grid" point density limiting, compute the grid square that this point sits in
+    // only valid if not a multipoint
+    RenderedFeature.Group groupInfo = null;
+    if (hasLabelGrid && coords.length == 1) {
+      double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
+      groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
+        GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coords[0]),
+        feature.getPointLabelGridLimitAtZoom(zoom)
+      );
     }
 
-    stats.processedElement("point", feature.getLayer());
+    // compute the tile coordinate of every tile these points should show up in at the given buffer size
+    TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
+    TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
+    int emitted = 0;
+    for (var entry : tiled.getTileData().entrySet()) {
+      TileCoord tile = entry.getKey();
+      List<List<CoordinateSequence>> result = entry.getValue();
+      Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
+      encodeAndEmitFeature(feature, feature.getId(), attrs, tile, geom, groupInfo, 0);
+      emitted++;
+    }
+    stats.emittedFeatures(zoom, feature.getLayer(), emitted);
+
+    stats.processedElement("point", feature.getLayer(), zoom);
   }
 
   private void encodeAndEmitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs,
@@ -149,7 +180,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     ));
   }
 
-  private void renderPoint(FeatureCollector.Feature feature, MultiPoint points) {
+  private void renderPoint(int zoom, Map<String, Object> attrs, FeatureCollector.Feature feature, MultiPoint points) {
     /*
      * Attempt to encode multipoints as a single feature sharing attributes and sort-key
      * but if it has label grid data then need to fall back to separate features per point,
@@ -157,83 +188,50 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
      */
     if (feature.hasLabelGrid()) {
       for (Coordinate coord : points.getCoordinates()) {
-        renderPoint(feature, coord);
+        renderPoint(zoom, attrs, feature, coord);
       }
     } else {
-      renderPoint(feature, points.getCoordinates());
+      renderPoint(zoom, attrs, feature, points.getCoordinates());
     }
   }
 
-  private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
-    boolean area = input instanceof Polygonal;
-    double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
-    for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
-      double scale = 1 << z;
-      double minSize = feature.getMinPixelSizeAtZoom(z) / 256d;
-      if (area) {
-        // treat minPixelSize as the edge of a square that defines minimum area for features
-        minSize *= minSize;
-      } else if (worldLength > 0 && worldLength * scale < minSize) {
-        // skip linestring, too short
-        continue;
-      }
-
-      if (feature.hasLinearRanges()) {
-        for (var range : feature.getLinearRangesAtZoom(z)) {
-          if (worldLength * scale * (range.end() - range.start()) >= minSize) {
-            renderLineOrPolygonGeometry(feature, range.geom(), range.attrs(), z, minSize, area);
-          }
-        }
-      } else {
-        renderLineOrPolygonGeometry(feature, input, feature.getAttrsAtZoom(z), z, minSize, area);
-      }
+  private void renderLineOrPolygon(int zoom, Map<String, Object> attrs, FeatureCollector.Feature feature,
+    Geometry geom) {
+    boolean finished = false;
+    boolean area = geom instanceof Polygonal;
+    double minSize = feature.getMinPixelSizeAtZoom(zoom) / 256d;
+    double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
+    if (area) {
+      // treat minPixelSize as the edge of a square that defines minimum area for features
+      minSize *= minSize;
     }
-
-    stats.processedElement(area ? "polygon" : "line", feature.getLayer());
-  }
-
-  private void renderLineOrPolygonGeometry(FeatureCollector.Feature feature, Geometry input, Map<String, Object> attrs,
-    int z, double minSize, boolean area) {
-    double scale = 1 << z;
-    double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
-    SimplifyMethod simplifyMethod = feature.getSimplifyMethodAtZoom(z);
-    double buffer = feature.getBufferPixelsAtZoom(z) / 256;
-    TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
-
-    // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
-    // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
-    Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
-    TiledGeometry sliced;
-    // TODO replace with geometry pipeline when available
-    Geometry geom = switch (simplifyMethod) {
-      case RETAIN_IMPORTANT_POINTS -> DouglasPeuckerSimplifier.simplify(scaled, tolerance);
-      // DP tolerance is displacement, and VW tolerance is area, so square what the user entered to convert from
-      // DP to VW tolerance
-      case RETAIN_EFFECTIVE_AREAS -> new VWSimplifier().setTolerance(tolerance * tolerance).transform(scaled);
-      case RETAIN_WEIGHTED_EFFECTIVE_AREAS ->
-        new VWSimplifier().setWeight(0.7).setTolerance(tolerance * tolerance).transform(scaled);
-    };
+    TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
+    TiledGeometry sliced = null;
     List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
     try {
-      sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+      sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, zoom, extents);
     } catch (GeometryException e) {
       try {
         geom = GeoUtils.fixPolygon(geom);
         groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
-        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, zoom, extents);
       } catch (GeometryException ex) {
-        ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + z + ": " + feature);
+        ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + zoom + ": " + feature);
         // omit from this zoom level, but maybe the next will be better
-        return;
+        finished = true;
       }
     }
-    String numPointsAttr = feature.getNumPointsAttr();
-    if (numPointsAttr != null) {
-      // if profile wants the original number off points that the simplified but untiled geometry started with
-      attrs = new HashMap<>(attrs);
-      attrs.put(numPointsAttr, geom.getNumPoints());
+    if (!finished) {
+      String numPointsAttr = feature.getNumPointsAttr();
+      if (numPointsAttr != null) {
+        // if profile wants the original number off points that the simplified but untiled geometry started with
+        attrs = new HashMap<>(attrs);
+        attrs.put(numPointsAttr, geom.getNumPoints());
+      }
+      writeTileFeatures(zoom, feature.getId(), feature, sliced, attrs);
     }
-    writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
+
+    stats.processedElement(area ? "polygon" : "line", feature.getLayer(), zoom);
   }
 
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,

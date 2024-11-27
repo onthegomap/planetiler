@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -506,6 +507,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private SimplifyMethod defaultSimplifyMethod = SimplifyMethod.DOUGLAS_PEUCKER;
     private ZoomFunction<SimplifyMethod> simplifyMethod = null;
 
+    private GeometryPipeline defaultGeometryTransform = null;
+    private ZoomFunction<GeometryPipeline> geometryTransformByZoom = null;
+
     private String numPointsAttr = null;
     private List<OverrideCommand> partialOverrides = null;
 
@@ -738,6 +742,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      */
     public SimplifyMethod getSimplifyMethodAtZoom(int zoom) {
       return ZoomFunction.applyOrElse(simplifyMethod, zoom, defaultSimplifyMethod);
+    }
+
+    public Feature setGeometryTransform(GeometryPipeline pipeline) {
+      this.defaultGeometryTransform = pipeline;
+      return this;
+    }
+
+    public Feature setGeometryTransformByZoom(ZoomFunction<GeometryPipeline> overrides) {
+      this.geometryTransformByZoom = overrides;
+      return this;
+    }
+
+    public GeometryPipeline getGeometryTransformAtZoom(int zoom) {
+      return ZoomFunction.applyOrElse(geometryTransformByZoom, zoom, defaultGeometryTransform);
     }
 
     /**
