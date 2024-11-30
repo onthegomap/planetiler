@@ -1,9 +1,12 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class LanguageUtilsTest {
 
@@ -26,28 +29,41 @@ class LanguageUtilsTest {
   }
 
   @ParameterizedTest
-  @CsvSource(value = {
-    "name:es, true",
-    "name:en-US, true",
-    "name:fr-x-gallo, true",
-    "name:ko-Latn, true",
-    "name:be-tarask, true",
-    "name:ja_rm, true",
-    "name:ja_kana, true",
-    "name:vls, true",
-    "name:zh-hant-CN, true",
-    "name:zh_pinyin, true",
-    "name:zh_zhuyin, true",
-    "name:zh-Latn-tongyong, true",
-    "name:zh-Latn-pinyin, true",
-    "name:zh-Latn-wadegiles, true",
-    "name:yue-Latn-jyutping, true",
-    "nombre, false",
-    "name:, false",
-    "name:xxxxx, false",
-  }, nullValues = "null")
-  void testIsValidOsmNameTag(String in, boolean out) {
-    assertEquals(out, LanguageUtils.isValidOsmNameTag(in));
+  @ValueSource(strings = {
+    "name:es",
+    "name:en-US",
+    "name:en-001",
+    "name:fr-x-gallo",
+    "name:ko-Latn",
+    "name:be-tarask",
+    "name:ja_rm",
+    "name:ja_kana",
+    "name:vls",
+    "name:zh-hant-CN",
+    "name:zh_pinyin",
+    "name:zh_zhuyin",
+    "name:zh-Latn-tongyong",
+    "name:zh-Latn-pinyin",
+    "name:zh-Latn-wadegiles",
+    "name:yue-Latn-jyutping",
+    "name:tec",
+    "name:be-tarask",
+    "name:nan-Latn-pehoeji",
+    "name:zh-Latn-pinyin",
+  })
+  void testIsValidOsmNameTag(String in) {
+    assertTrue(LanguageUtils.isValidOsmNameTag(in));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "nombre",
+    "name:",
+    "name:xxxxx",
+    "name:TEC",
+  })
+  void testIsNotValidOsmNameTag(String in) {
+    assertFalse(LanguageUtils.isValidOsmNameTag(in));
   }
 
 }
