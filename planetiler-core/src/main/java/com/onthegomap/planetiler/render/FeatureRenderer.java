@@ -104,7 +104,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     if (pipeline != null) {
       geom = pipeline.apply(geom);
     } else if (!(geom instanceof Puntal)) {
-      GeometryPipeline.defaultSimplify(feature).apply(zoom).apply(geom);
+      geom = GeometryPipeline.defaultSimplify(feature).apply(zoom).apply(geom);
     }
 
     renderGeometry(zoom, geom, attrs, feature);
