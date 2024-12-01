@@ -72,8 +72,9 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
   @Override
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
     boolean area = parent instanceof LinearRing;
+    int minPoints = area ? 4 : 2;
     int num = coords.size();
-    if (num == 0) {
+    if (num <= minPoints) {
       return coords;
     }
 
@@ -95,13 +96,12 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
     heap.push(prev.idx, prev.updateArea());
 
     int left = num;
-    int min = area ? 4 : 2;
 
     while (!heap.isEmpty()) {
       var id = heap.poll();
       Vertex point = points[id];
 
-      if (point.area > tolerance || left <= min) {
+      if (point.area > tolerance || left <= minPoints) {
         break;
       }
       // TODO

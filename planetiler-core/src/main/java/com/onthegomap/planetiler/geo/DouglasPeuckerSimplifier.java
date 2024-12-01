@@ -189,7 +189,8 @@ public class DouglasPeuckerSimplifier extends GeometryTransformer implements Geo
   }
 
   protected List<Coordinate> transformCoordinateList(List<Coordinate> coords, boolean area) {
-    if (coords.isEmpty()) {
+    int minPoints = area ? 4 : 2;
+    if (coords.size() <= minPoints) {
       return coords;
     }
     // make sure we include the first and last points even if they are closer than the simplification threshold
@@ -197,7 +198,7 @@ public class DouglasPeuckerSimplifier extends GeometryTransformer implements Geo
     result.add(coords.getFirst());
     // for polygons, additionally keep at least 2 intermediate points even if they are below simplification threshold
     // to avoid collapse.
-    subsimplify(coords, result, 0, coords.size() - 1, area ? 2 : 0);
+    subsimplify(coords, result, 0, coords.size() - 1, minPoints - 2);
     result.add(coords.getLast());
     return result;
   }
@@ -205,7 +206,8 @@ public class DouglasPeuckerSimplifier extends GeometryTransformer implements Geo
   @Override
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
     boolean area = parent instanceof LinearRing;
-    if (coords.size() == 0) {
+    int minPoints = area ? 4 : 2;
+    if (coords.size() <= minPoints) {
       return coords;
     }
     // make sure we include the first and last points even if they are closer than the simplification threshold
@@ -213,7 +215,7 @@ public class DouglasPeuckerSimplifier extends GeometryTransformer implements Geo
     result.forceAddPoint(coords.getX(0), coords.getY(0));
     // for polygons, additionally keep at least 2 intermediate points even if they are below simplification threshold
     // to avoid collapse.
-    subsimplify(coords, result, 0, coords.size() - 1, area ? 2 : 0);
+    subsimplify(coords, result, 0, coords.size() - 1, minPoints - 2);
     result.forceAddPoint(coords.getX(coords.size() - 1), coords.getY(coords.size() - 1));
     return result;
   }

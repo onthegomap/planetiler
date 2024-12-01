@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.geo;
 
 import static com.onthegomap.planetiler.TestUtils.assertSameNormalizedFeature;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,11 @@ class VWSimplifierTest {
         new VWSimplifier().setTolerance(amount).setWeight(0).transform(rotate.transform(in.reverse()))
       );
     }
+  }
+
+  @Test
+  void testSimplifyPoint() {
+    testSimplify(newPoint(1, 1), newPoint(1, 1), 1);
   }
 
   @Test
