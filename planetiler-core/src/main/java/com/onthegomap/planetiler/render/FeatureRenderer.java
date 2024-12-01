@@ -3,14 +3,11 @@ package com.onthegomap.planetiler.render;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryPipeline;
-import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
-import com.onthegomap.planetiler.geo.VWSimplifier;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.Closeable;
 import java.io.IOException;
@@ -107,24 +104,10 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     if (pipeline != null) {
       geom = pipeline.apply(geom);
     } else if (!(geom instanceof Puntal)) {
-      geom = simplify(zoom, geom, feature);
+      GeometryPipeline.defaultSimplify(feature).apply(zoom).apply(geom);
     }
 
     renderGeometry(zoom, geom, attrs, feature);
-  }
-
-  private static Geometry simplify(int zoom, Geometry scaled, FeatureCollector.Feature feature) {
-    double tolerance = feature.getPixelToleranceAtZoom(zoom) / 256d;
-    SimplifyMethod simplifyMethod = feature.getSimplifyMethodAtZoom(zoom);
-    scaled = switch (simplifyMethod) {
-      case RETAIN_IMPORTANT_POINTS -> DouglasPeuckerSimplifier.simplify(scaled, tolerance);
-      // DP tolerance is displacement, and VW tolerance is area, so square what the user entered to convert from
-      // DP to VW tolerance
-      case RETAIN_EFFECTIVE_AREAS -> new VWSimplifier().setTolerance(tolerance * tolerance).transform(scaled);
-      case RETAIN_WEIGHTED_EFFECTIVE_AREAS ->
-        new VWSimplifier().setWeight(0.7).setTolerance(tolerance * tolerance).transform(scaled);
-    };
-    return scaled;
   }
 
   private void renderGeometry(int zoom, Geometry geom, Map<String, Object> attrs, FeatureCollector.Feature feature) {
