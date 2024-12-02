@@ -100,7 +100,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   private void accept(int zoom, Geometry geom, Map<String, Object> attrs, FeatureCollector.Feature feature) {
     double scale = 1 << zoom;
     geom = AffineTransformation.scaleInstance(scale, scale).transform(geom);
-    GeometryPipeline pipeline = feature.getGeometryPipelineAtZoom(zoom);
+    GeometryPipeline pipeline = feature.getScaledGeometryTransformAtZoom(zoom);
     if (pipeline != null) {
       geom = pipeline.apply(geom);
     } else if (!(geom instanceof Puntal)) {

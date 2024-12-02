@@ -4,6 +4,12 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import org.locationtech.jts.geom.Geometry;
 
+/**
+ * A function that transforms a {@link Geometry}.
+ * <p>
+ * This can be chained and used in {@link FeatureCollector.Feature#transformScaledGeometry(GeometryPipeline)} to
+ * transform geometries before slicing them into tiles.
+ */
 @FunctionalInterface
 public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
   GeometryPipeline NOOP = g -> g;
@@ -16,6 +22,7 @@ public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
     return this;
   }
 
+  /** Returns a function equivalent to {@code other(this(geom))}. */
   default GeometryPipeline andThen(GeometryPipeline other) {
     return input -> other.apply(apply(input));
   }
@@ -93,5 +100,21 @@ public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
    */
   static DouglasPeuckerSimplifier simplifyDP(double tolerance) {
     return new DouglasPeuckerSimplifier(tolerance);
+  }
+
+  /**
+   * Returns a pipeline that smoothes an input geometry by joining the midpoint of each edge of lines or polygons in the
+   * order in which they are encountered.
+   */
+  static MidpointSmoother smoothMidpoint() {
+    return MidpointSmoother.midpoint();
+  }
+
+  /**
+   * Returns a pipeline that smoothes an input geometry by slicing off each corner {@code iters} times until you get a
+   * sufficiently smooth curve.
+   */
+  static MidpointSmoother smoothChaikin(int iters) {
+    return MidpointSmoother.chaikin(iters);
   }
 }

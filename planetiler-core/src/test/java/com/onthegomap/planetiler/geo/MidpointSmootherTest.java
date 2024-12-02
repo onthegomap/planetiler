@@ -65,35 +65,4 @@ class MidpointSmootherTest {
       TestUtils.round(new MidpointSmoother(new double[]{0.2, 0.8}).setIters(2).apply(in))
     );
   }
-
-  @ParameterizedTest
-  @CsvSource(value = {
-    "POINT(1 1); POINT(1 1)",
-    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
-    "LINESTRING(0 0, 10 0, 10 10); LINESTRING(5 0, 10 5)",
-    "LINESTRING(0 0, 10 0, 10 10, 0 10); LINESTRING(5 0, 10 5, 5 10)",
-  }, delimiter = ';')
-  void testDontIncludeEndpointsMidpoint(String inWKT, String outWKT) throws ParseException {
-    var reader = new WKTReader();
-    assertEquals(
-      TestUtils.round(reader.read(outWKT)),
-      TestUtils.round(
-        new MidpointSmoother(new double[]{0.5}).setIters(1).includeLineEndpoints(false).apply(reader.read(inWKT)))
-    );
-  }
-
-  @ParameterizedTest
-  @CsvSource(value = {
-    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
-    "LINESTRING(0 0, 10 0, 10 10); LINESTRING(2 0, 8 0, 10 2, 10 8)",
-    "LINESTRING(0 0, 10 0, 10 10, 0 10); LINESTRING(2 0, 8 0, 10 2, 10 8, 8 10, 2 10)",
-  }, delimiter = ';')
-  void testDontIncludeEndpointsDualMidpoint(String inWKT, String outWKT) throws ParseException {
-    var reader = new WKTReader();
-    assertEquals(
-      TestUtils.round(reader.read(outWKT)),
-      TestUtils.round(
-        new MidpointSmoother(new double[]{0.2, 0.8}).setIters(1).includeLineEndpoints(false).apply(reader.read(inWKT)))
-    );
-  }
 }

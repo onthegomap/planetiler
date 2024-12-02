@@ -749,7 +749,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * features. This function gets run instead of simplification, so should include any simplification if you want
      * that.
      */
-    public Feature setGeometryPipeline(GeometryPipeline pipeline) {
+    public Feature transformScaledGeometry(GeometryPipeline pipeline) {
       this.defaultGeometryPipeline = pipeline;
       return this;
     }
@@ -759,7 +759,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * vector tile features. These functions get run instead of simplification, so should include any simplification if
      * you want that.
      */
-    public Feature setGeometryPipelineByZoom(ZoomFunction<GeometryPipeline> overrides) {
+    public Feature transformScaledGeometryByZoom(ZoomFunction<GeometryPipeline> overrides) {
       this.geometryPipelineByZoom = overrides;
       return this;
     }
@@ -768,7 +768,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Returns the geometry transform function to apply to scaled geometries at {@code zoom}, or null to not update them
      * at all.
      */
-    public GeometryPipeline getGeometryPipelineAtZoom(int zoom) {
+    public GeometryPipeline getScaledGeometryTransformAtZoom(int zoom) {
       return ZoomFunction.applyOrElse(geometryPipelineByZoom, zoom, defaultGeometryPipeline);
     }
 
