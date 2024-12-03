@@ -154,7 +154,7 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
     double den = Math.hypot(bx - ax, by - ay) * Math.hypot(cx - bx, cy - by),
       cos = 0;
     if (den > 0) {
-      cos = Math.clamp((ax - bx) * (cx - bx) + (ay - by) * (cy - by) / den, -1, 1);
+      cos = Math.clamp(((ax - bx) * (cx - bx) + (ay - by) * (cy - by)) / den, -1, 1);
     }
     return cos;
   }
