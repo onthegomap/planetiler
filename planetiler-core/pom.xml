@@ -179,7 +179,7 @@
     <dependency>
       <groupId>blue.strategic.parquet</groupId>
       <artifactId>parquet-floor</artifactId>
-      <version>1.48</version>
+      <version>1.49</version>
     </dependency>
     <dependency>
       <groupId>org.lz4</groupId>
