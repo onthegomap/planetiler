@@ -84,7 +84,6 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
-    boolean hasLabelGrid = feature.hasLabelGrid();
     Coordinate[] coords = new Coordinate[origCoords.length];
     for (int i = 0; i < origCoords.length; i++) {
       coords[i] = origCoords[i].copy();
@@ -107,14 +106,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
       // for "label grid" point density limiting, compute the grid square that this point sits in
       // only valid if not a multipoint
-      RenderedFeature.Group groupInfo = null;
-      if (hasLabelGrid && coords.length == 1) {
-        double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
-        groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
-          GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coords[0]),
-          feature.getPointLabelGridLimitAtZoom(zoom)
-        );
-      }
+      RenderedFeature.Group groupInfo = coords.length != 1 ? null : computeLabelGridGroup(feature, coords[0], zoom);
 
       // compute the tile coordinate of every tile these points should show up in at the given buffer size
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
@@ -131,6 +123,21 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     }
 
     stats.processedElement("point", feature.getLayer());
+  }
+
+  private static RenderedFeature.Group computeLabelGridGroup(FeatureCollector.Feature feature, Coordinate coord,
+    int zoom) {
+    if (feature.hasLabelGrid()) {
+      double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
+      if (labelGridTileSize < 1d / 4096d) {
+        return null;
+      }
+      return new RenderedFeature.Group(
+        GeoUtils.labelGridId(1 << zoom, labelGridTileSize, coord),
+        feature.getPointLabelGridLimitAtZoom(zoom)
+      );
+    }
+    return null;
   }
 
   private void encodeAndEmitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs,
@@ -233,11 +240,11 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       attrs = new HashMap<>(attrs);
       attrs.put(numPointsAttr, geom.getNumPoints());
     }
-    writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
+    writeTileFeatures(z, feature.getId(), feature, sliced, attrs, geom.getCoordinate());
   }
 
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
-    Map<String, Object> attrs) {
+    Map<String, Object> attrs, Coordinate coordinate) {
     int emitted = 0;
     for (var entry : sliced.getTileData().entrySet()) {
       TileCoord tile = entry.getKey();
@@ -273,7 +280,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         }
 
         if (!geom.isEmpty()) {
-          encodeAndEmitFeature(feature, id, attrs, tile, geom, null, scale);
+          RenderedFeature.Group groupInfo = computeLabelGridGroup(feature, coordinate, zoom);
+          encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, scale);
           emitted++;
         }
       } catch (GeometryException e) {
