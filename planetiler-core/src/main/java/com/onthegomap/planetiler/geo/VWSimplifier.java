@@ -146,7 +146,7 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
     return simpResult;
   }
 
-  private static double triangleArea(double ax, double ay, double bx, double by, double cx, double cy) {
+  public static double triangleArea(double ax, double ay, double bx, double by, double cx, double cy) {
     return Math.abs(((ay - cy) * (bx - cx) + (by - cy) * (cx - ax)) / 2);
   }
 

@@ -92,7 +92,7 @@ public class DouglasPeuckerSimplifier extends GeometryTransformer implements Geo
    * Returns the square of the number of units that (px, p1) is away from the line segment from (p1x, py1) to (p2x,
    * p2y).
    */
-  private static double getSqSegDist(double px, double py, double p1x, double p1y, double p2x, double p2y) {
+  public static double getSqSegDist(double px, double py, double p1x, double p1y, double p2x, double p2y) {
 
     double x = p1x,
       y = p1y,

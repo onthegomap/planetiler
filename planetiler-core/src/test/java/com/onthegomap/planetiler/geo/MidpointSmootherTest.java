@@ -65,4 +65,38 @@ class MidpointSmootherTest {
       TestUtils.round(new MidpointSmoother(new double[]{0.2, 0.8}).setIters(2).apply(in))
     );
   }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "POINT(1 1); POINT(1 1)",
+    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
+    "LINESTRING(0 0, 10 0, 10 10); LINESTRING (0 0, 6.4 0, 8 0.32, 8.64 0.64, 9.36 1.36, 9.68 2, 10 3.6, 10 10)",
+    "POLYGON((0 0, 10 0, 10 10, 0 0)); POLYGON ((3.2 0, 6.8 0, 8.4 0.4, 9.6 1.6, 10 3.2, 10 6.8, 9.68 7.76, 9.36 8, 8.4 8, 6.8 6.8, 3.2 3.2, 2 1.6, 2 0.64, 2.24 0.32, 3.2 0))",
+  }, delimiter = ';')
+  void testSmoothToTolerance(String inWKT, String outWKT) throws ParseException {
+    var reader = new WKTReader();
+    Geometry in = reader.read(inWKT);
+    Geometry out = reader.read(outWKT);
+    assertEquals(
+      TestUtils.round(out),
+      TestUtils.round(new MidpointSmoother(new double[]{0.2, 0.8}).setIters(200).setMinVertexTolerance(0.5).apply(in))
+    );
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "POINT(1 1); POINT(1 1)",
+    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
+    "LINESTRING(0 0, 10 0, 10 10); LINESTRING (0 0, 5.12 0, 6.8 0.08, 8 0.32, 8.64 0.64, 9.36 1.36, 9.68 2, 9.92 3.2, 10 4.88, 10 10)",
+    "POLYGON((0 0, 10 0, 10 10, 0 0)); POLYGON ((3.92 0, 6.08 0, 7.12 0.08, 8.08 0.32, 8.64 0.64, 9.36 1.36, 9.68 1.92, 9.92 2.88, 10 3.92, 10 6.08, 9.92 7.04, 9.68 7.76, 9.36 8, 8.64 8, 8.08 7.76, 7.12 7.04, 6.08 6.08, 3.92 3.92, 2.96 2.88, 2.24 1.92, 2 1.36, 2 0.64, 2.24 0.32, 2.96 0.08, 3.92 0))",
+  }, delimiter = ';')
+  void testSmoothToMinArea(String inWKT, String outWKT) throws ParseException {
+    var reader = new WKTReader();
+    Geometry in = reader.read(inWKT);
+    Geometry out = reader.read(outWKT);
+    assertEquals(
+      TestUtils.round(out),
+      TestUtils.round(new MidpointSmoother(new double[]{0.2, 0.8}).setIters(200).setMinVertexArea(0.5).apply(in))
+    );
+  }
 }

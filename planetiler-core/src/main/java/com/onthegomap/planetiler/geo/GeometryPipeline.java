@@ -103,7 +103,7 @@ public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
   }
 
   /**
-   * Returns a pipeline that smoothes an input geometry by joining the midpoint of each edge of lines or polygons in the
+   * Returns a pipeline that smooths an input geometry by joining the midpoint of each edge of lines or polygons in the
    * order in which they are encountered.
    */
   static MidpointSmoother smoothMidpoint() {
@@ -111,10 +111,18 @@ public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
   }
 
   /**
-   * Returns a pipeline that smoothes an input geometry by slicing off each corner {@code iters} times until you get a
+   * Returns a pipeline that smooths an input geometry by slicing off each corner {@code iters} times until you get a
    * sufficiently smooth curve.
    */
   static MidpointSmoother smoothChaikin(int iters) {
     return MidpointSmoother.chaikin(iters);
+  }
+
+  static MidpointSmoother smoothChaikinToTolerance(double tolerance) {
+    return MidpointSmoother.chaikinToTolerance(tolerance);
+  }
+
+  static MidpointSmoother smoothChaikinToMinArea(double minArea) {
+    return MidpointSmoother.chaikinToMinArea(minArea);
   }
 }
