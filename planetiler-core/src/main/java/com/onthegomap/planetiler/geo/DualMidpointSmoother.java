@@ -116,88 +116,36 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
     if (coords.size() <= 2) {
       return coords.copy();
     }
-    boolean checkVertices = minSquaredVertexTolerance > 0 || minVertexArea > 0 || maxSquaredOffset > 0 || maxArea > 0;
     for (int iter = 0; iter < iters; iter++) {
       MutableCoordinateSequence result = new MutableCoordinateSequence();
-      if (!area) {
-        result.addPoint(coords.getX(0), coords.getY(0));
-      }
       int last = coords.size() - 1;
-      double x2 = coords.getX(0);
-      double y2 = coords.getY(0);
-      double nextA = a;
-      boolean skippedLastVertex = false;
       double x1, y1;
-      for (int i = 0; i < last; i++) {
+      double x2 = coords.getX(0), y2 = coords.getY(0);
+      double x3 = coords.getX(1), y3 = coords.getY(1);
+      // for lines, always add the first point but for polygons this is a placeholder that will be updated
+      // when last vertex is squashed
+      result.addPoint(x2, y2);
+      for (int i = 1; i < last; i++) {
         x1 = x2;
         y1 = y2;
-        x2 = coords.getX(i + 1);
-        y2 = coords.getY(i + 1);
-        double dx = x2 - x1;
-        double dy = y2 - y1;
-
-        if ((area || i > 0) && !skippedLastVertex) {
-          result.addPoint(x1 + dx * nextA, y1 + dy * nextA);
-        }
-        nextA = a;
-
-        if (area || i < last - 1) {
-          double nextB = b;
-          if (checkVertices) {
-            int next = i < last - 1 ? (i + 2) : 1;
-            double x3 = coords.getX(next);
-            double y3 = coords.getY(next);
-            if (skipVertex(x1, y1, x2, y2, x3, y3)) {
-              result.addPoint(x2, y2);
-              skippedLastVertex = true;
-              continue;
-            }
-            skippedLastVertex = false;
-
-            // check the amount of error introduced by removing this vertex (either by offset or area)
-            // and if it is too large, then move nextA/nextB ratios closer to the vertex to limit the error
-            if (maxArea > 0 || maxSquaredOffset > 0) {
-              double magA = Math.hypot(x2 - x1, y2 - y1);
-              double magB = Math.hypot(x3 - x2, y3 - y2);
-              double den = magA * magB;
-              double aDist = magA * (1 - b);
-              double bDist = magB * a;
-              double maxDistSquared = Double.POSITIVE_INFINITY;
-              if (maxArea > 0) {
-                double sin = den <= 0 ? 0 : Math.abs(((x1 - x2) * (y3 - y2)) - ((y1 - y2) * (x3 - x2))) / den;
-                maxDistSquared = 2 * maxArea / sin;
-              }
-              if (maxSquaredOffset > 0) {
-                double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
-                maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredOffset / (1 + cos));
-              }
-              double maxDist = Double.NaN;
-              if (aDist * aDist > maxDistSquared) {
-                nextB = 1 - (maxDist = Math.sqrt(maxDistSquared)) / magA;
-              }
-              if (bDist * bDist > maxDistSquared) {
-                if (Double.isNaN(maxDist)) {
-                  maxDist = Math.sqrt(maxDistSquared);
-                }
-                nextA = maxDist / magA;
-              }
-            }
-          }
-
-          result.addPoint(x1 + dx * nextB, y1 + dy * nextB);
-        }
+        x2 = x3;
+        y2 = y3;
+        x3 = coords.getX(i + 1);
+        y3 = coords.getY(i + 1);
+        squashVertex(result, x1, y1, x2, y2, x3, y3);
       }
       if (area) {
-        if (skippedLastVertex) {
-          result.setX(0, result.getX(result.size() - 1));
-          result.setY(0, result.getY(result.size() - 1));
-        } else {
-          if (nextA != a) {
-            result.setX(0, (coords.getX(1) - coords.getX(0)) * nextA);
-            result.setY(0, (coords.getY(1) - coords.getY(0)) * nextA);
-          }
-          result.closeRing();
-        }
+        squashVertex(result,
+          coords.getX(last - 1),
+          coords.getY(last - 1),
+          coords.getX(0),
+          coords.getY(0),
+          coords.getX(1),
+          coords.getY(1)
+        );
+        int idx = result.size() - 1;
+        result.setX(0, result.getX(idx));
+        result.setY(0, result.getY(idx));
       } else {
         result.addPoint(coords.getX(last), coords.getY(last));
       }
@@ -208,6 +156,50 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
       coords = result;
     }
     return coords;
+  }
+
+  private void squashVertex(MutableCoordinateSequence result, double x1, double y1, double x2, double y2, double x3,
+    double y3) {
+
+    if (skipVertex(x1, y1, x2, y2, x3, y3)) {
+      result.addPoint(x2, y2);
+      return;
+    }
+
+    double nextB = b;
+    double nextA = a;
+
+    // check the amount of error introduced by removing this vertex (either by offset or area)
+    // and if it is too large, then move nextA/nextB ratios closer to the vertex to limit the error
+    if (maxArea > 0 || maxSquaredOffset > 0) {
+      double magA = Math.hypot(x2 - x1, y2 - y1);
+      double magB = Math.hypot(x3 - x2, y3 - y2);
+      double den = magA * magB;
+      double aDist = magA * (1 - b);
+      double bDist = magB * a;
+      double maxDistSquared = Double.POSITIVE_INFINITY;
+      if (maxArea > 0) {
+        double sin = den <= 0 ? 0 : Math.abs(((x1 - x2) * (y3 - y2)) - ((y1 - y2) * (x3 - x2))) / den;
+        maxDistSquared = 2 * maxArea / sin;
+      }
+      if (maxSquaredOffset > 0) {
+        double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
+        maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredOffset / (1 + cos));
+      }
+      double maxDist = Double.NaN;
+      if (aDist * aDist > maxDistSquared) {
+        nextB = 1 - (maxDist = Math.sqrt(maxDistSquared)) / magA;
+      }
+      if (bDist * bDist > maxDistSquared) {
+        if (Double.isNaN(maxDist)) {
+          maxDist = Math.sqrt(maxDistSquared);
+        }
+        nextA = maxDist / magA;
+      }
+    }
+
+    result.addPoint(x1 + (x2 - x1) * nextB, y1 + (y2 - y1) * nextB);
+    result.addPoint(x2 + (x3 - x2) * nextA, y2 + (y3 - y2) * nextA);
   }
 
   private boolean skipVertex(double x1, double y1, double x2, double y2, double x3, double y3) {
