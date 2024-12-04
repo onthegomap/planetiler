@@ -106,23 +106,31 @@ public interface GeometryPipeline extends ZoomFunction<GeometryPipeline> {
    * Returns a pipeline that smooths an input geometry by joining the midpoint of each edge of lines or polygons in the
    * order in which they are encountered.
    */
-  static MidpointSmoother smoothMidpoint() {
-    return MidpointSmoother.midpoint();
+  static MidpointSmoother smoothMidpoint(int iters) {
+    return new MidpointSmoother().setIters(iters);
   }
 
   /**
    * Returns a pipeline that smooths an input geometry by slicing off each corner {@code iters} times until you get a
    * sufficiently smooth curve.
    */
-  static MidpointSmoother smoothChaikin(int iters) {
-    return MidpointSmoother.chaikin(iters);
+  static DualMidpointSmoother smoothChaikin(int iters) {
+    return DualMidpointSmoother.chaikin(iters);
   }
 
-  static MidpointSmoother smoothChaikinToTolerance(double tolerance) {
-    return MidpointSmoother.chaikinToTolerance(tolerance);
+  /**
+   * Returns a new smoother that slices off each corner, except instead of stopping at a fixed number of iterations, it
+   * stops when the distance between a vertex and its 2 adjacent neighbors is below {@code tolerance}.
+   */
+  static DualMidpointSmoother smoothChaikinToTolerance(double tolerance) {
+    return DualMidpointSmoother.chaikinToTolerance(tolerance);
   }
 
-  static MidpointSmoother smoothChaikinToMinArea(double minArea) {
-    return MidpointSmoother.chaikinToMinArea(minArea);
+  /**
+   * Returns a new smoother that slices off each corner, except instead of stopping at a fixed number of iterations, it
+   * stops when the area formed between a vertex and its 2 adjacent neighbors is below {@code minArea}.
+   */
+  static DualMidpointSmoother smoothChaikinToMinArea(double minArea) {
+    return DualMidpointSmoother.chaikinToMinArea(minArea);
   }
 }
