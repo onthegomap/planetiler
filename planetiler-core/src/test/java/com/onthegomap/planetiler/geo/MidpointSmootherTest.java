@@ -99,4 +99,40 @@ class MidpointSmootherTest {
       TestUtils.round(new MidpointSmoother(new double[]{0.2, 0.8}).setIters(200).setMinVertexArea(0.5).apply(in))
     );
   }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
+    "LINESTRING(0 0, 10 0, 10 10); LINESTRING (0 0, 9 0, 10 1, 10 10)",
+    "LINESTRING(0 0, 10 0, 20 0); LINESTRING (0 0, 7.5 0, 12.5 0, 20 0)",
+    "LINESTRING(0 0, 10 0, 0 0); LINESTRING (0 0, 7.5 0, 0 0)",
+    "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)); POLYGON ((1 0, 9 0, 10 1, 10 9, 9 10, 1 10, 0 9, 0 1, 1 0))",
+  }, delimiter = ';')
+  void testSmoothWithMaxArea(String inWKT, String outWKT) throws ParseException {
+    var reader = new WKTReader();
+    Geometry in = reader.read(inWKT);
+    Geometry out = reader.read(outWKT);
+    assertEquals(
+      TestUtils.round(out),
+      TestUtils.round(MidpointSmoother.chaikin(1).setMaxArea(0.5).apply(in))
+    );
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
+    "LINESTRING(0 0, 10 0, 10 10); LINESTRING (0 0, 9 0, 10 1, 10 10)",
+    "LINESTRING(0 0, 10 0, 20 0); LINESTRING (0 0, 7.5 0, 12.5 0, 20 0)",
+    "LINESTRING(0 0, 10 0, 0 0); LINESTRING (0 0, 9.29289 0, 0 0)",
+    "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)); POLYGON ((1 0, 9 0, 10 1, 10 9, 9 10, 1 10, 0 9, 0 1, 1 0))",
+  }, delimiter = ';')
+  void testSmoothWithMaxOffset(String inWKT, String outWKT) throws ParseException {
+    var reader = new WKTReader();
+    Geometry in = reader.read(inWKT);
+    Geometry out = reader.read(outWKT);
+    assertEquals(
+      TestUtils.round(out),
+      TestUtils.round(MidpointSmoother.chaikin(1).setMaxOffset(Math.sqrt(0.5)).apply(in))
+    );
+  }
 }

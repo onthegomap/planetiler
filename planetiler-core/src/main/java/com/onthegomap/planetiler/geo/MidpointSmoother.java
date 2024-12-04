@@ -20,6 +20,8 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
   private int iters = 1;
   private double minSquaredVertexTolerance = 0;
   private double minVertexArea = 0;
+  private double maxArea = 0;
+  private double maxSquaredOffset = 0;
 
   public MidpointSmoother(double[] points) {
     if (points.length < 1 || points.length > 2) {
@@ -75,6 +77,29 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
    */
   public MidpointSmoother setMinVertexArea(double minVertexArea) {
     this.minVertexArea = minVertexArea;
+    return this;
+  }
+
+  /**
+   * Sets a limit on the maximum area that can be removed when removing a vertex. When the area is larger than this, the
+   * new points are moved closer to the vertex in order to bring the removed area to this threshold.
+   * <p>
+   * This prevents smoothing 2 long adjacent edges from introducing a large deviation from the original shape.
+   */
+  public MidpointSmoother setMaxArea(double maxArea) {
+    this.maxArea = maxArea;
+    return this;
+  }
+
+  /**
+   * Sets a limit on the maximum distance from the original shape that can be introduced by smoothing. When the error
+   * introduced by squashing a vertex will be above this threshold, the new points are moved closer to the vertex in
+   * order to bring the removed area to this threshold.
+   * <p>
+   * This prevents smoothing 2 long adjacent edges from introducing a large deviation from the original shape.
+   */
+  public MidpointSmoother setMaxOffset(double maxOffset) {
+    this.maxSquaredOffset = maxOffset * maxOffset;
     return this;
   }
 
@@ -136,7 +161,7 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
   }
 
   private CoordinateSequence dualPointSmooth(CoordinateSequence coords, boolean area, double a, double b) {
-    boolean checkVertices = minSquaredVertexTolerance > 0 || minVertexArea > 0;
+    boolean checkVertices = minSquaredVertexTolerance > 0 || minVertexArea > 0 || maxSquaredOffset > 0 || maxArea > 0;
     for (int iter = 0; iter < iters; iter++) {
       MutableCoordinateSequence result = new MutableCoordinateSequence();
       if (!area) {
@@ -145,6 +170,7 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
       int last = coords.size() - 1;
       double x2 = coords.getX(0);
       double y2 = coords.getY(0);
+      double nextA = a;
       boolean skippedLastVertex = false;
       double x1, y1;
       for (int i = 0; i < last; i++) {
@@ -156,11 +182,13 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
         double dy = y2 - y1;
 
         if ((area || i > 0) && !skippedLastVertex) {
-          result.addPoint(x1 + dx * a, y1 + dy * a);
+          result.addPoint(x1 + dx * nextA, y1 + dy * nextA);
         }
+        nextA = a;
 
 
         if (area || i < last - 1) {
+          double nextB = b;
           if (checkVertices) {
             int next = i < last - 1 ? (i + 2) : 1;
             double x3 = coords.getX(next);
@@ -169,12 +197,38 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
               result.addPoint(x2, y2);
               skippedLastVertex = true;
               continue;
-            } else {
-              skippedLastVertex = false;
+            }
+            skippedLastVertex = false;
+
+            if (maxArea > 0 || maxSquaredOffset > 0) {
+              double magA = Math.hypot(x2 - x1, y2 - y1);
+              double magB = Math.hypot(x3 - x2, y3 - y2);
+              double den = magA * magB;
+              double aDist = magA * (1 - b);
+              double bDist = magB * a;
+              double maxDistSquared = Double.POSITIVE_INFINITY;
+              if (maxArea > 0) {
+                double sin = den <= 0 ? 0 : Math.abs(((x1 - x2) * (y3 - y2)) - ((y1 - y2) * (x3 - x2))) / den;
+                maxDistSquared = 2 * maxArea / sin;
+              }
+              if (maxSquaredOffset > 0) {
+                double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
+                maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredOffset / (1 + cos));
+              }
+              double maxDist = Double.NaN;
+              if (aDist * aDist > maxDistSquared) {
+                nextB = 1 - (maxDist = Math.sqrt(maxDistSquared)) / magA;
+              }
+              if (bDist * bDist > maxDistSquared) {
+                if (Double.isNaN(maxDist)) {
+                  maxDist = Math.sqrt(maxDistSquared);
+                }
+                nextA = maxDist / magA;
+              }
             }
           }
 
-          result.addPoint(x1 + dx * b, y1 + dy * b);
+          result.addPoint(x1 + dx * nextB, y1 + dy * nextB);
         }
       }
       if (area) {
@@ -182,6 +236,10 @@ public class MidpointSmoother extends GeometryTransformer implements GeometryPip
           result.setX(0, result.getX(result.size() - 1));
           result.setY(0, result.getY(result.size() - 1));
         } else {
+          if (nextA != a) {
+            result.setX(0, (coords.getX(1) - coords.getX(0)) * nextA);
+            result.setY(0, (coords.getY(1) - coords.getY(0)) * nextA);
+          }
           result.closeRing();
         }
       } else {
