@@ -117,6 +117,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
       return coords.copy();
     }
     for (int iter = 0; iter < iters; iter++) {
+      assert iter < iters - 1 || (minSquaredVertexTolerance == 0 && minVertexArea == 0) : "reached max iterations";
       MutableCoordinateSequence result = new MutableCoordinateSequence();
       int last = coords.size() - 1;
       double x1, y1;
@@ -180,7 +181,9 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
       double maxDistSquared = Double.POSITIVE_INFINITY;
       if (maxArea > 0) {
         double sin = den <= 0 ? 0 : Math.abs(((x1 - x2) * (y3 - y2)) - ((y1 - y2) * (x3 - x2))) / den;
-        maxDistSquared = 2 * maxArea / sin;
+        if (sin != 0) {
+          maxDistSquared = 2 * maxArea / sin;
+        }
       }
       if (maxSquaredOffset > 0) {
         double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
@@ -194,7 +197,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
         if (Double.isNaN(maxDist)) {
           maxDist = Math.sqrt(maxDistSquared);
         }
-        nextA = maxDist / magA;
+        nextA = maxDist / magB;
       }
     }
 

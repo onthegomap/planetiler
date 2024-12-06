@@ -1,9 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
-import static com.onthegomap.planetiler.TestUtils.assertSameNormalizedFeature;
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPoint;
-import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static com.onthegomap.planetiler.TestUtils.*;
 
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
@@ -69,22 +66,26 @@ class VWSimplifierTest {
   }
 
   @Test
-  void testPolygonLeaveAPoint() {
-    testSimplify(
+  void testPolygonLeaveAPointWhenAreaLessThenTolerance() {
+    Geometry in = newPolygon(
+      0, 0,
+      10, 10,
+      9, 10,
+      0, 8,
+      0, 0
+    );
+    assertSameNormalizedFeature(
+      emptyGeometry(),
+      new VWSimplifier().setTolerance(200).setWeight(0).transform(in)
+    );
+    assertSameNormalizedFeature(
       newPolygon(
         0, 0,
-        10, 10,
-        9, 10,
-        0, 8,
-        0, 0
-      ),
-      newPolygon(
-        0, 0,
         0, 8,
         10, 10,
         0, 0
       ),
-      200
+      new VWSimplifier().setTolerance(200).setKeepCollapsed(true).setWeight(0).transform(in)
     );
   }
 

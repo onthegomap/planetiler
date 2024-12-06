@@ -15,10 +15,17 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
 
   private double tolerance;
   private double k;
+  private boolean keepCollapsed = false;
 
   /** Sets the minimum effective triangle area created by 3 consecutive vertices in order to retain that vertex. */
   public VWSimplifier setTolerance(double tolerance) {
     this.tolerance = tolerance;
+    return this;
+  }
+
+  /** Set to {@code true} to keep polygons with area smaller than {@code tolerance}. */
+  public VWSimplifier setKeepCollapsed(boolean keepCollapsed) {
+    this.keepCollapsed = keepCollapsed;
     return this;
   }
 
@@ -72,7 +79,7 @@ public class VWSimplifier extends GeometryTransformer implements GeometryPipelin
   @Override
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
     boolean area = parent instanceof LinearRing;
-    int minPoints = area ? 4 : 2;
+    int minPoints = keepCollapsed && area ? 4 : 2;
     int num = coords.size();
     if (num <= minPoints) {
       return coords;

@@ -104,7 +104,7 @@ class DualDualMidpointSmootherTest {
     "LINESTRING(0 0, 10 10); LINESTRING(0 0, 10 10)",
     "LINESTRING(0 0, 10 0, 10 10); LINESTRING (0 0, 9 0, 10 1, 10 10)",
     "LINESTRING(0 0, 10 0, 20 0); LINESTRING (0 0, 7.5 0, 12.5 0, 20 0)",
-    "LINESTRING(0 0, 10 0, 0 0); LINESTRING (0 0, 9.29289 0, 0 0)",
+    "LINESTRING(0 0, 10 0, 10 5); LINESTRING (0 0, 9 0, 10 1, 10 5)",
     "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)); POLYGON ((1 0, 9 0, 10 1, 10 9, 9 10, 1 10, 0 9, 0 1, 1 0))",
   }, delimiter = ';')
   void testSmoothWithMaxOffset(String inWKT, String outWKT) throws ParseException {
