@@ -9,6 +9,14 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * Smooths an input geometry by interpolating 2 points at certain ratios along each edge and repeating for a set number
  * of iterations. This can be thought of as slicing off of each vertex until the segments are so short it appears round.
  * <p>
+ * Instead of iterating a fixed number of iterations, you can set {@link #setMinVertexArea(double)} or
+ * {@link #setMinVertexTolerance(double)} to stop smoothing corners when the triangle formed by 3 consecutive vertices
+ * gets to small.
+ * <p>
+ * In order to avoid introducing too much error from the original shape when rounding corners between very long edges,
+ * you can set {@link #setMaxArea(double)} or {@link #setMaxOffset(double)} to move the new points closer to a vertex to
+ * limit the amount of error that is introduced.
+ * <p>
  * When the points are {@code [0.25, 0.75]} this is equivalent to
  * <a href="https://observablehq.com/@pamacha/chaikins-algorithm">Chaikin Smoothing</a>.
  */
