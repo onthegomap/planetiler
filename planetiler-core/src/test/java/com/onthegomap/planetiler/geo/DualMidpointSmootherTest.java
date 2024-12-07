@@ -95,7 +95,7 @@ class DualDualMidpointSmootherTest {
     Geometry out = reader.read(outWKT);
     assertEquals(
       TestUtils.round(out),
-      TestUtils.round(DualMidpointSmoother.chaikin(1).setMaxArea(0.5).apply(in))
+      TestUtils.round(DualMidpointSmoother.chaikin(1).setMaxVertexArea(0.5).apply(in))
     );
   }
 
@@ -113,7 +113,7 @@ class DualDualMidpointSmootherTest {
     Geometry out = reader.read(outWKT);
     assertEquals(
       TestUtils.round(out),
-      TestUtils.round(DualMidpointSmoother.chaikin(1).setMaxOffset(Math.sqrt(0.5)).apply(in))
+      TestUtils.round(DualMidpointSmoother.chaikin(1).setMaxVertexTolerance(Math.sqrt(0.5)).apply(in))
     );
   }
 }

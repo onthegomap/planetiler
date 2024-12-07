@@ -14,8 +14,8 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * gets to small.
  * <p>
  * In order to avoid introducing too much error from the original shape when rounding corners between very long edges,
- * you can set {@link #setMaxArea(double)} or {@link #setMaxOffset(double)} to move the new points closer to a vertex to
- * limit the amount of error that is introduced.
+ * you can set {@link #setMaxVertexArea(double)} or {@link #setMaxVertexTolerance(double)} to move the new points closer
+ * to a vertex to limit the amount of error that is introduced.
  * <p>
  * When the points are {@code [0.25, 0.75]} this is equivalent to
  * <a href="https://observablehq.com/@pamacha/chaikins-algorithm">Chaikin Smoothing</a>.
@@ -25,10 +25,10 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
   private final double a;
   private final double b;
   private int iters = 1;
-  private double minSquaredVertexTolerance = 0;
   private double minVertexArea = 0;
-  private double maxArea = 0;
-  private double maxSquaredOffset = 0;
+  private double minSquaredVertexTolerance = 0;
+  private double maxVertexArea = 0;
+  private double maxSquaredVertexTolerance = 0;
 
   public DualMidpointSmoother(double a, double b) {
     this.a = a;
@@ -69,7 +69,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * of iterations is reached.
    */
   public DualMidpointSmoother setMinVertexTolerance(double minVertexTolerance) {
-    this.minSquaredVertexTolerance = minVertexTolerance * minVertexTolerance;
+    this.minSquaredVertexTolerance = minVertexTolerance * Math.abs(minVertexTolerance);
     return this;
   }
 
@@ -90,8 +90,8 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * <p>
    * This prevents smoothing 2 long adjacent edges from introducing a large deviation from the original shape.
    */
-  public DualMidpointSmoother setMaxArea(double maxArea) {
-    this.maxArea = maxArea;
+  public DualMidpointSmoother setMaxVertexArea(double maxArea) {
+    this.maxVertexArea = maxArea;
     return this;
   }
 
@@ -102,8 +102,8 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * <p>
    * This prevents smoothing 2 long adjacent edges from introducing a large deviation from the original shape.
    */
-  public DualMidpointSmoother setMaxOffset(double maxOffset) {
-    this.maxSquaredOffset = maxOffset * maxOffset;
+  public DualMidpointSmoother setMaxVertexTolerance(double maxVertexTolerance) {
+    this.maxSquaredVertexTolerance = maxVertexTolerance * Math.abs(maxVertexTolerance);
     return this;
   }
 
@@ -180,22 +180,22 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
 
     // check the amount of error introduced by removing this vertex (either by offset or area)
     // and if it is too large, then move nextA/nextB ratios closer to the vertex to limit the error
-    if (maxArea > 0 || maxSquaredOffset > 0) {
+    if (maxVertexArea > 0 || maxSquaredVertexTolerance > 0) {
       double magA = Math.hypot(x2 - x1, y2 - y1);
       double magB = Math.hypot(x3 - x2, y3 - y2);
       double den = magA * magB;
       double aDist = magA * (1 - b);
       double bDist = magB * a;
       double maxDistSquared = Double.POSITIVE_INFINITY;
-      if (maxArea > 0) {
+      if (maxVertexArea > 0) {
         double sin = den <= 0 ? 0 : Math.abs(((x1 - x2) * (y3 - y2)) - ((y1 - y2) * (x3 - x2))) / den;
         if (sin != 0) {
-          maxDistSquared = 2 * maxArea / sin;
+          maxDistSquared = 2 * maxVertexArea / sin;
         }
       }
-      if (maxSquaredOffset > 0) {
+      if (maxSquaredVertexTolerance > 0) {
         double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
-        maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredOffset / (1 + cos));
+        maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredVertexTolerance / (1 + cos));
       }
       double maxDist = Double.NaN;
       if (aDist * aDist > maxDistSquared) {
