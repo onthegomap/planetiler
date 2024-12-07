@@ -10,12 +10,12 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * of iterations. This can be thought of as slicing off of each vertex until the segments are so short it appears round.
  * <p>
  * Instead of iterating a fixed number of iterations, you can set {@link #setMinVertexArea(double)} or
- * {@link #setMinVertexTolerance(double)} to stop smoothing corners when the triangle formed by 3 consecutive vertices
- * gets to small.
+ * {@link #setMinVertexOffset(double)} to stop smoothing corners when the triangle formed by 3 consecutive vertices gets
+ * to small.
  * <p>
  * In order to avoid introducing too much error from the original shape when rounding corners between very long edges,
- * you can set {@link #setMaxVertexArea(double)} or {@link #setMaxVertexTolerance(double)} to move the new points closer
- * to a vertex to limit the amount of error that is introduced.
+ * you can set {@link #setMaxVertexArea(double)} or {@link #setMaxVertexOffset(double)} to move the new points closer to
+ * a vertex to limit the amount of error that is introduced.
  * <p>
  * When the points are {@code [0.25, 0.75]} this is equivalent to
  * <a href="https://observablehq.com/@pamacha/chaikins-algorithm">Chaikin Smoothing</a>.
@@ -26,9 +26,9 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
   private final double b;
   private int iters = 1;
   private double minVertexArea = 0;
-  private double minSquaredVertexTolerance = 0;
+  private double minSquaredVertexOffset = 0;
   private double maxVertexArea = 0;
-  private double maxSquaredVertexTolerance = 0;
+  private double maxSquaredVertexOffset = 0;
 
   public DualMidpointSmoother(double a, double b) {
     this.a = a;
@@ -49,7 +49,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * dropped with {@link DouglasPeuckerSimplifier Douglas-Peucker simplification} with {@code tolerance} threshold.
    */
   public static DualMidpointSmoother chaikinToTolerance(double tolerance) {
-    return chaikin(10).setMinVertexTolerance(tolerance);
+    return chaikin(10).setMinVertexOffset(tolerance);
   }
 
   /**
@@ -68,8 +68,8 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * If all points are below this threshold for an entire iteration then smoothing will stop before the maximum number
    * of iterations is reached.
    */
-  public DualMidpointSmoother setMinVertexTolerance(double minVertexTolerance) {
-    this.minSquaredVertexTolerance = minVertexTolerance * Math.abs(minVertexTolerance);
+  public DualMidpointSmoother setMinVertexOffset(double minVertexOffset) {
+    this.minSquaredVertexOffset = minVertexOffset * Math.abs(minVertexOffset);
     return this;
   }
 
@@ -102,8 +102,8 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
    * <p>
    * This prevents smoothing 2 long adjacent edges from introducing a large deviation from the original shape.
    */
-  public DualMidpointSmoother setMaxVertexTolerance(double maxVertexTolerance) {
-    this.maxSquaredVertexTolerance = maxVertexTolerance * Math.abs(maxVertexTolerance);
+  public DualMidpointSmoother setMaxVertexOffset(double maxVertexOffset) {
+    this.maxSquaredVertexOffset = maxVertexOffset * Math.abs(maxVertexOffset);
     return this;
   }
 
@@ -125,7 +125,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
       return coords.copy();
     }
     for (int iter = 0; iter < iters; iter++) {
-      assert iter < iters - 1 || (minSquaredVertexTolerance == 0 && minVertexArea == 0) : "reached max iterations";
+      assert iter < iters - 1 || (minSquaredVertexOffset == 0 && minVertexArea == 0) : "reached max iterations";
       MutableCoordinateSequence result = new MutableCoordinateSequence();
       int last = coords.size() - 1;
       double x1, y1;
@@ -180,7 +180,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
 
     // check the amount of error introduced by removing this vertex (either by offset or area)
     // and if it is too large, then move nextA/nextB ratios closer to the vertex to limit the error
-    if (maxVertexArea > 0 || maxSquaredVertexTolerance > 0) {
+    if (maxVertexArea > 0 || maxSquaredVertexOffset > 0) {
       double magA = Math.hypot(x2 - x1, y2 - y1);
       double magB = Math.hypot(x3 - x2, y3 - y2);
       double den = magA * magB;
@@ -193,9 +193,9 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
           maxDistSquared = 2 * maxVertexArea / sin;
         }
       }
-      if (maxSquaredVertexTolerance > 0) {
+      if (maxSquaredVertexOffset > 0) {
         double cos = den <= 0 ? 0 : Math.clamp(((x1 - x2) * (x3 - x2) + (y1 - y2) * (y3 - y2)) / den, -1, 1);
-        maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredVertexTolerance / (1 + cos));
+        maxDistSquared = Math.min(maxDistSquared, 2 * maxSquaredVertexOffset / (1 + cos));
       }
       double maxDist = Double.NaN;
       if (aDist * aDist > maxDistSquared) {
@@ -215,7 +215,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
 
   private boolean skipVertex(double x1, double y1, double x2, double y2, double x3, double y3) {
     return (minVertexArea > 0 && VWSimplifier.triangleArea(x1, y1, x2, y2, x3, y3) < minVertexArea) ||
-      (minSquaredVertexTolerance > 0 &&
-        DouglasPeuckerSimplifier.getSqSegDist(x2, y2, x1, y1, x3, y3) < minSquaredVertexTolerance);
+      (minSquaredVertexOffset > 0 &&
+        DouglasPeuckerSimplifier.getSqSegDist(x2, y2, x1, y1, x3, y3) < minSquaredVertexOffset);
   }
 }
