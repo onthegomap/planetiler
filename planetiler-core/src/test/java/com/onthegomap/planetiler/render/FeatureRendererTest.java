@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.stats.Stats;
@@ -69,6 +70,19 @@ class FeatureRendererTest {
     result.values()
       .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(decodeSilently(f.vectorTileFeature().geometry()))));
     return result;
+  }
+
+  private Set<List<?>> renderedTileFeatures(FeatureCollector.Feature feature, TileCoord coord) {
+    return renderFeatures(feature).get(coord).stream()
+      .map(RenderedFeature::vectorTileFeature)
+      .map(d -> {
+        try {
+          return List.of(d.geometry().decode(), d.tags());
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      })
+      .collect(Collectors.toSet());
   }
 
   private static final int Z14_TILES = 1 << 14;
@@ -1486,6 +1500,41 @@ class FeatureRendererTest {
           }
         })
         .collect(Collectors.toSet())
+    );
+  }
+
+  @Test
+  void testGeometryPipeline() {
+    var feature = lineFeature(
+      newLineString(
+        0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
+        0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
+      )
+    ).transformScaledGeometry(Geometry::getCentroid).setAttr("k", "v");
+    assertEquals(
+      Set.of(
+        List.of(newPoint(128 + 5, 128), Map.of("k", "v"))
+      ),
+      renderedTileFeatures(feature, TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
+    );
+  }
+
+  @Test
+  void testGeometryPipelineSimplify() {
+    var feature = lineFeature(
+      newLineString(
+        0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
+        0.5 + Z14_WIDTH / 2 + Z14_PX * 10, 0.5 + Z14_WIDTH / 2
+      )
+    ).transformScaledGeometry(
+      GeometryPipeline.simplifyVW(1).setWeight(0.9)
+        .andThen(GeometryPipeline.simplifyDP(1))
+    ).setAttr("k", "v");
+    assertEquals(
+      Set.of(
+        List.of(newLineString(128, 128, 128 + 10, 128), Map.of("k", "v"))
+      ),
+      renderedTileFeatures(feature, TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
     );
   }
 }

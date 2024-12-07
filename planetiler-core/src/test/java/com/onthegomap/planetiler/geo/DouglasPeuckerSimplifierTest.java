@@ -1,9 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
-import static com.onthegomap.planetiler.TestUtils.assertSameNormalizedFeature;
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPolygon;
-import static com.onthegomap.planetiler.TestUtils.rectangle;
+import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
@@ -33,6 +30,11 @@ class DouglasPeuckerSimplifierTest {
       List<Coordinate> actual = DouglasPeuckerSimplifier.simplify(inList, amount, in instanceof Polygonal);
       assertEquals(expList, actual);
     }
+  }
+
+  @Test
+  void testDontModifyPoint() {
+    testSimplify(newPoint(1, 1), newPoint(1, 1), 1);
   }
 
   @Test

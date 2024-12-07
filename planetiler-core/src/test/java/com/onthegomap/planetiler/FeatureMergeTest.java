@@ -8,6 +8,7 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.stats.Stats;
@@ -372,6 +373,73 @@ class FeatureMergeTest {
       )
     );
   }
+
+  @Test
+  void geometryPipelineWhenMergingOverlappingPolygons() throws GeometryException {
+    List<VectorTile.Feature> features = List.of(
+      feature(1, rectangle(10, 10, 20, 19), Map.of("a", 1)),
+      feature(2, rectangle(11, 10, 20, 20), Map.of("a", 1))
+    );
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newPolygon(
+          10, 10,
+          20, 10,
+          20, 20,
+          11, 20,
+          // remove this point due to simplification: 11, 19,
+          10, 19,
+          10, 10
+        ), Map.of("a", 1))
+      ),
+      FeatureMerge.mergeNearbyPolygons(
+        features,
+        0,
+        0,
+        0,
+        1,
+        Stats.inMemory(),
+        GeometryPipeline.simplifyVW(1)
+      )
+    );
+  }
+
+  @Test
+  void geometryPipelineAppliedWhenMergingSinglePolygon() throws GeometryException {
+    List<VectorTile.Feature> features = List.of(
+      feature(1, newPolygon(
+        10, 10,
+        20, 10,
+        20, 20,
+        11, 20,
+        11, 19,
+        10, 19,
+        10, 10), Map.of("a", 1))
+    );
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newPolygon(
+          10, 10,
+          20, 10,
+          20, 20,
+          11, 20,
+          // remove this point due to simplification: 11, 19,
+          10, 19,
+          10, 10
+        ), Map.of("a", 1))
+      ),
+      FeatureMerge.mergeNearbyPolygons(
+        features,
+        0,
+        0,
+        0,
+        1,
+        Stats.inMemory(),
+        GeometryPipeline.simplifyVW(1)
+      )
+    );
+  }
+
 
   @Test
   void mergeMultiPolygons() throws GeometryException {
