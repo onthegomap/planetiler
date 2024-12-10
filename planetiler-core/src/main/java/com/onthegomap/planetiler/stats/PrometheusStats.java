@@ -114,12 +114,12 @@ class PrometheusStats implements Stats {
 
   private final io.prometheus.client.Counter processedElements = io.prometheus.client.Counter
     .build(BASE + "renderer_elements_processed", "Number of source elements processed")
-    .labelNames("type", "layer")
+    .labelNames("type", "layer", "zoom")
     .register(registry);
 
   @Override
-  public void processedElement(String elemType, String layer) {
-    processedElements.labels(elemType, layer).inc();
+  public void processedElement(String elemType, String layer, int zoom) {
+    processedElements.labels(elemType, layer, String.valueOf(zoom)).inc();
   }
 
   private final io.prometheus.client.Counter dataErrors = io.prometheus.client.Counter

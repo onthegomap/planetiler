@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.DoubleMinHeap;
-import java.util.function.Function;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
@@ -12,14 +11,21 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * A utility to simplify geometries using Visvalingam Whyatt simplification algorithm without any attempt to repair
  * geometries that become invalid due to simplification.
  */
-public class VWSimplifier extends GeometryTransformer implements Function<Geometry, Geometry> {
+public class VWSimplifier extends GeometryTransformer implements GeometryPipeline {
 
   private double tolerance;
   private double k;
+  private boolean keepCollapsed = false;
 
   /** Sets the minimum effective triangle area created by 3 consecutive vertices in order to retain that vertex. */
   public VWSimplifier setTolerance(double tolerance) {
     this.tolerance = tolerance;
+    return this;
+  }
+
+  /** Set to {@code true} to keep polygons with area smaller than {@code tolerance}. */
+  public VWSimplifier setKeepCollapsed(boolean keepCollapsed) {
+    this.keepCollapsed = keepCollapsed;
     return this;
   }
 
@@ -73,8 +79,9 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
   @Override
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
     boolean area = parent instanceof LinearRing;
+    int minPoints = keepCollapsed && area ? 4 : 2;
     int num = coords.size();
-    if (num == 0) {
+    if (num <= minPoints) {
       return coords;
     }
 
@@ -96,13 +103,12 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
     heap.push(prev.idx, prev.updateArea());
 
     int left = num;
-    int min = area ? 4 : 2;
 
     while (!heap.isEmpty()) {
       var id = heap.poll();
       Vertex point = points[id];
 
-      if (point.area > tolerance || left <= min) {
+      if (point.area > tolerance || left <= minPoints) {
         break;
       }
       // TODO
@@ -147,7 +153,7 @@ public class VWSimplifier extends GeometryTransformer implements Function<Geomet
     return simpResult;
   }
 
-  private static double triangleArea(double ax, double ay, double bx, double by, double cx, double cy) {
+  public static double triangleArea(double ax, double ay, double bx, double by, double cx, double cy) {
     return Math.abs(((ay - cy) * (bx - cx) + (by - cy) * (cx - ax)) / 2);
   }
 

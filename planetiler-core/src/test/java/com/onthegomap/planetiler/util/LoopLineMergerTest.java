@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -466,6 +467,34 @@ class LoopLineMergerTest {
         newLineString(-5, 0, 0, 0, 5, 0),
         newLineString(0, 0, 0, 5)
       ),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testSimplifyTolerance() {
+    var merger = new LoopLineMerger()
+      .setTolerance(1);
+
+    merger.add(newLineString(0, 0, 5, 1));
+    merger.add(newLineString(5, 1, 10, 0));
+
+    assertEquals(
+      List.of(newLineString(0, 0, 10, 0)),
+      merger.getMergedLineStrings()
+    );
+  }
+
+  @Test
+  void testGeometryPipeline() {
+    var merger = new LoopLineMerger()
+      .setSegmentTransform(GeometryPipeline.simplifyDP(1));
+
+    merger.add(newLineString(0, 0, 5, 1));
+    merger.add(newLineString(5, 1, 10, 0));
+
+    assertEquals(
+      List.of(newLineString(0, 0, 10, 0)),
       merger.getMergedLineStrings()
     );
   }

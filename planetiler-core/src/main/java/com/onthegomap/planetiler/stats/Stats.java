@@ -114,7 +114,7 @@ public interface Stats extends AutoCloseable {
   void emittedFeatures(int z, String layer, int numFeatures);
 
   /** Records that an input element was processed and emitted some output features in {@code layer}. */
-  void processedElement(String elemType, String layer);
+  void processedElement(String elemType, String layer, int zoom);
 
   /** Records that a tile has been written to the archive output where compressed size is {@code bytes}. */
   void wroteTile(int zoom, int bytes);
@@ -239,7 +239,7 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void processedElement(String elemType, String layer) {}
+    public void processedElement(String elemType, String layer, int zoom) {}
 
     @Override
     public void gauge(String name, Supplier<Number> value) {}
