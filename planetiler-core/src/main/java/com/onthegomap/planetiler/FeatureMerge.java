@@ -291,7 +291,8 @@ public class FeatureMerge {
    * @param buffer      the amount (in tile pixels) to expand then contract polygons by in order to combine
    *                    almost-touching polygons
    * @param stats       for counting data errors
-   * @param pipeline    a transform that should be applied to each merged polygon
+   * @param pipeline    a transform that should be applied to each merged polygon in tile pixel coordinates where
+   *                    {@code 0,0} is the top-left and {@code 256,256} is the bottom-right corner of the tile
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
    *         ordered by the index of the first element in that group from the input list.
    * @throws GeometryException if an error occurs encoding the combined geometry
@@ -349,7 +350,7 @@ public class FeatureMerge {
             if (!(after instanceof Polygonal)) {
               continue;
             } else if (after != merged) {
-              merged = GeoUtils.snapAndFixPolygon(after, stats, "merge").reverse();
+              merged = GeoUtils.snapAndFixPolygon(after, stats, "merge_after_pipeline").reverse();
             }
           }
         }

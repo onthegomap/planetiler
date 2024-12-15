@@ -748,6 +748,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Sets the default pipeline to apply to geometries scaled to tile coordinates right before emitting vector tile
      * features. This function gets run instead of simplification, so should include any simplification if you want
      * that.
+     * <p>
+     * Geometries will be in scaled tile coordinates, so {@code 0,0} is the northwest corner and {@code 2^z, 2^z} is the
+     * southeast corner of the world scaled to web mercator coordinates.
      */
     public Feature transformScaledGeometry(GeometryPipeline pipeline) {
       this.defaultGeometryPipeline = pipeline;
@@ -755,9 +758,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the per-zoom geometry pipeline to apply to geometries scaled to tile coordinates right before emitting
-     * vector tile features. These functions get run instead of simplification, so should include any simplification if
-     * you want that.
+     * Dynamically change the geometry pipeline to apply to geometries scaled to tile coordinates right before emitting
+     * vector tile features at each zoom level. These functions get run instead of simplification, so should include any
+     * simplification if you want that.
+     * <p>
+     * Geometries will be in scaled tile coordinates, so {@code 0,0} is the northwest corner and {@code 2^z, 2^z} is the
+     * southeast corner of the world scaled to web mercator coordinates.
      */
     public Feature transformScaledGeometryByZoom(ZoomFunction<GeometryPipeline> overrides) {
       this.geometryPipelineByZoom = overrides;

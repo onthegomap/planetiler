@@ -7,7 +7,7 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
 
 /**
  * Smooths an input geometry by interpolating 2 points at certain ratios along each edge and repeating for a set number
- * of iterations. This can be thought of as slicing off of each vertex until the segments are so short it appears round.
+ * of iterations. This can be thought of as slicing off each vertex until the segments are so short it appears round.
  * <p>
  * Instead of iterating a fixed number of iterations, you can set {@link #setMinVertexArea(double)} or
  * {@link #setMinVertexOffset(double)} to stop smoothing corners when the triangle formed by 3 consecutive vertices gets
@@ -107,7 +107,7 @@ public class DualMidpointSmoother extends GeometryTransformer implements Geometr
     return this;
   }
 
-  /** Sets the number of times that smoothing runs. */
+  /** Sets the maximum number of times that smoothing runs. */
   public DualMidpointSmoother setIters(int iters) {
     this.iters = iters;
     return this;
