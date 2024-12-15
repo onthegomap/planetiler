@@ -59,9 +59,9 @@ class PrometheusStatsTest {
   @Test
   void testProcessedElement() {
     PrometheusStats stats = new PrometheusStats("job");
-    stats.processedElement("type1", "layer1");
-    stats.processedElement("type1", "layer1");
-    stats.processedElement("type1", "layer2");
+    stats.processedElement("type1", "layer1", 0);
+    stats.processedElement("type1", "layer1", 0);
+    stats.processedElement("type1", "layer2", 0);
     assertContainsStat("^planetiler_renderer_elements_processed_total\\{.*layer1.* 2", stats);
     assertContainsStat("^planetiler_renderer_elements_processed_total\\{.*layer2.* 1", stats);
   }

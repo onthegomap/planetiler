@@ -6,6 +6,7 @@ import com.carrotsearch.hppc.IntStack;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.stats.DefaultStats;
@@ -81,7 +82,7 @@ public class FeatureMerge {
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer, boolean resimplify) {
-    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer, resimplify);
+    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer, resimplify, null);
   }
 
   /**
@@ -143,12 +144,13 @@ public class FeatureMerge {
   }
 
   /**
-   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, Function, double, double, boolean)}
-   * except sets {@code resimplify=false} by default.
+   * Merges linestrings with the same attributes as
+   * {@link #mergeLineStrings(List, Function, double, double, boolean, GeometryPipeline)} except sets
+   * {@code resimplify=false} by default.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer) {
-    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false);
+    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false, null);
   }
 
   /**
@@ -156,7 +158,8 @@ public class FeatureMerge {
    * except with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
-    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify,
+    GeometryPipeline pipeline) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -176,7 +179,8 @@ public class FeatureMerge {
           .setMergeStrokes(true)
           .setMinLength(lengthLimit)
           .setLoopMinLength(lengthLimit)
-          .setStubMinLength(0.5);
+          .setStubMinLength(0.5)
+          .setSegmentTransform(pipeline);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
             merger.add(feature.geometry().decode());
@@ -287,12 +291,15 @@ public class FeatureMerge {
    * @param buffer      the amount (in tile pixels) to expand then contract polygons by in order to combine
    *                    almost-touching polygons
    * @param stats       for counting data errors
+   * @param pipeline    a transform that should be applied to each merged polygon in tile pixel coordinates where
+   *                    {@code 0,0} is the top-left and {@code 256,256} is the bottom-right corner of the tile
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
    *         ordered by the index of the first element in that group from the input list.
    * @throws GeometryException if an error occurs encoding the combined geometry
    */
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
-    double minHoleArea, double minDist, double buffer, Stats stats) throws GeometryException {
+    double minHoleArea, double minDist, double buffer, Stats stats, GeometryPipeline pipeline)
+    throws GeometryException {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -326,11 +333,25 @@ public class FeatureMerge {
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
+          if (pipeline != null) {
+            merged = pipeline.apply(merged);
+            if (!(merged instanceof Polygonal)) {
+              continue;
+            }
+          }
           merged = GeoUtils.snapAndFixPolygon(merged, stats, "merge").reverse();
         } else {
           merged = polygonGroup.getFirst();
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
+          }
+          if (pipeline != null) {
+            Geometry after = pipeline.apply(merged);
+            if (!(after instanceof Polygonal)) {
+              continue;
+            } else if (after != merged) {
+              merged = GeoUtils.snapAndFixPolygon(after, stats, "merge_after_pipeline").reverse();
+            }
           }
         }
         extractPolygons(merged, outPolygons, minArea, minHoleArea);
@@ -354,7 +375,7 @@ public class FeatureMerge {
 
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
     double minHoleArea, double minDist, double buffer) throws GeometryException {
-    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, DefaultStats.get());
+    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, DefaultStats.get(), null);
   }
 
 

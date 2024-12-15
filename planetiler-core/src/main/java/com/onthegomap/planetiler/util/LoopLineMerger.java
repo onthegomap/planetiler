@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ public class LoopLineMerger {
   private double stubMinLength = 0.0;
   private double tolerance = -1.0;
   private boolean mergeStrokes = false;
+  private GeometryPipeline pipeline;
 
   /**
    * Sets the precision model used to snap points to a grid.
@@ -102,6 +104,16 @@ public class LoopLineMerger {
    */
   public LoopLineMerger setTolerance(double tolerance) {
     this.tolerance = tolerance;
+    return this;
+  }
+
+  /**
+   * Sets a function that should be applied to each segment between intersections instead of simplification.
+   * <p>
+   * When this is present, {@code tolerance} is ignored.
+   */
+  public LoopLineMerger setSegmentTransform(GeometryPipeline pipeline) {
+    this.pipeline = pipeline;
     return this;
   }
 
@@ -388,7 +400,7 @@ public class LoopLineMerger {
       // removeShortStubEdges does degreeTwoMerge internally
     }
 
-    if (tolerance >= 0.0) {
+    if (pipeline != null || tolerance >= 0.0) {
       simplify();
       removeDuplicatedEdges();
       degreeTwoMerge();
@@ -585,7 +597,13 @@ public class LoopLineMerger {
     }
 
     void simplify() {
-      coordinates = DouglasPeuckerSimplifier.simplify(coordinates, tolerance, false);
+      if (pipeline != null) {
+        coordinates = List.of(
+          pipeline.apply(GeoUtils.JTS_FACTORY.createLineString(coordinates.toArray(Coordinate[]::new)))
+            .getCoordinates());
+      } else if (tolerance >= 0) {
+        coordinates = DouglasPeuckerSimplifier.simplify(coordinates, tolerance, false);
+      }
       if (reversed != null) {
         reversed.coordinates = coordinates.reversed();
       }
