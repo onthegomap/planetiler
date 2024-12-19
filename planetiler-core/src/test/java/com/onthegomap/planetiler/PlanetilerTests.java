@@ -430,6 +430,49 @@ class PlanetilerTests {
     ), results.tiles);
   }
 
+
+  @Test
+  void testMinSize() throws Exception {
+    double x = 0.5 + Z14_WIDTH / 4;
+    double y = 0.5 + Z14_WIDTH / 4;
+    double lat = GeoUtils.getWorldLat(y);
+    double lng = GeoUtils.getWorldLon(x);
+    double delta = 5e-5;
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "15"),
+      List.of(
+        newReaderFeature(newPoint(lng, lat), Map.of(
+          "type", "point"
+        )),
+        newReaderFeature(rectangle(lng - delta, lat - delta, lng + delta, lat + delta), Map.of(
+          "type", "poly"
+        )),
+        newReaderFeature(newLineString(lng - delta, lat, lng + delta, lat), Map.of(
+          "type", "line"
+        ))
+      ),
+      (in, features) -> features.centroid("layer")
+        .setZoomRange(13, 15)
+        .setMinPixelSizeAtAllZooms(1)
+        .inheritAttrFromSource("type")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
+        feature(newPoint(128, 128), Map.of("type", "line")),
+        feature(newPoint(128, 128), Map.of("type", "poly"))
+      // omit point when min size is set
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 64), Map.of("type", "line")),
+        feature(newPoint(64, 64), Map.of("type", "poly"))
+      )
+    ), results.tiles);
+    // features are too small at z13
+    assertEquals(List.of(), results.tiles.keySet().stream().filter(d -> d.z() < 14).toList());
+  }
+
   @ParameterizedTest
   @CsvSource({
     "false,RETAIN_IMPORTANT_POINTS",
