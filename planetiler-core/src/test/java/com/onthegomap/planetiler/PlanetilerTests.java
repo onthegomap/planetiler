@@ -467,7 +467,7 @@ class PlanetilerTests {
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(newPoint(64, 64), Map.of("type", "line")),
         feature(newPoint(64, 64), Map.of("type", "poly"))
-      ), // features are too small at z13
+      ) // features are too small at z13
     ), results.tiles);
   }
 
