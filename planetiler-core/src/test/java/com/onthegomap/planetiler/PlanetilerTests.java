@@ -458,7 +458,7 @@ class PlanetilerTests {
         .inheritAttrFromSource("type")
     );
 
-    assertSubmap(Map.of(
+    assertEquals(Map.of(
       TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newPoint(128, 128), Map.of("type", "line")),
         feature(newPoint(128, 128), Map.of("type", "poly"))
@@ -467,10 +467,8 @@ class PlanetilerTests {
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(newPoint(64, 64), Map.of("type", "line")),
         feature(newPoint(64, 64), Map.of("type", "poly"))
-      )
+      ), // features are too small at z13
     ), results.tiles);
-    // features are too small at z13
-    assertEquals(List.of(), results.tiles.keySet().stream().filter(d -> d.z() < 14).toList());
   }
 
   @ParameterizedTest
