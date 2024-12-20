@@ -83,7 +83,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       } else {
         if (minSize > 0) {
           if (geometry instanceof Puntal) {
-            if (!feature.source().isPoint() && feature.getSourceFeaturePixelSizeAtZoom(zoom) < minSize) {
+            if (feature.getSourceFeaturePixelSizeAtZoom(zoom) < minSize) {
               // don't emit points if the line or polygon feature it came from was too small
               continue;
             }
