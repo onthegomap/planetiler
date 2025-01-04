@@ -241,6 +241,12 @@ download regularly-updated tilesets.
 
 ## Use as a library
 
+Since Java 22, you can use Planetile as a library with a custom profile by running:
+
+`java -cp planetiler.jar Profile.java`.
+
+See [the examples](https://github.com/onthegomap/planetiler-examples) for more details.
+
 Planetiler can be used as a maven-style dependency in a Java project using the settings below:
 
 ### Maven
