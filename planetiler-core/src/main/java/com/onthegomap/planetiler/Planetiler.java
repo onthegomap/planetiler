@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.GeoJsonReader;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -433,6 +434,30 @@ public class Planetiler {
    */
   public Planetiler addGeoPackageSource(String name, Path defaultPath, String defaultUrl) {
     return addGeoPackageSource(null, name, defaultPath, defaultUrl);
+  }
+
+  /**
+   * Adds a new GeoJSON source that will be processed when {@link #run()} is called.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
+   * To override the location of the {@code geojson} file, set {@code name_path=newpath.geojson} in the arguments and to
+   * override the download URL set {@code name_url=http://url/of/file.geojson}.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
+   *                    name_url} argument is not set
+   * @return this runner instance for chaining
+   * @see GeoJsonReader
+   * @see Downloader
+   */
+  public Planetiler addGeoJsonSource(String name, Path defaultPath, String defaultUrl) {
+    Path path = getPath(name, "geojson", defaultPath, defaultUrl);
+    return addStage(name, "Process features in " + path,
+      ifSourceUsed(name,
+        () -> GeoJsonReader.process(name, List.of(path), featureGroup, config, profile, stats)));
   }
 
   /**
