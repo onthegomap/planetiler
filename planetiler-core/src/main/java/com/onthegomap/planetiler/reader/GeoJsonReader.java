@@ -75,11 +75,12 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
         try (var iter = features.features()) {
             while (iter.hasNext()) {
                 var feature = iter.next();
-                SimpleFeature simpleFeature = SimpleFeature.create((Geometry) feature.getDefaultGeometry(), HashMap.newHashMap(feature.getProperties().size()),
+                var properties = feature.getProperties();
+                SimpleFeature simpleFeature = SimpleFeature.create((Geometry) feature.getDefaultGeometry(), HashMap.newHashMap(properties.size()),
                 sourceName, layer, id++);
-                feature.getProperties().forEach(property -> {
+                properties.forEach(property ->
                     simpleFeature.setTag(property.getName().toString(), property.getValue());
-                });
+                );
                 next.accept(simpleFeature);
             }
         }
