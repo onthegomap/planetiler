@@ -24,7 +24,7 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
     GeoJsonReader(String sourceName, Path input) {
         super(sourceName);
         store = new GeoJSONDataStore(input.toFile());
-        layer = input.getFileName().toString().replaceFirst("\\.+", ""); // remove file extention.
+        layer = input.getFileName().toString().replaceFirst("\\.[^.]+$", ""); // remove file extention.
     }
 
     /**
