@@ -8,5 +8,7 @@ public enum DataSourceType {
   @JsonProperty("shapefile")
   SHAPEFILE,
   @JsonProperty("geopackage")
-  GEOPACKAGE
+  GEOPACKAGE,
+  @JsonProperty("geojson")
+  GEOJSON
 }

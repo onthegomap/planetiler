@@ -41,7 +41,8 @@
             "enum": [
               "osm",
               "shapefile",
-              "geopackage"
+              "geopackage",
+              "geojson"
             ]
           },
           "url": {
