@@ -4,7 +4,6 @@ import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class GeoJsonFeatureIteratorTest {
   @Test
-  void testPoint() throws IOException {
+  void testPoint() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, 2]}}
       """, List.of(
@@ -21,7 +20,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testLineString() throws IOException {
+  void testLineString() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[1, 2], [3, 4]]}}
       """, List.of(
@@ -30,7 +29,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testPolygon() throws IOException {
+  void testPolygon() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}}
       """, List.of(
@@ -39,7 +38,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testPolygonWithHole() throws IOException {
+  void testPolygonWithHole() {
     testParse(
       """
         {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [3, 0], [3, 3], [0, 3], [0, 0]], [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]]}}
@@ -53,7 +52,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testMultiPoint() throws IOException {
+  void testMultiPoint() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [[1, 2], [3, 4]]}}
       """, List.of(
@@ -62,7 +61,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testMultiLineString() throws IOException {
+  void testMultiLineString() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]}}
       """, List.of(
@@ -71,7 +70,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testMultiPolygon() throws IOException {
+  void testMultiPolygon() {
     testParse(
       """
         {"type": "Feature", "geometry": {"type": "MultiPolygon", "coordinates": [[[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]], [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]]]}}
@@ -83,7 +82,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testPointWithProperties() throws IOException {
+  void testPointWithProperties() {
     testParse(
       """
         {
@@ -114,7 +113,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testNewlineDelimited() throws IOException {
+  void testNewlineDelimited() {
     testParse("""
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, 2]}}
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4]}}
@@ -127,7 +126,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testFeatureCollection() throws IOException {
+  void testFeatureCollection() {
     testParse("""
       {
         "type": "FeatureCollection",
@@ -145,7 +144,7 @@ class GeoJsonFeatureIteratorTest {
   }
 
   @Test
-  void testParseBadFeatures() throws IOException {
+  void testParseBadFeatures() {
     testParse("""
       {"type": "Garbage", "geometry": {"type": "Point", "coordinates": [1, 2]}}
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4]}}
@@ -156,20 +155,13 @@ class GeoJsonFeatureIteratorTest {
     ), 3);
   }
 
-  private void testParse(String json, List<GeoJsonFeature> expected) throws IOException {
+  private void testParse(String json, List<GeoJsonFeature> expected) {
     testParse(json, expected, expected.size());
   }
 
-  private void testParse(String json, List<GeoJsonFeature> expected, int numExpected) throws IOException {
-    try (
-      var bais = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
-      var parser = new GeoJsonFeatureIterator(bais)
-    ) {
-      var actual = parser.stream().toList();
-      assertEquals(expected, actual);
-    }
-    try (var bais = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
-      assertEquals(numExpected, GeoJsonFeatureCounter.count(bais));
-    }
+  private void testParse(String json, List<GeoJsonFeature> expected, int numExpected) {
+    GeoJson wrapper = new GeoJson(() -> new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+    assertEquals(expected, wrapper.stream().toList());
+    assertEquals(numExpected, wrapper.count());
   }
 }

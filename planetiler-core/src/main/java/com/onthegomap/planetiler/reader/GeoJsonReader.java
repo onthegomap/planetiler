@@ -15,12 +15,13 @@ import java.util.function.Consumer;
  */
 public class GeoJsonReader extends SimpleReader<SimpleFeature> {
 
+  private volatile long count = -1;
   private final String layer;
-  private final Path path;
+  private final GeoJson file;
 
   GeoJsonReader(String sourceName, Path input) {
     super(sourceName);
-    this.path = input;
+    this.file = new GeoJson(() -> Files.newInputStream(input));
     layer = input.getFileName().toString().replaceFirst("\\.[^.]+$", ""); // remove file extention.
   }
 
@@ -50,25 +51,18 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
   public void close() throws IOException {}
 
   @Override
-  public long getFeatureCount() {
-    try (var inputStream = Files.newInputStream(path)) {
-      return GeoJsonFeatureCounter.count(inputStream);
-    } catch (IOException e) {
-      return 0;
+  public synchronized long getFeatureCount() {
+    if (count < 0) {
+      count = file.count();
     }
+    return count;
   }
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
     long id = 0;
-    try (
-      var inputStream = Files.newInputStream(path);
-      var iter = new GeoJsonFeatureIterator(inputStream)
-    ) {
-      while (iter.hasNext()) {
-        var feature = iter.next();
-        next.accept(SimpleFeature.create(feature.geometry(), feature.tags(), sourceName, layer, id++));
-      }
+    for (var feature : file) {
+      next.accept(SimpleFeature.create(feature.geometry(), feature.tags(), sourceName, layer, id++));
     }
   }
 }
