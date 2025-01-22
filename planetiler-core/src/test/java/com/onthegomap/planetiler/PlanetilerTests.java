@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.onthegomap.planetiler.TestUtils.OsmXml;
+import com.onthegomap.planetiler.TestUtils.*;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -2195,7 +2195,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .addGeoJsonSource("geojson", TestUtils.pathToResource("geojson.geojson"), null)
+      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
       .setOutput(outputUri)
       .run();
 
