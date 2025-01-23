@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class GeoJsonFeatureIteratorTest {
+class GeoJsonTest {
   @Test
   void testPoint() {
     testParse("""
@@ -147,8 +147,14 @@ class GeoJsonFeatureIteratorTest {
   void testParseBadFeatures() {
     testParse("""
       {"type": "Garbage", "geometry": {"type": "Point", "coordinates": [1, 2]}}
-      {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4]}}
+      {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4], "other2": "value"}, "other": "value"}
       {"type": "Feature", "geometry": {"type": "Garbage", "coordinates": [5, 6]}}
+      {}
+      []
+      "string"
+      1
+      null
+      false
       """, List.of(
       new GeoJsonFeature(newPoint(1, 2), Map.of()),
       new GeoJsonFeature(newPoint(3, 4), Map.of())

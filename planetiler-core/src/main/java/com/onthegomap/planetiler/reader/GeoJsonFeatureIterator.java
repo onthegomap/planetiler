@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import static com.fasterxml.jackson.core.JsonParser.Feature.INCLUDE_SOURCE_IN_LOCATION;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -27,17 +28,18 @@ import org.slf4j.LoggerFactory;
 public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   private static final Logger LOGGER = LoggerFactory.getLogger(GeoJsonFeatureIterator.class);
   private final ObjectMapper mapper = new ObjectMapper();
-  private final JsonFactory factory = new JsonFactory();
   private final JsonParser parser;
   private GeoJsonFeature next = null;
   private Map<String, Object> properties = null;
   private GeoJsonGeometry geometry;
+  private int nestingLevel = 0;
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   private record GeoJsonGeometry(String type, List<?> coordinates) {}
 
   public GeoJsonFeatureIterator(InputStream in) throws IOException {
-    this.parser = factory.createParser(in);
-    parser.configure(INCLUDE_SOURCE_IN_LOCATION, true);
+    this.parser = new JsonFactory().createParser(in);
+    parser.enable(INCLUDE_SOURCE_IN_LOCATION);
     advance();
   }
 
@@ -67,39 +69,68 @@ public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature>
 
   private void advance() {
     try {
+      geometry = null;
+      properties = null;
       next = null;
-      while (!parser.isClosed() && parser.nextToken() != JsonToken.START_OBJECT) {
-        // skip token
-      }
-      while (!parser.isClosed()) {
-        JsonToken token = parser.nextToken();
-        if (token == JsonToken.FIELD_NAME) {
-          String field = parser.currentName();
-          switch (field) {
-            case "geometry" -> consumeGeometry();
-            case "properties" -> consumeProperties();
-            case "features", "type" -> {
-              parser.nextToken(); // enter array
+      JsonToken token = null;
+      while (next == null && !parser.isClosed()) {
+        if (nestingLevel == 0) {
+          findNextStruct();
+        }
+        while (!parser.isClosed() && (nestingLevel > 0) && !(token = parser.nextToken()).isStructEnd()) {
+          if (token == JsonToken.START_OBJECT) {
+            nestingLevel++;
+          } else if (token == JsonToken.FIELD_NAME) {
+            String field = parser.currentName();
+            switch (field) {
+              case "geometry" -> consumeGeometry();
+              case "properties" -> consumeProperties();
+              case "type" -> consume(JsonToken.VALUE_STRING);
+              case "features" -> {
+                consume(JsonToken.START_ARRAY);
+                nestingLevel++;
+                consume(JsonToken.START_OBJECT);
+                nestingLevel++;
+              }
+              case null, default -> {
+                parser.nextToken();
+                parser.skipChildren();
+              }
             }
-            case null, default ->
-              LOGGER.warn("Unrecognized token at {}: {}", loc(), field);
+          } else {
+            LOGGER.warn("Unexpected token inside struct at {}: {}", loc(), token);
           }
+        }
+        if (token == JsonToken.END_ARRAY) {
+          nestingLevel--;
         } else if (token == JsonToken.END_OBJECT) {
-          Geometry geom = getGeometry();
+          var geom = getGeometry();
           if (geom != null) {
-            next = new GeoJsonFeature(getGeometry(), properties == null ? Map.of() : properties);
-            geometry = null;
-            properties = null;
+            next = new GeoJsonFeature(geom, properties == null ? Map.of() : properties);
           }
-          if (next != null) {
-            break;
-          }
-        } else {
-          LOGGER.warn("Unrecognized field at {}: {}", loc(), token);
+          nestingLevel--;
         }
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+
+  }
+
+  private void consume(JsonToken tokenType) throws IOException {
+    if (parser.nextToken() != tokenType) {
+      LOGGER.warn("Unexpected token type at {}: {}", loc(), tokenType);
+    }
+  }
+
+  private void findNextStruct() throws IOException {
+    JsonToken token;
+    while ((token = parser.nextToken()) != null && token != JsonToken.START_OBJECT) {
+      LOGGER.warn("Unexpected top-level token at {}: {}", loc(), token);
+      parser.skipChildren();
+    }
+    if (!parser.isClosed()) {
+      nestingLevel++;
     }
   }
 
