@@ -147,16 +147,23 @@ class GeoJsonTest {
     ));
   }
 
-  @Test
-  void testPointWithNullProperties() {
+  @ParameterizedTest
+  @CsvSource(textBlock = """
+    ""
+    null
+    true
+    1
+    []
+    """)
+  void testPointWithBadProperties(String properties) {
     testParse(
       """
         {
           "type": "Feature",
           "geometry": {"type": "Point", "coordinates": [1, 2]},
-          "properties": null
+          "properties": %s
         }
-        """,
+        """.formatted(properties),
       List.of(
         new GeoJsonFeature(newPoint(1, 2), Map.of())
       ));
@@ -230,6 +237,7 @@ class GeoJsonTest {
       {"type": "Garbage", "geometry": {"type": "Point", "coordinates": [1, 2]}}
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4], "other2": "value"}, "other": "value"}
       {"type": "Feature", "geometry": {"type": "Garbage", "coordinates": [5, 6]}}
+      {"type": "FeatureCollection", "features": {}}
       """, List.of(
       new GeoJsonFeature(newPoint(1, 2), Map.of()),
       new GeoJsonFeature(newPoint(3, 4), Map.of()),
@@ -243,6 +251,14 @@ class GeoJsonTest {
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [[1, 2]]}}; POINT EMPTY
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [[1]]}}; POINT EMPTY
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": {}}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": 1}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": "1"}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": 1, "coordinates": [1,1]}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": [], "coordinates": [1,1]}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": {}, "coordinates": [1,1]}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": []}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": null}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": "1"}; GEOMETRYCOLLECTION EMPTY
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, {}]}}; POINT EMPTY
         {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [1, 2]}}; MULTIPOINT EMPTY
         {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [[1, 2], {}]}}; MULTIPOINT ((1 2))

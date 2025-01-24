@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,9 +47,10 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   private int warnings = 0;
   private static final int WARN_LIMIT = 100;
   private final String name;
+  private static final GeoJsonGeometry EMPTY_GEOJSON_GEOMETRY = new GeoJsonGeometry("", null);
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private record GeoJsonGeometry(String type, Object coordinates) {}
+  private record GeoJsonGeometry(Object type, Object coordinates) {}
 
   GeoJsonFeatureIterator(InputStream in, String name) throws IOException {
     this.name = name;
@@ -101,10 +103,12 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
                 case "properties" -> consumeProperties();
                 case "type" -> consume(JsonToken.VALUE_STRING);
                 case "features" -> {
-                  consume(JsonToken.START_ARRAY);
-                  nestingLevel++;
-                  consume(JsonToken.START_OBJECT);
-                  nestingLevel++;
+                  if (consume(JsonToken.START_ARRAY)) {
+                    nestingLevel++;
+                    if (consume(JsonToken.START_OBJECT)) {
+                      nestingLevel++;
+                    }
+                  }
                 }
                 case null, default -> {
                   parser.nextToken();
@@ -126,9 +130,8 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
         }
       }
     } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      throw new FileFormatException("JSON syntax error in " + name, e);
     }
-
   }
 
   private boolean consume(JsonToken tokenType) throws IOException {
@@ -141,14 +144,17 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   }
 
   private void consumeProperties() throws IOException {
-    consume(JsonToken.START_OBJECT);
-    properties = mapper.readValue(parser, Map.class);
+    if (consume(JsonToken.START_OBJECT)) {
+      properties = mapper.readValue(parser, Map.class);
+    }
   }
 
   private void consumeGeometry() throws IOException {
     if (consume(JsonToken.START_OBJECT)) {
       geometryStart = parser.currentTokenLocation();
       geometry = mapper.readValue(parser, GeoJsonGeometry.class);
+    } else {
+      geometry = EMPTY_GEOJSON_GEOMETRY;
     }
   }
 
@@ -164,12 +170,18 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   }
 
   private Geometry getGeometry() {
-    if (geometry == null) {
+    if (geometry == EMPTY_GEOJSON_GEOMETRY) {
+      return GeoUtils.EMPTY_GEOMETRY;
+    } else if (geometry == null) {
       return null;
     }
     var factory = JTS_FACTORY;
-    if (geometry.coordinates instanceof List<?> coords) {
-      return switch (geometry.type) {
+    if (!(geometry.coordinates instanceof List<?> coords)) {
+      warnGeometry("Expected coordinate list but got: " + geometry.coordinates);
+    } else if (!(geometry.type instanceof String type)) {
+      warnGeometry("Expected geometry type string but got: " + geometry.coordinates);
+    } else {
+      return switch (type) {
         case "Point" -> point(coords);
         case "LineString" -> lineString(coords);
         case "Polygon" -> polygon(coords);
@@ -177,8 +189,8 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
         case "MultiLineString" ->
           factory.createMultiLineString(map(coords, this::lineString).toArray(LineString[]::new));
         case "MultiPolygon" -> factory.createMultiPolygon(map(coords, this::polygon).toArray(Polygon[]::new));
-        case null, default -> {
-          warnGeometry("Unexpected geometry type: " + geometry.type);
+        default -> {
+          warnGeometry("Unexpected geometry type: " + type);
           yield GeoUtils.EMPTY_GEOMETRY;
         }
       };
