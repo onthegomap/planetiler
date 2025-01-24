@@ -3,11 +3,16 @@ package com.onthegomap.planetiler.reader;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 
 class GeoJsonTest {
   @Test
@@ -82,6 +87,82 @@ class GeoJsonTest {
   }
 
   @Test
+  void testMultiPolygonWithHoles() {
+    testParse(
+      """
+        {"type": "Feature", "geometry": {"type": "MultiPolygon", "coordinates": [[[[0, 0], [3, 0], [3, 3], [0, 3], [0, 0]], [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]], [[[0, 0], [3, 0], [3, 3], [0, 3], [0, 0]], [[1, 1], [2, 1], [2, 2], [1, 2], [1, 1]]]]}}
+        """,
+      List.of(
+        new GeoJsonFeature(
+          newMultiPolygon(
+            newPolygon(
+              newCoordinateList(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
+              List.of(newCoordinateList(1, 1, 2, 1, 2, 2, 1, 2, 1, 1))
+            ),
+            newPolygon(
+              newCoordinateList(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
+              List.of(newCoordinateList(1, 1, 2, 1, 2, 2, 1, 2, 1, 1))
+            )
+          ), Map.of())
+      ));
+  }
+
+
+  @Test
+  void testEmptyPoint() {
+    testParse("""
+      {"type": "Feature", "geometry": {"type": "Point", "coordinates": []}}
+      """, List.of(
+      new GeoJsonFeature(GeoUtils.JTS_FACTORY.createPoint(), Map.of())
+    ));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"[]", "[[]]"})
+  void testEmptyLineString(String coords) {
+    testParse("""
+      {"type": "Feature", "geometry": {"type": "LineString", "coordinates": %s}}
+      """.formatted(coords), List.of(
+      new GeoJsonFeature(newLineString(), Map.of())
+    ));
+  }
+
+
+  @ParameterizedTest
+  @ValueSource(strings = {"[]", "[[]]", "[[[]]]"})
+  void testEmptyPolygon(String coords) {
+    testParse("""
+      {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": %s}}
+      """.formatted(coords), List.of(
+      new GeoJsonFeature(GeoUtils.JTS_FACTORY.createPolygon(), Map.of())
+    ));
+  }
+
+  @Test
+  void testEmptyMultiLineString() {
+    testParse("""
+      {"type": "Feature", "geometry": {"type": "LineString", "coordinates": []}}
+      """, List.of(
+      new GeoJsonFeature(newLineString(), Map.of())
+    ));
+  }
+
+  @Test
+  void testPointWithNullProperties() {
+    testParse(
+      """
+        {
+          "type": "Feature",
+          "geometry": {"type": "Point", "coordinates": [1, 2]},
+          "properties": null
+        }
+        """,
+      List.of(
+        new GeoJsonFeature(newPoint(1, 2), Map.of())
+      ));
+  }
+
+  @Test
   void testPointWithProperties() {
     testParse(
       """
@@ -149,16 +230,44 @@ class GeoJsonTest {
       {"type": "Garbage", "geometry": {"type": "Point", "coordinates": [1, 2]}}
       {"type": "Feature", "geometry": {"type": "Point", "coordinates": [3, 4], "other2": "value"}, "other": "value"}
       {"type": "Feature", "geometry": {"type": "Garbage", "coordinates": [5, 6]}}
+      """, List.of(
+      new GeoJsonFeature(newPoint(1, 2), Map.of()),
+      new GeoJsonFeature(newPoint(3, 4), Map.of())
+    ), 3);
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    textBlock = """
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [[1, 2]]}}; POINT EMPTY
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [[1]]}}; POINT EMPTY
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": {}}}; GEOMETRYCOLLECTION EMPTY
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, {}]}}; POINT EMPTY
+        {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [1, 2]}}; MULTIPOINT EMPTY
+        {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [[1, 2], {}]}}; MULTIPOINT ((1 2))
+        {"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": [{}, [1, 2]]}}; MULTIPOINT ((1 2))
+        {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [1, 2]}}; LINESTRING EMPTY
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [1, 2]}}; POLYGON EMPTY
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[1, 2]]]}}; POLYGON EMPTY
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1]]]}}; POLYGON EMPTY
+      """,
+    delimiter = ';')
+  void testBadGeometries(String json, String expected) throws ParseException {
+    Geometry geometry = new WKTReader().read(expected);
+    testParse(json, List.of(new GeoJsonFeature(geometry, Map.of())));
+  }
+
+  @ParameterizedTest
+  @CsvSource(textBlock = """
       {}
       []
       "string"
       1
       null
       false
-      """, List.of(
-      new GeoJsonFeature(newPoint(1, 2), Map.of()),
-      new GeoJsonFeature(newPoint(3, 4), Map.of())
-    ), 3);
+    """, delimiter = '\t')
+  void testReallyBadGeometries(String json) {
+    testParse(json, List.of());
   }
 
   private void testParse(String json, List<GeoJsonFeature> expected) {
@@ -166,7 +275,7 @@ class GeoJsonTest {
   }
 
   private void testParse(String json, List<GeoJsonFeature> expected, int numExpected) {
-    GeoJson wrapper = new GeoJson(() -> new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+    GeoJson wrapper = GeoJson.from(json);
     assertEquals(expected, wrapper.stream().toList());
     assertEquals(numExpected, wrapper.count());
   }

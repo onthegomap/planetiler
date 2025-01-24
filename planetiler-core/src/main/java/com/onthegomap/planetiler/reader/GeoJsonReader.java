@@ -5,7 +5,6 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
@@ -21,7 +20,7 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
 
   GeoJsonReader(String sourceName, Path input) {
     super(sourceName);
-    this.file = new GeoJson(() -> Files.newInputStream(input));
+    this.file = GeoJson.from(input);
     layer = input.getFileName().toString().replaceFirst("\\.[^.]+$", ""); // remove file extention.
   }
 

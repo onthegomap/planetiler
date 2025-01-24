@@ -1,9 +1,11 @@
 package com.onthegomap.planetiler.reader;
 
 import static com.fasterxml.jackson.core.JsonParser.Feature.INCLUDE_SOURCE_IN_LOCATION;
+import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,16 +18,20 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import org.locationtech.jts.geom.Coordinate;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
+class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GeoJsonFeatureIterator.class);
   private final ObjectMapper mapper = new ObjectMapper();
   private final JsonParser parser;
@@ -33,11 +39,16 @@ public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature>
   private Map<String, Object> properties = null;
   private GeoJsonGeometry geometry;
   private int nestingLevel = 0;
+  private JsonLocation geometryStart;
+  private int warnings = 0;
+  private static final int WARN_LIMIT = 100;
+  private final String name;
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private record GeoJsonGeometry(String type, List<?> coordinates) {}
+  private record GeoJsonGeometry(String type, Object coordinates) {}
 
-  public GeoJsonFeatureIterator(InputStream in) throws IOException {
+  GeoJsonFeatureIterator(InputStream in, String name) throws IOException {
+    this.name = name;
     this.parser = new JsonFactory().createParser(in);
     parser.enable(INCLUDE_SOURCE_IN_LOCATION);
     advance();
@@ -78,27 +89,27 @@ public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature>
           findNextStruct();
         }
         while (!parser.isClosed() && (nestingLevel > 0) && !(token = parser.nextToken()).isStructEnd()) {
-          if (token == JsonToken.START_OBJECT) {
-            nestingLevel++;
-          } else if (token == JsonToken.FIELD_NAME) {
-            String field = parser.currentName();
-            switch (field) {
-              case "geometry" -> consumeGeometry();
-              case "properties" -> consumeProperties();
-              case "type" -> consume(JsonToken.VALUE_STRING);
-              case "features" -> {
-                consume(JsonToken.START_ARRAY);
-                nestingLevel++;
-                consume(JsonToken.START_OBJECT);
-                nestingLevel++;
-              }
-              case null, default -> {
-                parser.nextToken();
-                parser.skipChildren();
+          switch (token) {
+            case JsonToken.START_OBJECT -> nestingLevel++;
+            case JsonToken.FIELD_NAME -> {
+              String field = parser.currentName();
+              switch (field) {
+                case "geometry" -> consumeGeometry();
+                case "properties" -> consumeProperties();
+                case "type" -> consume(JsonToken.VALUE_STRING);
+                case "features" -> {
+                  consume(JsonToken.START_ARRAY);
+                  nestingLevel++;
+                  consume(JsonToken.START_OBJECT);
+                  nestingLevel++;
+                }
+                case null, default -> {
+                  parser.nextToken();
+                  parser.skipChildren();
+                }
               }
             }
-          } else {
-            LOGGER.warn("Unexpected token inside struct at {}: {}", loc(), token);
+            default -> warn("Unexpected token inside struct: " + token);
           }
         }
         if (token == JsonToken.END_ARRAY) {
@@ -119,14 +130,26 @@ public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature>
 
   private void consume(JsonToken tokenType) throws IOException {
     if (parser.nextToken() != tokenType) {
-      LOGGER.warn("Unexpected token type at {}: {}", loc(), tokenType);
+      warn("Unexpected token type: " + tokenType);
+      parser.skipChildren();
     }
+  }
+
+  private void consumeProperties() throws IOException {
+    consume(JsonToken.START_OBJECT);
+    properties = mapper.readValue(parser, Map.class);
+  }
+
+  private void consumeGeometry() throws IOException {
+    consume(JsonToken.START_OBJECT);
+    geometryStart = parser.currentTokenLocation();
+    geometry = mapper.readValue(parser, GeoJsonGeometry.class);
   }
 
   private void findNextStruct() throws IOException {
     JsonToken token;
     while ((token = parser.nextToken()) != null && token != JsonToken.START_OBJECT) {
-      LOGGER.warn("Unexpected top-level token at {}: {}", loc(), token);
+      warn("Unexpected top-level token: " + token);
       parser.skipChildren();
     }
     if (!parser.isClosed()) {
@@ -134,85 +157,116 @@ public class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature>
     }
   }
 
-  private String loc() {
-    return parser.currentTokenLocation().offsetDescription();
-  }
-
   private Geometry getGeometry() {
     if (geometry == null) {
       return null;
     }
-    return switch (geometry.type) {
-      case "Point" -> GeoUtils.JTS_FACTORY.createPoint(coordinate(geometry.coordinates));
-      case "LineString" -> GeoUtils.JTS_FACTORY.createLineString(coordinateSequence(geometry.coordinates));
-      case "Polygon" -> polygon(geometry.coordinates);
-      case "MultiPoint" -> GeoUtils.JTS_FACTORY.createMultiPoint(coordinateSequence(geometry.coordinates));
-      case "MultiLineString" -> {
-        List<CoordinateSequence> lines = coordinateSequenceList(geometry.coordinates);
-        yield GeoUtils.createMultiLineString(lines.stream().map(GeoUtils.JTS_FACTORY::createLineString).toList());
-      }
-      case "MultiPolygon" -> {
-        List<Polygon> polygons = geometry.coordinates.stream()
-          .filter(List.class::isInstance)
-          .map(List.class::cast)
-          .map(this::polygon)
-          .toList();
-        yield GeoUtils.createMultiPolygon(polygons);
-      }
-      case null, default -> {
-        LOGGER.warn("Unexpected geometry type: {}", geometry.type);
-        yield null;
-      }
-    };
+    var factory = JTS_FACTORY;
+    if (geometry.coordinates instanceof List<?> coords) {
+      return switch (geometry.type) {
+        case "Point" -> point(coords);
+        case "LineString" -> lineString(coords);
+        case "Polygon" -> polygon(coords);
+        case "MultiPoint" -> factory.createMultiPoint(map(coords, this::point).toArray(Point[]::new));
+        case "MultiLineString" ->
+          factory.createMultiLineString(map(coords, this::lineString).toArray(LineString[]::new));
+        case "MultiPolygon" -> factory.createMultiPolygon(map(coords, this::polygon).toArray(Polygon[]::new));
+        case null, default -> {
+          warn("Unexpected geometry type: " + geometry.type);
+          yield null;
+        }
+      };
+    }
+    return GeoUtils.EMPTY_GEOMETRY;
   }
 
-  private Polygon polygon(List<?> list) {
-    List<LinearRing> rings = linearRingList(list);
-    return GeoUtils.createPolygon(rings.getFirst(), rings.subList(1, rings.size()));
+  private <T> Stream<T> map(List<?> coordinates, Function<List<?>, T> mapper) {
+    return coordinates.stream().filter(item -> {
+      if (!(item instanceof List<?>)) {
+        warn("Expecting list in geojson geometry but got: " + item);
+        return false;
+      }
+      return true;
+    }).<List<?>>map(List.class::cast).map(mapper);
   }
 
-  private Coordinate coordinate(List<?> list) {
-    return new CoordinateXY(((Number) list.get(0)).doubleValue(), ((Number) list.get(1)).doubleValue());
+  private LineString lineString(List<?> coordinates) {
+    return JTS_FACTORY.createLineString(coordinateSequence(coordinates));
+  }
+
+  private Point point(List<?> coordinates) {
+    return JTS_FACTORY.createPoint(coordinate(coordinates));
+  }
+
+  private Polygon polygon(List<?> coordinates) {
+    List<LinearRing> rings = linearRingList(coordinates);
+    return GeoUtils.createPolygon(
+      rings.isEmpty() ? null : rings.getFirst(),
+      rings.size() <= 1 ? List.of() : rings.subList(1, rings.size())
+    );
+  }
+
+  private CoordinateSequence coordinate(List<?> coord) {
+    MutableCoordinateSequence result = new MutableCoordinateSequence();
+    boolean good = false;
+    if (coord.size() >= 2) {
+      var el1 = coord.get(0);
+      var el2 = coord.get(1);
+      if (el1 instanceof Number x && el2 instanceof Number y) {
+        result.addPoint(x.doubleValue(), y.doubleValue());
+        good = true;
+      }
+    }
+    if (!good) {
+      warn("Invalid geojson point coordinate: " + coord);
+    }
+    return result;
   }
 
   private CoordinateSequence coordinateSequence(List<?> list) {
     MutableCoordinateSequence result = new MutableCoordinateSequence(list.size());
     for (var item : list) {
-      if (item instanceof List<?> coord) {
-        result.addPoint(((Number) coord.get(0)).doubleValue(), ((Number) coord.get(1)).doubleValue());
+      boolean good = false;
+      if (item instanceof List<?> coord && coord.size() >= 2) {
+        var el1 = coord.get(0);
+        var el2 = coord.get(1);
+        if (el1 instanceof Number x && el2 instanceof Number y) {
+          good = true;
+          result.addPoint(x.doubleValue(), y.doubleValue());
+        }
+      }
+      if (!good) {
+        warn("Invalid geojson coordinate: " + item, geometryStart);
       }
     }
     return result;
   }
 
   private LinearRing linearRing(List<?> list) {
-    return GeoUtils.JTS_FACTORY.createLinearRing(coordinateSequence(list));
+    var coordinateSequence = coordinateSequence(list);
+    if (!CoordinateSequences.isRing(coordinateSequence)) {
+      warn("Invalid geojson polygon ring " + list);
+    }
+    return CoordinateSequences.isRing(coordinateSequence) ?
+      JTS_FACTORY.createLinearRing(coordinateSequence(list)) : JTS_FACTORY.createLinearRing();
   }
 
   private List<LinearRing> linearRingList(List<?> list) {
     return list.stream().filter(List.class::isInstance).map(List.class::cast).map(this::linearRing).toList();
   }
 
-  private List<List<LinearRing>> linearRingLists(List<?> list) {
-    return list.stream().filter(List.class::isInstance).map(List.class::cast).map(this::linearRingList).toList();
+  private void warn(String message) {
+    warn(message, parser.currentTokenLocation());
   }
 
-  private List<CoordinateSequence> coordinateSequenceList(List<?> list) {
-    return list.stream().filter(List.class::isInstance).map(List.class::cast).map(this::coordinateSequence).toList();
-  }
-
-  private List<List<CoordinateSequence>> coordinateSequenceLists(List<?> list) {
-    return list.stream().filter(List.class::isInstance).map(List.class::cast).map(this::coordinateSequenceList)
-      .toList();
-  }
-
-  private void consumeProperties() throws IOException {
-    parser.nextToken();
-    properties = mapper.readValue(parser, Map.class);
-  }
-
-  private void consumeGeometry() throws IOException {
-    parser.nextToken();
-    geometry = mapper.readValue(parser, GeoJsonGeometry.class);
+  private void warn(String message, JsonLocation ref) {
+    if (ref == null) {
+      ref = parser.currentTokenLocation();
+    }
+    if (++warnings < WARN_LIMIT) {
+      LOGGER.warn("[{}{}:{}] {}", name == null ? "" : (name + ":"), ref.getLineNr(), ref.getColumnNr(), message);
+    } else if (warnings == WARN_LIMIT) {
+      LOGGER.warn("Too many warnings, geojson file might be invalid");
+    }
   }
 }

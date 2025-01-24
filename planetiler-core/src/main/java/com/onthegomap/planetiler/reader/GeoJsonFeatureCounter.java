@@ -16,14 +16,15 @@ public class GeoJsonFeatureCounter {
     ) {
       while (!parser.isClosed()) {
         JsonToken token = parser.nextToken();
-        if (token == JsonToken.FIELD_NAME) {
+        if (token == JsonToken.START_ARRAY) {
+          parser.skipChildren();
+        } else if (token == JsonToken.FIELD_NAME) {
           String name = parser.currentName();
+          parser.nextToken();
           if ("geometry".equals(name)) {
-            parser.nextToken();
             parser.skipChildren();
             count++;
-          } else if ("properties".equals(name)) {
-            parser.nextToken();
+          } else if (!"features".equals(name)) {
             parser.skipChildren();
           }
         }
