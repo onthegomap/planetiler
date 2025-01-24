@@ -131,11 +131,13 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
 
   }
 
-  private void consume(JsonToken tokenType) throws IOException {
+  private boolean consume(JsonToken tokenType) throws IOException {
     if (parser.nextToken() != tokenType) {
       warn("Unexpected token type: " + tokenType);
       parser.skipChildren();
+      return false;
     }
+    return true;
   }
 
   private void consumeProperties() throws IOException {
@@ -144,9 +146,10 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   }
 
   private void consumeGeometry() throws IOException {
-    consume(JsonToken.START_OBJECT);
-    geometryStart = parser.currentTokenLocation();
-    geometry = mapper.readValue(parser, GeoJsonGeometry.class);
+    if (consume(JsonToken.START_OBJECT)) {
+      geometryStart = parser.currentTokenLocation();
+      geometry = mapper.readValue(parser, GeoJsonGeometry.class);
+    }
   }
 
   private void findNextStruct() throws IOException {
@@ -224,7 +227,7 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
     for (var item : list) {
       if (item instanceof List<?> coord && coord.size() >= 2 &&
         coord.get(0) instanceof Number x && coord.get(1) instanceof Number y) {
-        result.addPoint(x.doubleValue(), y.doubleValue());
+        result.forceAddPoint(x.doubleValue(), y.doubleValue());
       } else {
         warnGeometry("Invalid geojson coordinate: " + item);
       }
