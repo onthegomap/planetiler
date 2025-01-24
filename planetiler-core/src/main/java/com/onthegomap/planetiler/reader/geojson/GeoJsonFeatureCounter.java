@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;

@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
 import static com.fasterxml.jackson.core.JsonParser.Feature.INCLUDE_SOURCE_IN_LOCATION;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;

@@ -1,5 +1,6 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
 

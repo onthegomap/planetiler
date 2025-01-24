@@ -1,5 +1,6 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
+import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

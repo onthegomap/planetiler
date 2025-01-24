@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;

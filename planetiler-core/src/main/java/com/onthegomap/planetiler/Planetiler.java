@@ -10,11 +10,11 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.reader.GeoJsonReader;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.geojson.GeoJsonReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -613,7 +613,9 @@ public class Planetiler {
   public Translations translations() {
     if (translations == null) {
       boolean transliterate = arguments.getBoolean("transliterate", "attempt to transliterate latin names", true);
-      List<String> languages = arguments.getList("languages", "Languages to include labels for. \"default\" expands to the default set of languages configured by the profile. \"-lang\" excludes \"lang\". \"*\" includes every language not listed.", this.defaultLanguages);
+      List<String> languages = arguments.getList("languages",
+        "Languages to include labels for. \"default\" expands to the default set of languages configured by the profile. \"-lang\" excludes \"lang\". \"*\" includes every language not listed.",
+        this.defaultLanguages);
       if (languages.contains("default")) {
         languages = Stream.concat(
           languages.stream().filter(language -> !language.equals("default")),

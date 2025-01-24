@@ -1,8 +1,12 @@
-package com.onthegomap.planetiler.reader;
+package com.onthegomap.planetiler.reader.geojson;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.SimpleFeature;
+import com.onthegomap.planetiler.reader.SimpleReader;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.nio.file.Path;
