@@ -56,7 +56,9 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
   }
 
   @Override
-  public void close() throws IOException {}
+  public void close() throws IOException {
+    // the file is opened/closed independently from operations that read it
+  }
 
   @Override
   public synchronized long getFeatureCount() {
