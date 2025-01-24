@@ -6,9 +6,17 @@ import com.fasterxml.jackson.core.JsonToken;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class GeoJsonFeatureCounter {
+/**
+ * Internal streaming utility to count the number of features in a geojson document.
+ * <p>
+ * To simplify processing, it counts the number of "geometry" fields on objects, and descends into any "features" array
+ * to traverse FeatureCollections. This will result in the correct count for valid geojson, but may be off for invalid
+ * geojson.
+ */
+class GeoJsonFeatureCounter {
+  private GeoJsonFeatureCounter() {}
 
-  public static long count(InputStream inputStream) throws IOException {
+  static long count(InputStream inputStream) throws IOException {
     long count = 0;
     try (
       JsonParser parser =

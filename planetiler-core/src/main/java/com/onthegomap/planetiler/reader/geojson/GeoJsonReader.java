@@ -15,6 +15,11 @@ import java.util.function.Consumer;
 
 /**
  * Utility that reads {@link SourceFeature SourceFeatures} from the vector geometries contained in a GeoJSON file.
+ * <p>
+ * The file can contain newline-delimited features, or features in a feature collection.
+ *
+ * @see <a href="https://stevage.github.io/ndgeojson/">Newline-delimted geojson</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc7946">GeoJSON specification (RFC 7946)</a>
  */
 public class GeoJsonReader extends SimpleReader<SimpleFeature> {
 
@@ -29,7 +34,7 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
   }
 
   /**
-   * Renders map features for all elements from an GeoJSON on the mapping logic defined in {@code
+   * Renders map features for all elements in a GeoJSON file based on the mapping logic defined in {@code
    * profile}.
    *
    * @param sourceName  string ID for this reader to use in logs and stats

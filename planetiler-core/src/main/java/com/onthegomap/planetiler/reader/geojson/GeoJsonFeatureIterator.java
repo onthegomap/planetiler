@@ -30,6 +30,9 @@ import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Internal streaming geojson parsing utility.
+ */
 class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GeoJsonFeatureIterator.class);
@@ -172,8 +175,8 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
           factory.createMultiLineString(map(coords, this::lineString).toArray(LineString[]::new));
         case "MultiPolygon" -> factory.createMultiPolygon(map(coords, this::polygon).toArray(Polygon[]::new));
         case null, default -> {
-          warn("Unexpected geometry type: " + geometry.type);
-          yield null;
+          warnGeometry("Unexpected geometry type: " + geometry.type);
+          yield GeoUtils.EMPTY_GEOMETRY;
         }
       };
     }
@@ -183,7 +186,7 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   private <T> Stream<T> map(List<?> coordinates, Function<List<?>, T> mapper) {
     return coordinates.stream().filter(item -> {
       if (!(item instanceof List<?>)) {
-        warn("Expecting list in geojson geometry but got: " + item);
+        warnGeometry("Expecting list in geojson geometry but got: " + item);
         return false;
       }
       return true;
@@ -208,17 +211,10 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
 
   private CoordinateSequence coordinate(List<?> coord) {
     MutableCoordinateSequence result = new MutableCoordinateSequence();
-    boolean good = false;
-    if (coord.size() >= 2) {
-      var el1 = coord.get(0);
-      var el2 = coord.get(1);
-      if (el1 instanceof Number x && el2 instanceof Number y) {
-        result.addPoint(x.doubleValue(), y.doubleValue());
-        good = true;
-      }
-    }
-    if (!good) {
-      warn("Invalid geojson point coordinate: " + coord);
+    if (coord.size() >= 2 && coord.get(0) instanceof Number x && coord.get(1) instanceof Number y) {
+      result.addPoint(x.doubleValue(), y.doubleValue());
+    } else {
+      warnGeometry("Invalid geojson point coordinate: " + coord);
     }
     return result;
   }
@@ -226,17 +222,11 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   private CoordinateSequence coordinateSequence(List<?> list) {
     MutableCoordinateSequence result = new MutableCoordinateSequence(list.size());
     for (var item : list) {
-      boolean good = false;
-      if (item instanceof List<?> coord && coord.size() >= 2) {
-        var el1 = coord.get(0);
-        var el2 = coord.get(1);
-        if (el1 instanceof Number x && el2 instanceof Number y) {
-          good = true;
-          result.addPoint(x.doubleValue(), y.doubleValue());
-        }
-      }
-      if (!good) {
-        warn("Invalid geojson coordinate: " + item, geometryStart);
+      if (item instanceof List<?> coord && coord.size() >= 2 &&
+        coord.get(0) instanceof Number x && coord.get(1) instanceof Number y) {
+        result.addPoint(x.doubleValue(), y.doubleValue());
+      } else {
+        warnGeometry("Invalid geojson coordinate: " + item);
       }
     }
     return result;
@@ -245,7 +235,7 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   private LinearRing linearRing(List<?> list) {
     var coordinateSequence = coordinateSequence(list);
     if (!CoordinateSequences.isRing(coordinateSequence)) {
-      warn("Invalid geojson polygon ring " + list);
+      warnGeometry("Invalid geojson polygon ring " + list);
     }
     return CoordinateSequences.isRing(coordinateSequence) ?
       JTS_FACTORY.createLinearRing(coordinateSequence(list)) : JTS_FACTORY.createLinearRing();
@@ -257,6 +247,10 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
 
   private void warn(String message) {
     warn(message, parser.currentTokenLocation());
+  }
+
+  private void warnGeometry(String message) {
+    warn(message, geometryStart);
   }
 
   private void warn(String message, JsonLocation ref) {

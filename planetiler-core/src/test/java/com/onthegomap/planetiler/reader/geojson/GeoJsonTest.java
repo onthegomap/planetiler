@@ -232,7 +232,8 @@ class GeoJsonTest {
       {"type": "Feature", "geometry": {"type": "Garbage", "coordinates": [5, 6]}}
       """, List.of(
       new GeoJsonFeature(newPoint(1, 2), Map.of()),
-      new GeoJsonFeature(newPoint(3, 4), Map.of())
+      new GeoJsonFeature(newPoint(3, 4), Map.of()),
+      new GeoJsonFeature(emptyGeometry(), Map.of())
     ), 3);
   }
 

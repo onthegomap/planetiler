@@ -437,7 +437,7 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new GeoJSON source that will be processed when {@link #run()} is called.
+   * Adds a new GeoJSON or newline-delimited GeoJSON source that will be processed when {@link #run()} is called.
    * <p>
    * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
    * {@code defaultUrl}.
