@@ -460,6 +460,11 @@ public class Planetiler {
         () -> GeoJsonReader.process(name, List.of(path), featureGroup, config, profile, stats)));
   }
 
+  /** Same as {@link #addGeoJsonSource(String, Path, String)} except don't download a remote file. */
+  public Planetiler addGeoJsonSource(String name, Path defaultPath) {
+    return addGeoJsonSource(name, defaultPath, null);
+  }
+
   /**
    * Adds a new Natural Earth sqlite file source that will be processed when {@link #run()} is called.
    * <p>
