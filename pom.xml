@@ -28,7 +28,7 @@
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
     <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
-    <revision>0.8.4-SNAPSHOT</revision>
+    <revision>0.8.5-SNAPSHOT</revision>
     <timestamp>${maven.build.timestamp}</timestamp>
   </properties>
 
