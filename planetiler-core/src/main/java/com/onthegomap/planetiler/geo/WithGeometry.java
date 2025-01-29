@@ -340,5 +340,10 @@ public abstract class WithGeometry implements WithGeometryType {
     public boolean canBeLine() {
       return worldGeometry instanceof Lineal;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj == this || (obj instanceof FromWorld other && other.worldGeometry.equals(worldGeometry));
+    }
   }
 }

@@ -1563,6 +1563,35 @@ class ConfiguredFeatureTest {
 
   @ParameterizedTest
   @CsvSource(value = {
+    "feature.point_along_line(0) == feature.point_along_line(0); true",
+    "feature.point_along_line(0) == feature.point_along_line(0); true",
+    "feature.point_along_line(0) == feature.point_along_line(1); true",
+    "feature.point_along_line(0) == feature.point_along_line(0.5); false",
+  }, delimiter = ';')
+  void testGeometryAttributesLineBoolean(String expression, boolean expected) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          attributes:
+          - key: attr
+            value: ${%s}
+      """.formatted(expression);
+    var sfMatch =
+      SimpleFeature.createFakeOsmFeature(newLineString(1, 2, 3, 4, 1, 2), Map.of(), "osm", "layer", 1, emptyList(),
+        new OsmElement.Info(2, 3, 4, 5, "user"));
+    testFeature(config, sfMatch,
+      any -> assertEquals(expected, any.getAttrsAtZoom(14).get("attr")), 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
     "feature.area('z0 px2'); 1.17743E-10",
     "feature.area('z0 tiles'); 7.7164E-6",
     "feature.area('sm'); 1.2364E10",
