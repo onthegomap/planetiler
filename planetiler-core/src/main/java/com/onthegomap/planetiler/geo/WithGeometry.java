@@ -345,5 +345,10 @@ public abstract class WithGeometry implements WithGeometryType {
     public boolean equals(Object obj) {
       return obj == this || (obj instanceof FromWorld other && other.worldGeometry.equals(worldGeometry));
     }
+
+    @Override
+    public int hashCode() {
+      return worldGeometry.hashCode();
+    }
   }
 }
