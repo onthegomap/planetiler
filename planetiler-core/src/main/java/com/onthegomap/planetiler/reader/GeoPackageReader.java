@@ -151,15 +151,15 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
       FeatureIndexManager indexer = new FeatureIndexManager(geoPackage,
         features);
-      indexer.setIndexLocation(FeatureIndexType.RTREE);
 
       BoundingBox boundingBox = BoundingBox.worldWGS84();
 
-      if (this.bounds != null) {
+      if (this.bounds != null && indexer.isIndexed() && srsId == 4326) {
         var l = this.bounds;
-
+        indexer.setIndexLocation(FeatureIndexType.RTREE);
         boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
       }
+
       FeatureIndexResults indexResults = indexer.query(boundingBox);
 
       for (FeatureRow feature : indexResults) {
