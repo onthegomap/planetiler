@@ -46,7 +46,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     if (sourceProjection != null) {
       try {
         var sourceCRS = CRS.decode(sourceProjection);
-        var latLonCRS = CRS.decode("EPSG:4326");
+        var latLonCRS = CRS.decode("EPSG:4326", true);
         coordinateTransform = CRS.findMathTransform(sourceCRS, latLonCRS);
       } catch (FactoryException e) {
         throw new FileFormatException("Bad reference system", e);
@@ -123,7 +123,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
-    var latLonCRS = CRS.decode("EPSG:4326");
+    var latLonCRS = CRS.decode("EPSG:4326", true);
     long id = 0;
     boolean loggedMissingGeometry = false;
 
