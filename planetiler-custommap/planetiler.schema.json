@@ -42,7 +42,8 @@
               "osm",
               "shapefile",
               "geopackage",
-              "geojson"
+              "geojson",
+              "naturalearth"
             ]
           },
           "url": {
