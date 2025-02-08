@@ -479,19 +479,23 @@ public class FeatureMerge {
    */
   private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea, double minHoleArea) {
     if (geom instanceof Polygon poly) {
-      if (Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) > minArea) {
+      double outerArea = Area.ofRing(poly.getExteriorRing().getCoordinateSequence());
+      if (outerArea > minArea) {
         int innerRings = poly.getNumInteriorRing();
-        if (minHoleArea > 0 && innerRings > 0) {
-          List<LinearRing> rings = new ArrayList<>(innerRings);
-          for (int i = 0; i < innerRings; i++) {
-            LinearRing innerRing = poly.getInteriorRingN(i);
-            if (Area.ofRing(innerRing.getCoordinateSequence()) > minArea) {
-              rings.add(innerRing);
-            }
+        List<LinearRing> rings = innerRings == 0 ? List.of() : new ArrayList<>(innerRings);
+        for (int i = 0; i < innerRings; i++) {
+          LinearRing innerRing = poly.getInteriorRingN(i);
+          if (minHoleArea <= 0 || Area.ofRing(innerRing.getCoordinateSequence()) > minArea) {
+            rings.add(innerRing);
           }
-          if (rings.size() != innerRings) {
-            poly = GeoUtils.createPolygon(poly.getExteriorRing(), rings);
-          }
+        }
+        LinearRing exteriorRing = poly.getExteriorRing();
+        double fillBuffer = isFill(outerArea, exteriorRing);
+        if (fillBuffer >= 0) {
+          exteriorRing = createFill(fillBuffer);
+        }
+        if (rings.size() != innerRings || exteriorRing != poly.getExteriorRing()) {
+          poly = GeoUtils.createPolygon(exteriorRing, rings);
         }
         result.add(poly);
       }
@@ -500,6 +504,41 @@ public class FeatureMerge {
         extractPolygons(geom.getGeometryN(i), result, minArea, minHoleArea);
       }
     }
+  }
+
+  private static double isFill(double outerArea, LinearRing exteriorRing) {
+    if (outerArea < 256 * 256) {
+      return -1;
+    }
+    double proposedBuffer = (Math.sqrt(outerArea) - 256) / 2;
+    double tol = proposedBuffer / 10;
+    double min = -proposedBuffer;
+    double max = 256 + proposedBuffer;
+    var cs = exteriorRing.getCoordinateSequence();
+    for (int i = 0; i < cs.size(); i++) {
+      double x = cs.getX(i);
+      double y = cs.getY(i);
+      if ((notClose(x, min, tol) && notClose(x, max, tol)) && (notClose(y, min, tol) && notClose(y, max, tol))) {
+        return -1;
+      }
+    }
+    return proposedBuffer;
+  }
+
+  private static boolean notClose(double a, double b, double tol) {
+    return a != b && Math.abs(a - b) > tol;
+  }
+
+  private static LinearRing createFill(double buffer) {
+    double min = -buffer;
+    double max = buffer + 256;
+    return GeoUtils.JTS_FACTORY.createLinearRing(GeoUtils.coordinateSequence(
+      min, min,
+      max, min,
+      max, max,
+      min, max,
+      min, min
+    ));
   }
 
   /** Returns a map from index in {@code geometries} to index of every other geometry within {@code minDist}. */
