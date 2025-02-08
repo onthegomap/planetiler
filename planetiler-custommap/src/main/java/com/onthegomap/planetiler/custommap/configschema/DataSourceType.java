@@ -10,5 +10,7 @@ public enum DataSourceType {
   @JsonProperty("geopackage")
   GEOPACKAGE,
   @JsonProperty("geojson")
-  GEOJSON
+  GEOJSON,
+  @JsonProperty("naturalearth")
+  NATURALEARTH
 }
