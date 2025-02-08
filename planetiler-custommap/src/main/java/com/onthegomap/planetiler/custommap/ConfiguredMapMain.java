@@ -75,6 +75,7 @@ public class ConfiguredMapMain {
       case SHAPEFILE -> planetiler.addShapefileSource(projection, source.id(), localPath, source.url());
       case GEOPACKAGE -> planetiler.addGeoPackageSource(projection, source.id(), localPath, source.url());
       case GEOJSON -> planetiler.addGeoJsonSource(source.id(), localPath, source.url());
+      case NATURALEARTH -> planetiler.addNaturalEarthSource(source.id(), localPath, source.url());
       default -> throw new IllegalArgumentException("Unhandled source type for " + source.id() + ": " + sourceType);
     }
   }
