@@ -58,7 +58,7 @@ A description that tells planetiler how to read geospatial objects with tags fro
 
 - `type` - Enum representing the file format of the data source, one
   of [`osm`](https://wiki.openstreetmap.org/wiki/PBF_Format), [`shapefile`](https://en.wikipedia.org/wiki/Shapefile),
-  or [`geopackage`](https://www.geopackage.org/).
+  [`geopackage`](https://www.geopackage.org/), or [`geojson`](https://geojson.org/).
 - `local_path` - Local path to the file to use, inferred from `url` if missing. Can be a string
   or [expression](#expression) that can reference [argument values](#arguments).
 - `url` - Location to download the file from if not present at `local_path`.
