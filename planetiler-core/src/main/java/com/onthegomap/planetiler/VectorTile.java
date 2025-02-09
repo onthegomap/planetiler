@@ -77,6 +77,13 @@ import vector_tile.VectorTileProto;
  */
 @NotThreadSafe
 public class VectorTile {
+  public static final int LEFT = 1;
+  public static final int RIGHT = 1 << 1;
+  public static final int TOP = 1 << 2;
+  public static final int BOTTOM = 1 << 3;
+  public static final int INSIDE = 0;
+  public static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
+
   public static final long NO_FEATURE_ID = 0;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
@@ -734,12 +741,6 @@ public class VectorTile {
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
 
-    private static final int LEFT = 1;
-    private static final int RIGHT = 1 << 1;
-    private static final int TOP = 1 << 2;
-    private static final int BOTTOM = 1 << 3;
-    private static final int INSIDE = 0;
-    private static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
     private static final VectorGeometry EMPTY_POINT = new VectorGeometry(new int[0], GeometryType.POINT, 0);
 
     public VectorGeometry {
@@ -748,34 +749,26 @@ public class VectorTile {
       }
     }
 
-    private static int getSide(int x, int y, int extent) {
-      int result = INSIDE;
-      if (x < 0) {
-        result |= LEFT;
-      } else if (x > extent) {
-        result |= RIGHT;
-      }
-      if (y < 0) {
-        result |= TOP;
-      } else if (y > extent) {
-        result |= BOTTOM;
-      }
-      return result;
+    public static int getSide(int x, int y, int min, int max) {
+      return (x < min ? LEFT : x > max ? RIGHT : INSIDE) |
+        (y < min ? TOP : y > max ? BOTTOM : INSIDE);
+    }
+
+    public static int getSide(double x, double y, double min, double max) {
+      return (x < min ? LEFT : x > max ? RIGHT : INSIDE) |
+        (y < min ? TOP : y > max ? BOTTOM : INSIDE);
     }
 
     private static boolean slanted(int x1, int y1, int x2, int y2) {
       return x1 != x2 && y1 != y2;
     }
 
-    private static boolean segmentCrossesTile(int x1, int y1, int x2, int y2, int extent) {
-      return (y1 >= 0 || y2 >= 0) &&
-        (y1 <= extent || y2 <= extent) &&
-        (x1 >= 0 || x2 >= 0) &&
-        (x1 <= extent || x2 <= extent);
+    public static boolean segmentCrossesTile(int side1, int side2) {
+      return (side1 & side2) == 0;
     }
 
     private static boolean isSegmentInvalid(boolean allowEdges, int x1, int y1, int x2, int y2, int extent) {
-      boolean crossesTile = segmentCrossesTile(x1, y1, x2, y2, extent);
+      boolean crossesTile = segmentCrossesTile(getSide(x1, y1, 0, extent), getSide(x2, y2, 0, extent));
       if (allowEdges) {
         return crossesTile && slanted(x1, y1, x2, y2);
       } else {
@@ -904,14 +897,14 @@ public class VectorTile {
           if (command == Command.MOVE_TO.value) {
             firstX = nextX;
             firstY = nextY;
-            if ((visited = getSide(firstX, firstY, extent)) == INSIDE) {
+            if ((visited = getSide(firstX, firstY, 0, extent)) == INSIDE) {
               return false;
             }
           } else {
             if (isSegmentInvalid(allowEdges, x, y, nextX, nextY, extent)) {
               return false;
             }
-            visited |= getSide(nextX, nextY, extent);
+            visited |= getSide(nextX, nextY, 0, extent);
           }
           y = nextY;
           x = nextX;

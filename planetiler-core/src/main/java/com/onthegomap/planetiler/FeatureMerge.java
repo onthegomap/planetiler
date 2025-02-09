@@ -1,5 +1,9 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.VectorTile.ALL;
+import static com.onthegomap.planetiler.VectorTile.VectorGeometry.getSide;
+import static com.onthegomap.planetiler.VectorTile.VectorGeometry.segmentCrossesTile;
+
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
@@ -490,6 +494,9 @@ public class FeatureMerge {
           }
         }
         LinearRing exteriorRing = poly.getExteriorRing();
+        /* optimization: when merged polygon fill the entire tile, replace it with a canonical fill geometry to ensure
+         * that filled tiles are byte-for-byte equivalent. This allows archives that deduplicate tiles to better compress
+         * large filled areas like the ocean. */
         double fillBuffer = isFill(outerArea, exteriorRing);
         if (fillBuffer >= 0) {
           exteriorRing = createFill(fillBuffer);
@@ -506,27 +513,28 @@ public class FeatureMerge {
     }
   }
 
+  private static final double NOT_FILL = -1;
+
+  /** If {@ocde exteriorRing} fills the entire tile, return the number of pixels that it overhangs, otherwise -1. */
   private static double isFill(double outerArea, LinearRing exteriorRing) {
     if (outerArea < 256 * 256) {
-      return -1;
+      return NOT_FILL;
     }
     double proposedBuffer = (Math.sqrt(outerArea) - 256) / 2;
-    double tol = proposedBuffer / 10;
-    double min = -proposedBuffer;
-    double max = 256 + proposedBuffer;
+    double min = -(proposedBuffer * 0.9);
+    double max = 256 + proposedBuffer * 0.9;
+    int visited = 0;
     var cs = exteriorRing.getCoordinateSequence();
-    for (int i = 0; i < cs.size(); i++) {
-      double x = cs.getX(i);
-      double y = cs.getY(i);
-      if ((notClose(x, min, tol) && notClose(x, max, tol)) && (notClose(y, min, tol) && notClose(y, max, tol))) {
-        return -1;
+    int nextSide = getSide(cs.getX(0), cs.getY(0), min, max);
+    for (int i = 0; i < cs.size() - 1; i++) {
+      int side = nextSide;
+      visited |= side;
+      nextSide = getSide(cs.getX(i + 1), cs.getY(i + 1), min, max);
+      if (segmentCrossesTile(side, nextSide)) {
+        return NOT_FILL;
       }
     }
-    return proposedBuffer;
-  }
-
-  private static boolean notClose(double a, double b, double tol) {
-    return a != b && Math.abs(a - b) > tol;
+    return visited == ALL ? proposedBuffer : NOT_FILL;
   }
 
   private static LinearRing createFill(double buffer) {
