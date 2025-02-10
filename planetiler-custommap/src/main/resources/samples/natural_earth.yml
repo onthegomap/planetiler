@@ -1,0 +1,67 @@
+schema_name: Natural Earth
+schema_description: Natural Earth Oceans and Lakes example
+args:
+  minzoom: 0
+  maxzoom: 5
+
+sources:
+  natural_earth:
+    type: geopackage
+    url: "https://naciscdn.org/naturalearth/packages/natural_earth_vector.gpkg.zip"
+    projection: EPSG:4326
+
+layers:
+
+- id: ne_water_bodies
+  features:
+  - source: natural_earth
+    include_when:
+      - '${ feature.source_layer == "ne_10m_ocean" }'
+      - '${ feature.source_layer == "ne_10m_lakes" }'
+      - '${ feature.source_layer == "ne_50m_ocean" }'
+      - '${ feature.source_layer == "ne_50m_lakes" }'
+      - '${ feature.source_layer == "ne_110m_ocean" }'
+      - '${ feature.source_layer == "ne_110m_lakes" }'
+    min_zoom:
+      - if: '${ feature.source_layer == "ne_10m_ocean" }'
+        value: 4
+      - if: '${ feature.source_layer == "ne_50m_ocean" }'
+        value: 2
+      - if: '${ feature.source_layer == "ne_110m_ocean" }'
+        value: 0
+
+      - if: '${ feature.source_layer == "ne_10m_lakes" }'
+        value: 4
+      - if: '${ feature.source_layer == "ne_50m_lakes" }'
+        value: 2
+      - if: '${ feature.source_layer == "ne_110m_lakes" }'
+        value: 0
+
+    max_zoom:
+      - if: '${ feature.source_layer == "ne_10m_ocean" }'
+        value: 5
+      - if: '${ feature.source_layer == "ne_50m_ocean" }'
+        value: 3
+      - if: '${ feature.source_layer == "ne_110m_ocean" }'
+        value: 1
+
+      - if: '${ feature.source_layer == "ne_10m_lakes" }'
+        value: 5
+      - if: '${ feature.source_layer == "ne_50m_lakes" }'
+        value: 3
+      - if: '${ feature.source_layer == "ne_110m_lakes" }'
+        value: 1
+
+    attributes:
+    - key: class
+      value:
+      - value: "ocean"
+        if: 
+          - '${ feature.source_layer == "ne_10m_ocean" }'
+          - '${ feature.source_layer == "ne_50m_ocean" }'
+          - '${ feature.source_layer == "ne_110m_ocean" }'
+      - value: "lake"
+        if:
+          - '${ feature.source_layer == "ne_10m_lakes" }'
+          - '${ feature.source_layer == "ne_50m_lakes" }'
+          - '${ feature.source_layer == "ne_110m_lakes" }'
