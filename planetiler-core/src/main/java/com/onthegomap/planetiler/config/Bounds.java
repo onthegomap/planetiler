@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import static com.onthegomap.planetiler.geo.GeoUtils.envelopeToString;
+
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -53,7 +55,10 @@ public class Bounds {
     if (latLon == null) {
       Envelope bounds = latLonProvider.getLatLonBounds();
       if (bounds != null && !bounds.isNull() && bounds.getArea() > 0) {
-        LOGGER.info("Setting map bounds from input: {}", bounds);
+        LOGGER.atInfo()
+          .setMessage("Setting map bounds from input: {}")
+          .addArgument(() -> envelopeToString(bounds))
+          .log();
         set(bounds);
       }
     }
