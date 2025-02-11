@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
@@ -490,5 +491,15 @@ class GeoUtilsTest {
     assertEquals(15051, GeoUtils.lengthInMeters(newLineString(
       47.234, 24.235,
       47.234 + 0.1, 24.235 - 0.1)), 1d);
+  }
+
+  @Test
+  void testEnvelopeToString() {
+    var env = new Envelope();
+    assertEquals("Envelope(0.0,0.0,-1.0,-1.0)", GeoUtils.envelopeToString(env));
+    env.expandToInclude(0, 1);
+    env.expandToInclude(2, 3);
+    assertEquals("Envelope(0.0,1.0,2.0,3.0)", GeoUtils.envelopeToString(env));
+    assertEquals("null", GeoUtils.envelopeToString(null));
   }
 }

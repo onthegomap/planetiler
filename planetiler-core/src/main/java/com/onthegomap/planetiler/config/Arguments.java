@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import static com.onthegomap.planetiler.geo.GeoUtils.envelopeToString;
+
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -301,7 +303,7 @@ public class Arguments {
       }
       result = new Envelope(bounds[0], bounds[2], bounds[1], bounds[3]);
     }
-    logArgValue(key, description, result);
+    logArgValue(key, description, envelopeToString(result));
     return result;
   }
 

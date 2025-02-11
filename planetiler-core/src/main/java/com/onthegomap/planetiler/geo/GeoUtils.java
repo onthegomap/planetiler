@@ -673,4 +673,10 @@ public class GeoUtils {
       return -Double.compare(area, o.area);
     }
   }
+
+  public static String envelopeToString(Envelope envelope) {
+    return envelope == null ? "null" :
+      ("Envelope(" + envelope.getMinX() + ',' + envelope.getMinY() + ',' + envelope.getMaxX() + ',' +
+        envelope.getMaxY() + ')');
+  }
 }
