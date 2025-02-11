@@ -77,6 +77,7 @@ import vector_tile.VectorTileProto;
  */
 @NotThreadSafe
 public class VectorTile {
+
   public static final int LEFT = 1;
   public static final int RIGHT = 1 << 1;
   public static final int TOP = 1 << 2;
@@ -749,11 +750,19 @@ public class VectorTile {
       }
     }
 
+    /**
+     * Returns {@link #LEFT} or {@link #RIGHT} bitwise OR'd with {@link #TOP} or {@link #BOTTOM} to indicate which side
+     * of the rectangle from {@code (x=min, y=min)} to {@code (x=max, y=max)} the {@code (x,y)} point falls in.
+     */
     public static int getSide(int x, int y, int min, int max) {
       return (x < min ? LEFT : x > max ? RIGHT : INSIDE) |
         (y < min ? TOP : y > max ? BOTTOM : INSIDE);
     }
 
+    /**
+     * Returns {@link #LEFT} or {@link #RIGHT} bitwise OR'd with {@link #TOP} or {@link #BOTTOM} to indicate which side
+     * of the rectangle from {@code (x=min, y=min)} to {@code (x=max, y=max)} the {@code (x,y)} point falls in.
+     */
     public static int getSide(double x, double y, double min, double max) {
       return (x < min ? LEFT : x > max ? RIGHT : INSIDE) |
         (y < min ? TOP : y > max ? BOTTOM : INSIDE);
@@ -763,6 +772,12 @@ public class VectorTile {
       return x1 != x2 && y1 != y2;
     }
 
+
+    /**
+     * Returns {@code false} if the segment from a point in {@code side1} to {@code side2} is definitely outside of the
+     * rectangle, or true if it might cross the inside where {@code side1} and {@code side2} are from
+     * {@link #getSide(int, int, int, int)}.
+     */
     public static boolean segmentCrossesTile(int side1, int side2) {
       return (side1 & side2) == 0;
     }
