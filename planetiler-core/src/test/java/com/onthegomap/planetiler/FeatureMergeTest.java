@@ -3,6 +3,7 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
@@ -964,5 +965,79 @@ class FeatureMergeTest {
       }
       FeatureMerge.bufferUnionUnbuffer(0.5, geometries, Stats.inMemory());
     }
+  }
+
+  @Test
+  void mergeFillPolygonsNormalizes() throws GeometryException {
+    assertEquals(
+      List.of(
+        rectangle(-2, 258)
+      ),
+      FeatureMerge.mergeNearbyPolygons(
+        List.of(
+          feature(1, rectangle(-2, -2, 200, 258), Map.of()),
+          feature(2, rectangle(180, -2, 258, 258), Map.of())
+        ),
+        0,
+        0,
+        0,
+        0
+      ).stream().map(feature -> {
+        try {
+          return feature.geometry().decode();
+        } catch (GeometryException e) {
+          return fail(e);
+        }
+      }).toList()
+    );
+  }
+
+  @Test
+  void mergeNormalizeOuterRing() throws GeometryException {
+    var result = FeatureMerge.mergeNearbyPolygons(
+      List.of(
+        feature(1, rectangle(-2, -2, 10, 258), Map.of()),
+        feature(1, rectangle(-2, -2, 258, 10), Map.of()),
+        feature(1, rectangle(246, -2, 258, 258), Map.of()),
+        feature(1, rectangle(-2, 246, 258, 258), Map.of())
+      ),
+      0,
+      0,
+      0,
+      0
+    );
+    Polygon poly = (Polygon) result.getFirst().geometry().decode();
+    assertEquals(rectangle(-2, 258).getExteriorRing(), poly.getExteriorRing());
+    assertEquals(1, poly.getNumInteriorRing());
+    assertTopologicallyEquivalentFeature(rectangle(10, 246).getExteriorRing().reverse(), poly.getInteriorRingN(0));
+  }
+
+  @Test
+  void mergeFillPolygonsDoesNotNormalizeIrregularFill() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newPolygon(
+          -2, -2,
+          200, -2,
+          200, -1,
+          258, -1,
+          258, 257,
+          200, 257,
+          200, 258,
+          -2, 258,
+          -2, -2
+        ), Map.of())
+      ),
+      FeatureMerge.mergeNearbyPolygons(
+        List.of(
+          feature(1, rectangle(-2, -2, 200, 258), Map.of()),
+          feature(2, rectangle(180, -1, 258, 257), Map.of())
+        ),
+        0,
+        0,
+        0,
+        0
+      )
+    );
   }
 }

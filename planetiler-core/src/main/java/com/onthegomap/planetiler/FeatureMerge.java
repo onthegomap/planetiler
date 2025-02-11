@@ -1,5 +1,9 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.VectorTile.ALL;
+import static com.onthegomap.planetiler.VectorTile.VectorGeometry.getSide;
+import static com.onthegomap.planetiler.VectorTile.VectorGeometry.segmentCrossesTile;
+
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
@@ -479,19 +483,26 @@ public class FeatureMerge {
    */
   private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea, double minHoleArea) {
     if (geom instanceof Polygon poly) {
-      if (Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) > minArea) {
+      double outerArea = Area.ofRing(poly.getExteriorRing().getCoordinateSequence());
+      if (outerArea > minArea) {
         int innerRings = poly.getNumInteriorRing();
-        if (minHoleArea > 0 && innerRings > 0) {
-          List<LinearRing> rings = new ArrayList<>(innerRings);
-          for (int i = 0; i < innerRings; i++) {
-            LinearRing innerRing = poly.getInteriorRingN(i);
-            if (Area.ofRing(innerRing.getCoordinateSequence()) > minArea) {
-              rings.add(innerRing);
-            }
+        List<LinearRing> rings = innerRings == 0 ? List.of() : new ArrayList<>(innerRings);
+        for (int i = 0; i < innerRings; i++) {
+          LinearRing innerRing = poly.getInteriorRingN(i);
+          if (minHoleArea <= 0 || Area.ofRing(innerRing.getCoordinateSequence()) > minArea) {
+            rings.add(innerRing);
           }
-          if (rings.size() != innerRings) {
-            poly = GeoUtils.createPolygon(poly.getExteriorRing(), rings);
-          }
+        }
+        LinearRing exteriorRing = poly.getExteriorRing();
+        /* optimization: when merged polygon fill the entire tile, replace it with a canonical fill geometry to ensure
+         * that filled tiles are byte-for-byte equivalent. This allows archives that deduplicate tiles to better compress
+         * large filled areas like the ocean. */
+        double fillBuffer = isFill(outerArea, exteriorRing);
+        if (fillBuffer >= 0) {
+          exteriorRing = createFill(fillBuffer);
+        }
+        if (rings.size() != innerRings || exteriorRing != poly.getExteriorRing()) {
+          poly = GeoUtils.createPolygon(exteriorRing, rings);
         }
         result.add(poly);
       }
@@ -500,6 +511,42 @@ public class FeatureMerge {
         extractPolygons(geom.getGeometryN(i), result, minArea, minHoleArea);
       }
     }
+  }
+
+  private static final double NOT_FILL = -1;
+
+  /** If {@ocde exteriorRing} fills the entire tile, return the number of pixels that it overhangs, otherwise -1. */
+  private static double isFill(double outerArea, LinearRing exteriorRing) {
+    if (outerArea < 256 * 256) {
+      return NOT_FILL;
+    }
+    double proposedBuffer = (Math.sqrt(outerArea) - 256) / 2;
+    double min = -(proposedBuffer * 0.9);
+    double max = 256 + proposedBuffer * 0.9;
+    int visited = 0;
+    var cs = exteriorRing.getCoordinateSequence();
+    int nextSide = getSide(cs.getX(0), cs.getY(0), min, max);
+    for (int i = 0; i < cs.size() - 1; i++) {
+      int side = nextSide;
+      visited |= side;
+      nextSide = getSide(cs.getX(i + 1), cs.getY(i + 1), min, max);
+      if (segmentCrossesTile(side, nextSide)) {
+        return NOT_FILL;
+      }
+    }
+    return visited == ALL ? proposedBuffer : NOT_FILL;
+  }
+
+  private static LinearRing createFill(double buffer) {
+    double min = -buffer;
+    double max = buffer + 256;
+    return GeoUtils.JTS_FACTORY.createLinearRing(GeoUtils.coordinateSequence(
+      min, min,
+      max, min,
+      max, max,
+      min, max,
+      min, min
+    ));
   }
 
   /** Returns a map from index in {@code geometries} to index of every other geometry within {@code minDist}. */
