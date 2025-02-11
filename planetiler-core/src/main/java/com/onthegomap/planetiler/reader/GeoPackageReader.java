@@ -22,6 +22,7 @@ import mil.nga.geopackage.features.index.FeatureIndexResults;
 import mil.nga.geopackage.features.index.FeatureIndexType;
 import mil.nga.geopackage.features.user.FeatureColumns;
 import mil.nga.geopackage.features.user.FeatureDao;
+import mil.nga.geopackage.features.user.FeatureResultSet;
 import mil.nga.geopackage.features.user.FeatureRow;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
 import org.geotools.api.referencing.FactoryException;
@@ -152,17 +153,18 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
       FeatureIndexManager indexer = new FeatureIndexManager(geoPackage,
         features);
 
-      BoundingBox boundingBox = BoundingBox.worldWGS84();
+      Iterable<FeatureRow> results;
 
       if (this.bounds != null && indexer.isIndexed() && srsId == 4326) {
         var l = this.bounds;
         indexer.setIndexLocation(FeatureIndexType.RTREE);
-        boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
+        var boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
+        results = indexer.query(boundingBox);
+      } else {
+        results = features.queryForAll();
       }
 
-      FeatureIndexResults indexResults = indexer.query(boundingBox);
-
-      for (FeatureRow feature : indexResults) {
+      for (FeatureRow feature : results) {
         GeoPackageGeometryData geometryData = feature.getGeometry();
         byte[] wkb;
         if (geometryData == null || (wkb = geometryData.getWkb()).length == 0) {
