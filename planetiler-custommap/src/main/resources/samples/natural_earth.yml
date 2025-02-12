@@ -1,0 +1,67 @@
+schema_name: Natural Earth
+schema_description: Natural Earth Oceans and Lakes example
+args:
+  minzoom: 0
+  maxzoom: 5
+
+sources:
+  natural_earth:
+    type: geopackage
+    url: "https://naciscdn.org/naturalearth/packages/natural_earth_vector.gpkg.zip"
+    projection: EPSG:4326
+
+layers:
+- id: ne_water_bodies
+  features:
+  - source: natural_earth
+    include_when:
+      '${ feature.source_layer }':
+        - ne_10m_ocean
+        - ne_10m_lakes
+        - ne_50m_ocean
+        - ne_50m_lakes
+        - ne_110m_ocean
+        - ne_110m_lakes
+    min_zoom:
+      5:
+        '${ feature.source_layer }':
+          - ne_10m_ocean
+      4:
+        '${ feature.source_layer }':
+          - ne_10m_lakes
+      2:
+        '${ feature.source_layer }':
+          - ne_50m_ocean
+          - ne_50m_lakes
+      0:
+        '${ feature.source_layer }':
+          - ne_110m_ocean
+          - ne_110m_lakes
+    max_zoom:
+      5:
+        '${ feature.source_layer }':
+          - ne_10m_ocean
+          - ne_10m_lakes
+      4:
+        '${ feature.source_layer }':
+          - ne_50m_ocean
+      3:
+        '${ feature.source_layer }':
+          - ne_50m_lakes
+      1:
+        '${ feature.source_layer }':
+          - ne_110m_lakes
+          - ne_110m_ocean
+    attributes:
+    - key: class
+      value:
+        ocean:
+          '${ feature.source_layer }':
+            - ne_10m_ocean
+            - ne_50m_ocean
+            - ne_110m_ocean
+        lake:
+          '${ feature.source_layer }':
+            - ne_10m_lakes
+            - ne_50m_lakes
+            - ne_110m_lakes
