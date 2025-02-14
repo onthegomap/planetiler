@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -82,7 +83,7 @@ class GeoPackageReaderTest {
 
     try (
       var reader =
-        new GeoPackageReader(proj, "test", path, tmpDir, false, new Envelope(-77.0306, -77.0192, 38.8894, 38.9014))
+        new GeoPackageReader(proj, "test", path, tmpDir, false, new Bounds(new Envelope(-77.0306, -77.0192, 38.8894, 38.9014)));
     ) {
       String id = "path=" + path + " proj=" + proj;
       assertEquals(86, reader.getFeatureCount(), id);

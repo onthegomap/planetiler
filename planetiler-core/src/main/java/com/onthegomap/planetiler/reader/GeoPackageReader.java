@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -44,10 +45,10 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   private final GeoPackage geoPackage;
   private final MathTransform coordinateTransform;
 
-  private final Envelope bounds;
+  private final Bounds bounds;
 
   GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped,
-    Envelope bounds) {
+    Bounds bounds) {
 
     super(sourceName);
     this.keepUnzipped = keepUnzipped;
@@ -115,7 +116,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped, config.bounds().latLon()),
+      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped, config.bounds()),
       writer, config, profile, stats
     );
   }
@@ -154,7 +155,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
       Iterable<FeatureRow> results;
 
       if (this.bounds != null && indexer.isIndexed() && srsId == 4326) {
-        var l = this.bounds;
+        var l = this.bounds.latLon();
         indexer.setIndexLocation(FeatureIndexType.RTREE);
         var boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
         results = indexer.query(boundingBox);
