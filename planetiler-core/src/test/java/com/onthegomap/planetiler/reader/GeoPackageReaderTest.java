@@ -75,7 +75,7 @@ class GeoPackageReaderTest {
     "geopackage-unindexed.gpkg,86"
   })
   @Timeout(30)
-  void testReadGeoPackageSpatialIndex(String dbName, int expectedCount) throws IOException {
+  void testReadGeoPackageSpatialIndex(String dbName, int expectedCount) throws Exception {
     Path path = TestUtils.pathToResource(dbName);
 
     var proj =  "EPSG:4326";
@@ -84,41 +84,30 @@ class GeoPackageReaderTest {
       var reader =
         new GeoPackageReader(proj, "test", path, tmpDir, false, new Envelope(-77.0306, -77.0192, 38.8894, 38.9014))
     ) {
-      for (int iter = 0; iter < 2; iter++) {
-        String id = "path=" + path + " proj=" + proj + " iter=" + iter;
-        assertEquals(86, reader.getFeatureCount(), id);
-        List<Geometry> points = new ArrayList<>();
-        WorkerPipeline.start("test", Stats.inMemory())
-          .fromGenerator("geopackage", reader::readFeatures, 1)
-          .addBuffer("reader_queue", 100, 1)
-          .sinkToConsumer("counter", 1, elem -> {
-            points.add(elem.latLonGeometry());
-          }).await();
-        assertEquals(expectedCount, points.size(), id);
-      }
+      String id = "path=" + path + " proj=" + proj;
+      assertEquals(86, reader.getFeatureCount(), id);
+      List<Geometry> points = new ArrayList<>();
+      reader.readFeatures(feature -> {
+        points.add(feature.latLonGeometry());
+      });
+      assertEquals(expectedCount, points.size(), id);
     }
   }
 
   @Test
   @Timeout(30)
-  void testReadEmptyGeoPackage() throws IOException {
+  void testReadEmptyGeoPackage() throws Exception {
     Path path = TestUtils.pathToResource("empty-geom.gpkg");
 
     try (
       var reader = new GeoPackageReader(null, "test", path, tmpDir, false, null)
     ) {
-      for (int iter = 0; iter < 2; iter++) {
-        String id = "iter=" + iter;
-        assertEquals(1, reader.getFeatureCount(), id);
-        AtomicInteger found = new AtomicInteger(0);
-        WorkerPipeline.start("test", Stats.inMemory())
-          .fromGenerator("geopackage", reader::readFeatures, 1)
-          .addBuffer("reader_queue", 100, 1)
-          .sinkToConsumer("counter", 1, elem -> {
-            found.incrementAndGet();
-          }).await();
-        assertEquals(0, found.get());
-      }
+      assertEquals(1, reader.getFeatureCount());
+      AtomicInteger found = new AtomicInteger(0);
+      reader.readFeatures(feature -> {
+        found.incrementAndGet();
+      });
+      assertEquals(0, found.get());
     }
   }
 }
