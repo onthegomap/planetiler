@@ -24,9 +24,12 @@ import mil.nga.geopackage.features.user.FeatureColumns;
 import mil.nga.geopackage.features.user.FeatureDao;
 import mil.nga.geopackage.features.user.FeatureRow;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
+import mil.nga.sf.GeometryEnvelope;
 import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.jts.WKBReader;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
@@ -153,11 +156,12 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
       Iterable<FeatureRow> results;
 
-      if (this.bounds != null && indexer.isIndexed() && srsId == 4326) {
+      if (this.bounds != null && indexer.isIndexed()) {
         var l = this.bounds.latLon();
         indexer.setIndexLocation(FeatureIndexType.RTREE);
-        var boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
-        results = indexer.query(boundingBox);
+        var bbox = new ReferencedEnvelope(l.getMinX(), l.getMaxX(), l.getMinY(), l.getMaxY(), latLonCRS);
+        var bbox2 = bbox.transform(CRS.decode("EPSG:" + srsId), true);
+        results = indexer.query(new GeometryEnvelope(bbox2.getMinX(), bbox2.getMinY(), bbox2.getMaxX(), bbox2.getMaxY()));
       } else {
         results = features.queryForAll();
       }
