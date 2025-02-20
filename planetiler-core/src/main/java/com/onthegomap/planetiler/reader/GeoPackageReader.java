@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -16,12 +17,17 @@ import java.util.List;
 import java.util.function.Consumer;
 import mil.nga.geopackage.GeoPackage;
 import mil.nga.geopackage.GeoPackageManager;
+import mil.nga.geopackage.features.index.FeatureIndexManager;
+import mil.nga.geopackage.features.index.FeatureIndexType;
 import mil.nga.geopackage.features.user.FeatureColumns;
 import mil.nga.geopackage.features.user.FeatureDao;
+import mil.nga.geopackage.features.user.FeatureRow;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
+import mil.nga.sf.GeometryEnvelope;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.jts.WKBReader;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
@@ -39,9 +45,14 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   private final GeoPackage geoPackage;
   private final MathTransform coordinateTransform;
 
-  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped) {
+  private final Bounds bounds;
+
+  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped,
+    Bounds bounds) {
+
     super(sourceName);
     this.keepUnzipped = keepUnzipped;
+    this.bounds = bounds;
 
     if (sourceProjection != null) {
       try {
@@ -105,7 +116,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped),
+      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped, config.bounds()),
       writer, config, profile, stats
     );
   }
@@ -138,7 +149,22 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
       MathTransform transform = (coordinateTransform != null) ? coordinateTransform :
         CRS.findMathTransform(CRS.decode("EPSG:" + srsId), latLonCRS);
 
-      for (var feature : features.queryForAll()) {
+      FeatureIndexManager indexer = new FeatureIndexManager(geoPackage,
+        features);
+
+      Iterable<FeatureRow> results;
+
+      if (this.bounds != null && indexer.isIndexed()) {
+        var l = this.bounds.latLon();
+        indexer.setIndexLocation(FeatureIndexType.RTREE);
+        var bbox = new ReferencedEnvelope(l.getMinX(), l.getMaxX(), l.getMinY(), l.getMaxY(), latLonCRS);
+        var bbox2 = bbox.transform(CRS.decode("EPSG:" + srsId), true);
+        results = indexer.query(new GeometryEnvelope(bbox2.getMinX(), bbox2.getMinY(), bbox2.getMaxX(), bbox2.getMaxY()));
+      } else {
+        results = features.queryForAll();
+      }
+
+      for (FeatureRow feature : results) {
         GeoPackageGeometryData geometryData = feature.getGeometry();
         byte[] wkb;
         if (geometryData == null || (wkb = geometryData.getWkb()).length == 0) {

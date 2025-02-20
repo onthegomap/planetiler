@@ -393,6 +393,7 @@ public class Planetiler {
    * @see Downloader
    */
   public Planetiler addGeoPackageSource(String projection, String name, Path defaultPath, String defaultUrl) {
+
     Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
     boolean keepUnzipped = getKeepUnzipped(name);
     return addStage(name, "Process features in " + path,
