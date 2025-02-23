@@ -628,7 +628,9 @@ public class Planetiler {
           this.defaultLanguages.stream()
         ).toList();
       }
-      translations = Translations.defaultProvider(languages).setShouldTransliterate(transliterate);
+      translations = Translations.defaultProvider(languages)
+        .setShouldTransliterate(transliterate)
+        .setExtraNameTags(config.extraNameTags());
     }
     return translations;
   }

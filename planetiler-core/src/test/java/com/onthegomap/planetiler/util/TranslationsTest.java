@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -69,5 +70,25 @@ class TranslationsTest {
       Arguments.of(List.of("*", "-tlh"), List.of("jbo", "fr"), List.of("tlh")),
       Arguments.of(List.of("tlh", "-tlh"), List.of(), List.of("tlh", "en"))
     );
+  }
+
+
+  @Test
+  void testExtraNameTags() {
+    Map<String, Object> input = Map.of(
+      "extra", "extra",
+      "name", "name",
+      "name:en", "english name",
+      "name:de", "german name"
+    );
+    var translations = Translations.defaultProvider(List.of("en", "es", "de"));
+    Map<String, Object> output1 = new HashMap<String,Object>();
+    translations.addTranslations(output1, input);
+    assertFalse(output1.containsKey("extra"));
+
+    Map<String, Object> output2 = new HashMap<String,Object>();
+    translations.setExtraNameTags(List.of("extra"));
+    translations.addTranslations(output2, input);
+    assertTrue(output2.containsKey("extra"));
   }
 }

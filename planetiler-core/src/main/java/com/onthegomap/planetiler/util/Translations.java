@@ -6,6 +6,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holds planetiler configuration and utilities for translating element names to other languages.
@@ -20,12 +23,15 @@ public class Translations {
   @SuppressWarnings("java:S5164")
   private static final ThreadLocal<ThreadLocalTransliterator.TransliteratorInstance> TRANSLITERATOR =
     ThreadLocal.withInitial(() -> new ThreadLocalTransliterator().getInstance("Any-Latin"));
+  private static final Logger LOGGER = LoggerFactory.getLogger(Translations.class);
 
   private boolean shouldTransliterate = true;
   private final List<TranslationProvider> providers = new ArrayList<>();
   private final Set<String> includeLanguages;
   private final Set<String> excludeLanguages;
   private boolean defaultInclude = false;
+  private List<String> extraNameTags = List.of();
+
 
   private Translations(List<String> languages) {
     this.includeLanguages = new HashSet<>();
@@ -107,6 +113,7 @@ public class Translations {
         }
       }
     }
+    addExtraNameTags(output, input);
   }
 
   public boolean getShouldTransliterate() {
@@ -165,4 +172,38 @@ public class Translations {
   public static String transliterate(String input) {
     return input == null ? null : TRANSLITERATOR.get().transliterate(input);
   }
+
+  /**
+   * Get the configured list of extra name tags to inject into translation outputs.
+   * @return List of extra name tags
+   */
+  public List<String> getExtraNameTags() {
+    return extraNameTags;
+  }
+
+  /**
+   * Set a list of extra name tags to be copied from the OSM source to the output result
+   * @param extraNameTags: List of extra name tags to copy to translation outputs.
+   * @return this
+   */
+  public Translations setExtraNameTags(List<String> extraNameTags) {
+    if (extraNameTags != null) {
+      this.extraNameTags = extraNameTags;
+    }
+    return this;
+  }
+
+  private void addExtraNameTags(Map<String, Object> output, Map<String, Object> input) {
+    if (!extraNameTags.isEmpty()) {
+      Map<String,Object> extraTags =  extraNameTags.stream()
+        .filter(input::containsKey)
+        .filter(tag -> input.get(tag) != null && !input.get(tag).equals(""))
+        .collect(Collectors.toMap(t -> t, input::get));
+      if (!extraTags.isEmpty()) {
+        LOGGER.debug("Found {} extra tags from OSM object with name {}", extraTags.size(), input.get("name"));
+        output.putAll(extraTags);
+      }
+    }
+  }
+
 }
