@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Holds planetiler configuration and utilities for translating element names to other languages.
@@ -23,7 +21,6 @@ public class Translations {
   @SuppressWarnings("java:S5164")
   private static final ThreadLocal<ThreadLocalTransliterator.TransliteratorInstance> TRANSLITERATOR =
     ThreadLocal.withInitial(() -> new ThreadLocalTransliterator().getInstance("Any-Latin"));
-  private static final Logger LOGGER = LoggerFactory.getLogger(Translations.class);
 
   private boolean shouldTransliterate = true;
   private final List<TranslationProvider> providers = new ArrayList<>();
@@ -200,7 +197,6 @@ public class Translations {
         .filter(tag -> input.get(tag) != null && !input.get(tag).equals(""))
         .collect(Collectors.toMap(t -> t, input::get));
       if (!extraTags.isEmpty()) {
-        LOGGER.debug("Found {} extra tags from OSM object with name {}", extraTags.size(), input.get("name"));
         output.putAll(extraTags);
       }
     }
