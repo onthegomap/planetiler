@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -61,7 +62,8 @@ public record PlanetilerConfig(
   Path tileWeights,
   double maxPointBuffer,
   boolean logJtsExceptions,
-  int featureSourceIdMultiplier
+  int featureSourceIdMultiplier,
+  List<String> extraNameTags
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -125,6 +127,8 @@ public record PlanetilerConfig(
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
     Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
+    List<String> extraNameTags = arguments.getList("extra_name_tags", "Extra name tags to copy from OSM to output",
+      List.of());
 
     return new PlanetilerConfig(
       arguments,
@@ -218,7 +222,8 @@ public record PlanetilerConfig(
       arguments.getInteger("feature_source_id_multiplier",
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
-        10)
+        10),
+      extraNameTags
     );
   }
 
