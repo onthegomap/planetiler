@@ -5,7 +5,11 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.referencing.CRS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -678,5 +682,36 @@ public class GeoUtils {
     return envelope == null ? "null" :
       ("Envelope(" + envelope.getMinX() + ',' + envelope.getMinY() + ',' + envelope.getMaxX() + ',' +
         envelope.getMaxY() + ')');
+  }
+
+  private static final Pattern COORDINATE_ORDER_SUFFIX = Pattern.compile(":(lat|lon)_first$");
+
+  /**
+   * Decodes a {@link CoordinateReferenceSystem} from an {@code EPSG:1234} code or WKT. Add {@code :lon_first} code to
+   * the suffixt to indicate the source coordinates are lon, lat and not lat, lon. lon_first defaults to the value from
+   * {@code base} if specified;
+   */
+  public static CoordinateReferenceSystem decodeCRS(String crs, CoordinateReferenceSystem base)
+    throws FactoryException {
+    try {
+      boolean longitudeFirst = base != null && CRS.getAxisOrder(base) == CRS.AxisOrder.EAST_NORTH;
+      var matcher = COORDINATE_ORDER_SUFFIX.matcher(crs);
+      if (matcher.find()) {
+        longitudeFirst = "lon".equals(matcher.group(1));
+        crs = matcher.replaceFirst("");
+      }
+      return CRS.decode(crs, longitudeFirst);
+    } catch (FactoryException e) {
+      return CRS.parseWKT(crs);
+    }
+  }
+
+  /**
+   * Decodes a {@link CoordinateReferenceSystem} from an {@code EPSG:1234} code or WKT. Add {@code :lon_first} code to
+   * the suffixt to indicate the source coordinates are lon, lat and not lat, lon.
+   */
+  public static CoordinateReferenceSystem decodeCRS(String crs)
+    throws FactoryException {
+    return decodeCRS(crs, null);
   }
 }

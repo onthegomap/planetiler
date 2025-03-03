@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -61,8 +62,9 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       String typeName = dataStore.getTypeNames()[0];
       FeatureSource<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> source = dataStore
         .getFeatureSource(typeName);
+      CoordinateReferenceSystem sourceCrs = source.getSchema().getCoordinateReferenceSystem();
       CoordinateReferenceSystem src =
-        sourceProjection == null ? source.getSchema().getCoordinateReferenceSystem() : CRS.decode(sourceProjection);
+        sourceProjection == null ? sourceCrs : GeoUtils.decodeCRS(sourceProjection, sourceCrs);
       CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
       transformToLatLon = findMathTransform(input, src, dest);
       if (transformToLatLon.isIdentity()) {
