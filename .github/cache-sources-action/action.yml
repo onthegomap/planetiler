@@ -9,14 +9,14 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Get Date
-      id: get-data
-      run: |
-        echo "::set-output name=hash::${{ hashFiles('**/Planetiler.java', '**/Downloader.java', '**/Geofabrik.java', '**/OpenMapTilesMain.java') }}"
-        echo "::set-output name=date::$(date -u "+%Y-%m-%d")"
-      shell: bash
-      working-directory: ${{ inputs.basedir }}
-    - uses: actions/cache@v2
-      with:
-        path: data/sources
-        key: data-sources-${{ steps.get-data.outputs.date }}-${{ steps.get-data.outputs.hash }}
+  - name: Get Date
+    id: get-data
+    run: |
+      echo "::set-output name=hash::${{ hashFiles('**/Planetiler.java', '**/Downloader.java', '**/Geofabrik.java', '**/OpenMapTilesMain.java') }}"
+      echo "::set-output name=date::$(date -u "+%Y-%m-%d")"
+    shell: bash
+    working-directory: ${{ inputs.basedir }}
+  - uses: actions/cache@v4
+    with:
+      path: data/sources
+      key: data-sources-${{ steps.get-data.outputs.date }}-${{ steps.get-data.outputs.hash }}

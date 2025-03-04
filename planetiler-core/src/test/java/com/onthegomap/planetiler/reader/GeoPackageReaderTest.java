@@ -79,11 +79,12 @@ class GeoPackageReaderTest {
   void testReadGeoPackageSpatialIndex(String dbName, int expectedCount) throws Exception {
     Path path = TestUtils.pathToResource(dbName);
 
-    var proj =  "EPSG:4326";
+    var proj = "EPSG:4326";
 
     try (
       var reader =
-        new GeoPackageReader(proj, "test", path, tmpDir, false, new Bounds(new Envelope(-77.0306, -77.0192, 38.8894, 38.9014)));
+        new GeoPackageReader(proj, "test", path, tmpDir, false,
+          new Bounds(new Envelope(-77.0306, -77.0192, 38.8894, 38.9014)));
     ) {
       String id = "path=" + path + " proj=" + proj;
       assertEquals(86, reader.getFeatureCount(), id);

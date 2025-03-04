@@ -2,17 +2,19 @@ package com.onthegomap.planetiler.geo;
 
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.geo.GeoUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.List;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.TransformException;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
@@ -501,5 +503,49 @@ class GeoUtilsTest {
     env.expandToInclude(2, 3);
     assertEquals("Envelope(0.0,1.0,2.0,3.0)", GeoUtils.envelopeToString(env));
     assertEquals("null", GeoUtils.envelopeToString(null));
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    textBlock = """
+        EPSG:4326 | 1 | 2
+        EPSG:4326:lon_first | 2 | 1
+        EPSG:4326:lat_first | 1 | 2
+        EPSG:3857 | 222684.2 | 111319.5
+        GEOGCS["WGS 84", DATUM["WGS_1984", SPHEROID["WGS 84", 6378137, 298.257223563]], PRIMEM["Greenwich", 0], UNIT["degree", 0.0174532925199433]] | 2 | 1
+        GEOGCS["WGS 84", DATUM["WGS_1984", SPHEROID["WGS 84", 6378137, 298.257223563]], PRIMEM["Greenwich", 0], AXIS["Latitude", NORTH], AXIS["Longitude", EAST], UNIT["degree", 0.0174532925199433]] | 1 | 2
+      """,
+    delimiter = '|')
+  void testCrsDecode(String code, double expectedLat, double expectedLon) throws FactoryException, TransformException {
+    var from = CRS.decode("EPSG:4326", true);
+    var to = GeoUtils.decodeCRS(code);
+    var xform = CRS.findMathTransform(from, to, true);
+    var a = new CoordinateXY(1, 2);
+    var b = new CoordinateXY();
+    JTS.transform(a, b, xform);
+    assertEquals(expectedLon, b.getX(), 1e-1);
+    assertEquals(expectedLat, b.getY(), 1e-1);
+  }
+
+  @Test
+  void testCrsDecodeGarbage() {
+    assertThrows(FactoryException.class, () -> GeoUtils.decodeCRS("garbage"));
+    assertThrows(FactoryException.class, () -> GeoUtils.decodeCRS("GEGCS["));
+  }
+
+  @Test
+  void testCrsDecodeDefaultAxisOrder() throws FactoryException, TransformException {
+    var lonFirst = CRS.decode("EPSG:4326", true);
+    var latFirst = CRS.decode("EPSG:4326", false);
+
+    var point = newPoint(1, 2);
+    var transposed = newPoint(2, 1);
+
+    assertEquals(point,
+      JTS.transform(point, CRS.findMathTransform(lonFirst, GeoUtils.decodeCRS("EPSG:4326", lonFirst))));
+    assertEquals(transposed,
+      JTS.transform(point, CRS.findMathTransform(lonFirst, GeoUtils.decodeCRS("EPSG:4326", latFirst))));
+    assertEquals(point,
+      JTS.transform(point, CRS.findMathTransform(lonFirst, GeoUtils.decodeCRS("EPSG:4326:lon_first", latFirst))));
   }
 }
