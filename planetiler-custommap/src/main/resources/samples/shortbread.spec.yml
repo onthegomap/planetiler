@@ -604,6 +604,34 @@ examples:
       name: 'Name'
       iata: eye eight a
 
+- name: 'aerialway=station'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      aerialway: station
+  output:
+    layer: public_transport
+    min_zoom: 13
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      kind: aerialway_station
+
+- name: 'railway=station'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      railway: station
+  output:
+    layer: public_transport
+    min_zoom: 13
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      kind: station
+
 - name: 'unnamed hamlet'
   input:
     source: osm
