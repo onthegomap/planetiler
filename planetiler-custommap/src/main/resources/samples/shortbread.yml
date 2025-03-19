@@ -599,6 +599,17 @@ layers:
     - *name_en
     - *name_de
 
+- id: bridges
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 12
+    include_when:
+       man_made: bridge
+    attributes:
+    - key: kind
+      value: bridge
+
 - id: aerialways
   features:
   - source: osm
