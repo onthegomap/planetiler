@@ -558,6 +558,19 @@ examples:
       name: 'Name'
       ref: 'ref'
 
+- name: 'bridge as polygon'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      man_made: bridge
+  output:
+    layer: bridges
+    geometry: polygon
+    min_zoom: 12
+    tags:
+      kind: bridge
+
 - name: 'gondola'
   input:
     source: osm
