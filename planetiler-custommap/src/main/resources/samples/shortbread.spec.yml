@@ -55,6 +55,7 @@ examples:
     geometry: line
     tags:
       waterway: canal
+      tunnel: yes
       name: The Canal
       name:en: The Canal (en)
       name:de: The Canal (de)
@@ -64,6 +65,8 @@ examples:
     min_zoom: 9
     tags:
       kind: canal
+      tunnel: true
+      bridge: false
   - layer: water_line_labels
     geometry: line
     min_zoom: 12
@@ -88,6 +91,8 @@ examples:
     min_zoom: 14
     tags:
       kind: stream
+      tunnel: false
+      bridge: false
   - layer: water_line_labels
     geometry: line
     min_zoom: 14

@@ -100,6 +100,25 @@ layers:
     attributes:
     - key: kind
       type: match_value
+    - key: tunnel
+      value: true
+      include_when:
+        tunnel: [ yes, building_passage ]
+        covered: yes
+      else: false
+    - key: bridge
+      value: true
+      include_when:
+        bridge:
+          - yes
+          - viaduct
+          - boardwalk
+          - cantilever
+          - covered
+          - low_water_crossing
+          - movable
+          - trestle
+      else: false
 
 - id: water_line_labels
   features:
