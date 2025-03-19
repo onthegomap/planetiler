@@ -610,6 +610,252 @@ layers:
     - key: kind
       type: match_value
 
+- id: pois
+  features:
+  - source: osm
+    geometry: point
+    min_zoom: 14
+    include_when: &poi_filter
+      amenity: &poi_filter_amenity
+        - arts_centre
+        - atm
+        - bank
+        - bar
+        - bench
+        - bicycle_rental
+        - biergarten
+        - cafe
+        - car_rental
+        - car_sharing
+        - car_wash
+        - cinema
+        - clinic
+        - college
+        - community_centre
+        - courthouse
+        - dentist
+        - doctors
+        - dog_park
+        - drinking_water
+        - embassy
+        - fast_food
+        - fire_station
+        - food_court
+        - fountain
+        - grave_yard
+        - hospital
+        - hunting_stand
+        - library
+        - marketplace
+        - nightclub
+        - nursing_home
+        - pharmacy
+        - place_of_worship
+        - playground
+        - police
+        - post_box
+        - post_office
+        - prison
+        - pub
+        - public_building
+        - recycling
+        - restaurant
+        - school
+        - shelter
+        - telephone
+        - theatre
+        - toilets
+        - townhall
+        - university
+        - vending_machine
+        - veterinary
+        - waste_basket
+      emergency: &poi_filter_emergency
+        - defibrillator
+        - fire_hydrant
+        - phone
+      highway: &poi_filter_highway
+        - emergency_access_point
+      historic: &poi_filter_historic
+        - archaeological_site
+        - battlefield
+        - castle
+        - fort
+        - memorial
+        - monument
+        - ruins
+        - wayside_cross
+        - wayside_shrine
+      leisure: &poi_filter_leisure
+        - golf_course
+        - ice_rink
+        - pitch
+        - sports_centre
+        - stadium
+        - swimming_pool
+        - water_park
+      man_made: &poi_filter_man_made
+        - lighthouse
+        - surveillance
+        - tower
+        - wastewater_plant
+        - water_well
+        - water_works
+        - watermill
+        - windmill
+      office: &poi_filter_office
+        - diplomatic
+      shop: &poi_filter_shop
+        - alcohol
+        - bakery
+        - beauty
+        - beverages
+        - bicycle
+        - books
+        - butcher
+        - car
+        - chemist
+        - clothes
+        - computer
+        - convenience
+        - department_store
+        - doityourself
+        - dry_cleaning
+        - florist
+        - furniture
+        - garden_centre
+        - general
+        - gift
+        - greengrocer
+        - hairdresser
+        - hardware
+        - jewelry
+        - kiosk
+        - laundry
+        - mall
+        - mobile_phone
+        - newsagent
+        - optician
+        - outdoor
+        - shoes
+        - sports
+        - stationery
+        - supermarket
+        - toys
+        - travel_agency
+        - video
+      tourism: &poi_filter_tourism
+        - artwork
+        - alpine_hut
+        - bed_and_breakfast
+        - camp_site
+        - caravan_site
+        - chalet
+        - guest_house
+        - hostel
+        - hotel
+        - information
+        - motel
+        - picnic_site
+        - theme_park
+        - viewpoint
+        - zoo
+    attributes: &poi_attrs
+     # For the attributes below, we need to include_when, as otherwise
+     # the any-filter above could add variants if contains one matching and one non-matching variant
+    - key: amenity
+      include_when:
+        amenity: *poi_filter_amenity
+    - key: leisure
+      include_when:
+        leisure:  *poi_filter_leisure
+    - key: tourism
+      include_when:
+        tourism:  *poi_filter_tourism
+    - key: shop
+      include_when:
+        shop:  *poi_filter_shop
+    - key: man_made
+      include_when:
+        man_made:  *poi_filter_man_made
+    - key: historic
+      include_when:
+        historic:  *poi_filter_historic
+    - key: emergency
+      include_when:
+        emergency:  *poi_filter_emergency
+    - key: highway
+      include_when:
+        highway:  *poi_filter_highway
+    - key: office
+      include_when:
+        office:  *poi_filter_office
+    - *name
+    - *name_en
+    - *name_de
+    - key: housename
+      tag_value: addr:housename
+    - key: housenumber
+      tag_value: addr:housenumber
+    - key: cuisine
+      include_when:
+        amenity:
+          - restaurant
+          - fast_food
+          - pub
+          - bar
+          - cafe
+    - key: sport
+      include_when:
+        leisure:
+          - pitch
+          - sports_centre
+    - key: vending
+      include_when:
+        amenity: vending_machine
+    - key: information
+      include_when:
+        tourism: information
+    - key: tower:type
+      include_when:
+        man_made: tower
+    - key: religion
+      include_when:
+        amenity: place_of_worship
+    - key: denomination
+      include_when:
+        amenity: place_of_worship
+    - key: recycling:glass_bottles
+      type: boolean
+      value: '${ feature.tags["recycling:glass_bottles"] == "yes" }'
+      include_when:
+        amenity: recycling
+    - key: recycling:paper
+      type: boolean
+      value: '${ feature.tags["recycling:paper"] == "yes" }'
+      include_when:
+        amenity: recycling
+    - key: recycling:clothes
+      type: boolean
+      value: '${ feature.tags["recycling:clothes"] == "yes" }'
+      include_when:
+        amenity: recycling
+    - key: recycling:scrap_metal
+      type: boolean
+      value: '${ feature.tags["recycling:scrap_metal"] == "yes" }'
+      include_when:
+        amenity: recycling
+    - key: atm
+      type: boolean
+      value: '${ feature.tags.atm == "yes" }'
+      include_when:
+        amenity: bank
+  - source: osm
+    geometry: polygon_point_on_surface
+    min_zoom: 14
+    include_when: *poi_filter
+    attributes: *poi_attrs
+
 - id: public_transport
   features:
   - source: osm
