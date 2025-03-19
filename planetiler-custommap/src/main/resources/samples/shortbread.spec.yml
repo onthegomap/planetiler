@@ -610,7 +610,6 @@ examples:
     allow_extra_tags: false
     tags:
       amenity: arts_centre
-      man_made: null
 
 - name: 'place_of_worship poi'
   input:
@@ -667,21 +666,6 @@ examples:
       recycling:clothes: false
       recycling:scrap_metal: false
 
-- name: 'train station point'
-  input:
-    source: osm
-    geometry: point
-    tags:
-      railway: station
-      name: 'Name'
-  output:
-    layer: public_transport
-    geometry: point
-    allow_extra_tags: false
-    tags:
-      kind: station
-      name: 'Name'
-
 - name: 'poi bank without atm'
   input:
     source: osm
@@ -724,6 +708,21 @@ examples:
     allow_extra_tags: false
     tags:
       historic: battlefield
+
+- name: 'train station point'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      railway: station
+      name: 'Name'
+  output:
+    layer: public_transport
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      kind: station
+      name: 'Name'
 
 - name: 'airport polygon'
   input:
