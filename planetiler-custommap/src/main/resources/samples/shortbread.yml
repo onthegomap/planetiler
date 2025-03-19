@@ -100,13 +100,15 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - key: tunnel
+    - &water_lines_attr_tunnel
+      key: tunnel
       value: true
       include_when:
         tunnel: [ yes, building_passage ]
         covered: yes
       else: false
-    - key: bridge
+    - &water_lines_attr_bridge
+      key: bridge
       value: true
       include_when:
         bridge:
@@ -144,6 +146,8 @@ layers:
     - *name
     - *name_en
     - *name_de
+    - *water_lines_attr_tunnel
+    - *water_lines_attr_bridge
 
 ##  Countries, States, Cities
 - id: boundaries
