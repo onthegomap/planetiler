@@ -827,27 +827,42 @@ layers:
         amenity: place_of_worship
     - key: recycling:glass_bottles
       type: boolean
-      value: '${ feature.tags["recycling:glass_bottles"] == "yes" }'
+      value:
+        - if: { "recycling:glass_bottles": yes }
+          value: true
+        - else: false
       include_when:
         amenity: recycling
     - key: recycling:paper
       type: boolean
-      value: '${ feature.tags["recycling:paper"] == "yes" }'
+      value:
+        - if: { "recycling:paper": yes }
+          value: true
+        - else: false
       include_when:
         amenity: recycling
     - key: recycling:clothes
       type: boolean
-      value: '${ feature.tags["recycling:clothes"] == "yes" }'
+      value:
+        - if: { "recycling:clothes": yes }
+          value: true
+        - else: false
       include_when:
         amenity: recycling
     - key: recycling:scrap_metal
       type: boolean
-      value: '${ feature.tags["recycling:scrap_metal"] == "yes" }'
+      value:
+        - if: { "recycling:scrap_metal": yes }
+          value: true
+        - else: false
       include_when:
         amenity: recycling
     - key: atm
       type: boolean
-      value: '${ feature.tags.atm == "yes" }'
+      value:
+        - if: { atm: yes }
+          value: true
+        - else: false
       include_when:
         amenity: bank
   - source: osm
