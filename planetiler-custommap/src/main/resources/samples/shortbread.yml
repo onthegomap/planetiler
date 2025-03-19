@@ -100,6 +100,27 @@ layers:
     attributes:
     - key: kind
       type: match_value
+    - &water_lines_attr_tunnel
+      key: tunnel
+      value: true
+      include_when:
+        tunnel: [ yes, building_passage ]
+        covered: yes
+      else: false
+    - &water_lines_attr_bridge
+      key: bridge
+      value: true
+      include_when:
+        bridge:
+          - yes
+          - viaduct
+          - boardwalk
+          - cantilever
+          - covered
+          - low_water_crossing
+          - movable
+          - trestle
+      else: false
 
 - id: water_line_labels
   features:
@@ -125,6 +146,8 @@ layers:
     - *name
     - *name_en
     - *name_de
+    - *water_lines_attr_tunnel
+    - *water_lines_attr_bridge
 
 ##  Countries, States, Cities
 - id: boundaries
