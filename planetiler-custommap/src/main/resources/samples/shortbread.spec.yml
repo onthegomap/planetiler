@@ -594,6 +594,143 @@ examples:
     tags:
       kind: gondola
 
+- name: 'pois can have names and adresses'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      office: diplomatic
+      name: 'Name'
+      addr:housename: 'Housename'
+      addr:housenumber: 'Housenumber'
+  output:
+    - layer: pois
+      geometry: point
+      allow_extra_tags: false
+      tags:
+        office: diplomatic
+        name: 'Name'
+        housename: 'Housename'
+        housenumber: 'Housenumber'
+    - layer: addresses
+      geometry: point
+      allow_extra_tags: false
+      tags:
+        name: 'Housename'
+        number: 'Housenumber'
+
+- name: 'arts_centre poi with invalid tag (man_made=beauty) is not emmitted as such'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      amenity: arts_centre
+      man_made: beauty
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      amenity: arts_centre
+
+- name: 'place_of_worship poi'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      amenity: place_of_worship
+      religion: some_religion
+      denomination: some_denomination
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      amenity: place_of_worship
+      religion: some_religion
+      denomination: some_denomination
+
+- name: 'recycling poi with invalid tag does not cause this to be emmitted'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      amenity: recycling
+      recycling:glass_bottles: yes
+      recycling:paper: yes
+      recycling:clothes: yes
+      recycling:scrap_metal: yes
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      amenity: recycling
+      recycling:glass_bottles: true
+      recycling:paper: true
+      recycling:clothes: true
+      recycling:scrap_metal: true
+
+- name: 'recycling poi without recycling tags set'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      amenity: recycling
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      amenity: recycling
+      recycling:glass_bottles: false
+      recycling:paper: false
+      recycling:clothes: false
+      recycling:scrap_metal: false
+
+- name: 'poi bank without atm'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      atm: yes
+      amenity: bank
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      atm: true
+      amenity: bank
+
+- name: 'poi bank with atm'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      atm: no
+      amenity: bank
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      atm: false
+      amenity: bank
+
+- name: 'poi on polygon'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      historic: battlefield
+  output:
+    layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      historic: battlefield
+
 - name: 'train station point'
   input:
     source: osm
