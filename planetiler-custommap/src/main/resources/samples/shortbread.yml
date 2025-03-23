@@ -220,6 +220,7 @@ layers:
       - village
       - hamlet
       - suburb
+      - quarter
       - neighbourhood
       - isolated_dwelling
       - farm
@@ -273,6 +274,8 @@ layers:
           if: { place: town }
         - value: 1000
           if: { place: suburb }
+        - value: 500
+          if: { place: quarter }
         - value: 100
           if: { place: [ village, neighborhood ] }
         - value: 50
