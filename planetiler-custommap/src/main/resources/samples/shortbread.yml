@@ -190,6 +190,7 @@ layers:
     min_zoom:
       default_value: 5
       overrides:
+        # WAY_AREA is in ha
         2: '${ feature.tags.has("ADMIN_LEVEL", "2") && double(feature.tags.WAY_AREA) >= 2e8 }'
         3: '${ double(feature.tags.WAY_AREA) >= 7e7 }'
         4: '${ double(feature.tags.WAY_AREA) >= 1e7 }'
