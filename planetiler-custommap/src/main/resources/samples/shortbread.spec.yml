@@ -280,6 +280,8 @@ examples:
       rail: false
       surface: asphalt
       tunnel: false
+      oneway: true
+      oneway_reverse: false
   - layer: street_labels
     geometry: line
     min_zoom: 13
@@ -310,6 +312,8 @@ examples:
       rail: true
       tunnel: false
       service: service_value
+      oneway: false
+      oneway_reverse: false
 
 - name: narrow_gauge without service
   input:
@@ -328,6 +332,8 @@ examples:
       link: false
       rail: true
       tunnel: false
+      oneway: false
+      oneway_reverse: false
 
 - name: 'track with grade'
   input:
@@ -387,22 +393,7 @@ examples:
     allow_extra_tags: false
     tags:
       kind: motorway
-
-- name: 'rail attributes drop below z11'
-  input:
-    source: osm
-    geometry: line
-    tags:
-      railway: rail
-      service: primary
-  output:
-    layer: streets
-    geometry: line
-    min_zoom: 8
-    at_zoom: 10
-    allow_extra_tags: false
-    tags:
-      kind: rail
+      rail: false
 
 - name: 'path bridge'
   input:

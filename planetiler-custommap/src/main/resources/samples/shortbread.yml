@@ -100,15 +100,17 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - &water_lines_attr_tunnel
+    - &attr_tunnel
       key: tunnel
+      min_zoom: 11 # to reuse for streets, not relevant for water as min_zoom is lower
       value: true
       include_when:
         tunnel: [ yes, building_passage ]
         covered: yes
       else: false
-    - &water_lines_attr_bridge
+    - &attr_bridge
       key: bridge
+      min_zoom: 11 # to reuse for streets, not relevant for water as min_zoom is lower
       value: true
       include_when:
         bridge:
@@ -146,8 +148,8 @@ layers:
     - *name
     - *name_en
     - *name_de
-    - *water_lines_attr_tunnel
-    - *water_lines_attr_bridge
+    - *attr_tunnel
+    - *attr_bridge
 
 ##  Countries, States, Cities
 - id: boundaries
@@ -432,7 +434,11 @@ layers:
         11:
           aeroway: runway
         12:
-          highway: [ residential, unclassified ]
+          highway:
+          - bus_guideway
+          - busway
+          - residential
+          - unclassified
     #  TODO   min_tile_cover_size: 0
     # TODO z-order
     include_when:
@@ -449,6 +455,8 @@ layers:
       - tertiary_link
       - unclassified
       - residential
+      - busway
+      - bus_guideway
       - living_street
       - service
       - pedestrian
@@ -475,28 +483,40 @@ layers:
       min_zoom: 11
       value: true
       include_when:
-        highway: '%_link'
+        highway:
+        - motorway_link
+        - trunk_link
+        - primary_link
+        - secondary_link
+        - tertiary_link
       else: false
     - key: rail
-      min_zoom: 11
+      min_zoom: 5
       value: true
       include_when:
         railway: __any__
       else: false
-    - &tunnel_attr
-      key: tunnel
-      min_zoom: 11
+    - *attr_tunnel
+    - *attr_bridge
+    - key: oneway
+      min_zoom: 14
       value: true
       include_when:
-        tunnel: [ yes, building_passage ]
-        covered: yes
+        __all__:
+          railway: ''
+          oneway:
+            - yes
+            - 1
+            - true
+            - -1
       else: false
-    - &bridge_attr
-      key: bridge
-      min_zoom: 11
+    - key: oneway_reverse
+      min_zoom: 14
       value: true
       include_when:
-        bridge: yes
+        __all__:
+          railway: ''
+          oneway: -1
       else: false
     - key: tracktype
       min_zoom: 11
@@ -584,8 +604,8 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - *bridge_attr
-    - *tunnel_attr
+    - *attr_bridge
+    - *attr_tunnel
     - key: surface
     - key: rail
       value: false # TODO omit?
