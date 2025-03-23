@@ -247,6 +247,7 @@ examples:
       ref: B 27
       ref_rows: 1
       ref_cols: 4
+      tunnel: false
 
 - name: B39A link
   input:
@@ -287,10 +288,11 @@ examples:
     min_zoom: 13
     allow_extra_tags: false
     tags:
-      kind: primary
+      kind: primary_link
       ref: "B 39\nB 39A"
       ref_rows: 2
       ref_cols: 5
+      tunnel: false
 
 - name: rail with service
   input:
@@ -462,11 +464,15 @@ examples:
       aeroway: taxiway
       ref: N
   output:
-    layer: streets
-    geometry: line
-    min_zoom: 13
-    tags:
-      kind: taxiway
+    - layer: streets
+      geometry: line
+      min_zoom: 13
+      tags:
+        kind: taxiway
+    - geometry: line
+      min_zoom: 13
+      tags:
+        kind: taxiway
 
 - name: 'aeroway=runway'
   input:
@@ -477,12 +483,18 @@ examples:
       ref: 07/25
       surface: concrete:lanes
   output:
-    layer: streets
+  - layer: streets
     geometry: line
     min_zoom: 11
     tags:
       kind: runway
       surface: concrete:lanes
+  - layer: street_labels
+    geometry: line
+    min_zoom: 11
+    tags:
+      kind: runway
+      ref: 07/25
 
 - name: 'pedestrian polygon'
   input:
@@ -506,7 +518,7 @@ examples:
       rail: false
       surface: paving_stones
       tunnel: false
-  - layer: street_polygons_labels
+  - layer: streets_polygons_labels
     geometry: point
     min_zoom: 14
     allow_extra_tags: false
@@ -515,7 +527,7 @@ examples:
       name: 'Name'
       name_en: 'Name (en)'
 
-- name: 'ignore pedestrian polygon without area=yes'
+- name: 'pedestrian polygon without area=yes gets also intermpreted as an polygon'
   input:
     source: osm
     geometry: polygon
@@ -523,7 +535,19 @@ examples:
       highway: pedestrian
       name: 'Name'
       name:en: 'Name (en)'
-  output: [ ]
+  output:
+  - layer: street_polygons
+    geometry: polygon
+    min_zoom: 14
+    tags:
+      kind: pedestrian
+  - layer: streets_polygons_labels
+    geometry: point
+    min_zoom: 14
+    tags:
+      kind: pedestrian
+      name: 'Name'
+      name_en: 'Name (en)'
 
 - name: 'pedestrian polygon bridge'
   input:

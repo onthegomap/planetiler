@@ -538,6 +538,16 @@ layers:
       overrides:
         10:
           highway: motorway
+          railway:
+          - rail
+          - narrow_gauge
+          - tram
+          - light_rail
+          - funicular
+          - subway
+          - monorail
+        11:
+          aeroway: runway
         12:
           highway: [ trunk, primary ]
         13:
@@ -548,6 +558,7 @@ layers:
           - secondary
           - secondary_link
           - tertiary
+          aeroway: taxiway
     include_when:
       highway:
       - motorway
@@ -563,6 +574,8 @@ layers:
       - unclassified
       - residential
       - living_street
+      - busway
+      - bus_guideway
       - service
       - pedestrian
       - track
@@ -570,13 +583,24 @@ layers:
       - steps
       - path
       - cycleway
+      aeroway:
+      - runway
+      - taxiway
+      railway:
+      - rail
+      - narrow_gauge
+      - tram
+      - light_rail
+      - funicular
+      - subway
+      - monorail
     exclude_when:
       __all__:
         name: ''
         ref: ''
     attributes:
     - key: kind
-      value: '${ match_value.replace("_link", "") }'
+      type: match_value
     - *name
     - *name_en
     - *name_de
@@ -591,6 +615,12 @@ layers:
     - key: ref_rows
       value: '${ size(feature.tags["ref"].split(";")) }'
       exclude_when: *missing_ref
+    - key: tunnel
+      value: true
+      include_when:
+        tunnel: [ yes, building_passage ]
+        covered: yes
+      else: false
 
 - id: street_polygons
   features:
