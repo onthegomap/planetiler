@@ -388,7 +388,7 @@ layers:
       __all__:
       - addr:housenumber: __any__
         addr:housename: __any__
-      - __not__: &poi_filter
+      - __not__: *poi_filter
     attributes: &address_attributes
     - key: housename
       tag_value: addr:housename
