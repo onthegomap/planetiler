@@ -594,7 +594,7 @@ examples:
     tags:
       kind: gondola
 
-- name: 'pois can have names and adresses'
+- name: 'pois can have names and adresses. This makes them not show up on the addresses layer'
   input:
     source: osm
     geometry: point
@@ -612,12 +612,6 @@ examples:
         name: 'Name'
         housename: 'Housename'
         housenumber: 'Housenumber'
-    - layer: addresses
-      geometry: point
-      allow_extra_tags: false
-      tags:
-        name: 'Housename'
-        number: 'Housenumber'
 
 - name: 'arts_centre poi with invalid tag (man_made=beauty) is not emmitted as such'
   input:

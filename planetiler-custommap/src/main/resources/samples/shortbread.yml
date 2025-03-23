@@ -384,13 +384,15 @@ layers:
   - source: osm
     geometry: polygon_centroid_if_convex
     min_zoom: 14
-    include_when: &address_filter
-      addr:housenumber: __any__
-      addr:housename: __any__
+    include_when: &address_filter 
+      __all__:
+      - addr:housenumber: __any__
+        addr:housename: __any__
+      - __not__: &poi_filter
     attributes: &address_attributes
-    - key: name
+    - key: housename
       tag_value: addr:housename
-    - key: number
+    - key: housenumber
       tag_value: addr:housenumber
   - source: osm
     geometry: point
