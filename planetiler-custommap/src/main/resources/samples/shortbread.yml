@@ -604,6 +604,8 @@ layers:
         13:
           area:aeroway: taxiway
     include_when:
+      # TODO this is a really strange difference to street_polygons.
+      # https://github.com/shortbread-tiles/shortbread-docs/issues/80
       area:aeroway: [ runway, taxiway ]
       highway: [ pedestrian, service ]
     attributes:
@@ -611,21 +613,23 @@ layers:
       type: match_value
     - *attr_bridge
     - key: rail
-      value: false # TODO omit?
+      value: false
     - key: service
     - key: surface
     - *attr_tunnel
 
-- id: street_polygons_labels
+- id: streets_polygons_labels
   features:
   - source: osm
     geometry: polygon_point_on_surface
     min_zoom: 14
     include_when:
       __all__:
-        highway: [ pedestrian, service ]
-        area: yes
-        name: __any__
+         # TODO this is a really strange difference to street_polygons.
+         # https://github.com/shortbread-tiles/shortbread-docs/issues/80
+        - aeroway: [ runway, taxiway ]
+          highway: [ pedestrian, service ]
+        - name: __any__
     attributes:
     - key: kind
       type: match_value
