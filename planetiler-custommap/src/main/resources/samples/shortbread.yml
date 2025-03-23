@@ -596,19 +596,25 @@ layers:
   features:
   - source: osm
     geometry: polygon
-    min_zoom: 14
+    min_zoom:
+      default_value: 14
+      overrides:
+        11:
+          area:aeroway: runway
+        13:
+          area:aeroway: taxiway
     include_when:
-      __all__:
-      - highway: [ pedestrian, service ]
-      - area: yes
+      area:aeroway: [ runway, taxiway ]
+      highway: [ pedestrian, service ]
     attributes:
     - key: kind
       type: match_value
     - *attr_bridge
-    - *attr_tunnel
-    - key: surface
     - key: rail
       value: false # TODO omit?
+    - key: service
+    - key: surface
+    - *attr_tunnel
 
 - id: street_polygons_labels
   features:
