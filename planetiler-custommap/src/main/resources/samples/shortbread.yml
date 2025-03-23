@@ -168,8 +168,20 @@ layers:
     attributes:
     - key: maritime
       type: boolean
+      value: true
+      include_when:
+        maritime: __any__
+        natural: coastline
+      else: false
     - key: admin_level
       type: integer
+    - key: disputed
+      value: true
+      include_when:
+        disputed: yes
+        # TODO: member of a relation with boundary=disputed and (admin_level unset or between 2 and 4)
+        # see https://github.com/shortbread-tiles/shortbread-docs/issues/43
+      else: false
 
 - id: boundary_labels
   features:

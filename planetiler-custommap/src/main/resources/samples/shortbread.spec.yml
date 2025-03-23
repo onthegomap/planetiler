@@ -901,6 +901,26 @@ examples:
     tags:
       maritime: true
       admin_level: 2
+      disputed: false
+
+- name: 'country coastline'
+  input:
+    source: osm
+    geometry: line
+    # TODO from relation
+    tags:
+      boundary: administrative
+      admin_level: '2'
+      natural: coastline
+  output:
+    layer: boundaries
+    geometry: line
+    min_zoom: 0
+    min_size: 0
+    tags:
+      maritime: true
+      admin_level: 2
+      disputed: false
 
 - name: 'state boundary'
   input:
@@ -918,6 +938,7 @@ examples:
     tags:
       maritime: false
       admin_level: 4
+      disputed: false
 
 # TODO take min admin level
 
