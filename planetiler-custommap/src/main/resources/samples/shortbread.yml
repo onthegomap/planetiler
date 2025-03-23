@@ -644,6 +644,28 @@ layers:
     - key: kind
       type: match_value
 
+- id: ferries
+  features:
+  - source: osm
+    geometry: line
+    min_zoom:
+      default_value: 12
+      overrides:
+        10:
+          __not__:
+            motor_vehicle: no
+    include_when:
+      route: ferry
+    attributes:
+    - key: kind
+      type: match_value
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+
+
 - id: pois
   features:
   - source: osm
