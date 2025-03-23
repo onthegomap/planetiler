@@ -284,6 +284,7 @@ layers:
       - farmland
       - farmyard
       - forest
+      - garages
       - grass
       - greenfield
       - greenhouse_horticulture
@@ -333,6 +334,7 @@ layers:
           - commercial
           - farmland
           - farmyard
+          - garages
           - greenfield
           - industrial
           - landfill
@@ -344,7 +346,6 @@ layers:
           - sand
         13:
           amenity: grave_yard
-          natural: wood
           landuse: cemetery
     attributes:
     - key: kind
@@ -360,11 +361,12 @@ layers:
       leisure: sports_center
       landuse: construction
       amenity:
-      - university
-      - hospital
-      - prison
-      - parking
       - bicycle_parking
+      - college
+      - hospital
+      - parking
+      - prison
+      - university
     attributes:
     - key: kind
       type: match_value
