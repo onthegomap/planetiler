@@ -33,7 +33,7 @@ definitions:
 
 layers:
 
-#  Water
+##  Water
 
 - id: ocean
   features:
@@ -268,7 +268,7 @@ layers:
           if: { place: [ isolated_dwelling, farm ] }
         - else: 0
 
-#  Land Use, Land Cover, Buildings
+##  Land Use, Land Cover, Buildings
 - id: land
   features:
   - source: osm
@@ -509,6 +509,24 @@ layers:
     - key: horse
       min_zoom: 14
 
+- id: street_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      __all__:
+      - highway: [ pedestrian, service ]
+      - area: yes
+    attributes:
+    - key: kind
+      type: match_value
+    - *bridge_attr
+    - *tunnel_attr
+    - key: surface
+    - key: rail
+      value: false # TODO omit?
+
 - id: street_labels
   features:
   - source: osm
@@ -572,24 +590,6 @@ layers:
       value: '${ size(feature.tags["ref"].split(";")) }'
       exclude_when: *missing_ref
 
-- id: street_polygons
-  features:
-  - source: osm
-    geometry: polygon
-    min_zoom: 14
-    include_when:
-      __all__:
-      - highway: [ pedestrian, service ]
-      - area: yes
-    attributes:
-    - key: kind
-      type: match_value
-    - *bridge_attr
-    - *tunnel_attr
-    - key: surface
-    - key: rail
-      value: false # TODO omit?
-
 - id: street_polygons_labels
   features:
   - source: osm
@@ -643,6 +643,49 @@ layers:
     attributes:
     - key: kind
       type: match_value
+
+##  Points of Interest
+- id: public_transport
+  features:
+  - source: osm
+    geometry: point
+    min_zoom: &public_transport_zoom
+      default_value: 14
+      overrides:
+        11:
+          aeroway: aerodrome
+        12:
+          amenity: ferry_terminal
+        13:
+          railway: [ station, halt ]
+          aerialway: station
+          aeroway: helipad
+          amenity: bus_station
+    include_when: &public_transport_filter
+      aerialway: station
+      aeroway: [ aerodrome, helipad ]
+      amenity: [ bus_station, ferry_terminal ]
+      highway: bus_stop
+      railway: [ station, halt, tram_stop ]
+    attributes: &public_transport_attrs
+    - key: kind
+      value:
+        # only aerialway=station needs special handling
+        coalesce:
+        - tag_value: aeroway
+        - tag_value: amenity
+        - tag_value: railway
+        - tag_value: highway
+        - "aerialway_station"
+    - *name
+    - *name_en
+    - *name_de
+    - key: iata
+  - source: osm
+    geometry: polygon_point_on_surface
+    min_zoom: *public_transport_zoom
+    include_when: *public_transport_filter
+    attributes: *public_transport_attrs
 
 - id: pois
   features:
@@ -904,45 +947,3 @@ layers:
     min_zoom: 14
     include_when: *poi_filter
     attributes: *poi_attrs
-
-- id: public_transport
-  features:
-  - source: osm
-    geometry: point
-    min_zoom: &public_transport_zoom
-      default_value: 14
-      overrides:
-        11:
-          aeroway: aerodrome
-        12:
-          amenity: ferry_terminal
-        13:
-          railway: [ station, halt ]
-          aerialway: station
-          aeroway: helipad
-          amenity: bus_station
-    include_when: &public_transport_filter
-      aerialway: station
-      aeroway: [ aerodrome, helipad ]
-      amenity: [ bus_station, ferry_terminal ]
-      highway: bus_stop
-      railway: [ station, halt, tram_stop ]
-    attributes: &public_transport_attrs
-    - key: kind
-      value:
-        # only aerialway=station needs special handling
-        coalesce:
-        - tag_value: aeroway
-        - tag_value: amenity
-        - tag_value: railway
-        - tag_value: highway
-        - "aerialway_station"
-    - *name
-    - *name_en
-    - *name_de
-    - key: iata
-  - source: osm
-    geometry: polygon_point_on_surface
-    min_zoom: *public_transport_zoom
-    include_when: *public_transport_filter
-    attributes: *public_transport_attrs
