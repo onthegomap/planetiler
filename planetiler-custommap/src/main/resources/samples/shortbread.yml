@@ -637,7 +637,7 @@ layers:
     - *name_en
     - *name_de
 
-- id: street_labels_points # TODO update documentation (streetS_labels_points)
+- id: street_labels_points
   features:
   - source: osm
     geometry: point
