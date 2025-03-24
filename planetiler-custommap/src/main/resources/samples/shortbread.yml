@@ -699,7 +699,16 @@ layers:
     geometry: line
     min_zoom: 12
     include_when:
-      aerialway: __any__
+      aerialway:
+      - cable_car
+      - gondola
+      - goods
+      - chair_lift
+      - drag_lift
+      - t-bar
+      - j-bar
+      - platter
+      - rope_tow
     attributes:
     - key: kind
       type: match_value
