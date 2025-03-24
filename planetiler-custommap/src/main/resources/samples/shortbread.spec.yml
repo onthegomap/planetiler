@@ -594,6 +594,54 @@ examples:
     tags:
       kind: gondola
 
+- name: ferry without motor at z12
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      motor_vehicle: no
+      name: Name
+      name:en: 'Name (en)'
+      name:de: 'Name (de)'
+  output:
+    layer: ferries
+    geometry: line
+    min_zoom: 12
+    at_zoom: 12
+    tags:
+      kind: ferry
+      name: Name
+      name_en: 'Name (en)'
+      name_de: 'Name (de)'
+
+- name: ferry without motor at z11
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      motor_vehicle: no
+      name: Name
+  output:
+    at_zoom: 11
+
+- name: ferry with motor at z11
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      name: Name
+  output:
+    layer: ferries
+    geometry: line
+    min_zoom: 10
+    at_zoom: 11
+    tags:
+      kind: ferry
+      name: Name
+
 - name: 'pois can have names and adresses'
   input:
     source: osm
