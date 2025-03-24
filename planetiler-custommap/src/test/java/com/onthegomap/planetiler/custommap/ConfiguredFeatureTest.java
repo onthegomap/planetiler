@@ -1596,6 +1596,7 @@ class ConfiguredFeatureTest {
     "feature.area('z0 tiles'); 7.7164E-6",
     "feature.area('sm'); 1.2364E10",
     "feature.area('km2'); 12363",
+    "feature.area('m2'); 12363000000",
     "feature.area('ft2'); 1.3308E11",
     "feature.area('a'); 1.23637E8",
     "feature.area('ac'); 3055141",
