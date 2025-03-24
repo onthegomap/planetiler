@@ -122,7 +122,7 @@ layers:
           - trestle
       else: false
 
-- id: water_line_labels
+- id: water_lines_labels
   features:
   - source: osm
     geometry: line
@@ -168,8 +168,20 @@ layers:
     attributes:
     - key: maritime
       type: boolean
+      value: true
+      include_when:
+        maritime: __any__
+        natural: coastline
+      else: false
     - key: admin_level
       type: integer
+    - key: disputed
+      value: true
+      include_when:
+        disputed: yes
+        # TODO: member of a relation with boundary=disputed and (admin_level unset or between 2 and 4)
+        # see https://github.com/shortbread-tiles/shortbread-docs/issues/43
+      else: false
 
 - id: boundary_labels
   features:
@@ -178,6 +190,7 @@ layers:
     min_zoom:
       default_value: 5
       overrides:
+        # WAY_AREA is in ha
         2: '${ feature.tags.has("ADMIN_LEVEL", "2") && double(feature.tags.WAY_AREA) >= 2e8 }'
         3: '${ double(feature.tags.WAY_AREA) >= 7e7 }'
         4: '${ double(feature.tags.WAY_AREA) >= 1e7 }'
@@ -207,6 +220,7 @@ layers:
       - village
       - hamlet
       - suburb
+      - quarter
       - neighbourhood
       - isolated_dwelling
       - farm
@@ -260,6 +274,8 @@ layers:
           if: { place: town }
         - value: 1000
           if: { place: suburb }
+        - value: 500
+          if: { place: quarter }
         - value: 100
           if: { place: [ village, neighborhood ] }
         - value: 50
