@@ -106,6 +106,68 @@ examples:
       name_en: The Stream (en)
       name_de: The Stream (de)
 
+- name: waterway=dam line
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: dam
+  output:
+  - layer: dam_lines
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: dam
+
+- name: waterway=dam polygon
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      waterway: dam
+  output:
+  - layer: dam_polygons
+    geometry: polygon
+    min_zoom: 12
+    tags:
+      kind: dam
+
+- name: dykes are not dams
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      man_made: dyke
+      embankment: dyke
+      geological: dyke
+  output: []
+
+- name: man_made=pier polygon
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      man_made: pier
+  output:
+  - layer: pier_polygons
+    geometry: polygon
+    min_zoom: 12
+    tags:
+      kind: pier
+
+- name: man_made=pier line
+  input:
+    source: osm
+    geometry: line
+    tags:
+      man_made: pier
+  output:
+  - layer: pier_lines
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: pier
+
 - name: landuse=grass
   input:
     source: osm
