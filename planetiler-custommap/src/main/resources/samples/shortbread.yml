@@ -174,12 +174,12 @@ layers:
   - source: osm
     geometry: line
     min_zoom: 12
-    include_when:
+    include_when: &pier_filter
       man_made: 
         - pier
         - breakwater
         - groyne
-    attributes:
+    attributes: &pier_attrs
     - key: kind
       type: match_value
 
@@ -188,14 +188,8 @@ layers:
   - source: osm
     geometry: polygon
     min_zoom: 12
-    include_when:
-      man_made: 
-        - pier
-        - breakwater
-        - groyne
-    attributes:
-    - key: kind
-      type: match_value
+    include_when: *pier_filter
+    attributes: *pier_attrs
 
 ##  Countries, States, Cities
 - id: boundaries
