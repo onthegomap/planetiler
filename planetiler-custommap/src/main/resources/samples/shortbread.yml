@@ -33,7 +33,7 @@ definitions:
 
 layers:
 
-#  Water
+##  Water
 
 - id: ocean
   features:
@@ -126,7 +126,7 @@ layers:
           - trestle
       else: false
 
-- id: water_line_labels
+- id: water_lines_labels
   features:
   - source: osm
     geometry: line
@@ -153,6 +153,48 @@ layers:
     - *water_lines_attr_tunnel
     - *water_lines_attr_bridge
 
+- id: dam_lines
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 12
+    include_when: &dam_filter
+      # note that dykes are not dams
+      waterway: dam
+    attributes: &dam_atrs
+    - key: kind
+      value: dam
+
+- id: dam_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 12
+    include_when: *dam_filter
+    attributes: *dam_atrs
+
+- id: pier_lines
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 12
+    include_when: &pier_filter
+      man_made: 
+        - pier
+        - breakwater
+        - groyne
+    attributes: &pier_attrs
+    - key: kind
+      type: match_value
+
+- id: pier_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 12
+    include_when: *pier_filter
+    attributes: *pier_attrs
+
 ##  Countries, States, Cities
 - id: boundaries
   features:
@@ -172,8 +214,20 @@ layers:
     attributes:
     - key: maritime
       type: boolean
+      value: true
+      include_when:
+        maritime: __any__
+        natural: coastline
+      else: false
     - key: admin_level
       type: integer
+    - key: disputed
+      value: true
+      include_when:
+        disputed: yes
+        # TODO: member of a relation with boundary=disputed and (admin_level unset or between 2 and 4)
+        # see https://github.com/shortbread-tiles/shortbread-docs/issues/43
+      else: false
 
 - id: boundary_labels
   features:
@@ -182,6 +236,7 @@ layers:
     min_zoom:
       default_value: 5
       overrides:
+        # WAY_AREA is in ha
         2: '${ feature.tags.has("ADMIN_LEVEL", "2") && double(feature.tags.WAY_AREA) >= 2e8 }'
         3: '${ double(feature.tags.WAY_AREA) >= 7e7 }'
         4: '${ double(feature.tags.WAY_AREA) >= 1e7 }'
@@ -211,6 +266,7 @@ layers:
       - village
       - hamlet
       - suburb
+      - quarter
       - neighbourhood
       - isolated_dwelling
       - farm
@@ -264,6 +320,8 @@ layers:
           if: { place: town }
         - value: 1000
           if: { place: suburb }
+        - value: 500
+          if: { place: quarter }
         - value: 100
           if: { place: [ village, neighborhood ] }
         - value: 50
@@ -272,7 +330,7 @@ layers:
           if: { place: [ isolated_dwelling, farm ] }
         - else: 0
 
-#  Land Use, Land Cover, Buildings
+##  Land Use, Land Cover, Buildings
 - id: land
   features:
   - source: osm
@@ -288,6 +346,7 @@ layers:
       - farmland
       - farmyard
       - forest
+      - garages
       - grass
       - greenfield
       - greenhouse_horticulture
@@ -337,6 +396,7 @@ layers:
           - commercial
           - farmland
           - farmyard
+          - garages
           - greenfield
           - industrial
           - landfill
@@ -348,7 +408,6 @@ layers:
           - sand
         13:
           amenity: grave_yard
-          natural: wood
           landuse: cemetery
     attributes:
     - key: kind
@@ -364,11 +423,12 @@ layers:
       leisure: sports_center
       landuse: construction
       amenity:
-      - university
-      - hospital
-      - prison
-      - parking
       - bicycle_parking
+      - college
+      - hospital
+      - parking
+      - prison
+      - university
     attributes:
     - key: kind
       type: match_value
@@ -513,6 +573,24 @@ layers:
     - key: horse
       min_zoom: 14
 
+- id: street_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      __all__:
+      - highway: [ pedestrian, service ]
+      - area: yes
+    attributes:
+    - key: kind
+      type: match_value
+    - *bridge_attr
+    - *tunnel_attr
+    - key: surface
+    - key: rail
+      value: false # TODO omit?
+
 - id: street_labels
   features:
   - source: osm
@@ -576,24 +654,6 @@ layers:
       value: '${ size(feature.tags["ref"].split(";")) }'
       exclude_when: *missing_ref
 
-- id: street_polygons
-  features:
-  - source: osm
-    geometry: polygon
-    min_zoom: 14
-    include_when:
-      __all__:
-      - highway: [ pedestrian, service ]
-      - area: yes
-    attributes:
-    - key: kind
-      type: match_value
-    - *bridge_attr
-    - *tunnel_attr
-    - key: surface
-    - key: rail
-      value: false # TODO omit?
-
 - id: street_polygons_labels
   features:
   - source: osm
@@ -643,10 +703,62 @@ layers:
     geometry: line
     min_zoom: 12
     include_when:
-      aerialway: __any__
+      aerialway:
+      - cable_car
+      - gondola
+      - goods
+      - chair_lift
+      - drag_lift
+      - t-bar
+      - j-bar
+      - platter
+      - rope_tow
     attributes:
     - key: kind
       type: match_value
+
+##  Points of Interest
+- id: public_transport
+  features:
+  - source: osm
+    geometry: point
+    min_zoom: &public_transport_zoom
+      default_value: 14
+      overrides:
+        11:
+          aeroway: aerodrome
+        12:
+          amenity: ferry_terminal
+        13:
+          railway: [ station, halt ]
+          aerialway: station
+          aeroway: helipad
+          amenity: bus_station
+    include_when: &public_transport_filter
+      aerialway: station
+      aeroway: [ aerodrome, helipad ]
+      amenity: [ bus_station, ferry_terminal ]
+      highway: bus_stop
+      railway: [ station, halt, tram_stop ]
+    attributes: &public_transport_attrs
+    - key: kind
+      value:
+        # only aerialway=station needs special handling
+        coalesce:
+        - tag_value: aeroway
+        - tag_value: amenity
+        - tag_value: railway
+        - tag_value: highway
+        - "aerialway_station"
+    - *name
+    - *name_en
+    - *name_de
+    - key: iata
+  - source: osm
+    geometry: polygon_point_on_surface
+    min_zoom: *public_transport_zoom
+    include_when: *public_transport_filter
+    attributes: *public_transport_attrs
 
 - id: pois
   features:
@@ -908,45 +1020,3 @@ layers:
     min_zoom: 14
     include_when: *poi_filter
     attributes: *poi_attrs
-
-- id: public_transport
-  features:
-  - source: osm
-    geometry: point
-    min_zoom: &public_transport_zoom
-      default_value: 14
-      overrides:
-        11:
-          aeroway: aerodrome
-        12:
-          amenity: ferry_terminal
-        13:
-          railway: [ station, halt ]
-          aerialway: station
-          aeroway: helipad
-          amenity: bus_station
-    include_when: &public_transport_filter
-      aerialway: station
-      aeroway: [ aerodrome, helipad ]
-      amenity: [ bus_station, ferry_terminal ]
-      highway: bus_stop
-      railway: [ station, halt, tram_stop ]
-    attributes: &public_transport_attrs
-    - key: kind
-      value:
-        # only aerialway=station needs special handling
-        coalesce:
-        - tag_value: aeroway
-        - tag_value: amenity
-        - tag_value: railway
-        - tag_value: highway
-        - "aerialway_station"
-    - *name
-    - *name_en
-    - *name_de
-    - key: iata
-  - source: osm
-    geometry: polygon_point_on_surface
-    min_zoom: *public_transport_zoom
-    include_when: *public_transport_filter
-    attributes: *public_transport_attrs
