@@ -83,7 +83,7 @@ layers:
     - *name_en
     - *name_de
     - key: way_area # area in square meter (Mercator Projection)
-      value: "${ feature.area('km2') * 1000000.0 }"
+      value: "${ feature.area('m2') }"
 
 - id: water_lines
   features:
