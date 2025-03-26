@@ -63,6 +63,8 @@ layers:
     attributes:
     - key: kind
       type: match_value
+    - key: way_area # area in square meter (Mercator Projection)
+      value: "${ feature.area('m2') }"
 
 - id: water_polygons_labels
   features:
@@ -80,6 +82,8 @@ layers:
     - *name
     - *name_en
     - *name_de
+    - key: way_area # area in square meter (Mercator Projection)
+      value: "${ feature.area('m2') }"
 
 - id: water_lines
   features:
