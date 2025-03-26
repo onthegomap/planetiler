@@ -39,7 +39,7 @@ examples:
 - name: waterway=dock
   input:
     source: osm
-    geometry: POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))
+    geometry: POLYGON ((-0.5 -0.5, 0.5 -0.5, 0.5 0.5, -0.5 0.5, -0.5 -0.5))
     tags:
       waterway: dock
   output:
@@ -48,7 +48,11 @@ examples:
     min_zoom: 10
     tags:
       kind: dock
-      way_area: 100
+      # verified with a naive "projection" and sizes from https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616
+      # 1° lat ~ 110.567km at the equator
+      # 1° lon ~ 111.321km at the equator
+      # => ~12308.429km² = ~12308.429e^6 m² = ~1.2308429e^10 m²
+      way_area: 1.236418893560872E10
 
 - name: waterway=canal linestring
   input:
