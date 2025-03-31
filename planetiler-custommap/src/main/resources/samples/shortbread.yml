@@ -597,19 +597,27 @@ layers:
   features:
   - source: osm
     geometry: polygon
-    min_zoom: 14
+    min_zoom:
+      default_value: 14
+      overrides:
+        11:
+          area:aeroway: runway
+        13:
+          area:aeroway: taxiway
     include_when:
-      __all__:
-      - highway: [ pedestrian, service ]
-      - area: yes
+      # TODO this is a really strange difference to street_polygons.
+      # https://github.com/shortbread-tiles/shortbread-docs/issues/80
+      area:aeroway: [ runway, taxiway ]
+      highway: [ pedestrian, service ]
     attributes:
     - key: kind
       type: match_value
-    - *bridge_attr
-    - *tunnel_attr
-    - key: surface
+    - *attr_bridge
     - key: rail
-      value: false # TODO omit?
+      value: false
+    - key: service
+    - key: surface
+    - *attr_tunnel
 
 - id: street_labels
   features:
@@ -703,32 +711,6 @@ layers:
         tunnel: [ yes, building_passage ]
         covered: yes
       else: false
-
-- id: street_polygons
-  features:
-  - source: osm
-    geometry: polygon
-    min_zoom:
-      default_value: 14
-      overrides:
-        11:
-          area:aeroway: runway
-        13:
-          area:aeroway: taxiway
-    include_when:
-      # TODO this is a really strange difference to street_polygons.
-      # https://github.com/shortbread-tiles/shortbread-docs/issues/80
-      area:aeroway: [ runway, taxiway ]
-      highway: [ pedestrian, service ]
-    attributes:
-    - key: kind
-      type: match_value
-    - *attr_bridge
-    - key: rail
-      value: false
-    - key: service
-    - key: surface
-    - *attr_tunnel
 
 - id: streets_polygons_labels
   features:
