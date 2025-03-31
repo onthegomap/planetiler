@@ -10,7 +10,6 @@ examples:
     layer: ocean
     geometry: polygon
     min_zoom: 0
-    allow_extra_tags: false
     tags: # no tags
 
 - name: natural=glacier
@@ -49,7 +48,6 @@ examples:
     layer: water_polygons
     geometry: polygon
     min_zoom: 10
-    allow_extra_tags: false
     tags:
       kind: dock
       # verified with a naive "projection" and sizes from https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616
