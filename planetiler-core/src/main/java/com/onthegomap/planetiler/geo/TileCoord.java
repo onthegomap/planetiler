@@ -6,7 +6,7 @@ import com.onthegomap.planetiler.util.Hilbert;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
-import javax.annotation.concurrent.Immutable;
+import net.jcip.annotations.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;

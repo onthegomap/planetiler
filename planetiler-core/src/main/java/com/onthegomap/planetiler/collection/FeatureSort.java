@@ -12,7 +12,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.IntStream;
-import javax.annotation.concurrent.NotThreadSafe;
+import net.jcip.annotations.NotThreadSafe;
 
 /**
  * A utility that accepts {@link SortableFeature} instances in any order and lets you iterate through them ordered by

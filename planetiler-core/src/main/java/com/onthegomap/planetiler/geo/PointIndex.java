@@ -3,7 +3,7 @@ package com.onthegomap.planetiler.geo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.concurrent.ThreadSafe;
+import net.jcip.annotations.ThreadSafe;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -21,7 +21,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 @ThreadSafe
 public class PointIndex<T> {
 
-  private record GeomWithData<T> (Coordinate coord, T data) {}
+  private record GeomWithData<T>(Coordinate coord, T data) {}
 
   private final STRtree index = new STRtree();
 

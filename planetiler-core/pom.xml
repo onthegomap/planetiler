@@ -157,7 +157,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.4.0-jre</version>
+      <version>33.4.6-jre</version>
     </dependency>
     <dependency>
       <groupId>mil.nga.geopackage</groupId>
@@ -185,6 +185,11 @@
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>
       <version>1.8.0</version>
+    </dependency>
+    <dependency>
+      <groupId>net.jcip</groupId>
+      <artifactId>jcip-annotations</artifactId>
+      <version>1.0</version>
     </dependency>
 
   </dependencies>
