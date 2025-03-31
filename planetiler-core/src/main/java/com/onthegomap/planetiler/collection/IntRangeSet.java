@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import java.util.PrimitiveIterator;
-import javax.annotation.concurrent.NotThreadSafe;
+import net.jcip.annotations.NotThreadSafe;
 import org.roaringbitmap.PeekableIntIterator;
 import org.roaringbitmap.RoaringBitmap;
 

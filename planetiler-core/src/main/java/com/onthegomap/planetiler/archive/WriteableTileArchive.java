@@ -3,7 +3,7 @@ package com.onthegomap.planetiler.archive;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileOrder;
 import java.io.Closeable;
-import javax.annotation.concurrent.NotThreadSafe;
+import net.jcip.annotations.NotThreadSafe;
 
 /**
  * Write API for an on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive

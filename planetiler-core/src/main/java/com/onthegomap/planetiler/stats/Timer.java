@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.stats;
 
-import javax.annotation.concurrent.ThreadSafe;
+import net.jcip.annotations.ThreadSafe;
 
 /**
  * Measures the amount of wall and CPU time that a task takes.
