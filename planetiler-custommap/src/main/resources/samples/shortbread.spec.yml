@@ -952,7 +952,6 @@ examples:
     layer: boundary_labels
     geometry: point
     min_zoom: 5
-    allow_extra_tags: false
     tags:
       way_area: 10.5
       admin_level: 2
@@ -973,7 +972,6 @@ examples:
     layer: boundary_labels
     geometry: point
     min_zoom: 4
-    allow_extra_tags: false
     tags:
       name: name
       name_de: name (de)
@@ -995,7 +993,6 @@ examples:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
-    allow_extra_tags: false
     tags:
       name: name
       name_de: name (de)
@@ -1017,7 +1014,6 @@ examples:
     layer: boundary_labels
     geometry: point
     min_zoom: 2
-    allow_extra_tags: false
     tags:
       name: name
       name_de: name (de)
@@ -1039,7 +1035,6 @@ examples:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
-    allow_extra_tags: false
     tags:
       name: name
       name_de: name (de)
