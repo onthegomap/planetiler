@@ -10,6 +10,7 @@ examples:
     layer: ocean
     geometry: polygon
     min_zoom: 0
+    allow_extra_tags: false
     tags: # no tags
 
 - name: natural=glacier
@@ -25,11 +26,13 @@ examples:
   - layer: water_polygons
     geometry: polygon
     min_zoom: 4
+    allow_extra_tags: false
     tags:
       kind: glacier
   - layer: water_polygons_labels
     geometry: point
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: glacier
       name: The glacier
@@ -46,6 +49,7 @@ examples:
     layer: water_polygons
     geometry: polygon
     min_zoom: 10
+    allow_extra_tags: false
     tags:
       kind: dock
 
@@ -63,6 +67,7 @@ examples:
   - layer: water_lines
     geometry: line
     min_zoom: 9
+    allow_extra_tags: false
     tags:
       kind: canal
       tunnel: true
@@ -70,6 +75,7 @@ examples:
   - layer: water_lines_labels
     geometry: line
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: canal
       tunnel: true
@@ -91,6 +97,7 @@ examples:
   - layer: water_lines
     geometry: line
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: stream
       tunnel: false
@@ -98,6 +105,7 @@ examples:
   - layer: water_lines_labels
     geometry: line
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: stream
       tunnel: false
@@ -116,6 +124,7 @@ examples:
   - layer: dam_lines
     geometry: line
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: dam
 
@@ -129,6 +138,7 @@ examples:
   - layer: dam_polygons
     geometry: polygon
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: dam
 
@@ -152,6 +162,7 @@ examples:
   - layer: pier_polygons
     geometry: polygon
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: pier
 
@@ -165,6 +176,7 @@ examples:
   - layer: pier_lines
     geometry: line
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: pier
 
@@ -178,6 +190,7 @@ examples:
   - layer: land
     geometry: polygon
     min_zoom: 11
+    allow_extra_tags: false
     tags:
       kind: grass
 
@@ -191,6 +204,7 @@ examples:
   - layer: land
     geometry: polygon
     min_zoom: 7
+    allow_extra_tags: false
     tags:
       kind: wood
 
@@ -204,6 +218,7 @@ examples:
   - layer: land
     geometry: polygon
     min_zoom: 7
+    allow_extra_tags: false
     tags:
       kind: wood
 
@@ -217,6 +232,7 @@ examples:
   - layer: sites
     geometry: polygon
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: parking
 
@@ -230,6 +246,8 @@ examples:
   - layer: buildings
     geometry: polygon
     min_zoom: 14
+    allow_extra_tags: false
+    tags: # no tags
 
 - name: building=house
   input:
@@ -241,6 +259,8 @@ examples:
   - layer: buildings
     geometry: polygon
     min_zoom: 14
+    allow_extra_tags: false
+    tags: # no tags
 
 - name: address polygon with house number
   input:
@@ -252,6 +272,7 @@ examples:
   - layer: addresses
     geometry: point
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       number: 123
 
@@ -265,6 +286,7 @@ examples:
   - layer: addresses
     geometry: point
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       name: the 123 house
 
@@ -293,6 +315,7 @@ examples:
     geometry: line
     min_zoom: 8
     min_size: 0
+    allow_extra_tags: false
     tags:
       bridge: false
       kind: primary
@@ -424,10 +447,18 @@ examples:
   output:
   - layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: path
+      bridge: false
+      link: false
+      rail: false
+      tunnel: false
   - layer: street_labels
     geometry: line
+    min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: path
       name: Name
@@ -477,9 +508,12 @@ examples:
     layer: streets
     geometry: line
     min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: true
       kind: path
+      bridge: true
+      link: false
+      rail: false
       tunnel: false
 
 - name: 'pedestrian tunnel'
@@ -492,9 +526,13 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: false
       kind: pedestrian
+      bridge: false
+      link: false
+      rail: false
       tunnel: true
 
 - name: 'horse'
@@ -507,9 +545,15 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       horse: definitely
+      bridge: false
+      link: false
+      rail: false
+      tunnel: false
 
 - name: 'bicycle'
   input:
@@ -521,9 +565,15 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       bicycle: definitely
+      bridge: false
+      link: false
+      rail: false
+      tunnel: false
 
 - name: 'aeroway=taxiway'
   input:
@@ -536,8 +586,13 @@ examples:
     layer: streets
     geometry: line
     min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: taxiway
+      bridge: false
+      link: false
+      rail: false
+      tunnel: false
 
 - name: 'aeroway=runway'
   input:
@@ -551,9 +606,14 @@ examples:
     layer: streets
     geometry: line
     min_zoom: 11
+    allow_extra_tags: false
     tags:
       kind: runway
       surface: concrete:lanes
+      bridge: false
+      link: false
+      rail: false
+      tunnel: false
 
 - name: 'pedestrian polygon'
   input:
@@ -608,9 +668,12 @@ examples:
     layer: street_polygons
     geometry: polygon
     min_zoom: 14
+    allow_extra_tags: false
     tags:
       kind: service
       bridge: true
+      rail: false
+      tunnel: false
 
 - name: 'motorway junction'
   input:
@@ -624,6 +687,7 @@ examples:
     layer: street_labels_points
     geometry: point
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: motorway_junction
       name: 'Name'
@@ -639,6 +703,7 @@ examples:
     layer: bridges
     geometry: polygon
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: bridge
 
@@ -653,6 +718,7 @@ examples:
     layer: aerialways
     geometry: line
     min_zoom: 12
+    allow_extra_tags: false
     tags:
       kind: gondola
 
@@ -668,6 +734,7 @@ examples:
   output:
     - layer: pois
       geometry: point
+      min_zoom: 14
       allow_extra_tags: false
       tags:
         office: diplomatic
@@ -676,6 +743,7 @@ examples:
         housenumber: 'Housenumber'
     - layer: addresses
       geometry: point
+      min_zoom: 14
       allow_extra_tags: false
       tags:
         name: 'Housename'
@@ -691,6 +759,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       amenity: arts_centre
@@ -706,6 +775,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       amenity: place_of_worship
@@ -725,6 +795,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       amenity: recycling
@@ -742,6 +813,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       amenity: recycling
@@ -760,6 +832,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       atm: true
@@ -775,6 +848,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       atm: false
@@ -789,6 +863,7 @@ examples:
   output:
     layer: pois
     geometry: point
+    min_zoom: 14
     allow_extra_tags: false
     tags:
       historic: battlefield
@@ -803,6 +878,7 @@ examples:
   output:
     layer: public_transport
     geometry: point
+    min_zoom: 13
     allow_extra_tags: false
     tags:
       kind: station
@@ -819,6 +895,7 @@ examples:
   output:
     layer: public_transport
     geometry: point
+    min_zoom: 11
     allow_extra_tags: false
     tags:
       kind: aerodrome
@@ -833,8 +910,8 @@ examples:
       aerialway: station
   output:
     layer: public_transport
-    min_zoom: 13
     geometry: point
+    min_zoom: 13
     allow_extra_tags: false
     tags:
       kind: aerialway_station
@@ -847,8 +924,8 @@ examples:
       railway: station
   output:
     layer: public_transport
-    min_zoom: 13
     geometry: point
+    min_zoom: 13
     allow_extra_tags: false
     tags:
       kind: station
@@ -874,8 +951,8 @@ examples:
   output:
     layer: boundary_labels
     geometry: point
-    allow_extra_tags: false
     min_zoom: 5
+    allow_extra_tags: false
     tags:
       way_area: 10.5
       admin_level: 2
@@ -890,11 +967,17 @@ examples:
       WAY_AREA: 1e7
       ADMIN_LEVEL: 2
       NAME: name
+      NAME_DE: name (de)
+      NAME_EN: name (en)
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 4
+    allow_extra_tags: false
     tags:
+      name: name
+      name_de: name (de)
+      name_en: name (en)
       way_area: 1e7
       admin_level: 2
 
@@ -906,11 +989,17 @@ examples:
       WAY_AREA: 7e7
       ADMIN_LEVEL: 2
       NAME: name
+      NAME_DE: name (de)
+      NAME_EN: name (en)
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
+    allow_extra_tags: false
     tags:
+      name: name
+      name_de: name (de)
+      name_en: name (en)
       way_area: 7e7
       admin_level: 2
 
@@ -922,11 +1011,17 @@ examples:
       WAY_AREA: 2e8
       ADMIN_LEVEL: '2'
       NAME: name
+      NAME_DE: name (de)
+      NAME_EN: name (en)
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 2
+    allow_extra_tags: false
     tags:
+      name: name
+      name_de: name (de)
+      name_en: name (en)
       way_area: 2e8
       admin_level: 2
 
@@ -938,11 +1033,17 @@ examples:
       WAY_AREA: 7e7
       ADMIN_LEVEL: 4
       NAME: name
+      NAME_DE: name (de)
+      NAME_EN: name (en)
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
+    allow_extra_tags: false
     tags:
+      name: name
+      name_de: name (de)
+      name_en: name (en)
       way_area: 7e7
       admin_level: 4
 
@@ -960,6 +1061,7 @@ examples:
     geometry: line
     min_zoom: 0
     min_size: 0
+    allow_extra_tags: false
     tags:
       maritime: true
       admin_level: 2
@@ -979,6 +1081,7 @@ examples:
     geometry: line
     min_zoom: 0
     min_size: 0
+    allow_extra_tags: false
     tags:
       maritime: true
       admin_level: 2
@@ -997,6 +1100,7 @@ examples:
     geometry: line
     min_zoom: 7
     min_size: 0
+    allow_extra_tags: false
     tags:
       maritime: false
       admin_level: 4
@@ -1014,8 +1118,8 @@ examples:
   output:
     layer: place_labels
     geometry: point
-    allow_extra_tags: false
     min_zoom: 10
+    allow_extra_tags: false
     tags:
       kind: hamlet
       name: 'Name'
@@ -1032,8 +1136,8 @@ examples:
   output:
     layer: place_labels
     geometry: point
-    allow_extra_tags: false
     min_zoom: 6
+    allow_extra_tags: false
     tags:
       kind: city
       name: 'Name'
@@ -1050,8 +1154,8 @@ examples:
   output:
     layer: place_labels
     geometry: point
-    allow_extra_tags: false
     min_zoom: 4
+    allow_extra_tags: false
     tags:
       kind: state_capital
       name: 'Name'
@@ -1068,8 +1172,8 @@ examples:
   output:
     layer: place_labels
     geometry: point
-    allow_extra_tags: false
     min_zoom: 4
+    allow_extra_tags: false
     tags:
       kind: capital
       name: 'Name'
@@ -1086,6 +1190,9 @@ examples:
   output:
     layer: place_labels
     geometry: point
+    min_zoom: 6
+    allow_extra_tags: false
     tags:
       kind: city
       population: 123123
+      name: Name
