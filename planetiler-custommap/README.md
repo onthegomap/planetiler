@@ -414,7 +414,8 @@ value:
   water: otherwise
 ```
 
-If the values are not simple strings, then you can use an array of objects with `if` and `value` keys and a last object with an `else` key:
+If the values are not simple strings, then you can use an array of objects with `if` and `value` keys and a last object
+with an `else` key:
 
 ```yaml
 value:
@@ -513,7 +514,7 @@ On the original feature or any accessor that returns a geometry, you can also us
   z0 ti", "z0 pixels"/"z0 px" for sizes relative to the size of the geometry when projected into a z0 web mercator tile
   containing the entire world.
 - `feature.area("unit")` - area of the feature if it is a polygon, 0 otherwise. Allowed units: any length unit like "
-  km2", "mi2", or "z0 px2" or also "acres"/"ac", "hectares"/"ha", or "ares"/"a".
+  km2", "m2", "mi2", or "z0 px2" or also "acres"/"ac", "hectares"/"ha", or "ares"/"a".
 - `feature.min_lat` / `feature.min_lon` / `feature.max_lat` / `feature.max_lon` - returns coordinates from the bounding
   box of this geometry
 - `feature.lat` / `feature.lon` - returns the coordinate of an arbitrary point on this shape (useful to get the lat/lon

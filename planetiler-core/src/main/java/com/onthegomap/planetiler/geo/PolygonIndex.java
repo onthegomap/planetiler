@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.geo;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.concurrent.ThreadSafe;
+import net.jcip.annotations.ThreadSafe;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.Point;
@@ -67,7 +67,7 @@ public class PolygonIndex<T> {
   private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
-      if (item instanceof GeomWithData<?>(var poly,var data) && poly.contains(point)) {
+      if (item instanceof GeomWithData<?>(var poly, var data) && poly.contains(point)) {
         @SuppressWarnings("unchecked") T t = (T) data;
         result.add(t);
       }
@@ -78,7 +78,7 @@ public class PolygonIndex<T> {
   private List<T> postFilterIntersecting(Geometry geom, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
-      if (item instanceof GeomWithData<?>(var poly,var data) && poly.intersects(geom)) {
+      if (item instanceof GeomWithData<?>(var poly, var data) && poly.intersects(geom)) {
         @SuppressWarnings("unchecked") T t = (T) data;
         result.add(t);
       }

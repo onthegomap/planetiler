@@ -8,8 +8,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import javax.annotation.concurrent.NotThreadSafe;
-import javax.annotation.concurrent.ThreadSafe;
+import net.jcip.annotations.ThreadSafe;
 
 /**
  * Tracks the feature attributes and zoom range of each layer to populate the archive output metadata.
@@ -110,7 +109,7 @@ public class LayerAttrStats {
   }
 
   /** Accepts features from a single thread that will be combined across all threads in {@link #getTileStats()}. */
-  @NotThreadSafe
+  @ThreadSafe
   private class ThreadLocalHandler implements Updater {
 
     private final Map<String, StatsForLayer> layers = new TreeMap<>();
