@@ -533,13 +533,26 @@ examples:
   output:
     - layer: streets
       geometry: line
+      allow_extra_tags: false
       min_zoom: 13
       tags:
         kind: taxiway
-    - geometry: line
+        bridge: false
+        tunnel: false
+        link: false
+        rail: false
+        oneway: false
+        oneway_reverse: false
+    - layer: street_labels
+      geometry: line
+      allow_extra_tags: false
       min_zoom: 13
       tags:
         kind: taxiway
+        ref: N
+        ref_rows: 1
+        ref_cols: 1
+        tunnel: false
 
 - name: 'aeroway=runway'
   input:
