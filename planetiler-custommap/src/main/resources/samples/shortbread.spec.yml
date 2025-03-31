@@ -67,7 +67,7 @@ examples:
       kind: canal
       tunnel: true
       bridge: false
-  - layer: water_line_labels
+  - layer: water_lines_labels
     geometry: line
     min_zoom: 12
     tags:
@@ -95,7 +95,7 @@ examples:
       kind: stream
       tunnel: false
       bridge: false
-  - layer: water_line_labels
+  - layer: water_lines_labels
     geometry: line
     min_zoom: 14
     tags:
@@ -105,6 +105,68 @@ examples:
       name: The Stream
       name_en: The Stream (en)
       name_de: The Stream (de)
+
+- name: waterway=dam line
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: dam
+  output:
+  - layer: dam_lines
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: dam
+
+- name: waterway=dam polygon
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      waterway: dam
+  output:
+  - layer: dam_polygons
+    geometry: polygon
+    min_zoom: 12
+    tags:
+      kind: dam
+
+- name: dykes are not dams
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      man_made: dyke
+      embankment: dyke
+      geological: dyke
+  output: []
+
+- name: man_made=pier polygon
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      man_made: pier
+  output:
+  - layer: pier_polygons
+    geometry: polygon
+    min_zoom: 12
+    tags:
+      kind: pier
+
+- name: man_made=pier line
+  input:
+    source: osm
+    geometry: line
+    tags:
+      man_made: pier
+  output:
+  - layer: pier_lines
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: pier
 
 - name: landuse=grass
   input:
@@ -895,6 +957,26 @@ examples:
     tags:
       maritime: true
       admin_level: 2
+      disputed: false
+
+- name: 'country coastline'
+  input:
+    source: osm
+    geometry: line
+    # TODO from relation
+    tags:
+      boundary: administrative
+      admin_level: '2'
+      natural: coastline
+  output:
+    layer: boundaries
+    geometry: line
+    min_zoom: 0
+    min_size: 0
+    tags:
+      maritime: true
+      admin_level: 2
+      disputed: false
 
 - name: 'state boundary'
   input:
@@ -912,6 +994,7 @@ examples:
     tags:
       maritime: false
       admin_level: 4
+      disputed: false
 
 # TODO take min admin level
 
