@@ -475,9 +475,14 @@ examples:
     layer: streets
     geometry: line
     min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: true
       kind: path
+      bridge: true
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
       tunnel: false
 
 - name: 'pedestrian tunnel'
@@ -490,10 +495,16 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: false
       kind: pedestrian
       tunnel: true
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'horse'
   input:
@@ -505,9 +516,17 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       horse: definitely
+      tunnel: false
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'bicycle'
   input:
@@ -519,9 +538,17 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       bicycle: definitely
+      tunnel: false
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'aeroway=taxiway'
   input:
@@ -566,15 +593,26 @@ examples:
   - layer: streets
     geometry: line
     min_zoom: 11
+    allow_extra_tags: false
     tags:
       kind: runway
       surface: concrete:lanes
+      bridge: false
+      tunnel: false
+      link: false
+      rail: false
+      oneway: false
+      oneway_reverse: false
   - layer: street_labels
     geometry: line
     min_zoom: 11
+    allow_extra_tags: false
     tags:
       kind: runway
       ref: 07/25
+      ref_rows: 1
+      ref_cols: 5
+      tunnel: false
 
 - name: 'pedestrian polygon'
   input:
@@ -607,7 +645,7 @@ examples:
       name: 'Name'
       name_en: 'Name (en)'
 
-- name: 'pedestrian polygon without area=yes gets also intermpreted as an polygon'
+- name: 'pedestrian polygon without area=yes gets also interpreted as an polygon'
   input:
     source: osm
     geometry: polygon
@@ -618,11 +656,16 @@ examples:
   output:
   - layer: street_polygons
     geometry: polygon
+    allow_extra_tags: false
     min_zoom: 14
     tags:
       kind: pedestrian
+      bridge: false
+      tunnel: false
+      rail: false
   - layer: streets_polygons_labels
     geometry: point
+    allow_extra_tags: false
     min_zoom: 14
     tags:
       kind: pedestrian
@@ -640,10 +683,13 @@ examples:
   output:
     layer: street_polygons
     geometry: polygon
+    allow_extra_tags: false
     min_zoom: 14
     tags:
       kind: service
       bridge: true
+      rail: false
+      tunnel: false
 
 - name: 'motorway junction'
   input:
@@ -656,6 +702,7 @@ examples:
   output:
     layer: street_labels_points
     geometry: point
+    allow_extra_tags: false
     min_zoom: 12
     tags:
       kind: motorway_junction
