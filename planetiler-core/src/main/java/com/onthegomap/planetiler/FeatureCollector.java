@@ -854,7 +854,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       double result = ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
       // TODO is this enough? what about a grid square that ends just before the start of the tile
       assert result <= getBufferPixelsAtZoom(
-        zoom) : "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was greater than label grid size=%f"
+        zoom) : "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was less than label grid size=%f"
           .formatted(
             getLayer(), getBufferPixelsAtZoom(zoom), result);
       return result;
