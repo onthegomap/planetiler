@@ -258,7 +258,7 @@ examples:
     geometry: point
     min_zoom: 14
     tags:
-      number: 123
+      housenumber: 123
 
 - name: address point with house name
   input:
@@ -271,7 +271,7 @@ examples:
     geometry: point
     min_zoom: 14
     tags:
-      name: the 123 house
+      housename: the 123 house
 
 - name: B27 highway
   input:
@@ -661,7 +661,7 @@ examples:
     tags:
       kind: gondola
 
-- name: 'pois can have names and adresses'
+- name: 'pois can have names and adresses. This makes them not show up on the addresses layer'
   input:
     source: osm
     geometry: point
@@ -679,12 +679,6 @@ examples:
         name: 'Name'
         housename: 'Housename'
         housenumber: 'Housenumber'
-    - layer: addresses
-      geometry: point
-      allow_extra_tags: false
-      tags:
-        name: 'Housename'
-        number: 'Housenumber'
 
 - name: 'arts_centre poi with invalid tag (man_made=beauty) is not emmitted as such'
   input:
