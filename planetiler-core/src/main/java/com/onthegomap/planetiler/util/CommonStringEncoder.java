@@ -3,7 +3,7 @@ package com.onthegomap.planetiler.util;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.concurrent.ThreadSafe;
+import net.jcip.annotations.ThreadSafe;
 
 /**
  * A utility for compressing commonly-used strings (i.e. layer name, tag attributes).

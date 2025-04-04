@@ -4,7 +4,7 @@ import com.onthegomap.planetiler.util.Format;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
-import javax.annotation.concurrent.Immutable;
+import net.jcip.annotations.Immutable;
 
 /**
  * A utility for measuring the wall and CPU time that this JVM consumes between snapshots.

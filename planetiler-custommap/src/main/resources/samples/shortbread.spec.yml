@@ -42,7 +42,7 @@ examples:
 - name: waterway=dock
   input:
     source: osm
-    geometry: polygon
+    geometry: POLYGON ((-0.5 -0.5, 0.5 -0.5, 0.5 0.5, -0.5 0.5, -0.5 -0.5))
     tags:
       waterway: dock
   output:
@@ -52,6 +52,11 @@ examples:
     allow_extra_tags: false
     tags:
       kind: dock
+      # verified with a naive "projection" and sizes from https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616
+      # 1° lat ~ 110.567km at the equator
+      # 1° lon ~ 111.321km at the equator
+      # => ~12308.429km² = ~12308.429e^6 m² = ~1.2308429e^10 m²
+      way_area: 1.236418893560872E10
 
 - name: waterway=canal linestring
   input:
@@ -274,7 +279,7 @@ examples:
     min_zoom: 14
     allow_extra_tags: false
     tags:
-      number: 123
+      housenumber: 123
 
 - name: address point with house name
   input:
@@ -288,7 +293,7 @@ examples:
     min_zoom: 14
     allow_extra_tags: false
     tags:
-      name: the 123 house
+      housename: the 123 house
 
 - name: B27 highway
   input:
@@ -722,7 +727,55 @@ examples:
     tags:
       kind: gondola
 
-- name: 'pois can have names and adresses'
+- name: ferry without motor at z12
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      motor_vehicle: no
+      name: Name
+      name:en: 'Name (en)'
+      name:de: 'Name (de)'
+  output:
+    layer: ferries
+    geometry: line
+    min_zoom: 12
+    at_zoom: 12
+    tags:
+      kind: ferry
+      name: Name
+      name_en: 'Name (en)'
+      name_de: 'Name (de)'
+
+- name: ferry without motor at z11
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      motor_vehicle: no
+      name: Name
+  output:
+    at_zoom: 11
+
+- name: ferry with motor at z11
+  input:
+    source: osm
+    geometry: line
+    tags:
+      route: ferry
+      name: Name
+  output:
+    layer: ferries
+    geometry: line
+    min_zoom: 10
+    at_zoom: 11
+    tags:
+      kind: ferry
+      name: Name
+
+- name: 'pois can have names and adresses. This makes them not show up on the addresses layer'
   input:
     source: osm
     geometry: point
@@ -741,13 +794,6 @@ examples:
         name: 'Name'
         housename: 'Housename'
         housenumber: 'Housenumber'
-    - layer: addresses
-      geometry: point
-      min_zoom: 14
-      allow_extra_tags: false
-      tags:
-        name: 'Housename'
-        number: 'Housenumber'
 
 - name: 'arts_centre poi with invalid tag (man_made=beauty) is not emmitted as such'
   input:
