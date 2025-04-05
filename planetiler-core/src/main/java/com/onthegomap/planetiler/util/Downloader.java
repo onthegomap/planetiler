@@ -282,6 +282,7 @@ public class Downloader {
         byte[] buffer = new byte[16384];
         int read;
         while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
+          LOGGER.info("  FETCHED offset={} read={}", offset, read);
           counter.incBy(read);
           if (rateLimiter != null) {
             rateLimiter.acquire(read);
@@ -290,6 +291,8 @@ public class Downloader {
           int remaining = read;
           while (remaining > 0) {
             int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
+            LOGGER.info("    WROTE offset={} position={} written={} remaining={}", offset, position, written,
+              remaining);
             if (written <= 0) {
               throw new IOException("Failed to write to " + tmpPath);
             }
