@@ -270,6 +270,7 @@ public class Downloader {
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       perFileLimiter.acquire();
+      boolean log = "lake_centerlines".equals(resource.id);
       LOGGER.info("START {}", range);
       var counter = resource.progress.counterForThread();
       try (
@@ -281,8 +282,12 @@ public class Downloader {
         long offset = range.start;
         byte[] buffer = new byte[16384];
         int read;
+        if (log) {
+          LOGGER.info("  FETCHING FIRST CHUNK");
+        }
         while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
-          LOGGER.info("  FETCHED offset={} read={}", offset, read);
+          if (log)
+            LOGGER.info("  FETCHED offset={} read={}", offset, read);
           counter.incBy(read);
           if (rateLimiter != null) {
             rateLimiter.acquire(read);
@@ -291,8 +296,9 @@ public class Downloader {
           int remaining = read;
           while (remaining > 0) {
             int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
-            LOGGER.info("    WROTE offset={} position={} written={} remaining={}", offset, position, written,
-              remaining);
+            if (log)
+              LOGGER.info("    WROTE offset={} position={} written={} remaining={}", offset, position, written,
+                remaining);
             if (written <= 0) {
               throw new IOException("Failed to write to " + tmpPath);
             }
