@@ -264,11 +264,14 @@ public class Downloader {
       long end = Math.min(start + chunkSize, fileSize);
       chunks.add(new Range(start, end));
     }
+    LOGGER.info("Chunks to download: {}", chunks);
     FileUtils.setLength(tmpPath, metadata.size.orElse(1));
     Semaphore perFileLimiter = new Semaphore(config.downloadThreads());
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       perFileLimiter.acquire();
+      boolean log = "lake_centerlines".equals(resource.id);
+      LOGGER.info("START {}", range);
       var counter = resource.progress.counterForThread();
       try (
         var fc = FileChannel.open(tmpPath, WRITE);
@@ -279,7 +282,12 @@ public class Downloader {
         long offset = range.start;
         byte[] buffer = new byte[16384];
         int read;
+        if (log) {
+          LOGGER.info("  FETCHING FIRST CHUNK");
+        }
         while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
+          if (log)
+            LOGGER.info("  FETCHED offset={} read={}", offset, read);
           counter.incBy(read);
           if (rateLimiter != null) {
             rateLimiter.acquire(read);
@@ -288,6 +296,9 @@ public class Downloader {
           int remaining = read;
           while (remaining > 0) {
             int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
+            if (log)
+              LOGGER.info("    WROTE offset={} position={} written={} remaining={}", offset, position, written,
+                remaining);
             if (written <= 0) {
               throw new IOException("Failed to write to " + tmpPath);
             }
@@ -296,6 +307,10 @@ public class Downloader {
             offset += written;
           }
         }
+        LOGGER.info("FINISH {}", range);
+      } catch (Exception e) {
+        LOGGER.info("ERROR {}", range, e);
+        throw e;
       } finally {
         perFileLimiter.release();
       }
