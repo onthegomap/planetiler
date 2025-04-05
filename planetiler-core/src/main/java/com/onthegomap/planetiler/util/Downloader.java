@@ -264,11 +264,13 @@ public class Downloader {
       long end = Math.min(start + chunkSize, fileSize);
       chunks.add(new Range(start, end));
     }
+    LOGGER.info("Chunks to download: {}", chunks);
     FileUtils.setLength(tmpPath, metadata.size.orElse(1));
     Semaphore perFileLimiter = new Semaphore(config.downloadThreads());
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       perFileLimiter.acquire();
+      LOGGER.info("START {}", range);
       var counter = resource.progress.counterForThread();
       try (
         var fc = FileChannel.open(tmpPath, WRITE);
@@ -296,6 +298,10 @@ public class Downloader {
             offset += written;
           }
         }
+        LOGGER.info("FINISH {}", range);
+      } catch (Exception e) {
+        LOGGER.info("ERROR {}", range, e);
+        throw e;
       } finally {
         perFileLimiter.release();
       }
