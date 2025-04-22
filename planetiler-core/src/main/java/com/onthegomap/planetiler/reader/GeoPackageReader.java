@@ -178,9 +178,10 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         var l = this.bounds.latLon();
         indexer.setIndexLocation(FeatureIndexType.RTREE);
         var bbox = new ReferencedEnvelope(l.getMinX(), l.getMaxX(), l.getMinY(), l.getMaxY(), destCrs);
-        var bbox2 = bbox.transform(sourceCrs, true);
+        var bbox2 = CRS.transform(transform.inverse(), bbox);
         results =
-          indexer.query(new GeometryEnvelope(bbox2.getMinX(), bbox2.getMinY(), bbox2.getMaxX(), bbox2.getMaxY()));
+          indexer.query(
+            new GeometryEnvelope(bbox2.getMinimum(0), bbox2.getMinimum(1), bbox2.getMaximum(0), bbox2.getMaximum(1)));
       } else {
         results = features.queryForAll();
       }
