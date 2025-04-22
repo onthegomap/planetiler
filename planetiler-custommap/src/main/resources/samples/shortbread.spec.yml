@@ -314,6 +314,7 @@ examples:
       ref: B 27
       ref_rows: 1
       ref_cols: 4
+      tunnel: false
 
 - name: B39A link
   input:
@@ -347,15 +348,18 @@ examples:
       rail: false
       surface: asphalt
       tunnel: false
+      oneway: true
+      oneway_reverse: false
   - layer: street_labels
     geometry: line
     min_zoom: 13
     allow_extra_tags: false
     tags:
-      kind: primary
+      kind: primary_link
       ref: "B 39\nB 39A"
       ref_rows: 2
       ref_cols: 5
+      tunnel: false
 
 - name: rail with service
   input:
@@ -377,6 +381,8 @@ examples:
       rail: true
       tunnel: false
       service: service_value
+      oneway: false
+      oneway_reverse: false
 
 - name: narrow_gauge without service
   input:
@@ -395,6 +401,8 @@ examples:
       link: false
       rail: true
       tunnel: false
+      oneway: false
+      oneway_reverse: false
 
 - name: 'track with grade'
   input:
@@ -454,22 +462,7 @@ examples:
     allow_extra_tags: false
     tags:
       kind: motorway
-
-- name: 'rail attributes drop below z11'
-  input:
-    source: osm
-    geometry: line
-    tags:
-      railway: rail
-      service: primary
-  output:
-    layer: streets
-    geometry: line
-    min_zoom: 8
-    at_zoom: 10
-    allow_extra_tags: false
-    tags:
-      kind: rail
+      rail: false
 
 - name: 'path bridge'
   input:
@@ -482,9 +475,14 @@ examples:
     layer: streets
     geometry: line
     min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: true
       kind: path
+      bridge: true
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
       tunnel: false
 
 - name: 'pedestrian tunnel'
@@ -497,10 +495,16 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
-      bridge: false
       kind: pedestrian
       tunnel: true
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'horse'
   input:
@@ -512,9 +516,17 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       horse: definitely
+      tunnel: false
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'bicycle'
   input:
@@ -526,9 +538,17 @@ examples:
   output:
     layer: streets
     geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
     tags:
       kind: track
       bicycle: definitely
+      tunnel: false
+      bridge: false
+      link: false
+      oneway: false
+      oneway_reverse: false
+      rail: false
 
 - name: 'aeroway=taxiway'
   input:
@@ -538,11 +558,28 @@ examples:
       aeroway: taxiway
       ref: N
   output:
-    layer: streets
-    geometry: line
-    min_zoom: 13
-    tags:
-      kind: taxiway
+    - layer: streets
+      geometry: line
+      allow_extra_tags: false
+      min_zoom: 13
+      tags:
+        kind: taxiway
+        bridge: false
+        tunnel: false
+        link: false
+        rail: false
+        oneway: false
+        oneway_reverse: false
+    - layer: street_labels
+      geometry: line
+      allow_extra_tags: false
+      min_zoom: 13
+      tags:
+        kind: taxiway
+        ref: N
+        ref_rows: 1
+        ref_cols: 1
+        tunnel: false
 
 - name: 'aeroway=runway'
   input:
@@ -553,12 +590,29 @@ examples:
       ref: 07/25
       surface: concrete:lanes
   output:
-    layer: streets
+  - layer: streets
     geometry: line
     min_zoom: 11
+    allow_extra_tags: false
     tags:
       kind: runway
       surface: concrete:lanes
+      bridge: false
+      tunnel: false
+      link: false
+      rail: false
+      oneway: false
+      oneway_reverse: false
+  - layer: street_labels
+    geometry: line
+    min_zoom: 11
+    allow_extra_tags: false
+    tags:
+      kind: runway
+      ref: 07/25
+      ref_rows: 1
+      ref_cols: 5
+      tunnel: false
 
 - name: 'pedestrian polygon'
   input:
@@ -582,7 +636,7 @@ examples:
       rail: false
       surface: paving_stones
       tunnel: false
-  - layer: street_polygons_labels
+  - layer: streets_polygons_labels
     geometry: point
     min_zoom: 14
     allow_extra_tags: false
@@ -591,7 +645,7 @@ examples:
       name: 'Name'
       name_en: 'Name (en)'
 
-- name: 'ignore pedestrian polygon without area=yes'
+- name: 'pedestrian polygon without area=yes gets also interpreted as an polygon'
   input:
     source: osm
     geometry: polygon
@@ -599,7 +653,24 @@ examples:
       highway: pedestrian
       name: 'Name'
       name:en: 'Name (en)'
-  output: [ ]
+  output:
+  - layer: street_polygons
+    geometry: polygon
+    allow_extra_tags: false
+    min_zoom: 14
+    tags:
+      kind: pedestrian
+      bridge: false
+      tunnel: false
+      rail: false
+  - layer: streets_polygons_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 14
+    tags:
+      kind: pedestrian
+      name: 'Name'
+      name_en: 'Name (en)'
 
 - name: 'pedestrian polygon bridge'
   input:
@@ -612,10 +683,13 @@ examples:
   output:
     layer: street_polygons
     geometry: polygon
+    allow_extra_tags: false
     min_zoom: 14
     tags:
       kind: service
       bridge: true
+      rail: false
+      tunnel: false
 
 - name: 'motorway junction'
   input:
@@ -628,6 +702,7 @@ examples:
   output:
     layer: street_labels_points
     geometry: point
+    allow_extra_tags: false
     min_zoom: 12
     tags:
       kind: motorway_junction
