@@ -16,7 +16,7 @@
   </parent>
 
   <properties>
-    <geotools.version>32.2</geotools.version>
+    <geotools.version>33.0</geotools.version>
     <log4j.version>2.24.3</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
@@ -157,7 +157,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.4.6-jre</version>
+      <version>33.4.8-jre</version>
     </dependency>
     <dependency>
       <groupId>mil.nga.geopackage</groupId>

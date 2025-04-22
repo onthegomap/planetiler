@@ -296,6 +296,9 @@ public class Downloader {
             offset += written;
           }
         }
+        if (offset < range.end && range.end != Long.MAX_VALUE) {
+          throw new IllegalStateException("Unexpected EOF at " + offset + " expecting " + range.end);
+        }
       } finally {
         perFileLimiter.release();
       }
