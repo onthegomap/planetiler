@@ -519,12 +519,39 @@ class GeoUtilsTest {
   void testCrsDecode(String code, double expectedLat, double expectedLon) throws FactoryException, TransformException {
     var from = CRS.decode("EPSG:4326", true);
     var to = GeoUtils.decodeCRS(code);
-    var xform = CRS.findMathTransform(from, to, true);
+    var xform = GeoUtils.findMathTransform(from, to, null);
     var a = new CoordinateXY(1, 2);
     var b = new CoordinateXY();
     JTS.transform(a, b, xform);
     assertEquals(expectedLon, b.getX(), 1e-1);
     assertEquals(expectedLat, b.getY(), 1e-1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    textBlock = """
+        EPSG:4326
+        EPSG:4326:lon_first
+        EPSG:4326:lat_first
+        GEOGCS["WGS 84", DATUM["WGS_1984", SPHEROID["WGS 84", 6378137, 298.257223563]], PRIMEM["Greenwich", 0], UNIT["degree", 0.0174532925199433]]
+        GEOGCS["WGS 84", DATUM["WGS_1984", SPHEROID["WGS 84", 6378137, 298.257223563]], PRIMEM["Greenwich", 0], AXIS["Latitude", NORTH], AXIS["Longitude", EAST], UNIT["degree", 0.0174532925199433]]
+        GEOGCS["WGS 84", DATUM["WGS_1984", SPHEROID["WGS 84", 6378137, 298.257223563]], PRIMEM["Greenwich", 0], AXIS["Longitude", EAST], AXIS["Latitude", NORTH], UNIT["degree", 0.0174532925199433]]
+      """,
+    delimiter = '|')
+  void testCrsDecodeForceCrs(String code) throws FactoryException, TransformException {
+    var from = GeoUtils.decodeCRS(code);
+    var to = CRS.decode("EPSG:4326", true);
+    var xform1 = GeoUtils.findMathTransform(from, to, true);
+    var xform2 = GeoUtils.findMathTransform(from, to, false);
+    var a = new CoordinateXY(1, 2);
+    var b = new CoordinateXY();
+    JTS.transform(a, b, xform1);
+    assertEquals(1, b.getX(), 1e-1);
+    assertEquals(2, b.getY(), 1e-1);
+
+    JTS.transform(a, b, xform2);
+    assertEquals(2, b.getX(), 1e-1);
+    assertEquals(1, b.getY(), 1e-1);
   }
 
   @Test

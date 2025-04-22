@@ -9,7 +9,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.operation.transform.AffineTransform2D;
+import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -663,6 +666,29 @@ public class GeoUtils {
       }
       case null, default -> 0;
     };
+  }
+
+
+  /** Create a transform that swaps the X/Y coordinates. */
+  public static MathTransform swapXYTransform() {
+    return new AffineTransform2D(0, 1, 1, 0, 0, 0);
+  }
+
+  /**
+   * Creates a transform that maps coordinates from {@code source} to {@code dest} CRS. If {@code source} axis ordering
+   * does not match {@code longitudeFirst} then it force-swaps x/y coordinates first.
+   */
+  public static MathTransform findMathTransform(CoordinateReferenceSystem source, CoordinateReferenceSystem dest,
+    Boolean forceLongitudeFirst)
+    throws FactoryException {
+    var mathTransform = CRS.findMathTransform(source, dest, true);
+    if (forceLongitudeFirst != null) {
+      boolean sourceLonFirst = CRS.getAxisOrder(source) == CRS.AxisOrder.EAST_NORTH;
+      if (sourceLonFirst != forceLongitudeFirst) {
+        mathTransform = ConcatenatedTransform.create(swapXYTransform(), mathTransform);
+      }
+    }
+    return mathTransform;
   }
 
   /** Helper class to sort polygons by area of their outer shell. */

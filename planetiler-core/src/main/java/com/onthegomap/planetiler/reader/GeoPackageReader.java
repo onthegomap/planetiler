@@ -168,7 +168,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         sourceCrs = destCrs;
       }
 
-      MathTransform transform = CRS.findMathTransform(sourceCrs, destCrs);
+      MathTransform transform = GeoUtils.findMathTransform(sourceCrs, destCrs, true);
 
       FeatureIndexManager indexer = new FeatureIndexManager(geoPackage, features);
 
