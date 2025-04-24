@@ -552,6 +552,10 @@ class GeoUtilsTest {
     for (double x : List.of(-180, 0, 180)) {
       for (double y : List.of(-85, 0, 85)) {
         a = new CoordinateXY(x, y);
+        JTS.transform(a, b, xform1);
+        assertEquals(x, b.getX(), 1e-1, x + ", " + y);
+        assertEquals(y, b.getY(), 1e-1, x + ", " + y);
+
         JTS.transform(a, b, xform2);
         assertEquals(y, b.getX(), 1e-1, x + ", " + y);
         assertEquals(x, b.getY(), 1e-1, x + ", " + y);
