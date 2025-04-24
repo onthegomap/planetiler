@@ -549,9 +549,14 @@ class GeoUtilsTest {
     assertEquals(1, b.getX(), 1e-1);
     assertEquals(2, b.getY(), 1e-1);
 
-    JTS.transform(a, b, xform2);
-    assertEquals(2, b.getX(), 1e-1);
-    assertEquals(1, b.getY(), 1e-1);
+    for (double x : List.of(-180, 0, 180)) {
+      for (double y : List.of(-85, 0, 85)) {
+        a = new CoordinateXY(x, y);
+        JTS.transform(a, b, xform2);
+        assertEquals(y, b.getX(), 1e-1, x + ", " + y);
+        assertEquals(x, b.getY(), 1e-1, x + ", " + y);
+      }
+    }
   }
 
   @Test
