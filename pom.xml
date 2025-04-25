@@ -20,7 +20,7 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.18.3</jackson.version>
+    <jackson.version>2.19.0</jackson.version>
     <junit.version>5.12.2</junit.version>
     <jts.version>1.20.0</jts.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
