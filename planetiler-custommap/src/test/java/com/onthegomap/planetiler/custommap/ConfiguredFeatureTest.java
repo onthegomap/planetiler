@@ -810,6 +810,38 @@ class ConfiguredFeatureTest {
   }
 
   @Test
+  void testExpressionInMatch() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: line
+          include_when:
+          - __all__:
+            - man_made: pier
+            - '${ feature.point_along_line(0) != feature.point_along_line(1) }'
+      """;
+
+    testLinestring(config, Map.of(
+      "man_made", "pier"
+    ), feature -> {
+    }, 1);
+
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1, 0, 0), Map.of(
+        "man_made", "pier"
+      ), "osm", null, 1, emptyList(), OSM_INFO);
+    testFeature(config, sf, feature -> {
+    }, 0);
+  }
+
+  @Test
   void testExpressionAttrFilter() {
     var config = """
       sources:
