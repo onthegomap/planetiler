@@ -63,7 +63,7 @@
                 ]
               },
               {
-                "type": "#/$defs/expression"
+                "$ref": "#/$defs/expression"
               }
             ]
           }
