@@ -11,7 +11,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <planetiler.version>0.9.1-SNAPSHOT</planetiler.version>
+    <planetiler.version>0.9.2-SNAPSHOT</planetiler.version>
     <junit.version>5.13.1</junit.version>
     <!-- Replace this with the main class for the profile you add -->
     <mainClass>com.onthegomap.planetiler.examples.BikeRouteOverlay</mainClass>
