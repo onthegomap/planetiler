@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,7 +14,10 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.UnaryOperator;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,16 +29,22 @@ class DownloaderTest {
   Path path;
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
   private AtomicLong downloads = new AtomicLong(0);
+  private int slept = 0;
 
   private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange,
     boolean supportsContentLength) {
+    return mockDownloader(resources, supportsRange, supportsContentLength, UnaryOperator.identity());
+  }
+
+  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange,
+    boolean supportsContentLength, UnaryOperator<byte[]> overrideBytes) {
     return new Downloader(config, 2L) {
 
       @Override
       InputStream openStream(String url) {
         downloads.incrementAndGet();
         assertTrue(resources.containsKey(url), "no resource for " + url);
-        byte[] bytes = resources.get(url);
+        byte[] bytes = overrideBytes.apply(resources.get(url));
         return new ByteArrayInputStream(bytes);
       }
 
@@ -44,7 +54,7 @@ class DownloaderTest {
         downloads.incrementAndGet();
         assertTrue(resources.containsKey(url), "no resource for " + url);
         byte[] result = new byte[(int) (end - start)];
-        byte[] bytes = resources.get(url);
+        byte[] bytes = overrideBytes.apply(resources.get(url));
         for (int i = (int) start; i < start + result.length; i++) {
           result[(int) (i - start)] = bytes[i];
         }
@@ -63,6 +73,11 @@ class DownloaderTest {
         byte[] bytes = resources.get(url);
         return new ResourceMetadata(Optional.empty(), url,
           supportsContentLength ? OptionalLong.of(bytes.length) : OptionalLong.empty(), supportsRange);
+      }
+
+      @Override
+      protected void retrySleep() {
+        slept++;
       }
     };
   }
@@ -124,6 +139,41 @@ class DownloaderTest {
     assertEquals(newContent, Files.readString(dest));
     assertEquals(FileUtils.size(path), FileUtils.size(dest));
     assertEquals(5, resource4.bytesDownloaded());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "5, true",
+    "6, false"
+  })
+  void testRetry5xOK(int failures, boolean ok) throws Exception {
+    String url = "http://url";
+    Path dest = path.resolve("out");
+    var resource = new Downloader.ResourceToDownload("resource", url, dest);
+    Map<String, byte[]> resources = new ConcurrentHashMap<>();
+    AtomicInteger tries = new AtomicInteger(0);
+    String value = "abc";
+    String truncatedValue = "ab";
+    UnaryOperator<byte[]> overrideContent =
+      bytes -> (tries.incrementAndGet() <= failures ? truncatedValue : value).getBytes(StandardCharsets.UTF_8);
+
+    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+    Downloader downloader = mockDownloader(resources, true, true, overrideContent);
+    resources.put(url, bytes);
+    var future = downloader.downloadIfNecessary(resource);
+    if (ok) {
+      future.get();
+      assertEquals(value, Files.readString(dest));
+      assertEquals(FileUtils.size(path), FileUtils.size(dest));
+      assertEquals(value.length(), resource.bytesDownloaded());
+      assertEquals(5, slept);
+    } else {
+      Throwable exception = ExceptionUtils.getRootCause(assertThrows(ExecutionException.class, future::get));
+      assertInstanceOf(IOException.class, exception);
+      assertFalse(Files.exists(dest));
+      assertEquals(truncatedValue.length(), resource.bytesDownloaded());
+      assertEquals(5, slept);
+    }
   }
 
   @Test

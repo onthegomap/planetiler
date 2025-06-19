@@ -269,40 +269,63 @@ public class Downloader {
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       perFileLimiter.acquire();
-      var counter = resource.progress.counterForThread();
-      try (
-        var fc = FileChannel.open(tmpPath, WRITE);
-        var inputStream = (ranges || range.start > 0) ?
-          openStreamRange(canonicalUrl, range.start, range.end) :
-          openStream(canonicalUrl);
-      ) {
-        long offset = range.start;
-        byte[] buffer = new byte[16384];
-        int read;
-        while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
-          counter.incBy(read);
-          if (rateLimiter != null) {
-            rateLimiter.acquire(read);
-          }
-          int position = 0;
-          int remaining = read;
-          while (remaining > 0) {
-            int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
-            if (written <= 0) {
-              throw new IOException("Failed to write to " + tmpPath);
+      try {
+        var counter = resource.progress.counterForThread();
+        for (int retry = 0; retry <= config.httpRetries(); retry++) {
+          boolean lastTry = retry == config.httpRetries();
+          int retriesRemaining = config.httpRetries() - retry;
+          int countToRewind = 0;
+          try (
+            var fc = FileChannel.open(tmpPath, WRITE);
+            var inputStream = (ranges || range.start > 0) ?
+              openStreamRange(canonicalUrl, range.start, range.end) :
+              openStream(canonicalUrl);
+          ) {
+            long offset = range.start;
+            byte[] buffer = new byte[16384];
+            int read;
+            while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
+              counter.incBy(read);
+              countToRewind += read;
+              if (rateLimiter != null) {
+                rateLimiter.acquire(read);
+              }
+              int position = 0;
+              int remaining = read;
+              while (remaining > 0) {
+                int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
+                if (written <= 0) {
+                  throw new IOException("Failed to write to " + tmpPath);
+                }
+                position += written;
+                remaining -= written;
+                offset += written;
+              }
             }
-            position += written;
-            remaining -= written;
-            offset += written;
+            if (offset < range.end && range.end != Long.MAX_VALUE) {
+              throw new IOException("Unexpected EOF at " + offset + "/" + range.end);
+            }
+            // successfully downloaded file
+            break;
+          } catch (IOException e) {
+            if (lastTry) {
+              throw e;
+            } else {
+              counter.incBy(-countToRewind);
+              LOGGER.warn("Error downloading {}, retries remaining: {} {}", canonicalUrl, retriesRemaining,
+                e.getMessage());
+              retrySleep();
+            }
           }
-        }
-        if (offset < range.end && range.end != Long.MAX_VALUE) {
-          throw new IllegalStateException("Unexpected EOF at " + offset + " expecting " + range.end);
         }
       } finally {
         perFileLimiter.release();
       }
     }), executor)).toArray(CompletableFuture[]::new)).get();
+  }
+
+  protected void retrySleep() throws InterruptedException {
+    Thread.sleep(config.httpRetryWait());
   }
 
   private HttpRequest.Builder newHttpRequest(String url) {
