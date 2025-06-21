@@ -376,7 +376,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
@@ -448,7 +448,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
@@ -514,7 +514,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
@@ -580,7 +580,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertNull(feature);
   }
@@ -611,7 +611,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertThrows(GeometryException.class, feature::worldGeometry);
     assertThrows(GeometryException.class, feature::polygon);
@@ -642,7 +642,7 @@ class OsmReaderTest {
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
-    var feature = reader.processRelationPass2(relation, nodeCache);
+    SourceFeature feature = reader.processRelationPass2(relation, nodeCache);
 
     assertThrows(GeometryException.class, feature::worldGeometry);
     assertThrows(GeometryException.class, feature::polygon);

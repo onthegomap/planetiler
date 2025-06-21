@@ -2,6 +2,9 @@ package com.onthegomap.planetiler.reader.osm;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
@@ -24,6 +27,7 @@ import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.util.ResourceUsage;
@@ -37,12 +41,26 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroup;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.io.LocalOutputFile;
+import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.Types;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -54,6 +72,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.locationtech.jts.io.WKBWriter;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -346,7 +365,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           });
           for (var block : prev) {
             for (var element : block.decodeElements()) {
-              SourceFeature feature = null;
+              OsmFeature feature = null;
               if (element instanceof OsmElement.Node node) {
                 phaser.arrive(OsmPhaser.Phase.NODES);
                 feature = processNodePass2(node);
@@ -411,6 +430,182 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
     }
+  }
+
+  static final MessageType SCHEMA =
+    Types.buildMessage()
+      .required(BINARY).as(LogicalTypeAnnotation.stringType()).named("type")
+      .required(INT64).named("id")
+      .required(BINARY).named("geom")
+      .optional(INT64).named("changeset")
+      .optional(INT32).named("version")
+      .optional(INT64).named("timestamp")
+      .optional(INT32).named("user_id")
+      .optional(BINARY).as(LogicalTypeAnnotation.stringType()).named("user")
+      .list(Type.Repetition.OPTIONAL).element(Types.required(INT64).named("element")).named("way_nodes")
+      .list(Type.Repetition.OPTIONAL)
+      .element(Types.requiredGroup()
+        .addField(Types.required(INT64).named("ref"))
+        .addField(Types.required(BINARY).as(LogicalTypeAnnotation.stringType()).named("type"))
+        .addField(Types.required(BINARY).as(LogicalTypeAnnotation.stringType()).named("role"))
+        .named("element")
+      ).named("relation_members")
+      .map(Type.Repetition.OPTIONAL)
+      .key(BINARY).as(LogicalTypeAnnotation.stringType())
+      .value(BINARY, Type.Repetition.REQUIRED).as(LogicalTypeAnnotation.stringType())
+      .named("tags")
+      .named("root");
+
+  static class CloseWrapper<T extends Closeable> implements Closeable {
+    T thing;
+
+    CloseWrapper(T thing) {
+      this.thing = thing;
+    }
+
+    @Override
+    public void close() throws IOException {
+      thing.close();
+    }
+  }
+
+  private ParquetWriter<Group> createParquetWriter(Path path) throws IOException {
+    return ExampleParquetWriter.builder(new LocalOutputFile(path))
+      .withRowGroupSize(128 * 1024 * 1024L)
+      .withCompressionCodec(CompressionCodecName.ZSTD)
+      .withType(SCHEMA)
+      .build();
+  }
+
+  /**
+   * Constructs geometries from OSM elements and emits map features as defined by the {@link Profile}.
+   *
+   * @param config user-provided arguments to control the number of threads, and log interval
+   */
+  public void pass2parquet(PlanetilerConfig config, Path output) {
+    FileUtils.deleteDirectory(output);
+    FileUtils.createDirectory(output);
+    var timer = stats.startStage("osm_pass2");
+    int processThreads = config.featureProcessThreads();
+    Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
+    // track relation count separately because they get enqueued onto the distributor near the end
+    Counter.MultiThreadCounter relationsProcessed = Counter.newMultiThreadCounter();
+    OsmPhaser pass2Phaser = new OsmPhaser(processThreads);
+    stats.counter("osm_pass2_elements_processed", "type", () -> Map.of(
+      "blocks", blocksProcessed::get,
+      "nodes", pass2Phaser::nodes,
+      "ways", pass2Phaser::ways,
+      "relations", relationsProcessed
+    ));
+    AtomicInteger num = new AtomicInteger(0);
+    //    record Block(OsmBlockSource.Block input, CompletableFuture<EncodedRowGroup> output) {}
+    var pipeline = WorkerPipeline.start("osm_pass2", stats)
+      .fromGenerator("read", osmBlockSource::forEachBlock)
+      .addBuffer("pbf_blocks", Math.max(10, processThreads / 2))
+      .sinkTo("process", processThreads, prev -> {
+        // avoid contention trying to get the thread-local counters by getting them once when thread starts
+        Counter blocks = blocksProcessed.counterForThread();
+        Path path;
+
+        var phaser = pass2Phaser.forWorker();
+        try (
+          var writer =
+            new CloseWrapper<>(createParquetWriter(path = output.resolve(num.incrementAndGet() + ".parquet")))
+        ) {
+          long idx = 0;
+          final NodeLocationProvider nodeLocations = newNodeLocationProvider();
+          for (var block : prev) {
+            for (var element : block.decodeElements()) {
+              OsmFeature feature = null;
+              if (element instanceof OsmElement.Node node) {
+                phaser.arrive(OsmPhaser.Phase.NODES);
+                feature = processNodePass2(node);
+              } else if (element instanceof OsmElement.Way way) {
+                phaser.arrive(OsmPhaser.Phase.WAYS);
+                feature = processWayPass2(way, nodeLocations);
+              } else if (element instanceof OsmElement.Relation relation) {
+                phaser.arriveAndWaitForOthers(OsmPhaser.Phase.RELATIONS);
+                feature = processRelationPass2(relation, nodeLocations);
+              }
+              // render features specified by profile and hand them off to next step that will
+              // write them intermediate storage
+              if (feature != null) {
+                var group = new SimpleGroup(SCHEMA);
+                try {
+                  Geometry geom = feature.worldGeometry();
+                  var info = feature.originalElement().info();
+                  if (info != null) {
+                    group.add("changeset", info.changeset());
+                    group.add("version", info.version());
+                    group.add("timestamp", info.timestamp());
+                    group.add("user_id", info.userId());
+                    if (!StringUtils.isBlank(info.user())) {
+                      group.add("user", info.user());
+                    }
+                  }
+                  group.add("id", feature.originalElement().id());
+                  group.add("type", feature.originalElement().type().name().toLowerCase(Locale.ROOT));
+                  group.add("geom", Binary.fromConstantByteArray(new WKBWriter().write(geom)));
+                  if (feature.tags() != null && !feature.tags().isEmpty()) {
+                    var tags = group.addGroup("tags");
+                    feature.tags().forEach((k, v) -> {
+                      var tag = tags.addGroup("key_value");
+                      tag.add("key", k);
+                      tag.add("value", (String) v);
+                    });
+                  }
+                  if (feature.originalElement() instanceof OsmElement.Way way && !way.nodes().isEmpty()) {
+                    var nodes = group.addGroup("way_nodes");
+                    for (var node : way.nodes()) {
+                      nodes.addGroup("list").add("element", node.value);
+                    }
+                  }
+                  if (feature.originalElement() instanceof OsmElement.Relation rel && !rel.members().isEmpty()) {
+                    var nodes = group.addGroup("relation_members");
+                    for (var member : rel.members()) {
+                      var g = nodes.addGroup("list").addGroup("element");
+                      g.add("ref", member.ref());
+                      g.add("type", member.type().name().toLowerCase(Locale.ROOT));
+                      g.add("role", member.role());
+                    }
+                  }
+                  writer.thing.write(group);
+                } catch (GeometryException e) {
+                  e.log(stats, "pass2", "pass2");
+                }
+              }
+              if (idx++ % 10_000 == 0 && FileUtils.size(path) > 1_000_000_000L) {
+                writer.thing.close();
+                writer.thing = createParquetWriter(path = output.resolve(num.incrementAndGet() + ".parquet"));
+              }
+            }
+            blocks.inc();
+          }
+        }
+
+        phaser.close();
+      });
+
+    var logger = ProgressLoggers.create()
+      .addRatePercentCounter("nodes", pass1Phaser.nodes(), pass2Phaser::nodes, true)
+      .addFileSizeAndRam(nodeLocationDb)
+      .addRatePercentCounter("ways", pass1Phaser.ways(), pass2Phaser::ways, true)
+      .addRatePercentCounter("rels", pass1Phaser.relations(), relationsProcessed, true)
+      .addFileSize("output", () -> FileUtils.directorySize(output))
+      .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed, false)
+      .newLine()
+      .addProcessStats()
+      .addInMemoryObject("relInfo", this)
+      .addFileSizeAndRam("mpGeoms", multipolygonWayGeometries)
+      .newLine()
+      .addPipelineStats(pipeline);
+
+    pipeline.awaitAndLog(logger, config.logInterval());
+
+    LOGGER.debug("Processed " + FORMAT.integer(blocksProcessed.get()) + " blocks:");
+    pass2Phaser.printSummary();
+
+    timer.stop();
   }
 
   /** Estimates the resource requirements for a nodemap but parses the type/storage from strings. */
@@ -490,12 +685,12 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     );
   }
 
-  SourceFeature processNodePass2(OsmElement.Node node) {
+  OsmFeature processNodePass2(OsmElement.Node node) {
     // nodes are simple because they already contain their location
     return new NodeSourceFeature(node);
   }
 
-  SourceFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
+  OsmFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
     // ways contain an ordered list of node IDs, so we need to join that with node locations
     // from pass1 to reconstruct the geometry.
     LongArrayList nodes = way.nodes();
@@ -513,7 +708,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     return new WaySourceFeature(way, closed, area, nodeLocations, rels);
   }
 
-  SourceFeature processRelationPass2(OsmElement.Relation rel, NodeLocationProvider nodeLocations) {
+  OsmFeature processRelationPass2(OsmElement.Relation rel, NodeLocationProvider nodeLocations) {
     // Relation info gets used during way processing, except multipolygons which we have to process after we've
     // stored all the node IDs for each way.
     if (isMultipolygon(rel)) {
