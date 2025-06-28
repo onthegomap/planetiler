@@ -95,24 +95,93 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
-    if (layer.postProcess() == null) {
-      processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
-    } else {
-      processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSize));
-      if (feature.minSize() != null ) {
-	LOGGER.info("Ignored min_size settings in layer {} in favour of its tile_post_process settings",
-	    layer.id());
-      }
-      var merge = layer.postProcess().mergeLineStrings();
-      if (merge != null) {
-        var minLength = merge.minLength();
-          if (minLength > 4) {
-            processors.add(makeFeatureProcessor(minLength, Double.class, Feature::setBufferPixels));
-        }
-      }
-    }
+
+    addPostProcessingImplications(layer, feature, processors);
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
+  }
+
+  /** Consider implications of Post Processing on the feature's processors **/
+  private void addPostProcessingImplications(FeatureLayer layer, FeatureItem feature,
+    List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors) {
+    var postProcess = layer.postProcess();
+
+    // Consider min_size and min_size_at_max_zoom
+    if (postProcess == null) {
+      processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
+      processors.add(makeFeatureProcessor(feature.minSizeAtMaxZoom(), Double.class, Feature::setMinPixelSizeAtMaxZoom));
+      return;
+    }
+    // Log ignored min_size* feature settings
+    if (feature.minSize() != null) {
+      LOGGER.info("Ignored min_size feature settings in layer {} in favour of its tile_post_process settings",
+        layer.id());
+    }
+    if (feature.minSizeAtMaxZoom() != null) {
+      LOGGER.info(
+        "Ignored min_size_at_max_zoom feature settings in layer {} in favour of its tile_post_process settings",
+        layer.id());
+    }
+    // In order for Post-processing to receive all features, MinPixelSize must be zero when features are collected
+    processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSize));
+    processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSizeAtMaxZoom));
+    // Implications of tile_post_process.merge_line_strings
+    var mergeLineStrings = postProcess.mergeLineStrings();
+    if (mergeLineStrings != null) {
+      // postProcess.mergeLineStrings.tolerance*
+      var tolerance = mergeLineStrings.tolerance();
+      if (tolerance != null) {
+        processors.add((context, f) -> {
+          if (f.isLine()) {
+            f.setPixelTolerance(tolerance);
+          }
+        });
+      }
+      var toleranceAtMaxZoom = mergeLineStrings.toleranceAtMaxZoom();
+      if (toleranceAtMaxZoom != null) {
+        processors.add((context, f) -> {
+          if (f.isLine()) {
+            f.setPixelToleranceAtMaxZoom(toleranceAtMaxZoom);
+          }
+        });
+      }
+      // postProcess.mergeLineStrings.minLength* and postProcess.mergeLineStrings.buffer
+      var minLength = Objects.requireNonNullElse(mergeLineStrings.minLength(), 4.0);
+      var minLengthAtMaxZoom = Objects.requireNonNullElse(mergeLineStrings.minLengthAtMaxZoom(), 4.0);
+      minLength = (minLengthAtMaxZoom > minLength) ? minLengthAtMaxZoom : minLength;
+      var buffer = Objects.requireNonNullElse(mergeLineStrings.buffer(), 4.0);
+      var bufferPixels = (buffer > minLength) ? buffer : minLength;
+      if (bufferPixels > 4.0) {
+        processors.add((context, f) -> {
+          if (f.isLine()) {
+            f.setBufferPixels(bufferPixels);
+          }
+        });
+      }
+
+    }
+    // Implications of tile_post_process.merge_polygons
+    var mergePolygons = postProcess.mergePolygons();
+    if (mergePolygons != null) {
+      // postProcess.mergePolygons.tolerance*
+      var tolerance = mergePolygons.tolerance();
+      if (tolerance != null) {
+        processors.add((context, f) -> {
+          if (f.isPolygon()) {
+            f.setPixelTolerance(tolerance);
+          }
+        });
+      }
+      var toleranceAtMaxZoom = mergePolygons.toleranceAtMaxZoom();
+      if (toleranceAtMaxZoom != null) {
+        processors.add((context, f) -> {
+          if (f.isPolygon()) {
+            f.setPixelToleranceAtMaxZoom(toleranceAtMaxZoom);
+          }
+        });
+      }
+      // TODO: postProcess.mergeLineStrings.minArea*
+    }
   }
 
   private <T> BiConsumer<Contexts.FeaturePostMatch, Feature> makeFeatureProcessor(Object input, Class<T> clazz,
