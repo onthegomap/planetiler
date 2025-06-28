@@ -47,7 +47,7 @@ public class ConfiguredProfile implements Profile {
       String layerId = layer.id();
       layersById.put(layerId, layer);
       for (var feature : layer.features()) {
-        var configuredFeature = new ConfiguredFeature(layerId, tagValueProducer, feature, rootContext);
+        var configuredFeature = new ConfiguredFeature(layer, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
         configuredFeatureEntries.add(entry);
       }

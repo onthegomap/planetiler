@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
@@ -40,7 +41,7 @@ public class ConfiguredFeature {
   private ScriptEnvironment<Contexts.FeaturePostMatch> featurePostMatchContext;
 
 
-  public ConfiguredFeature(String layer, TagValueProducer tagValueProducer, FeatureItem feature,
+  public ConfiguredFeature(FeatureLayer layer, TagValueProducer tagValueProducer, FeatureItem feature,
     Contexts.Root rootContext) {
     sources = Set.copyOf(feature.source());
 
@@ -81,7 +82,7 @@ public class ConfiguredFeature {
     tagTest = filter;
 
     //Factory to generate the right feature type from FeatureCollector
-    geometryFactory = geometryType.newGeometryFactory(layer);
+    geometryFactory = geometryType.newGeometryFactory(layer.id());
 
     //Configure logic for each attribute in the output tile
     List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors = new ArrayList<>();
@@ -91,6 +92,15 @@ public class ConfiguredFeature {
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
     processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
+    if (layer.postProcess() != null) {
+      var merge = layer.postProcess().mergeLineStrings();
+      if (merge != null) {
+        var minLength = merge.minLength();
+          if (minLength > 4) {
+            processors.add(makeFeatureProcessor(minLength, Double.class, Feature::setBufferPixels));
+        }
+      }
+    }
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
   }
