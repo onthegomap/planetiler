@@ -227,6 +227,29 @@ class ConfiguredFeatureTest {
   }
 
   @Test
+  void testMergeLineStringMinLengthSetsBufferPixels() {
+    testLinestring("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: line
+        tile_post_process:
+          merge_line_strings:
+            min_length: 10
+            tolerance: 5
+            buffer: 4
+      """, Map.of(), f -> {
+      assertEquals(10, f.getBufferPixelsAtZoom(14));
+    }, 1);
+  }
+
+  @Test
   void testFeaturePostProcessorMergePolygons() throws GeometryException {
     var config = """
       sources:

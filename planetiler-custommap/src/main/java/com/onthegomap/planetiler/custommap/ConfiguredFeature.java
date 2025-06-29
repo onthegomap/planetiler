@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
@@ -20,6 +21,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A map feature, configured from a YML configuration file.
@@ -28,6 +31,8 @@ import java.util.function.Function;
  * and {@link #processFeature(Contexts.FeaturePostMatch, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConfiguredFeature.class);
+
   private static final double LOG4 = Math.log(4);
   private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
@@ -40,7 +45,7 @@ public class ConfiguredFeature {
   private ScriptEnvironment<Contexts.FeaturePostMatch> featurePostMatchContext;
 
 
-  public ConfiguredFeature(String layer, TagValueProducer tagValueProducer, FeatureItem feature,
+  public ConfiguredFeature(FeatureLayer layer, TagValueProducer tagValueProducer, FeatureItem feature,
     Contexts.Root rootContext) {
     sources = Set.copyOf(feature.source());
 
@@ -81,7 +86,7 @@ public class ConfiguredFeature {
     tagTest = filter;
 
     //Factory to generate the right feature type from FeatureCollector
-    geometryFactory = geometryType.newGeometryFactory(layer);
+    geometryFactory = geometryType.newGeometryFactory(layer.id());
 
     //Configure logic for each attribute in the output tile
     List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors = new ArrayList<>();
@@ -90,7 +95,22 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
-    processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
+    if (layer.postProcess() == null) {
+      processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
+    } else {
+      processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSize));
+      if (feature.minSize() != null ) {
+	LOGGER.info("Ignored min_size settings in layer {} in favour of its tile_post_process settings",
+	    layer.id());
+      }
+      var merge = layer.postProcess().mergeLineStrings();
+      if (merge != null) {
+        var minLength = merge.minLength();
+          if (minLength > 4) {
+            processors.add(makeFeatureProcessor(minLength, Double.class, Feature::setBufferPixels));
+        }
+      }
+    }
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
   }
