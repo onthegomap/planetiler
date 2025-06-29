@@ -21,6 +21,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A map feature, configured from a YML configuration file.
@@ -29,6 +31,8 @@ import java.util.function.Function;
  * and {@link #processFeature(Contexts.FeaturePostMatch, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConfiguredFeature.class);
+
   private static final double LOG4 = Math.log(4);
   private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
@@ -91,8 +95,14 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
-    processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
-    if (layer.postProcess() != null) {
+    if (layer.postProcess() == null) {
+      processors.add(makeFeatureProcessor(feature.minSize(), Double.class, Feature::setMinPixelSize));
+    } else {
+      processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSize));
+      if (feature.minSize() != null ) {
+	LOGGER.info("Ignored min_size settings in layer {} in favour of its tile_post_process settings",
+	    layer.id());
+      }
       var merge = layer.postProcess().mergeLineStrings();
       if (merge != null) {
         var minLength = merge.minLength();
