@@ -11,10 +11,10 @@ Pull requests are welcome! Any pull request should:
 To set up your local development environment:
 
 - Fork the repo [setup submodules](README.md#git-submodules)
-- Install Java 21 or later. You can download Java manually from [Adoptium](https://adoptium.net/installation.html) or
+- Install Java 21. You can download Java manually from [Adoptium](https://adoptium.net/installation/) or
   use:
-  - [Windows installer](https://adoptium.net/installation.html#windows-msi)
-  - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`,
+  - [Windows installer](https://adoptium.net/installation/windows/)
+  - [macOS installer](https://adoptium.net/installation/macOS) (or `brew install --cask temurin`,
     or `port install openjdk21-temurin`)
   - [Linux installer](https://adoptium.net/installation/linux/) (or `apt-get install openjdk-21-jdk`)
   - If you update from an older version of java on Ubuntu, run `sudo update-alternatives --config java` after installing the new jdk.
