@@ -17,8 +17,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.release>21</maven.compiler.release>
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.19.1</jackson.version>
     <junit.version>5.13.3</junit.version>

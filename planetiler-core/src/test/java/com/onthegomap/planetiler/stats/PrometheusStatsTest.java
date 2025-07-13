@@ -27,7 +27,7 @@ class PrometheusStatsTest {
       "^jvm_thread_cpu_time_seconds_total\\{",
       "^jvm_thread_user_time_seconds_total\\{",
       "^jvm_system_load_avg ",
-      "^jvm_available_processors [0-9\\.]+$"
+      "^jvm_available_processors [0-9\\.E-+]+$"
     );
   }
 
@@ -36,13 +36,13 @@ class PrometheusStatsTest {
     PrometheusStats stats = new PrometheusStats("job");
     var timer = stats.startStage("task1");
     assertContainsStat("^planetiler_task1_running 1", stats);
-    assertContainsStat("^planetiler_task1_elapsed_time_seconds [0-9\\.]+$", stats);
-    assertContainsStat("^planetiler_task1_cpu_time_seconds [0-9\\.]+$", stats);
+    assertContainsStat("^planetiler_task1_elapsed_time_seconds [0-9\\.E-+]+$", stats);
+    assertContainsStat("^planetiler_task1_cpu_time_seconds [0-9\\.E-+]+$", stats);
     timer.stop();
 
     assertContainsStat("^planetiler_task1_running 0", stats);
-    assertContainsStat("^planetiler_task1_elapsed_time_seconds [0-9\\.]+$", stats);
-    assertContainsStat("^planetiler_task1_cpu_time_seconds [0-9\\.]+$", stats);
+    assertContainsStat("^planetiler_task1_elapsed_time_seconds [0-9\\.E-+]+$", stats);
+    assertContainsStat("^planetiler_task1_cpu_time_seconds [0-9\\.E-+]+$", stats);
 
     assertFalse(stats.timers().all().get("task1").timer().running());
   }
