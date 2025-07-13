@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        jdk: [ 21 ]
+        jdk: [ 21, 23, 24 ]
         include:
         - os: ubuntu-latest
           jdk: 21

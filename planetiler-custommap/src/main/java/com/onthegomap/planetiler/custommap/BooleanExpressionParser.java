@@ -127,11 +127,11 @@ public class BooleanExpressionParser<T extends ScriptContext> {
         }
         var result = matchAnyTyped(null, expression, values);
         if (!values.isEmpty() && result.pattern() == null && !result.isMatchAnything() && !result.matchWhenMissing() &&
-          expression instanceof ConfigExpression.Variable<?, ?>(var ignored,var name)) {
-          if (name.equals("feature.source")) {
+          expression instanceof ConfigExpression.Variable<?, ?> variable) {
+          if (variable.name().equals("feature.source")) {
             return or(values.stream().filter(String.class::isInstance).map(String.class::cast)
               .map(Expression::matchSource).toList());
-          } else if (name.equals("feature.source_layer")) {
+          } else if (variable.name().equals("feature.source_layer")) {
             return or(values.stream().filter(String.class::isInstance).map(String.class::cast)
               .map(Expression::matchSourceLayer).toList());
           }
