@@ -247,6 +247,7 @@
         <configuration>
           <publishingServerId>central</publishingServerId>
           <autoPublish>true</autoPublish>
+          <failOnBuildFailure>true</failOnBuildFailure>
           <waitUntil>published</waitUntil>
         </configuration>
       </plugin>

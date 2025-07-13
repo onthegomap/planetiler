@@ -37,9 +37,9 @@
       </releases>
     </repository>
     <repository>
-      <id>nexus-snapshots</id>
-      <name>Nexus SNAPSHOT Repository</name>
-      <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
+      <name>Central Portal Snapshots</name>
+      <id>central-portal-snapshots</id>
+      <url>https://central.sonatype.com/repository/maven-snapshots/</url>
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
