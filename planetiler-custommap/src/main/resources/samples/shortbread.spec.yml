@@ -197,7 +197,7 @@ examples:
     geometry: polygon
     min_zoom: 7
     tags:
-      kind: wood
+      kind: forest
 
 - name: natural=wood override kind to forest
   input:
