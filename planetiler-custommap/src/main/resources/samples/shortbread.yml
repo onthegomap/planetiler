@@ -558,7 +558,7 @@ layers:
           landuse: cemetery
     attributes:
     - key: kind
-      value: '${match_value == "forest" ? "wood": match_value}'
+      value: '${match_value == "wood" ? "forest": match_value}'
 
 - id: sites
   features:
