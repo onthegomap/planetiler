@@ -186,12 +186,12 @@ examples:
     tags:
       kind: grass
 
-- name: natural=wood
+- name: landuse=forest
   input:
     source: osm
     geometry: polygon
     tags:
-      natural: wood
+      landuse: forest
   output:
   - layer: land
     geometry: polygon
