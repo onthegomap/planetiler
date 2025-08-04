@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.Optional;
 
 public record MergeLineStrings(
   @JsonProperty("min_length") Double minLength,
