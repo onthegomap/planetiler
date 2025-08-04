@@ -89,9 +89,9 @@ public class ConfiguredProfile implements Profile {
       return items;
     }
 
+    var config = rootContext.config();
     if (featureLayer.postProcess().mergeLineStrings() != null) {
       var merge = featureLayer.postProcess().mergeLineStrings();
-      var config = rootContext.config();
       var minLength = Objects.requireNonNullElse(
         (zoom == config.maxzoomForRendering()) ?
           merge.minLengthAtMaxZoom() :
@@ -113,7 +113,12 @@ public class ConfiguredProfile implements Profile {
 
     var merge = featureLayer.postProcess().mergePolygons();
     if (merge != null) {
-      var minArea = Objects.requireNonNullElse(merge.minArea(), 0.0);
+      var minArea = Objects.requireNonNullElse(
+        (zoom == config.maxzoomForRendering()) ?
+          merge.minAreaAtMaxZoom() :
+          merge.minArea(),
+        config.minFeatureSize(zoom)*config.minFeatureSize(zoom));
+
       items = FeatureMerge.mergeOverlappingPolygons(items,
         minArea // after merging, remove polygons that are still less than {minArea} in square tile pixels
       );

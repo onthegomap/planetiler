@@ -1321,6 +1321,7 @@ class ConfiguredFeatureTest {
       null,
       new MergePolygons(
         null,
+        null,
         1.23,
         0.123
       )
@@ -1343,12 +1344,14 @@ class ConfiguredFeatureTest {
         tile_post_process:
           merge_polygons:
             min_area: 3
+            min_area_at_max_zoom: 1
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
     assertEquals(new PostProcess(
       null,
       new MergePolygons(
         3.0,
+        1.0,
         null,
         null
       )
