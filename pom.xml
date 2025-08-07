@@ -91,7 +91,7 @@
       <dependency>
         <groupId>org.commonmark</groupId>
         <artifactId>commonmark</artifactId>
-        <version>0.25.0</version>
+        <version>0.25.1</version>
       </dependency>
       <dependency>
         <groupId>org.junit.jupiter</groupId>
