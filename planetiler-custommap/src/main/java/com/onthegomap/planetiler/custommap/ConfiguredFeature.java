@@ -21,8 +21,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A map feature, configured from a YML configuration file.
@@ -31,8 +29,6 @@ import org.slf4j.LoggerFactory;
  * and {@link #processFeature(Contexts.FeaturePostMatch, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ConfiguredFeature.class);
-
   private static final double LOG4 = Math.log(4);
   private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
@@ -95,15 +91,18 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
+    processors.add(makeFeatureProcessor(feature.tolerance(), Double.class, Feature::setPixelTolerance));
+    processors.add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
-    addPostProcessingImplications(layer, feature, processors);
+    addPostProcessingImplications(layer, feature, processors, rootContext);
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
   }
 
   /** Consider implications of Post Processing on the feature's processors **/
   private void addPostProcessingImplications(FeatureLayer layer, FeatureItem feature,
-    List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors) {
+    List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors,
+    Contexts.Root rootContext) {
     var postProcess = layer.postProcess();
 
     // Consider min_size and min_size_at_max_zoom
@@ -112,49 +111,22 @@ public class ConfiguredFeature {
       processors.add(makeFeatureProcessor(feature.minSizeAtMaxZoom(), Double.class, Feature::setMinPixelSizeAtMaxZoom));
       return;
     }
-    // Log ignored min_size* feature settings
-    if (feature.minSize() != null) {
-      LOGGER.info("Ignored min_size feature settings in layer {} in favour of its tile_post_process settings",
-        layer.id());
-    }
-    if (feature.minSizeAtMaxZoom() != null) {
-      LOGGER.info(
-        "Ignored min_size_at_max_zoom feature settings in layer {} in favour of its tile_post_process settings",
-        layer.id());
-    }
-    // In order for Post-processing to receive all features, MinPixelSize must be zero when features are collected
-    processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSize));
-    processors.add(makeFeatureProcessor(0, Double.class, Feature::setMinPixelSizeAtMaxZoom));
+    // In order for Post-processing to receive all features, the default MinPixelSize* are zero when features are collected
+    processors.add(makeFeatureProcessor(Objects.requireNonNullElse(feature.minSize(),0), Double.class, Feature::setMinPixelSize));
+    processors.add(makeFeatureProcessor(Objects.requireNonNullElse(feature.minSizeAtMaxZoom(),0), Double.class, Feature::setMinPixelSizeAtMaxZoom));
     // Implications of tile_post_process.merge_line_strings
     var mergeLineStrings = postProcess.mergeLineStrings();
     if (mergeLineStrings != null) {
-      // postProcess.mergeLineStrings.tolerance*
-      var tolerance = mergeLineStrings.tolerance();
-      if (tolerance != null) {
-        processors.add((context, f) -> {
-          if (f.isLine()) {
-            f.setPixelTolerance(tolerance);
-          }
-        });
-      }
-      var toleranceAtMaxZoom = mergeLineStrings.toleranceAtMaxZoom();
-      if (toleranceAtMaxZoom != null) {
-        processors.add((context, f) -> {
-          if (f.isLine()) {
-            f.setPixelToleranceAtMaxZoom(toleranceAtMaxZoom);
-          }
-        });
-      }
+      processors.add(makeLineFeatureProcessor(mergeLineStrings.tolerance(),Feature::setPixelTolerance));
+      processors.add(makeLineFeatureProcessor(mergeLineStrings.toleranceAtMaxZoom(),Feature::setPixelToleranceAtMaxZoom));
       // postProcess.mergeLineStrings.minLength* and postProcess.mergeLineStrings.buffer
-      var minLength = Objects.requireNonNullElse(mergeLineStrings.minLength(), 4.0);
-      var minLengthAtMaxZoom = Objects.requireNonNullElse(mergeLineStrings.minLengthAtMaxZoom(), 4.0);
-      minLength = (minLengthAtMaxZoom > minLength) ? minLengthAtMaxZoom : minLength;
-      var buffer = Objects.requireNonNullElse(mergeLineStrings.buffer(), 4.0);
-      var bufferPixels = (buffer > minLength) ? buffer : minLength;
-      if (bufferPixels > 4.0) {
+      var bufferPixels = maxIgnoringNulls(mergeLineStrings.minLength(), mergeLineStrings.buffer());
+      var bufferPixelsAtMaxZoom = maxIgnoringNulls(mergeLineStrings.minLengthAtMaxZoom(), mergeLineStrings.buffer());
+      int maxZoom = rootContext.config().maxzoomForRendering();
+      if (bufferPixels != null || bufferPixelsAtMaxZoom != null) {
         processors.add((context, f) -> {
           if (f.isLine()) {
-            f.setBufferPixels(bufferPixels);
+            f.setBufferPixelOverrides(z -> z == maxZoom ? bufferPixelsAtMaxZoom : bufferPixels);
           }
         });
       }
@@ -164,22 +136,8 @@ public class ConfiguredFeature {
     var mergePolygons = postProcess.mergePolygons();
     if (mergePolygons != null) {
       // postProcess.mergePolygons.tolerance*
-      var tolerance = mergePolygons.tolerance();
-      if (tolerance != null) {
-        processors.add((context, f) -> {
-          if (f.isPolygon()) {
-            f.setPixelTolerance(tolerance);
-          }
-        });
-      }
-      var toleranceAtMaxZoom = mergePolygons.toleranceAtMaxZoom();
-      if (toleranceAtMaxZoom != null) {
-        processors.add((context, f) -> {
-          if (f.isPolygon()) {
-            f.setPixelToleranceAtMaxZoom(toleranceAtMaxZoom);
-          }
-        });
-      }
+      processors.add(makePolygonFeatureProcessor(mergePolygons.tolerance(),Feature::setPixelTolerance));
+      processors.add(makePolygonFeatureProcessor(mergePolygons.toleranceAtMaxZoom(),Feature::setPixelToleranceAtMaxZoom));
       // TODO: postProcess.mergeLineStrings.minArea*
     }
   }
@@ -202,6 +160,30 @@ public class ConfiguredFeature {
       var result = expression.apply(context);
       if (result != null) {
         consumer.accept(feature, result);
+      }
+    };
+  }
+
+  private <Double> BiConsumer<Contexts.FeaturePostMatch, Feature> makeLineFeatureProcessor(Double input,
+    BiConsumer<Feature, Double> consumer) {
+    if (input == null) {
+      return null;
+    }
+    return (context, feature) -> {
+      if (feature.isLine()) {
+        consumer.accept(feature, input);
+      }
+    };
+  }
+
+  private <Double> BiConsumer<Contexts.FeaturePostMatch, Feature> makePolygonFeatureProcessor(Double input,
+    BiConsumer<Feature, Double> consumer) {
+    if (input == null) {
+      return null;
+    }
+    return (context, feature) -> {
+      if (feature.isPolygon()) {
+        consumer.accept(feature, input);
       }
     };
   }
@@ -375,5 +357,11 @@ public class ConfiguredFeature {
     for (var processor : featureProcessors) {
       processor.accept(context, f);
     }
+  }
+
+  private Double maxIgnoringNulls(Double a, Double b) {
+    if (a == null) return b;
+    if (b == null) return a;
+    return Double.max(a, b);
   }
 }

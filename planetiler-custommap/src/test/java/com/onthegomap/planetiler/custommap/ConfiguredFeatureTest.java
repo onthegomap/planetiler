@@ -242,10 +242,12 @@ class ConfiguredFeatureTest {
         tile_post_process:
           merge_line_strings:
             min_length: 10
+            min_length_at_max_zoom: 2
             tolerance: 5
-            buffer: 4
+            buffer: 6
       """, Map.of(), f -> {
-      assertEquals(10, f.getBufferPixelsAtZoom(14));
+      assertEquals(10, f.getBufferPixelsAtZoom(12));
+      assertEquals(6, f.getBufferPixelsAtZoom(14));
     }, 1);
   }
 
