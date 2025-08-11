@@ -288,7 +288,9 @@ public class TileArchiveWriter {
           memoizedTiles.inc();
         } else {
           VectorTile tile = tileFeatures.getVectorTile(layerAttrStatsUpdater);
-          if (skipFilled && (lastIsFill = tile.containsOnlyFills())) {
+          if (tile.isEmpty()) {
+            continue;
+          } else if ((skipFilled && (lastIsFill = tile.containsOnlyFills()))) {
             encoded = null;
             layerStats = null;
             bytes = null;
@@ -318,7 +320,7 @@ public class TileArchiveWriter {
           }
           lastTileDataHash = tileDataHash;
         }
-        if ((!skipFilled || !lastIsFill) && bytes != null) {
+        if (!(skipFilled && lastIsFill) && bytes != null) {
           tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
           List<String> layerStatsRows = config.outputLayerStats() ?
             layerStatsSerializer.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
