@@ -34,6 +34,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
@@ -870,6 +871,49 @@ class PlanetilerTests {
     assertEquals(List.of(
       feature(newPolygon(tileFill(4)), Map.of())
     ), results.tiles.get(TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15)));
+  }
+
+  @Test
+  void testEmptyTileAfterPostProcessingOmittedFromArchive() throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "6"),
+      List.of(
+        newReaderFeature(WORLD_POLYGON, Map.of()),
+        newReaderFeature(newPoint(0.5, 0.5), Map.of())
+      ),
+      (in, features) -> features.anyGeometry("layer"),
+      (layer, zoom, features) -> List.of()
+    );
+
+    assertEquals(Map.of(), results.tiles());
+    assertEquals(0, results.tileDataCount());
+  }
+
+  @Test
+  void testSingleEmptyTileOmittedFromArchive() throws Exception {
+    List<SimpleFeature> features = List.of(
+      newReaderFeature(WORLD_POLYGON, Map.of()),
+      newReaderFeature(newPoint(0.5, 0.5), Map.of())
+    );
+    FunctionThatThrows<TileCoord, PlanetilerResults> run = tileToRemove -> run(
+      Map.of("threads", "1", "maxzoom", "6"),
+      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
+      new TestProfile(
+        (in, f) -> f.anyGeometry("layer"),
+        a -> null,
+        (tileCoord, layers) -> tileCoord.equals(tileToRemove) ? Map.of() : layers
+      )
+    );
+
+    TileCoord toOmit = TileCoord.ofXYZ(54, 63, 6);
+    var result1 = run.apply(null);
+    var result2 = run.apply(toOmit);
+
+    assertEquals(result1.tiles.size() - 1, result2.tiles.size());
+
+    var expectedTiles = new TreeMap<>(result1.tiles);
+    expectedTiles.remove(toOmit);
+    assertEquals(expectedTiles, result2.tiles);
   }
 
   @Test
