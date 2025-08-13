@@ -402,16 +402,28 @@
           "description": "An expression that returns the minimum zoom to render this feature at.",
           "$ref": "#/$defs/expression"
         },
+        "min_size": {
+          "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map. This value is ignored if the layer Tile Post Process is defined.",
+          "$ref": "#/$defs/expression"
+        },
+        "min_size_at_max_zoom": {
+          "description": "Minimum length of line features or square root of the minimum area of polygon features to emit at the maximum zoom-level of the map. This value is ignored if the layer Tile Post Process is defined.",
+          "$ref": "#/$defs/expression"
+        },
+        "tolerance": {
+          "description": "Tile pixel tolerance to use when simplifying features below the maximum zoom level of the map. This value is ignored for lines or polygons if the layerTile Post Process 'tolerance' is defined for 'merge_line_strings' or 'merge_polygons', respectively.",
+          "$ref": "#/$defs/expression"
+        },
+        "tolerance_at_max_zoom": {
+          "description": "Tile pixel tolerance to use when simplifying features at the maximum zoom level of the map. This value is ignored for lines or polygons if the layerTile Post Process 'tolerance' is defined for 'merge_line_strings' or 'merge_polygons', respectively.",
+          "$ref": "#/$defs/expression"
+        },
         "attributes": {
-          "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed",
+          "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/attribute"
           }
-        },
-        "min_size": {
-          "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map",
-          "$ref": "#/$defs/expression"
         }
       }
     },
@@ -423,11 +435,19 @@
           "type": "object",
           "properties": {
             "min_length": {
-              "description": "Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings",
+              "description": "Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings, below the maximum zoom-level of the map.",
+              "type": "number"
+            },
+            "min_length_at_max_zoom": {
+              "description": "Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings, at the maximum zoom-level of the map.",
               "type": "number"
             },
             "tolerance": {
-              "description": "After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step",
+              "description": "After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step, below the maximum zoom-level of the map.",
+              "type": "number"
+            },
+            "tolerance_at_max_zoom": {
+              "description": "After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step, at the maximum zoom-level of the map.",
               "type": "number"
             },
             "buffer": {
@@ -441,7 +461,19 @@
           "type": "object",
           "properties": {
             "min_area": {
-              "description": "Minimum area in square tile pixels of polygons to emit",
+              "description": "Minimum area in square tile pixels of polygons to emit, below the maximum zoom-level of the map.",
+              "type": "number"
+            },
+            "min_area_at_max_zoom": {
+              "description": "Minimum area in square tile pixels of polygons to emit, at the maximum zoom-level of the map.",
+              "type": "number"
+            },
+            "tolerance": {
+              "description": "Before merging, simplify polygons using this pixel tolerance, or 0 to avoid simplification, below the maximum zoom-level of the map.",
+              "type": "number"
+            },
+            "tolerance_at_max_zoom": {
+              "description": "Before merging, simplify polygons using this pixel tolerance, or 0 to avoid simplification, at the maximum zoom-level of the map.",
               "type": "number"
             }
           }
