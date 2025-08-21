@@ -542,6 +542,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometryType == GeometryType.POLYGON;
     }
 
+    public boolean isLine() {
+      return geometryType == GeometryType.LINE;
+    }
+
     /**
      * Returns the value by which features are sorted within a layer in the output vector tile.
      */
@@ -621,6 +625,14 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setBufferPixels(double buffer) {
       defaultBufferPixels = buffer;
       return this;
+    }
+
+    /**
+     * Sets the default number of pixels of detail to render outside the visible tile boundary when no zoom-specific
+     * override is set in {@link #setBufferPixelOverrides(ZoomFunction)}.
+     */
+    public double getBufferPixels() {
+      return defaultBufferPixels;
     }
 
     /**
