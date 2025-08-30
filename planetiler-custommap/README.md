@@ -240,7 +240,17 @@ A feature is a defined set of objects that meet a specified filter criteria.
   expression should be skipped. If unspecified, no exclusion filter is applied.
 - `min_zoom` - An [Expression](#expression) that returns the minimum zoom to render this feature at.
 - `min_size` - An [Expression](#expression) that returns the minimum length of line features or square root of the
-  minimum area of polygon features to emit below the maximum zoom-level of the map.
+  minimum area of polygon features to emit below the maximum zoom-level of the map. This value is ignored if the layer
+  [Tile Post Process](#tile-post-process) is defined.
+- `min_size_at_max_zoom` - An [Expression](#expression) that returns the minimum length of line features or square root of the
+  minimum area of polygon features to emit at the maximum zoom-level of the map. This value is ignored if the layer
+  [Tile Post Process](#tile-post-process) is defined.
+- `tolerance` - An [Expression](#expression) that returns the value for the tile pixel tolerance to use when
+  simplifying features below the maximum zoom level of the map.  This value is ignored for lines or polygons if the layer
+  [Tile Post Process](#tile-post-process) `tolerance` is defined for `merge_line_strings` or `merge_polygons`, respectively.
+- `tolerance_at_max_zoom` - An [Expression](#expression) that returns the value for the tile pixel tolerance to use when
+  simplifying features at the maximum zoom level of the map. This value is ignored for lines or polygons if the layer
+  [Tile Post Process](#tile-post-process) `tolerance_at_max_zoom` is defined for `merge_line_strings` or `merge_polygons`, respectively.
 - `attributes` - An array of [Feature Attribute](#feature-attribute) objects that specify the attributes to be included
   on this output feature.
 
@@ -310,23 +320,41 @@ Specific tile post processing operations for merging features may be defined:
 
 The follow attributes for `merge_line_strings` may be set:
 
-- `min_length` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings.
-- `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step.
+- `min_length` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings,
+  below the maximum zoom-level of the map.
+- `min_length_at_max_zoom` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings,
+  at the maximum zoom-level of the map.
+- `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step,
+  below the maximum zoom-level of the map.
+- `tolerance_at_max_zoom` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step,
+  at the maximum zoom-level of the map.
 - `buffer` - Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step.
 
 The follow attribute for `merge_polygons` may be set:
 
-- `min_area` - Minimum area in square tile pixels of polygons to emit.
+- `min_area` - Minimum area in square tile pixels of polygons to emit,
+  below the maximum zoom-level of the map.
+- `min_area_at_max_zoom` - Minimum area in square tile pixels of polygons to emit,
+  below the maximum zoom-level of the map.
+- `tolerance` - Before merging, simplify polygons using this pixel tolerance, or 0 to avoid simplification,
+  below the maximum zoom-level of the map.
+- `tolerance_at_max_zoom` - Before merging, simplify polygons using this pixel tolerance, or 0 to avoid simplification,
+  at the maximum zoom-level of the map.
 
 For example:
 
 ```yaml
 merge_line_strings:
-  min_length: 1
+  min_length: 3
+  min_length_at_max_zoom: 0.125
   tolerance: 1
+  tolerance_at_max_zoom: 0.0625
   buffer: 5
 merge_polygons:
   min_area: 1
+  min_area_at_max_zoom: 0.25
+  tolerance: 0.5
+  tolerance_at_max_zoom: 0.125
 ```
 
 ## Data Type
