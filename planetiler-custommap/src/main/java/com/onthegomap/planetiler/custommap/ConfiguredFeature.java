@@ -166,8 +166,8 @@ public class ConfiguredFeature {
     };
   }
 
-  private <Double> BiConsumer<Contexts.FeaturePostMatch, Feature> makeLineFeatureProcessor(Double input,
-    BiConsumer<Feature, Double> consumer) {
+  private BiConsumer<Contexts.FeaturePostMatch, Feature> makeLineFeatureProcessor(Double input,
+    ObjDoubleConsumer<Feature> consumer) {
     if (input == null) {
       return null;
     }
