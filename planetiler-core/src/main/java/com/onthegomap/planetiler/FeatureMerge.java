@@ -175,7 +175,7 @@ public class FeatureMerge {
       // - it doesn't need to be clipped
       // - and it can't possibly be filtered out for being too short
       // - and it does not need to be simplified
-      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
+      if (groupedFeatures.size() == 1 && buffer <= 0d && lengthLimit <= 0 && (!resimplify || tolerance <= 0)) {
         result.add(feature1);
       } else {
         LoopLineMerger merger = new LoopLineMerger()
@@ -183,7 +183,7 @@ public class FeatureMerge {
           .setMergeStrokes(true)
           .setMinLength(lengthLimit)
           .setLoopMinLength(lengthLimit)
-          .setStubMinLength(0.5)
+          .setStubMinLength(Math.min(0.5, lengthLimit))
           .setSegmentTransform(pipeline);
         for (VectorTile.Feature feature : groupedFeatures) {
           try {
