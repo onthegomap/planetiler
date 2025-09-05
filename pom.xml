@@ -228,6 +228,9 @@
           <excludes>
             <exclude/>
           </excludes>
+          <excludesFile>
+            ${maven.multiModuleProjectDirectory}/planetiler-core/src/test/resources/exclude.txt
+          </excludesFile>
           <!-- by default surefire only includes tests matching Test*.java *Test.java or *TestCase.java -->
           <includes>
             <include>**/*.java</include>

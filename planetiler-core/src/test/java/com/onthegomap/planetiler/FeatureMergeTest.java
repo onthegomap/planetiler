@@ -1040,4 +1040,26 @@ class FeatureMergeTest {
       )
     );
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 0, 0",
+    "0, -1, 0",
+    "0, -1, -1",
+    "0, 0, -1",
+  })
+  void mergeLineStringZeroMinLength(double minLength, double minTolerance, double buffer) throws GeometryException {
+    var input = feature(1, newLineString(10, 10, 10.25, 10, 20, 10), Map.of());
+    var actual = FeatureMerge.mergeLineStrings(
+      List.of(
+        feature(1, newLineString(10, 10, 10.25, 10, 20, 10), Map.of())
+      ),
+      minLength,
+      minTolerance,
+      buffer
+    );
+    var actualSingle = actual.getFirst();
+    assertEquals(input.geometry().decode(), actualSingle.geometry().decode());
+    assertEquals(List.of(input), actual);
+  }
 }
