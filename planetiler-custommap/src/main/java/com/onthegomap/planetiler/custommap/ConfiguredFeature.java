@@ -178,8 +178,8 @@ public class ConfiguredFeature {
     };
   }
 
-  private <Double> BiConsumer<Contexts.FeaturePostMatch, Feature> makePolygonFeatureProcessor(Double input,
-    BiConsumer<Feature, Double> consumer) {
+  private BiConsumer<Contexts.FeaturePostMatch, Feature> makePolygonFeatureProcessor(Double input,
+    ObjDoubleConsumer<Feature> consumer) {
     if (input == null) {
       return null;
     }
