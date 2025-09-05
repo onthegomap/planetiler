@@ -628,14 +628,6 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the default number of pixels of detail to render outside the visible tile boundary when no zoom-specific
-     * override is set in {@link #setBufferPixelOverrides(ZoomFunction)}.
-     */
-    public double getBufferPixels() {
-      return defaultBufferPixels;
-    }
-
-    /**
      * Sets zoom-specific overrides to the number of pixels of detail to render outside the visible tile boundary.
      * <p>
      * If {@code buffer} is {@code null} or returns {@code null}, the buffer pixels will default to
