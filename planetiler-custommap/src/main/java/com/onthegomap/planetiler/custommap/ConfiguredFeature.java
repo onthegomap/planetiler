@@ -91,10 +91,12 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
-    processors.add(makeFeatureProcessor(feature.tolerance(), Double.class, Feature::setPixelTolerance));
-    processors.add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
     addPostProcessingImplications(layer, feature, processors, rootContext);
+    
+    // per-feature tolerance settings should take precedence over defaults from post-processing config
+    processors.add(makeFeatureProcessor(feature.tolerance(), Double.class, Feature::setPixelTolerance));
+    processors.add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
   }
