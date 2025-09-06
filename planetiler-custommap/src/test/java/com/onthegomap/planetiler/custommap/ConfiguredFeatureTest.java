@@ -242,10 +242,12 @@ class ConfiguredFeatureTest {
         tile_post_process:
           merge_line_strings:
             min_length: 10
+            min_length_at_max_zoom: 2
             tolerance: 5
-            buffer: 4
+            buffer: 6
       """, Map.of(), f -> {
-      assertEquals(10, f.getBufferPixelsAtZoom(14));
+      assertEquals(10, f.getBufferPixelsAtZoom(12));
+      assertEquals(6, f.getBufferPixelsAtZoom(14));
     }, 1);
   }
 
@@ -1250,17 +1252,81 @@ class ConfiguredFeatureTest {
         tile_post_process:
           merge_line_strings:
             min_length: 1
+            min_length_at_max_zoom: 0.125
             tolerance: 5
+            tolerance_at_max_zoom: 0.0625
             buffer: 10
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
     assertEquals(new PostProcess(
       new MergeLineStrings(
-        1,
-        5,
-        10
+        1.0,
+        0.125,
+        5.0,
+        0.0625,
+        10.0
       ),
       null
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessWithMergeLineStringsDefaults() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_line_strings:
+            buffer: 10
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      new MergeLineStrings(
+        null,
+        null,
+        null,
+        null,
+        10.0
+      ),
+      null
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessMergePolygonsTolerance() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_polygons:
+            tolerance: 1.23
+            tolerance_at_max_zoom: 0.123
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      null,
+      new MergePolygons(
+        null,
+        null,
+        1.23,
+        0.123
+      )
     ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }
 
@@ -1280,12 +1346,16 @@ class ConfiguredFeatureTest {
         tile_post_process:
           merge_polygons:
             min_area: 3
+            min_area_at_max_zoom: 1
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
     assertEquals(new PostProcess(
       null,
       new MergePolygons(
-        3
+        3.0,
+        1.0,
+        null,
+        null
       )
     ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }

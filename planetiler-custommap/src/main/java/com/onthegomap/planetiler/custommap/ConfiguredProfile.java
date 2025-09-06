@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A profile configured from a yml file.
@@ -88,21 +89,38 @@ public class ConfiguredProfile implements Profile {
       return items;
     }
 
+    var config = rootContext.config();
     if (featureLayer.postProcess().mergeLineStrings() != null) {
       var merge = featureLayer.postProcess().mergeLineStrings();
+      var minLength = Objects.requireNonNullElse(
+        (zoom == config.maxzoomForRendering()) ?
+          merge.minLengthAtMaxZoom() :
+          merge.minLength(),
+        config.minFeatureSize(zoom));
+      var tolerance = Objects.requireNonNullElse(
+        (zoom == config.maxzoomForRendering()) ?
+          merge.toleranceAtMaxZoom() :
+          merge.tolerance(),
+        config.tolerance(zoom));
+      var buffer = Objects.requireNonNullElse(merge.buffer(), 4.0);
 
       items = FeatureMerge.mergeLineStrings(items,
-        merge.minLength(), // after merging, remove lines that are still less than {minLength}px long
-        merge.tolerance(), // simplify output linestrings using a {tolerance}px tolerance
-        merge.buffer() // remove any detail more than {buffer}px outside the tile boundary
+        minLength, // after merging, remove lines that are still less than {minLength}px long
+        tolerance, // simplify output linestrings using a {tolerance}px tolerance
+        buffer // remove any detail more than {buffer}px outside the tile boundary
       );
     }
 
-    if (featureLayer.postProcess().mergePolygons() != null) {
-      var merge = featureLayer.postProcess().mergePolygons();
+    var merge = featureLayer.postProcess().mergePolygons();
+    if (merge != null) {
+      var minArea = Objects.requireNonNullElse(
+        (zoom == config.maxzoomForRendering()) ?
+          merge.minAreaAtMaxZoom() :
+          merge.minArea(),
+        config.minFeatureSize(zoom)*config.minFeatureSize(zoom));
 
       items = FeatureMerge.mergeOverlappingPolygons(items,
-        merge.minArea() // after merging, remove polygons that are still less than {minArea} in square tile pixels
+        minArea // after merging, remove polygons that are still less than {minArea} in square tile pixels
       );
     }
 

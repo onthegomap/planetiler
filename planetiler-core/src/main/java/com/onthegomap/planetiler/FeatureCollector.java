@@ -542,6 +542,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return geometryType == GeometryType.POLYGON;
     }
 
+    public boolean isLine() {
+      return geometryType == GeometryType.LINE;
+    }
+
     /**
      * Returns the value by which features are sorted within a layer in the output vector tile.
      */
