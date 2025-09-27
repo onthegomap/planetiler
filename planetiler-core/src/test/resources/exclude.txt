@@ -1,2 +1,0 @@
-# Temporarily disable test broken by this fix: https://github.com/onthegomap/planetiler/pull/1330
-org.openmaptiles.OpenMapTilesTest#testTransportation
