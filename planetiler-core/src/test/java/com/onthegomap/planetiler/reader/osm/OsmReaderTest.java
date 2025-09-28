@@ -789,6 +789,33 @@ class OsmReaderTest {
     assertEquals(3, feature3.relationInfo(TestRelInfo.class).size());
   }
 
+  @Test
+  void testCyclicSuperRelation() {
+    record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+        return List.of(new TestRelInfo(1, "name"));
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
+    long index = 1;
+    var node1 = node(index++, 0, 0);
+    var node2 = node(index++, 1, 1);
+    var way1 = new OsmElement.Way(index++);
+    var relation1 = new OsmElement.Relation(index++);
+    var relation2 = new OsmElement.Relation(index);
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rolename"));
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
+
+    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename"));
+
+    processPass1Block(reader, List.of(node1, node2, way1, relation1, relation2));
+
+    SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
+    assertEquals(2, feature1.relationInfo(TestRelInfo.class).size());
+  }
+
   private OsmReader newOsmReader() {
     return new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, profile, stats);
   }

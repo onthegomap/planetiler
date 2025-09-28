@@ -543,7 +543,12 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         if (rel != null) {
           rels.add(new RelationMember<>(parsed.role, rel));
         }
-        rels.addAll(getRelationInfosForRelationId(parsed.relationId, new HashSet<>()));
+        LongArrayList parentRelations = relationToParentRelations.get(parsed.relationId);
+        var hashSet = new HashSet<Long>();
+        hashSet.add(parsed.relationId);
+        for (int p = 0; p < parentRelations.size(); p++) {
+          rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), hashSet));
+        }
       }
     }
     return rels;
@@ -554,17 +559,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       return List.of();
     }
     LongArrayList parentRelations = relationToParentRelations.get(relationId);
-    if (parentRelations.isEmpty()) {
-      return List.of();
-    }
     List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
+    OsmRelationInfo parentRelation = relationInfo.get(relationId);
+    if (parentRelation != null) {
+      rels.add(new RelationMember<>("", parentRelation));
+    }
     for (int p = 0; p < parentRelations.size(); p++) {
-      long parentId = parentRelations.get(p);
-      OsmRelationInfo parentRelation = relationInfo.get(parentId);
-      if (parentRelation != null) {
-        rels.add(new RelationMember<>("", parentRelation));
-      }
-      rels.addAll(getRelationInfosForRelationId(parentId, seen));
+      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), seen));
     }
     return rels;
   }
