@@ -576,6 +576,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += waysInMultipolygon == null ? 0 : waysInMultipolygon.serializedSizeInBytes();
     // multipolygonWayGeometries is reported separately
     size += estimateSize(wayToRelations);
+    size += estimateSize(relationToParentRelations);
     size += estimateSize(relationInfo);
     size += estimateSize(roleIdsReverse);
     size += estimateSize(roleIds);
@@ -591,6 +592,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       multipolygonWayGeometries = null;
     }
     wayToRelations = null;
+    relationToParentRelations = null;
     waysInMultipolygon = null;
     relationInfo = null;
     nodeLocationDb.close();
