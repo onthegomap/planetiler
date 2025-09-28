@@ -86,7 +86,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap();
 
-  // HM TODO: size info is probably needed
+  // ~20mb or ~40mb while sorting
   private LongLongMultimap.Appendable relationToParentRelations = LongLongMultimap.newAppendableMultimap();
 
   private final Object wayToRelationsLock = new Object();
@@ -264,7 +264,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             phases.arrive(OsmPhaser.Phase.RELATIONS);
             try {
               List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
-              if (infos != null) {
+              if (infos != null && !infos.isEmpty()) {
                 synchronized (wayToRelationsLock) {
                   for (OsmRelationInfo info : infos) {
                     relationInfo.put(relation.id(), info);
@@ -544,18 +544,21 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           rels.add(new RelationMember<>(parsed.role, rel));
         }
         LongArrayList parentRelations = relationToParentRelations.get(parsed.relationId);
-        var hashSet = new HashSet<Long>();
-        hashSet.add(parsed.relationId);
+        if (parentRelations.isEmpty()) {
+          continue;
+        }
+        var visited = new HashSet<Long>();
+        visited.add(parsed.relationId);
         for (int p = 0; p < parentRelations.size(); p++) {
-          rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), hashSet));
+          rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited));
         }
       }
     }
     return rels;
   }
 
-  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationId, HashSet<Long> seen) {
-    if (!seen.add(relationId)) {
+  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationId, HashSet<Long> visited) {
+    if (!visited.add(relationId)) {
       return List.of();
     }
     LongArrayList parentRelations = relationToParentRelations.get(relationId);
@@ -565,7 +568,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       rels.add(new RelationMember<>("", parentRelation));
     }
     for (int p = 0; p < parentRelations.size(); p++) {
-      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), seen));
+      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited));
     }
     return rels;
   }
