@@ -276,7 +276,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                     if (type == OsmElement.Type.WAY) {
                       wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
                     } else if (type == OsmElement.Type.RELATION) {
-                      relationToParentRelations.put(member.ref(), relation.id());
+                      relationToParentRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
                     }
                   }
                 }
@@ -557,15 +557,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     return rels;
   }
 
-  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationId, HashSet<Long> visited) {
-    if (!visited.add(relationId)) {
+  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationIdAndRole, HashSet<Long> visited) {
+    var parsed = decodeRelationMembership(relationIdAndRole);
+    if (!visited.add(parsed.relationId)) {
       return List.of();
     }
-    LongArrayList parentRelations = relationToParentRelations.get(relationId);
+    LongArrayList parentRelations = relationToParentRelations.get(parsed.relationId);
     List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
-    OsmRelationInfo parentRelation = relationInfo.get(relationId);
-    if (parentRelation != null) {
-      rels.add(new RelationMember<>("", parentRelation));
+    OsmRelationInfo relation = relationInfo.get(parsed.relationId);
+    if (relation != null) {
+      rels.add(new RelationMember<>(parsed.role, relation));
     }
     for (int p = 0; p < parentRelations.size(); p++) {
       rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited));

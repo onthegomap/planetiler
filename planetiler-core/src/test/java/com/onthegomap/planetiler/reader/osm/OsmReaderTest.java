@@ -727,19 +727,23 @@ class OsmReaderTest {
     var relation1 = new OsmElement.Relation(index++);
     var relation2 = new OsmElement.Relation(index++);
     var relation3 = new OsmElement.Relation(index);
-    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "leafway"));
 
-    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename"));
+    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "midrel"));
     relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way2.id(), "rolename"));
 
-    relation3.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename"));
+    relation3.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "topmosrel"));
 
     processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2, relation1, relation2, relation3));
 
     SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
     SourceFeature feature2 = reader.processWayPass2(way2, nodeCache);
     assertEquals(3, feature1.relationInfo(TestRelInfo.class).size());
+    assertEquals("leafway", feature1.relationInfo(TestRelInfo.class).get(0).role());
+    assertEquals("midrel", feature1.relationInfo(TestRelInfo.class).get(1).role());
+    assertEquals("topmosrel", feature1.relationInfo(TestRelInfo.class).get(2).role());
     assertEquals(1, feature2.relationInfo(TestRelInfo.class).size());
+    assertEquals("rolename", feature2.relationInfo(TestRelInfo.class).get(0).role());
   }
 
   @Test
