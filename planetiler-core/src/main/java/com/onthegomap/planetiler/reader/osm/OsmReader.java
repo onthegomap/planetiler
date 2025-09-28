@@ -85,6 +85,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap();
+
+  // HM TODO: size info is probably needed
+  private LongLongMultimap.Appendable relationToParentRelations = LongLongMultimap.newAppendableMultimap();
+
   private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
@@ -265,12 +269,14 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                   for (OsmRelationInfo info : infos) {
                     relationInfo.put(relation.id(), info);
                     relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-                    for (var member : relation.members()) {
-                      var type = member.type();
-                      // TODO handle nodes in relations and super-relations
-                      if (type == OsmElement.Type.WAY) {
-                        wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
-                      }
+                  }
+                  for (var member : relation.members()) {
+                    var type = member.type();
+                    // TODO handle nodes in relations
+                    if (type == OsmElement.Type.WAY) {
+                      wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                    } else if (type == OsmElement.Type.RELATION) {
+                      relationToParentRelations.put(member.ref(), relation.id());
                     }
                   }
                 }
@@ -537,7 +543,28 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         if (rel != null) {
           rels.add(new RelationMember<>(parsed.role, rel));
         }
+        rels.addAll(getRelationInfosForRelationId(parsed.relationId, new HashSet<>()));
       }
+    }
+    return rels;
+  }
+
+  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationId, HashSet<Long> seen) {
+    if (!seen.add(relationId)) {
+      return List.of();
+    }
+    LongArrayList parentRelations = relationToParentRelations.get(relationId);
+    if (parentRelations.isEmpty()) {
+      return List.of();
+    }
+    List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
+    for (int p = 0; p < parentRelations.size(); p++) {
+      long parentId = parentRelations.get(p);
+      OsmRelationInfo parentRelation = relationInfo.get(parentId);
+      if (parentRelation != null) {
+        rels.add(new RelationMember<>("", parentRelation));
+      }
+      rels.addAll(getRelationInfosForRelationId(parentId, seen));
     }
     return rels;
   }
