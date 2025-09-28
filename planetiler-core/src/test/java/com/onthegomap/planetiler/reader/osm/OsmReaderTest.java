@@ -726,7 +726,7 @@ class OsmReaderTest {
     way2.setTag("key", "value");
     var relation1 = new OsmElement.Relation(index++);
     var relation2 = new OsmElement.Relation(index++);
-    var relation3 = new OsmElement.Relation(index++);
+    var relation3 = new OsmElement.Relation(index);
     relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
 
     relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename"));
@@ -770,7 +770,7 @@ class OsmReaderTest {
     way3.setTag("key", "value");
     var relation1 = new OsmElement.Relation(index++);
     var relation2 = new OsmElement.Relation(index++);
-    var relation3 = new OsmElement.Relation(index++);
+    var relation3 = new OsmElement.Relation(index);
     relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rolename"));
     relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
 
