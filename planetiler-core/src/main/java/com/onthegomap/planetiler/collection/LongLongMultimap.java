@@ -208,16 +208,17 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
       }
       int size = keys.size();
       int index = Arrays.binarySearch(keys.buffer, 0, size, key);
+      if (index < 0) {
+        return EMPTY_LIST;
+      }
       LongArrayList result = new LongArrayList();
-      if (index >= 0) {
-        // binary search might drop us in the middle of repeated values, so look forwards...
-        for (int i = index; i < size && keys.get(i) == key; i++) {
-          result.add(values.get(i));
-        }
-        // ... and backwards to get all the matches
-        for (int i = index - 1; i >= 0 && keys.get(i) == key; i--) {
-          result.add(values.get(i));
-        }
+      // binary search might drop us in the middle of repeated values, so look forwards...
+      for (int i = index; i < size && keys.get(i) == key; i++) {
+        result.add(values.get(i));
+      }
+      // ... and backwards to get all the matches
+      for (int i = index - 1; i >= 0 && keys.get(i) == key; i--) {
+        result.add(values.get(i));
       }
       return result;
     }
