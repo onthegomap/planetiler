@@ -85,6 +85,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap();
+
+  // ~20mb or ~40mb while sorting
+  private LongLongMultimap.Appendable relationToParentRelations = LongLongMultimap.newAppendableMultimap();
+
   private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
@@ -260,17 +264,19 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             phases.arrive(OsmPhaser.Phase.RELATIONS);
             try {
               List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
-              if (infos != null) {
+              if (infos != null && !infos.isEmpty()) {
                 synchronized (wayToRelationsLock) {
                   for (OsmRelationInfo info : infos) {
                     relationInfo.put(relation.id(), info);
                     relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-                    for (var member : relation.members()) {
-                      var type = member.type();
-                      // TODO handle nodes in relations and super-relations
-                      if (type == OsmElement.Type.WAY) {
-                        wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
-                      }
+                  }
+                  for (var member : relation.members()) {
+                    var type = member.type();
+                    // TODO handle nodes in relations
+                    if (type == OsmElement.Type.WAY) {
+                      wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                    } else if (type == OsmElement.Type.RELATION) {
+                      relationToParentRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
                     }
                   }
                 }
@@ -537,7 +543,33 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         if (rel != null) {
           rels.add(new RelationMember<>(parsed.role, rel));
         }
+        LongArrayList parentRelations = relationToParentRelations.get(parsed.relationId);
+        if (parentRelations.isEmpty()) {
+          continue;
+        }
+        var visited = new HashSet<Long>();
+        visited.add(parsed.relationId);
+        for (int p = 0; p < parentRelations.size(); p++) {
+          rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited));
+        }
       }
+    }
+    return rels;
+  }
+
+  private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationIdAndRole, HashSet<Long> visited) {
+    var parsed = decodeRelationMembership(relationIdAndRole);
+    if (!visited.add(parsed.relationId)) {
+      return List.of();
+    }
+    LongArrayList parentRelations = relationToParentRelations.get(parsed.relationId);
+    List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
+    OsmRelationInfo relation = relationInfo.get(parsed.relationId);
+    if (relation != null) {
+      rels.add(new RelationMember<>(parsed.role, relation));
+    }
+    for (int p = 0; p < parentRelations.size(); p++) {
+      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited));
     }
     return rels;
   }
@@ -548,6 +580,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += waysInMultipolygon == null ? 0 : waysInMultipolygon.serializedSizeInBytes();
     // multipolygonWayGeometries is reported separately
     size += estimateSize(wayToRelations);
+    size += estimateSize(relationToParentRelations);
     size += estimateSize(relationInfo);
     size += estimateSize(roleIdsReverse);
     size += estimateSize(roleIds);
@@ -563,6 +596,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       multipolygonWayGeometries = null;
     }
     wayToRelations = null;
+    relationToParentRelations = null;
     waysInMultipolygon = null;
     relationInfo = null;
     nodeLocationDb.close();
