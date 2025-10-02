@@ -17,7 +17,7 @@
 
   <properties>
     <geotools.version>33.2</geotools.version>
-    <log4j.version>2.25.1</log4j.version>
+    <log4j.version>2.25.2</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
     <protobuf.version>4.32.1</protobuf.version>
