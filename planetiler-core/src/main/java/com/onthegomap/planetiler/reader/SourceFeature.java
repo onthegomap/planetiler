@@ -63,22 +63,39 @@ public abstract class SourceFeature extends WithGeometry
     return sourceLayer;
   }
 
+  /**
+   * Returns a list of OSM relations that this element belongs to.
+   * <p>
+   * Use {@link #relationInfo(Class, boolean)} to include super-relations.
+   *
+   * @param relationInfoClass class of the processed relation data
+   * @param <T>               type of {@code relationInfoClass}
+   * @return A list containing the parent OSM relation info along with the role that this element is tagged with in that
+   *         relation
+   */
+  public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
+    Class<T> relationInfoClass) {
+    return relationInfo(relationInfoClass, false);
+  }
 
   /**
    * Returns a list of OSM relations that this element belongs to.
    *
-   * @param relationInfoClass class of the processed relation data
-   * @param <T>               type of {@code relationInfoClass}
-   * @return A list containing the OSM relation info along with the role that this element is tagged with in that
-   *         relation
+   * @param relationInfoClass     class of the processed relation data
+   * @param includeSuperRelations {@code true} to include super-relations {@code false} to only include direct parents
+   *                              of this element
+   * @param <T>                   type of {@code relationInfoClass}
+   * @return A list containing the ancestor OSM relation info along with the role that this element is tagged with in
+   *         that relation
    */
   // TODO this should be in a specialized OSM subclass, not the generic superclass
   public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
-    Class<T> relationInfoClass) {
+    Class<T> relationInfoClass, boolean includeSuperRelations) {
     List<OsmReader.RelationMember<T>> result = null;
     if (relationInfos != null) {
       for (OsmReader.RelationMember<?> info : relationInfos) {
-        if (relationInfoClass.isInstance(info.relation())) {
+        if (relationInfoClass.isInstance(info.relation()) &&
+          (includeSuperRelations || !info.isSuperRelation())) {
           if (result == null) {
             result = new ArrayList<>();
           }
