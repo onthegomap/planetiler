@@ -637,6 +637,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    */
   public record RelationMember<T extends OsmRelationInfo>(String role, T relation, List<Long> parentRelationPath) {
 
+    public RelationMember(String role, T relation) {
+      this(role, relation, List.of());
+    }
+
     /** Returns {@code true} if this is from a super-relation that contains a relation this element belongs to. */
     public boolean isSuperRelation() {
       return !parentRelationPath.isEmpty();
