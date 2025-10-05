@@ -90,7 +90,7 @@ public class BikeRouteOverlay implements Profile {
     if (sourceFeature.canBeLine()) {
       // get all the RouteRelationInfo instances we returned from preprocessOsmRelation that
       // this way belongs to
-      for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class)) {
+      for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         // (routeInfo.role() also has the "role" of this relation member if needed)
         RouteRelationInfo relation = routeInfo.relation();
         // Break the output into layers named: "{bicycle,route}-route-{international,national,regional,local,other}"

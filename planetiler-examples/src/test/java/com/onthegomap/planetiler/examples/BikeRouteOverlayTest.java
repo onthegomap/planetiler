@@ -16,6 +16,7 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.LineString;
@@ -37,22 +38,42 @@ class BikeRouteOverlayTest {
       new OsmElement.Relation.Member(OsmElement.Type.WAY, 2, "role")
     )));
 
-    // step 2) process a way contained in that relation
+    // step 2) preprocess an example OSM super-relation containing that relation
+    var superRelationResult = profile.preprocessOsmRelation(new OsmElement.Relation(2, Map.of(
+      "type", "route",
+      "route", "bicycle",
+      "name", "national trail network",
+      "network", "ncn",
+      "ref", "1"
+    ), List.of(
+      new OsmElement.Relation.Member(OsmElement.Type.RELATION, 1, "role")
+    )));
+
+    // step 3) process a way contained in that relation
     var way = SimpleFeature.createFakeOsmFeature(TestUtils.newLineString(
       10, 20, // point 1: 10 east 20 north
       30, 40 // point 2: 30 east 40 north
-    ), Map.of(), null, null, 2,
-      relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList());
+    ), Map.of(), null, null, 3,
+      Stream.concat(
+        relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)),
+        superRelationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info, List.of(1L)))
+      ).toList());
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(way, profile);
 
     // verify output geometry
-    assertEquals(1, mapFeatures.size());
-    var feature = mapFeatures.get(0);
+    assertEquals(2, mapFeatures.size());
+    var feature = mapFeatures.getFirst();
     assertEquals("bicycle-route-local", feature.getLayer());
     assertEquals(Map.of(
       "name", "rail trail",
       "ref", "1"
     ), feature.getAttrsAtZoom(14));
+    var feature2 = mapFeatures.get(1);
+    assertEquals("bicycle-route-national", feature2.getLayer());
+    assertEquals(Map.of(
+      "name", "national trail network",
+      "ref", "1"
+    ), feature2.getAttrsAtZoom(14));
     // output geometry is in world coordinates where 0,0 is top left and 1,1 is bottom right
     assertEquals(0.085, feature.getGeometry().getLength(), 1e-2);
     assertEquals(0, feature.getMinZoom());

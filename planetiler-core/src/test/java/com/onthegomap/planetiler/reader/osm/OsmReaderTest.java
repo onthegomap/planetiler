@@ -706,10 +706,11 @@ class OsmReaderTest {
   @Test
   void testSuperRelationNotOptedIn() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    var testRelInfo = new TestRelInfo(1, "name");
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return List.of(new TestRelInfo(1, "name"));
+        return List.of(testRelInfo);
       }
     }, stats);
     var nodeCache = reader.newNodeLocationProvider();
@@ -738,19 +739,22 @@ class OsmReaderTest {
 
     SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
     SourceFeature feature2 = reader.processWayPass2(way2, nodeCache);
-    assertEquals(1, feature1.relationInfo(TestRelInfo.class).size());
-    assertEquals("leafway", feature1.relationInfo(TestRelInfo.class).getFirst().role());
-    assertEquals(1, feature2.relationInfo(TestRelInfo.class).size());
-    assertEquals("rolename", feature2.relationInfo(TestRelInfo.class).getFirst().role());
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("leafway", testRelInfo, List.of())
+    ), feature1.relationInfo(TestRelInfo.class));
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("rolename", testRelInfo, List.of())
+    ), feature2.relationInfo(TestRelInfo.class));
   }
 
   @Test
   void testSuperRelationOrderedEasily() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    var testRelInfo = new TestRelInfo(1, "name");
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return List.of(new TestRelInfo(1, "name"));
+        return List.of(testRelInfo);
       }
     }, stats);
     var nodeCache = reader.newNodeLocationProvider();
@@ -779,21 +783,24 @@ class OsmReaderTest {
 
     SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
     SourceFeature feature2 = reader.processWayPass2(way2, nodeCache);
-    assertEquals(3, feature1.relationInfo(TestRelInfo.class, true).size());
-    assertEquals("leafway", feature1.relationInfo(TestRelInfo.class, true).get(0).role());
-    assertEquals("midrel", feature1.relationInfo(TestRelInfo.class, true).get(1).role());
-    assertEquals("topmosrel", feature1.relationInfo(TestRelInfo.class, true).get(2).role());
-    assertEquals(1, feature2.relationInfo(TestRelInfo.class).size());
-    assertEquals("rolename", feature2.relationInfo(TestRelInfo.class, true).get(0).role());
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("leafway", testRelInfo, List.of()),
+      new OsmReader.RelationMember<>("midrel", testRelInfo, List.of(relation1.id())),
+      new OsmReader.RelationMember<>("topmosrel", testRelInfo, List.of(relation1.id()))
+    ), feature1.relationInfo(TestRelInfo.class, true));
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("rolename", testRelInfo, List.of())
+    ), feature2.relationInfo(TestRelInfo.class, true));
   }
 
   @Test
   void testSuperRelationOrderedBadly() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    var testRelInfo = new TestRelInfo(1, "name");
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return List.of(new TestRelInfo(1, "name"));
+        return List.of(testRelInfo);
       }
     }, stats);
     var nodeCache = reader.newNodeLocationProvider();
@@ -816,13 +823,16 @@ class OsmReaderTest {
     var relation1 = new OsmElement.Relation(index++);
     var relation2 = new OsmElement.Relation(index++);
     var relation3 = new OsmElement.Relation(index);
-    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rolename"));
-    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
+    // way1 -> rel1
+    // way2 -> rel2 -> rel1
+    // way3 -> rel3 -> rel2 -> rel1
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rel2"));
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "way1"));
 
-    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation3.id(), "rolename"));
-    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way2.id(), "rolename"));
+    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation3.id(), "rel3"));
+    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way2.id(), "way2"));
 
-    relation3.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way3.id(), "rolename"));
+    relation3.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way3.id(), "way3"));
 
     processPass1Block(reader,
       List.of(node1, node2, node3, node4, node5, node6, way1, way2, way3, relation1, relation2, relation3));
@@ -830,14 +840,24 @@ class OsmReaderTest {
     SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
     SourceFeature feature2 = reader.processWayPass2(way2, nodeCache);
     SourceFeature feature3 = reader.processWayPass2(way3, nodeCache);
-    assertEquals(1, feature1.relationInfo(TestRelInfo.class, true).size());
-    assertEquals(2, feature2.relationInfo(TestRelInfo.class, true).size());
-    assertEquals(3, feature3.relationInfo(TestRelInfo.class, true).size());
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("way1", testRelInfo, List.of())
+    ), feature1.relationInfo(TestRelInfo.class, true));
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("way2", testRelInfo, List.of()),
+      new OsmReader.RelationMember<>("rel2", testRelInfo, List.of(relation2.id()))
+    ), feature2.relationInfo(TestRelInfo.class, true));
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("way3", testRelInfo, List.of()),
+      new OsmReader.RelationMember<>("rel3", testRelInfo, List.of(relation3.id())),
+      new OsmReader.RelationMember<>("rel2", testRelInfo, List.of(relation3.id(), relation2.id()))
+    ), feature3.relationInfo(TestRelInfo.class, true));
   }
 
   @Test
   void testCyclicSuperRelation() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    var testRelInfo = new TestRelInfo(1, "name");
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
@@ -851,15 +871,18 @@ class OsmReaderTest {
     var way1 = new OsmElement.Way(index++);
     var relation1 = new OsmElement.Relation(index++);
     var relation2 = new OsmElement.Relation(index);
-    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rolename"));
-    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename"));
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation2.id(), "rolename1"));
+    relation1.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way1.id(), "rolename2"));
 
-    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename"));
+    relation2.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, relation1.id(), "rolename3"));
 
     processPass1Block(reader, List.of(node1, node2, way1, relation1, relation2));
 
     SourceFeature feature1 = reader.processWayPass2(way1, nodeCache);
-    assertEquals(2, feature1.relationInfo(TestRelInfo.class, true).size());
+    assertEquals(List.of(
+      new OsmReader.RelationMember<>("rolename2", testRelInfo, List.of()),
+      new OsmReader.RelationMember<>("rolename3", testRelInfo, List.of(relation1.id()))
+    ), feature1.relationInfo(TestRelInfo.class, true));
   }
 
   private OsmReader newOsmReader() {
