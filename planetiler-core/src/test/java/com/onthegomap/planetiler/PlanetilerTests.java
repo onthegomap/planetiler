@@ -2291,8 +2291,8 @@ class PlanetilerTests {
       if (checkMetadata) {
         assertSubmap(Map.of(
           "format", switch (tileFormat) {
-            case MVT -> "pbf";
             case MLT -> "application/vnd.maplibre-vector-tile";
+            case UNKNOWN, MVT -> "pbf";
           },
           "planetiler:version", BuildInfo.get().version(),
           "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",

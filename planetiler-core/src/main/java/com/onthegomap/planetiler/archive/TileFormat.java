@@ -4,22 +4,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@JsonDeserialize(using = TileFormat.Deserializer.class)
 public enum TileFormat {
 
-  @JsonProperty("mvt")
-  MVT("mvt"),
-  @JsonProperty("mlt")
-  MLT("mlt");
+  @JsonProperty("pbf")
+  MVT("mvt", "pbf"),
+  @JsonProperty("application/vnd.maplibre-vector-tile")
+  MLT("mlt", "application/vnd.maplibre-vector-tile"),
+  @JsonProperty("unknown")
+  UNKNOWN("unknown", null);
 
   private final String id;
+  private final String mbtiles;
 
-  TileFormat(String id) {
+  TileFormat(String id, String mbtiles) {
     this.id = id;
+    this.mbtiles = mbtiles;
   }
 
   public static TileFormat fromId(String id) {
@@ -31,16 +40,20 @@ public enum TileFormat {
   public static Optional<TileFormat> findById(String id) {
     return availableValues()
       .stream()
-      .filter(tdc -> tdc.id().equals(id))
+      .filter(tdc -> tdc.id().equals(id) || Objects.equals(tdc.mbtiles, id))
       .findFirst();
   }
 
   public static Set<TileFormat> availableValues() {
-    return Set.of(TileFormat.values());
+    return Arrays.stream(TileFormat.values()).filter(tc -> tc != UNKNOWN).collect(Collectors.toUnmodifiableSet());
   }
 
   public String id() {
     return id;
+  }
+
+  public String mbtilesValue() {
+    return mbtiles;
   }
 
   static class Deserializer extends JsonDeserializer<TileFormat> {

@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerAttrStats;
@@ -163,7 +164,7 @@ class MbtilesTest {
       "MyAttribution",
       "MyVersion",
       "baselayer",
-      TileArchiveMetadata.MVT_FORMAT,
+      TileFormat.MVT,
       new Envelope(1, 2, 3, 4),
       new Coordinate(5, 6, 7d),
       8,
@@ -182,7 +183,7 @@ class MbtilesTest {
       "MyAttribution",
       "MyVersion",
       "baselayer",
-      TileArchiveMetadata.MVT_FORMAT,
+      TileFormat.MVT,
       new Envelope(1, 2, 3, 4),
       new Coordinate(5, 6, 7d),
       8,
@@ -200,7 +201,7 @@ class MbtilesTest {
   @Test
   void testRoundTripMinimalMetadata() throws IOException {
     var empty =
-      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+      new TileArchiveMetadata(null, null, null, null, null, TileFormat.MVT, null, null, null, null, null, Map.of(),
         TileCompression.GZIP);
     roundTripMetadata(empty);
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
@@ -230,7 +231,7 @@ class MbtilesTest {
       "MyAttribution",
       "MyVersion",
       "baselayer",
-      TileArchiveMetadata.MVT_FORMAT,
+      TileFormat.MVT,
       new Envelope(1, 2, 3, 4),
       new Coordinate(5, 6, 7d),
       8,

@@ -85,7 +85,8 @@ public class TestUtils {
     .scaleInstance(256d / 4096d, 256d / 4096d);
 
   public static final TileArchiveMetadata MAX_METADATA_DESERIALIZED =
-    new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
+    new TileArchiveMetadata("name", "description", "attribution", "version", "type", TileFormat.MVT,
+      new Envelope(0, 1, 2, 3),
       new Coordinate(1.3, 3.7, 1.0), 2, 3,
       TileArchiveMetadata.TileArchiveMetadataJson.create(
         List.of(
@@ -107,7 +108,7 @@ public class TestUtils {
       "attribution":"attribution",
       "version":"version",
       "type":"type",
-      "format":"format",
+      "format":"pbf",
       "minzoom":"2",
       "maxzoom":"3",
       "compression":"gzip",
@@ -285,11 +286,11 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = switch (tileFormat) {
-        case MVT -> VectorTile.decode(bytes).stream()
+        case MLT -> throw new UnsupportedOperationException("TODO decode MLTs");
+        case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
           .map(
             feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
           .toList();
-        case MLT -> throw new UnsupportedOperationException("TODO decode MLTs");
       };
       tiles.put(tile.coord(), decoded);
     }

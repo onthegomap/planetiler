@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.stream;
 import com.google.protobuf.ByteString;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
 import com.onthegomap.planetiler.util.LayerAttrStats.VectorLayer;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
@@ -80,7 +82,8 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
     setIfNotNull(metaDataBuilder::setAttribution, metadata.attribution());
     setIfNotNull(metaDataBuilder::setVersion, metadata.version());
     setIfNotNull(metaDataBuilder::setType, metadata.type());
-    setIfNotNull(metaDataBuilder::setFormat, metadata.format());
+    setIfNotNull(metaDataBuilder::setFormat,
+      Optional.ofNullable(metadata.format()).map(TileFormat::mbtilesValue).orElse(null));
     setIfNotNull(metaDataBuilder::setBounds, toExportData(metadata.bounds()));
     setIfNotNull(metaDataBuilder::setCenter, toExportData(metadata.center()));
     setIfNotNull(metaDataBuilder::setMinZoom, metadata.minzoom());

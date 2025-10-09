@@ -164,9 +164,11 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         new Pmtiles.JsonMetadata(tileArchiveMetadata.vectorLayers(), otherMetadata).toBytes();
       jsonBytes = Gzip.gzip(jsonBytes);
 
-      String formatString = tileArchiveMetadata.format();
-      var outputFormat =
-        TileArchiveMetadata.MVT_FORMAT.equals(formatString) ? Pmtiles.TileType.MVT : Pmtiles.TileType.UNKNOWN;
+      var outputFormat = switch (tileArchiveMetadata.format()) {
+        case MLT -> Pmtiles.TileType.MLT;
+        case MVT -> Pmtiles.TileType.MVT;
+        case null, default -> Pmtiles.TileType.UNKNOWN;
+      };
 
       var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
       var center = tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
