@@ -21,6 +21,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -270,11 +271,11 @@ public class TestUtils {
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
     throws IOException {
-    return getTileMap(db, TileCompression.GZIP);
+    return getTileMap(db, TileCompression.GZIP, TileFormat.MVT);
   }
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
-    TileCompression tileCompression)
+    TileCompression tileCompression, TileFormat tileFormat)
     throws IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getTiles(db)) {
@@ -283,10 +284,13 @@ public class TestUtils {
         case NONE -> tile.bytes();
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
-      var decoded = VectorTile.decode(bytes).stream()
-        .map(
-          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
-        .toList();
+      var decoded = switch (tileFormat) {
+        case MVT -> VectorTile.decode(bytes).stream()
+          .map(
+            feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
+          .toList();
+        case MLT -> throw new UnsupportedOperationException("TODO decode MLTs");
+      };
       tiles.put(tile.coord(), decoded);
     }
     return tiles;

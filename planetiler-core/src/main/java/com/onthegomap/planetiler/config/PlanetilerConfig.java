@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.config;
 
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
@@ -56,6 +57,7 @@ public record PlanetilerConfig(
   Boolean color,
   boolean keepUnzippedSources,
   TileCompression tileCompression,
+  TileFormat tileFormat,
   boolean outputLayerStats,
   String debugUrlPattern,
   Path tmpDir,
@@ -207,6 +209,11 @@ public record PlanetilerConfig(
           "the tile compression, one of " +
             TileCompression.availableValues().stream().map(TileCompression::id).toList(),
           "gzip")),
+      TileFormat
+        .fromId(arguments.getString("tile_format",
+          "the tile format, one of " +
+            TileFormat.availableValues().stream().map(TileFormat::id).toList(),
+          "mvt")),
       arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
       arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
         "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),

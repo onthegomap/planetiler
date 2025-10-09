@@ -191,6 +191,11 @@
       <artifactId>jcip-annotations</artifactId>
       <version>1.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.maplibre</groupId>
+      <artifactId>mlt</artifactId>
+      <version>0.0.1</version>
+    </dependency>
 
   </dependencies>
 
