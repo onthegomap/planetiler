@@ -78,6 +78,7 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
+import org.maplibre.mlt.decoder.MltDecoder;
 
 public class TestUtils {
 
@@ -285,8 +286,9 @@ public class TestUtils {
         case NONE -> tile.bytes();
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
-      var decoded = switch (tileFormat) {
-        case MLT -> throw new UnsupportedOperationException("TODO decode MLTs");
+      List<ComparableFeature> decoded = switch (tileFormat) {
+        case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
+          .map(feature -> feature(feature.geometry(), layer.name(), feature.properties(), feature.id()))).toList();
         case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
           .map(
             feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
