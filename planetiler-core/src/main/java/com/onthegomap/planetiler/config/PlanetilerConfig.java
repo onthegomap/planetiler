@@ -58,6 +58,7 @@ public record PlanetilerConfig(
   boolean keepUnzippedSources,
   TileCompression tileCompression,
   TileFormat tileFormat,
+  boolean mltAdvanced,
   boolean outputLayerStats,
   String debugUrlPattern,
   Path tmpDir,
@@ -214,6 +215,7 @@ public record PlanetilerConfig(
           "the tile format, one of " +
             TileFormat.availableValues().stream().map(TileFormat::id).toList(),
           "mvt")),
+      arguments.getBoolean("mlt_advanced", "Use advanced encoding schemes when tile format=MLT", false),
       arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
       arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
         "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),

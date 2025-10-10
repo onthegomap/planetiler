@@ -304,12 +304,9 @@ public class TileArchiveWriter {
                 var mltInput = tile.toMltInput();
                 layerStats = List.of();
                 List<ColumnMapping> columnMappings = List.of();
-                var tilesetMetadata = MltConverter.createTilesetMetadata(
-                  mltInput,
-                  columnMappings,
-                  true);
+                var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
                 Map<String, FeatureTableOptimizations> optimizations = Map.of();
-                var conversionConfig = new ConversionConfig(true, false, optimizations);
+                var conversionConfig = new ConversionConfig(true, config.mltAdvanced(), optimizations);
                 yield MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
               }
               case UNKNOWN, MVT -> {

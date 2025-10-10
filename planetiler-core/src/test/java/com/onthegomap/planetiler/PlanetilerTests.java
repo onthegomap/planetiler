@@ -2196,6 +2196,7 @@ class PlanetilerTests {
     "--compress-temp",
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
+    "--tile-format=mlt --mlt-advanced",
     "--output-format=pmtiles",
     "--output-format=pmtiles --tile-format=mlt",
     "--output-format=csv",
