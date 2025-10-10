@@ -294,15 +294,20 @@ class PlanetilerTests {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testSinglePoint(boolean anyGeom) throws Exception {
+  @CsvSource({
+    "false, mvt",
+    "true, mvt",
+    "false, mlt",
+    "true, mlt",
+  })
+  void testSinglePoint(boolean anyGeom, String tileType) throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
     double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "15"),
+      Map.of("threads", "1", "maxzoom", "15", "tile-format", tileType),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "value"

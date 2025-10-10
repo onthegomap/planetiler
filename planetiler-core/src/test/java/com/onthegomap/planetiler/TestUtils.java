@@ -273,7 +273,8 @@ public class TestUtils {
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
     throws IOException {
-    return getTileMap(db, TileCompression.GZIP, TileFormat.MVT);
+    return getTileMap(db, TileCompression.GZIP,
+      Optional.ofNullable(db.metadata()).map(TileArchiveMetadata::format).orElse(TileFormat.MVT));
   }
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
@@ -288,7 +289,9 @@ public class TestUtils {
       };
       List<ComparableFeature> decoded = switch (tileFormat) {
         case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
-          .map(feature -> feature(feature.geometry(), layer.name(), feature.properties(), feature.id()))).toList();
+          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
+            feature.properties(), feature.id())))
+          .toList();
         case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
           .map(
             feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
@@ -297,6 +300,10 @@ public class TestUtils {
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
+  }
+
+  private static Geometry scale(Geometry geometry, double v) {
+    return AffineTransformation.scaleInstance(v, v).transform(geometry);
   }
 
   public static Geometry decodeSilently(VectorTile.VectorGeometry geom) {

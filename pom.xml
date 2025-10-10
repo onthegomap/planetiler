@@ -70,10 +70,6 @@
         <enabled>true</enabled>
       </releases>
     </repository>
-    <repository>
-      <id>ecc-releases</id>
-      <url>https://maven.ecc.no/releases</url>
-    </repository>
   </repositories>
 
   <modules>

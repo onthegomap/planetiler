@@ -195,6 +195,12 @@
       <groupId>org.maplibre</groupId>
       <artifactId>mlt</artifactId>
       <version>0.0.1</version>
+      <exclusions>
+        <exclusion>
+          <groupId>no.ecc.vectortile</groupId>
+          <artifactId>java-vector-tile</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>
