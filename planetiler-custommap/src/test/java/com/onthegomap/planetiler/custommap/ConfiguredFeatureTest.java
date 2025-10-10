@@ -1197,7 +1197,7 @@ class ConfiguredFeatureTest {
   @CsvSource("""
     10,10
     ${10+1},11
-    ${feature.tags.key}|9
+    ${feature.tags.key},9
     """)
   void setMinSize(String input, double output) {
     var config = """
