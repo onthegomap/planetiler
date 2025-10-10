@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
@@ -219,7 +220,7 @@ class PmtilesTest {
       "MyAttribution",
       "MyVersion",
       "baselayer",
-      TileArchiveMetadata.MVT_FORMAT,
+      TileFormat.MVT,
       new Envelope(1.1, 2.2, 3.3, 4.4),
       new Coordinate(5.5, 6.6, 7d),
       8,

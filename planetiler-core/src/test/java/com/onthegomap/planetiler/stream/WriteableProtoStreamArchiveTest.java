@@ -6,6 +6,7 @@ import com.google.protobuf.ByteString;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
 import com.onthegomap.planetiler.util.LayerAttrStats;
@@ -30,7 +31,8 @@ class WriteableProtoStreamArchiveTest {
 
   private static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, null);
   private static final TileArchiveMetadata maxMetadataIn =
-    new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
+    new TileArchiveMetadata("name", "description", "attribution", "version", "type", TileFormat.MVT,
+      new Envelope(0, 1, 2, 3),
       new Coordinate(1.3, 3.7, 1.0), 2, 3,
       TileArchiveMetadata.TileArchiveMetadataJson.create(
         List.of(
@@ -47,7 +49,7 @@ class WriteableProtoStreamArchiveTest {
       TileCompression.GZIP);
   private static final StreamArchiveProto.Metadata maxMetadataOut = StreamArchiveProto.Metadata.newBuilder()
     .setName("name").setDescription("description").setAttribution("attribution").setVersion("version")
-    .setType("type").setFormat("format")
+    .setType("type").setFormat("pbf")
     .setBounds(StreamArchiveProto.Envelope.newBuilder().setMinX(0).setMaxX(1).setMinY(2).setMaxY(3).build())
     .setCenter(StreamArchiveProto.Coordinate.newBuilder().setX(1.3).setY(3.7).setZ(1.0))
     .setMinZoom(2).setMaxZoom(3)

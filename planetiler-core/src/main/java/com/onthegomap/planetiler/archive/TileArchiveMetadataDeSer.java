@@ -104,7 +104,7 @@ public final class TileArchiveMetadataDeSer {
       } else {
         return Optional.empty();
       }
-    } else if (splits.length > 3 && strict) {
+    } else if (splits.length > maxItems && strict) {
       throw new IllegalArgumentException("expected at most " + maxItems + " doubles");
     }
     return Optional.of(Arrays.stream(splits)

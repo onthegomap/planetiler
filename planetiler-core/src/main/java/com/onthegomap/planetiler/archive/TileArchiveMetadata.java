@@ -34,7 +34,7 @@ public record TileArchiveMetadata(
   @JsonProperty(ATTRIBUTION_KEY) String attribution,
   @JsonProperty(VERSION_KEY) String version,
   @JsonProperty(TYPE_KEY) String type,
-  @JsonProperty(FORMAT_KEY) String format,
+  @JsonProperty(FORMAT_KEY) TileFormat format,
   @JsonSerialize(using = TileArchiveMetadataDeSer.EnvelopeSerializer.class)
   @JsonDeserialize(using = TileArchiveMetadataDeSer.EnvelopeDeserializer.class) Envelope bounds,
   @JsonSerialize(using = TileArchiveMetadataDeSer.CoordinateSerializer.class)
@@ -68,8 +68,6 @@ public record TileArchiveMetadata(
 
   public static final String JSON_KEY = "json";
 
-  public static final String MVT_FORMAT = "pbf";
-
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
     this(profile, config, null);
   }
@@ -81,7 +79,7 @@ public record TileArchiveMetadata(
       getString(config, ATTRIBUTION_KEY, profile.attribution()),
       getString(config, VERSION_KEY, profile.version()),
       getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
-      getString(config, FORMAT_KEY, MVT_FORMAT),
+      config.tileFormat(),
       config.bounds().latLon(),
       new Coordinate(
         config.bounds().latLon().centre().getX(),
