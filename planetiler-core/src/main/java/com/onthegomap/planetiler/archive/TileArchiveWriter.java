@@ -43,6 +43,7 @@ import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
+import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -301,7 +302,7 @@ public class TileArchiveWriter {
           } else {
             encoded = switch (config.tileFormat()) {
               case MLT -> {
-                var mltInput = tile.toMltInput();
+                MapboxVectorTile mltInput = tile.toMltInput();
                 layerStats = List.of();
                 List<ColumnMapping> columnMappings = List.of();
                 var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
