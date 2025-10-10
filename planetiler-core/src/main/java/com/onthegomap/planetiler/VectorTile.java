@@ -655,6 +655,7 @@ public class VectorTile {
           for (int i = 0; i < feature.tags.size(); i += 2) {
             properties.put(keys.get(feature.tags.get(i)), values.get(feature.tags.get(i + 1)));
           }
+          // TODO properties named "id" are making mlt conversion fail
           properties.remove("id");
           try {
             return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), properties);
