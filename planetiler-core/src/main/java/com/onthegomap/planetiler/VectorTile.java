@@ -667,6 +667,14 @@ public class VectorTile {
       }).toList());
   }
 
+  public Integer getNumKeys(String layer) {
+    return layers.get(layer).keys().size();
+  }
+
+  public Integer getNumValues(String layer) {
+    return layers.get(layer).values().size();
+  }
+
   enum Command {
     MOVE_TO(1),
     LINE_TO(2),
