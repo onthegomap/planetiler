@@ -252,7 +252,6 @@ public class TileSizeStats {
   }
 
   public static List<LayerStats> computeMltTileStats(VectorTile tile, MapboxVectorTile input, byte[] output) {
-    ArrayList<LayerStats> layers = new ArrayList<>();
     Map<String, Integer> encodedLayerSizes = new HashMap<>();
     Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
     try (final var stream = new ByteArrayInputStream(output)) {

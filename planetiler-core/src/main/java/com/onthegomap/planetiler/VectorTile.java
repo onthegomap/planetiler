@@ -534,6 +534,10 @@ public class VectorTile {
   public VectorTileProto.Tile toProto() {
     VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
     for (Map.Entry<String, Layer> e : layers.entrySet()) {
+      if (e.getValue().encodedFeatures.isEmpty()) {
+        continue;
+      }
+
       String layerName = e.getKey();
       Layer layer = e.getValue();
 
