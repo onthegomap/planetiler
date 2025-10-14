@@ -149,6 +149,19 @@ public class PlanetilerStdLib extends PlanetilerLib {
         })
       ),
 
+      // map.getOrKeep(key) -> the value for key, or the key itself if missing
+      new BuiltInFunction(
+        Decls.newFunction("getOrKeep", Decls.newInstanceOverload("getOrKeep", List.of(Decls.newMapType(K, V), K), V)),
+        Overload.binary("getOrKeep", (map, key) -> {
+          try {
+            var value = getFromMap(map, key);
+            return value == null ? key: value;
+          } catch (RuntimeException e) {
+            return Err.newErr(e, "%s", e.getMessage());
+          }
+        })
+      ),
+
       // min(list) -> the minimum value from the list, or null if empty
       new BuiltInFunction(
         Decls.newFunction("min",
