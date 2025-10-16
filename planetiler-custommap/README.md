@@ -25,6 +25,7 @@ The root of the schema has the following attributes:
 - `schema_name` - A descriptive name for the schema
 - `schema_description` - A longer description of the schema
 - `attribution` - An attribution string, which may include HTML such as links
+- `is_overlay` - Is the type of the tileset `overlay` or `baselayer`
 - `sources` - An object where key is the source ID and object is the [Source](#source) definition that points to a file
   containing geographic features to process
 - `tag_mappings` - Specifies that certain tag key should have their values treated as a certain data type.
