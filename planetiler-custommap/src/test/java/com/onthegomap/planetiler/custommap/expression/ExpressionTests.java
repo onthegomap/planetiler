@@ -49,6 +49,8 @@ class ExpressionTests {
     "coalesce({'a': 1}.get('b'), 2)|2|long",
     "{'a': 1}.getOrDefault('a', 2)|1|long",
     "{'a': 1}.getOrDefault('b', 2)|2|long",
+    "{'a': 'b'}.getOrKeep('a')|b|string",
+    "{'a': 'b'}.getOrKeep('c')|c|string",
 
     "max([1, 2, 3])|3|long",
     "max([1.1, 2.2, 3.3])|3.3|double",

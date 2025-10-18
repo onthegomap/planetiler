@@ -612,6 +612,7 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
   - `<map>.get(key)` similar to `map[key]` except it returns null instead of throwing an error if the map is missing
     that key
   - `<map>.getOrDefault(key, default)` returns the value for key if it is present, otherwise default
+  - `<map>.getOrKeep(key)` returns the value for key if it is present, otherwise the key itself
 - string extensions:
   - `<string>.charAt(number)` returns the character at an index from a string
   - `<string>.indexOf(string)` returns the first index of a substring or -1 if not found
