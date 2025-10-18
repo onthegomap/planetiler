@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.google.common.io.CountingInputStream;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
@@ -20,6 +21,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -29,9 +31,20 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.lang3.tuple.Pair;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.maplibre.mlt.converter.encodings.MltTypeMap;
+import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.data.Feature;
+import org.maplibre.mlt.decoder.DecodingUtils;
+import org.maplibre.mlt.decoder.MltDecoder;
+import org.maplibre.mlt.metadata.tileset.MltTilesetMetadata;
 import vector_tile.VectorTileProto;
 
 /**
@@ -236,6 +249,64 @@ public class TileSizeStats {
     }
     result.sort(Comparator.naturalOrder());
     return result;
+  }
+
+  public static List<LayerStats> computeMltTileStats(VectorTile tile, MapboxVectorTile input, byte[] output) {
+    ArrayList<LayerStats> layers = new ArrayList<>();
+    Map<String, Integer> encodedLayerSizes = new HashMap<>();
+    Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
+    try (final var stream = new ByteArrayInputStream(output)) {
+      while (stream.available() > 0) {
+        int length = DecodingUtils.decodeVarint(stream);
+        Pair<Integer, Integer> tag = DecodingUtils.decodeVarintWithLength(stream);
+        int bodySize = length - tag.getRight();
+        int attrBytes = 0;
+        if (tag.getLeft() == 1) {
+          try (var countStream = new CountingInputStream(stream)) {
+            final var metadataExtent = MltDecoder.parseEmbeddedMetadata(countStream);
+            MltTilesetMetadata.FeatureTableSchema metadata = metadataExtent.getLeft();
+            countStream.skipNBytes(bodySize - countStream.getCount());
+            for (var column : metadata.getColumnsList()) {
+              if (!MltTypeMap.Tag0x01.isGeometry(column) && !MltTypeMap.Tag0x01.isID(column)) {
+                attrBytes += column.getSerializedSize();
+              }
+            }
+            encodedLayerSizes.put(metadata.getName(), length);
+            encodedLayerAttributeSizes.put(metadata.getName(), attrBytes);
+          }
+        } else {
+          // Skip the remainder of this one
+          stream.skipNBytes((long) length - tag.getRight());
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return input.layers().stream().map(layer -> new LayerStats(
+      layer.name(),
+      encodedLayerSizes.getOrDefault(layer.name(), -1),
+      layer.features().size(),
+      countGeometries(layer.features()),
+      encodedLayerAttributeSizes.getOrDefault(layer.name(), -1),
+      tile.getNumKeys(layer.name()),
+      tile.getNumValues(layer.name())
+    )).toList();
+  }
+
+  private static int countGeometries(List<Feature> features) {
+    return features.stream().mapToInt(feature -> countGeometries(feature.geometry())).sum();
+  }
+
+  private static int countGeometries(Geometry geometry) {
+    if (geometry instanceof GeometryCollection gc) {
+      int num = 0;
+      for (int i = 0; i < gc.getNumGeometries(); i++) {
+        num += countGeometries(gc.getGeometryN(i));
+      }
+      return num;
+    } else {
+      return 1;
+    }
   }
 
   @FunctionalInterface

@@ -6,14 +6,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
-import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
-import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +53,7 @@ class TileArchiveMetadataTest {
     "<a href=\"https://www.openmaptiles.org/\" target=\"_blank\">&copy; OpenMapTiles</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>",
     "3.14.0",
     "baselayer",
-    "pbf",
+    TileFormat.MVT,
     new Envelope(7.40921, 7.44864, 43.72335, 43.75169),
     new Coordinate(7.42892, 43.73752, 14),
     0,
@@ -196,7 +193,7 @@ class TileArchiveMetadataTest {
 
   @Test
   void testAddExtraMetadata() {
-    class TestingProfile extends Profile.NullProfile  {
+    class TestingProfile extends Profile.NullProfile {
 
       @Override
       public String name() {
@@ -204,8 +201,8 @@ class TileArchiveMetadataTest {
       }
 
       @Override
-      public Map<String,String> extraArchiveMetadata() {
-        return Map.of("FooVersion","2.0");
+      public Map<String, String> extraArchiveMetadata() {
+        return Map.of("FooVersion", "2.0");
       }
     }
 
@@ -216,6 +213,31 @@ class TileArchiveMetadataTest {
     var map = new TreeMap<>(metadata.toMap());
     assertEquals("My Name", map.get("name"));
     assertEquals("2.0", map.get("FooVersion"));
+  }
+
+  @Test
+  void testMltMetadata() throws JsonProcessingException {
+    class TestingProfile extends Profile.NullProfile {}
+
+    var metadata = new TileArchiveMetadata(new TestingProfile(), PlanetilerConfig.from(Arguments.of(Map.of(
+      "tile-format", "mlt"
+    ))));
+
+    var map = new TreeMap<>(metadata.toMap());
+    System.err.println(map);
+    assertEquals("application/vnd.maplibre-vector-tile", map.get("format"));
+    assertEquals(TileFormat.MLT, jsonMapperStrict.convertValue(map, TileArchiveMetadata.class).format());
+
+    assertEquals(TileFormat.MLT, jsonMapperStrict.readValue("""
+      {"format": "application/vnd.maplibre-vector-tile"}
+      """, TileArchiveMetadata.class).format());
+  }
+
+  @Test
+  void testParseUnknownFormat() throws JsonProcessingException {
+    assertEquals(TileFormat.MVT, jsonMapperStrict.readValue("""
+      {"format": "garbage"}
+      """, TileArchiveMetadata.class).format());
   }
 
   @Test
