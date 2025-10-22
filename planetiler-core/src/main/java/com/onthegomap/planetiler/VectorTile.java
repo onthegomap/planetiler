@@ -27,6 +27,8 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
+import com.onthegomap.planetiler.stats.DefaultStats;
+import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -648,6 +651,10 @@ public class VectorTile {
   }
 
   public MapboxVectorTile toMltInput() {
+    return toMltInput(DefaultStats.get());
+  }
+
+  public MapboxVectorTile toMltInput(Stats stats) {
     return new MapboxVectorTile(
       layers.entrySet().stream().filter(e -> !e.getValue().encodedFeatures.isEmpty()).map(entry -> {
         String name = entry.getKey();
@@ -659,14 +666,13 @@ public class VectorTile {
           for (int i = 0; i < feature.tags.size(); i += 2) {
             properties.put(keys.get(feature.tags.get(i)), values.get(feature.tags.get(i + 1)));
           }
-          // TODO properties named "id" are making mlt conversion fail
-          properties.remove("id");
           try {
             return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), properties);
           } catch (GeometryException e) {
-            throw new RuntimeException(e);
+            e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
+            return null;
           }
-        }).toList();
+        }).filter(Objects::nonNull).toList();
         return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
       }).toList());
   }

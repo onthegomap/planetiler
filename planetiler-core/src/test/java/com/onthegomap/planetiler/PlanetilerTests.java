@@ -349,6 +349,59 @@ class PlanetilerTests {
     );
   }
 
+
+  @Test
+  void testAttributeTypeCoercion() throws Exception {
+    double x = 0.5 + Z14_WIDTH / 4;
+    double y = 0.5 + Z14_WIDTH / 4;
+    double lat = GeoUtils.getWorldLat(y);
+    double lng = GeoUtils.getWorldLon(x);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "15", "tile-format", "mlt"),
+      List.of(
+        newReaderFeature(newPoint(lng, lat), Map.of(
+          "attr", "string"
+        )),
+        newReaderFeature(newPoint(lng, lat), Map.of(
+          "attr", 1
+        )),
+        newReaderFeature(newPoint(lng, lat), Map.of(
+          "attr", 1.5
+        )),
+        newReaderFeature(newPoint(lng, lat), Map.of(
+          "attr", true
+        ))
+      ),
+      (in, features) -> features.point("layer")
+        .setZoomRange(15, 15)
+        .inheritAttrFromSource("attr")
+    );
+
+    assertListsContainSameElements(List.of(
+      feature("layer", newPoint(128, 128), Map.of(
+        "attr", "string"
+      )),
+      feature("layer", newPoint(128, 128), Map.of(
+        "attr", "1"
+      )),
+      feature("layer", newPoint(128, 128), Map.of(
+        "attr", "1.5"
+      )),
+      feature("layer", newPoint(128, 128), Map.of(
+        "attr", "true"
+      ))
+    ), results.tiles.get(TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15)));
+    assertSameJson(
+      """
+        [
+          {"id": "layer", "fields": {"attr": "String"}, "minzoom": 15, "maxzoom": 15}
+        ]
+        """,
+      results.metadata.get("vector_layers")
+    );
+  }
+
   @Test
   void testMultiPoint() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;

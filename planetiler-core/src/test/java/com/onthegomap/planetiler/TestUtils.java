@@ -551,6 +551,10 @@ public class TestUtils {
     return new ComparableFeature(new NormGeometry(geom), null, attrs, id);
   }
 
+  public static ComparableFeature feature(String layer, Geometry geom, Map<String, Object> attrs) {
+    return new ComparableFeature(new NormGeometry(geom), layer, attrs);
+  }
+
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
     return new ComparableFeature(new NormGeometry(geom), null, attrs);
   }

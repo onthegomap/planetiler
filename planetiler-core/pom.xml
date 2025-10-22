@@ -194,11 +194,15 @@
     <dependency>
       <groupId>org.maplibre</groupId>
       <artifactId>mlt</artifactId>
-      <version>0.0.1</version>
+      <version>0.0.3</version>
       <exclusions>
         <exclusion>
           <groupId>no.ecc.vectortile</groupId>
           <artifactId>java-vector-tile</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

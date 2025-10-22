@@ -302,11 +302,18 @@ public class TileArchiveWriter {
           } else {
             encoded = switch (config.tileFormat()) {
               case MLT -> {
-                MapboxVectorTile mltInput = tile.toMltInput();
+                MapboxVectorTile mltInput = tile.toMltInput(stats);
                 List<ColumnMapping> columnMappings = List.of();
-                var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
+                var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true, true, false);
                 Map<String, FeatureTableOptimizations> optimizations = Map.of();
-                var conversionConfig = new ConversionConfig(true, config.mltAdvanced(), optimizations);
+                var conversionConfig = new ConversionConfig(
+                  true,
+                  config.mltAdvanced(),
+                  /* coercePropertyValues= */ true,
+                  optimizations,
+                  /* preTessellatePolygons= */ false,
+                  /* useMortonEncoding= */ true,
+                  /* outlineFeatureTableNames= */ null);
                 var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
                 layerStats = TileSizeStats.computeMltTileStats(tile, mltInput, mlt);
                 yield mlt;
