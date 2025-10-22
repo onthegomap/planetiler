@@ -16,7 +16,7 @@
   </parent>
 
   <properties>
-    <geotools.version>33.2</geotools.version>
+    <geotools.version>34.0</geotools.version>
     <log4j.version>2.25.2</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
