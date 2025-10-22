@@ -24,7 +24,7 @@ class ExpressionTests {
     "coalesce(null, 1, 2)|1|long",
     "coalesce(1, 2, null)+2|3|long",
 
-    "nullif('abc', '')|'abc'|string",
+    "nullif('abc', '')|abc|string",
     "nullif('', '')|null|null",
     "nullif(1, 1)|null|null",
     "nullif(1, 12)|1|long",
@@ -49,6 +49,8 @@ class ExpressionTests {
     "coalesce({'a': 1}.get('b'), 2)|2|long",
     "{'a': 1}.getOrDefault('a', 2)|1|long",
     "{'a': 1}.getOrDefault('b', 2)|2|long",
+    "{'a': 'b'}.getOrKeep('a')|b|string",
+    "{'a': 'b'}.getOrKeep('c')|c|string",
 
     "max([1, 2, 3])|3|long",
     "max([1.1, 2.2, 3.3])|3.3|double",
@@ -65,7 +67,7 @@ class ExpressionTests {
     "args[\"overridden_arg_from_config\"] + 1|5|long",
     "args.arg_from_cli|2|string",
     "args[\"arg_from_cli\"]|2|string",
-  }, delimiter = '|')
+  }, delimiter = '|', quoteCharacter = '\0')
   void testExpression(String in, String expected, String type) {
     Map<String, Object> configFromSchema = Map.of("arg_from_config", 1, "overridden_arg_from_config", 3);
     Map<String, String> configFromCli = Map.of("arg_from_cli", "2", "overridden_arg_from_config", "4");

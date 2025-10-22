@@ -1,5 +1,6 @@
 schema_name: Highway areas
 schema_description: Features that represent the physical area of roads
+is_overlay: true
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:

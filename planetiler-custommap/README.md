@@ -25,6 +25,7 @@ The root of the schema has the following attributes:
 - `schema_name` - A descriptive name for the schema
 - `schema_description` - A longer description of the schema
 - `attribution` - An attribution string, which may include HTML such as links
+- `is_overlay` - Is the type of the tileset `overlay` or `baselayer`
 - `sources` - An object where key is the source ID and object is the [Source](#source) definition that points to a file
   containing geographic features to process
 - `tag_mappings` - Specifies that certain tag key should have their values treated as a certain data type.
@@ -611,6 +612,7 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
   - `<map>.get(key)` similar to `map[key]` except it returns null instead of throwing an error if the map is missing
     that key
   - `<map>.getOrDefault(key, default)` returns the value for key if it is present, otherwise default
+  - `<map>.getOrKeep(key)` returns the value for key if it is present, otherwise the key itself
 - string extensions:
   - `<string>.charAt(number)` returns the character at an index from a string
   - `<string>.indexOf(string)` returns the first index of a substring or -1 if not found

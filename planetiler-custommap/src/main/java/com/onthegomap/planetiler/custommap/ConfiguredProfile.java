@@ -69,6 +69,11 @@ public class ConfiguredProfile implements Profile {
   }
 
   @Override
+  public boolean isOverlay() {
+    return schema.isOverlay();
+  }
+
+  @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
     var context = rootContext.createProcessFeatureContext(sourceFeature, tagValueProducer);
     var matches = featureLayerMatcher.getMatchesWithTriggers(context);
