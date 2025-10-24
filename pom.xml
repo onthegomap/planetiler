@@ -117,6 +117,16 @@
         <version>5.19.0</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>3.19.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>2.5</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
