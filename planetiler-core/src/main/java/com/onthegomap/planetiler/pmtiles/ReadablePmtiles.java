@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
@@ -124,8 +125,9 @@ public class ReadablePmtiles implements ReadableTileArchive {
       case UNKNOWN -> TileCompression.UNKNOWN;
     };
 
-    String format = switch (header.tileType()) {
-      case MVT -> TileArchiveMetadata.MVT_FORMAT;
+    TileFormat format = switch (header.tileType()) {
+      case MVT -> TileFormat.MVT;
+      case MLT -> TileFormat.MLT;
       default -> null;
     };
 

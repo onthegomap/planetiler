@@ -21,6 +21,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -77,6 +78,7 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
+import org.maplibre.mlt.decoder.MltDecoder;
 
 public class TestUtils {
 
@@ -84,7 +86,8 @@ public class TestUtils {
     .scaleInstance(256d / 4096d, 256d / 4096d);
 
   public static final TileArchiveMetadata MAX_METADATA_DESERIALIZED =
-    new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
+    new TileArchiveMetadata("name", "description", "attribution", "version", "type", TileFormat.MVT,
+      new Envelope(0, 1, 2, 3),
       new Coordinate(1.3, 3.7, 1.0), 2, 3,
       TileArchiveMetadata.TileArchiveMetadataJson.create(
         List.of(
@@ -106,7 +109,7 @@ public class TestUtils {
       "attribution":"attribution",
       "version":"version",
       "type":"type",
-      "format":"format",
+      "format":"pbf",
       "minzoom":"2",
       "maxzoom":"3",
       "compression":"gzip",
@@ -270,11 +273,12 @@ public class TestUtils {
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
     throws IOException {
-    return getTileMap(db, TileCompression.GZIP);
+    return getTileMap(db, TileCompression.GZIP,
+      Optional.ofNullable(db.metadata()).map(TileArchiveMetadata::format).orElse(TileFormat.MVT));
   }
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
-    TileCompression tileCompression)
+    TileCompression tileCompression, TileFormat tileFormat)
     throws IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getTiles(db)) {
@@ -283,13 +287,23 @@ public class TestUtils {
         case NONE -> tile.bytes();
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
-      var decoded = VectorTile.decode(bytes).stream()
-        .map(
-          feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
-        .toList();
+      List<ComparableFeature> decoded = switch (tileFormat) {
+        case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
+          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
+            feature.properties(), feature.id())))
+          .toList();
+        case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
+          .map(
+            feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
+          .toList();
+      };
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
+  }
+
+  private static Geometry scale(Geometry geometry, double v) {
+    return AffineTransformation.scaleInstance(v, v).transform(geometry);
   }
 
   public static Geometry decodeSilently(VectorTile.VectorGeometry geom) {
@@ -535,6 +549,10 @@ public class TestUtils {
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs, long id) {
     return new ComparableFeature(new NormGeometry(geom), null, attrs, id);
+  }
+
+  public static ComparableFeature feature(String layer, Geometry geom, Map<String, Object> attrs) {
+    return new ComparableFeature(new NormGeometry(geom), layer, attrs);
   }
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
