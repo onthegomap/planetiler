@@ -22,7 +22,7 @@
       "type": "string"
     },
     "is_overlay": {
-      "description": "A descriptive name for the schema",
+      "description": "A flag defining the type of the tileset as `overlay` or `baselayer`",
       "type": "boolean"
     },
     "definitions": {
