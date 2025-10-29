@@ -17,6 +17,14 @@
       "description": "An attribution statement, which may include HTML such as links",
       "type": "string"
     },
+    "version": {
+      "description": "A version the schema",
+      "type": "string"
+    },
+    "is_overlay": {
+      "description": "A descriptive name for the schema",
+      "type": "boolean"
+    },
     "definitions": {
       "description": "An unparsed spot where you can define anchors and aliases to be used in other parts of the schema",
       "type": "object",
