@@ -69,6 +69,11 @@ public class ConfiguredProfile implements Profile {
   }
 
   @Override
+  public String version() {
+    return schema.version();
+  }
+
+  @Override
   public boolean isOverlay() {
     return schema.isOverlay();
   }

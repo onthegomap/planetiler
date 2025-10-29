@@ -13,6 +13,7 @@ public record SchemaConfig(
   @JsonProperty("schema_name") String schemaName,
   @JsonProperty("schema_description") String schemaDescription,
   String attribution,
+  @JsonProperty("version") String version,
   @JsonProperty("is_overlay") Boolean isOverlay,
   Map<String, DataSource> sources,
   Object definitions,
