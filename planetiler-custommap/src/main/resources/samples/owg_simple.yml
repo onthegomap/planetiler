@@ -1,5 +1,6 @@
 schema_name: OWG Simple Schema
 schema_description: Simple vector tile schema
+version: 1.0.0
 is_overlay: true
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>

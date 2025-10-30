@@ -17,6 +17,14 @@
       "description": "An attribution statement, which may include HTML such as links",
       "type": "string"
     },
+    "version": {
+      "description": "A version the schema",
+      "type": "string"
+    },
+    "is_overlay": {
+      "description": "A flag defining the type of the tileset as `overlay` or `baselayer`",
+      "type": "boolean"
+    },
     "definitions": {
       "description": "An unparsed spot where you can define anchors and aliases to be used in other parts of the schema",
       "type": "object",

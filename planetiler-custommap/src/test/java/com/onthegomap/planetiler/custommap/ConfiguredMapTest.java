@@ -66,6 +66,7 @@ class ConfiguredMapTest {
     assertEquals("pbf", metadata.get("format"));
     assertEquals("7.40921,43.72335,7.44864,43.75169", metadata.get("bounds"));
     assertEquals("7.42892,43.73752,14", metadata.get("center"));
+    assertEquals("1.0.0", metadata.get("version"));
     assertContains("Simple", metadata.get("description"));
     assertContains("www.openstreetmap.org/copyright", metadata.get("attribution"));
   }
