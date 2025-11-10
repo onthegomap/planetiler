@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
@@ -128,7 +129,7 @@ class TileSizeStatsTest {
         )
       ));
     MapboxVectorTile mltInput = vectorTile.toMltInput();
-    List<ColumnMapping> columnMappings = List.of();
+    Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     Map<String, FeatureTableOptimizations> optimizations = Map.of();
     var conversionConfig = new ConversionConfig(true, false, optimizations);
