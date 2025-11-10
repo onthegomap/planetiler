@@ -34,14 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        jdk: [ 21, 23, 24 ]
-        include:
-        - os: ubuntu-latest
-          jdk: 21
-          args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
-        - os: ubuntu-latest
-          jdk: 21
-          args: ""
+        jdk: [ 21, 25 ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
