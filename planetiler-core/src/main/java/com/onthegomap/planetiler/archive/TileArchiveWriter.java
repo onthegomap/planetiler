@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.maplibre.mlt.converter.ConversionConfig;
@@ -303,7 +304,7 @@ public class TileArchiveWriter {
             encoded = switch (config.tileFormat()) {
               case MLT -> {
                 MapboxVectorTile mltInput = tile.toMltInput(stats);
-                List<ColumnMapping> columnMappings = List.of();
+                Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
                 var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true, true, false);
                 Map<String, FeatureTableOptimizations> optimizations = Map.of();
                 var conversionConfig = new ConversionConfig(
