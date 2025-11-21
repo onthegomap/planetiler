@@ -155,13 +155,7 @@ public class FeatureMerge {
           .sorted(BY_HILBERT_INDEX)
           .map(d -> d.feature.geometry())
           .forEachOrdered(combined);
-        result.add(new VectorTile.Feature(
-          feature1.layer(),
-          makeMergedId(feature1.id()),
-          combined.finish(),
-          feature1.tags(),
-          feature1.group()
-        ));
+        result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()), combined.finish()));
       }
     }
     return result;
@@ -225,13 +219,8 @@ public class FeatureMerge {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
           if (groupedFeatures.size() > 1) {
-            result.add(new VectorTile.Feature(
-              feature1.layer(),
-              makeMergedId(feature1.id()),
-              VectorTile.encodeGeometry(newGeometry),
-              feature1.tags(),
-              feature1.group()
-            ));
+            result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()),
+              VectorTile.encodeGeometry(newGeometry)));
           } else {
             result.add(feature1.copyWithNewGeometry(newGeometry));
           }
@@ -394,13 +383,8 @@ public class FeatureMerge {
         outPolygons = sortByHilbertIndex(outPolygons);
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
         if (groupedFeatures.size() > 1) {
-          result.add(new VectorTile.Feature(
-            feature1.layer(),
-            makeMergedId(feature1.id()),
-            VectorTile.encodeGeometry(combined),
-            feature1.tags(),
-            feature1.group()
-          ));
+          result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()),
+            VectorTile.encodeGeometry(combined)));
         } else {
           result.add(feature1.copyWithNewGeometry(combined));
         }

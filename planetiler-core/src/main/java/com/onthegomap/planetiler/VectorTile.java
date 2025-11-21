@@ -1137,6 +1137,19 @@ public class VectorTile {
       );
     }
 
+    /**
+     * Returns a copy of this feature with {@code id} and {@code geometry} replaced.
+     */
+    public Feature copyWithIdAndGeometry(long newId, VectorGeometry newGeometry) {
+      return new Feature(
+        layer,
+        newId,
+        newGeometry,
+        tags,
+        group
+      );
+    }
+
     /** Returns a copy of this feature with {@code extraAttrs} added to {@code attrs}. */
     public Feature copyWithExtraAttrs(Map<String, Object> extraAttrs) {
       return new Feature(
