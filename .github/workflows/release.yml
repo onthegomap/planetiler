@@ -25,7 +25,7 @@ jobs:
         script: |
           version = context.payload.inputs.version;
           if (/^v/.test(version)) throw new Error("Bad version number: " + version)
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Cache data/sources
