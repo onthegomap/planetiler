@@ -15,7 +15,7 @@ sources:
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
   admin_points:
     type: shapefile
-    url: https://shortbread.geofabrik.de/shapefiles/admin-points-4326.zip
+    url: https://github.com/shortbread-tiles/shortbread-tilemaker/raw/refs/heads/main/data/admin-points-4326/admin_points.shp
   osm:
     type: osm
     url: '${ args.osm_url }'
