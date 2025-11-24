@@ -107,7 +107,7 @@ public class LanguageUtils {
     String lang = locale.getLanguage();
     // BCP 47 technically allows a language code up to 8 characters long for future use.
     // Such a long subkey is likely to be something other than a language tag.
-    return lang.length() <= 3;
+    return !lang.isEmpty() && lang.length() <= 3;
   }
 
   /**

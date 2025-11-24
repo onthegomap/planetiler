@@ -36,12 +36,11 @@ class LanguageUtilsTest {
     "fr-x-gallo",
     "ko-Latn",
     "be-tarask",
-    "ja_rm",
-    "ja_kana",
+    "ja-Latn",
+    "ja-Hira",
     "vls",
     "zh-hant-CN",
-    "zh_pinyin",
-    "zh_zhuyin",
+    "zh-Bopo",
     "zh-Latn-tongyong",
     "zh-Latn-pinyin",
     "zh-Latn-wadegiles",
@@ -56,7 +55,6 @@ class LanguageUtilsTest {
     "es-fonipa",
     "fr-x-gallo",
     "i-mingo",
-    "und",
   })
   void testIsValidLanguageTag(String in) {
     assertTrue(LanguageUtils.isValidLanguageTag(in));
@@ -68,6 +66,12 @@ class LanguageUtilsTest {
     "",
     "xxxxx",
     "TEC",
+    "ja_rm",
+    "ja_kana",
+    "zh_pinyin",
+    "zh_zhuyin",
+    "etymology",
+    "etymology:wikidata",
   })
   void testIsNotValidLanguageTag(String in) {
     assertFalse(LanguageUtils.isValidLanguageTag(in));
