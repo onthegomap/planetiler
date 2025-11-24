@@ -1,13 +1,19 @@
 package com.onthegomap.planetiler.util;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public class LanguageUtils {
-  // Name tags that should be eligible for finding a latin name.
-  // See https://wiki.openstreetmap.org/wiki/Multilingual_names
+  /**
+   * Name tags that should be eligible for finding a latin name.
+   * 
+   * @see https://wiki.openstreetmap.org/wiki/Multilingual_names
+   * @deprecated Use {@code isValidLanguageTag(tag))}
+   */
+  @Deprecated(forRemoval = true)
   public static final Predicate<String> VALID_NAME_TAGS =
     Pattern
       .compile("^name:[a-z]{2,3}(-[A-Z][a-z]{3})?([-_](x-)?[a-z]{2,})?(-([A-Z]{2}|\\d{3}))?$")
@@ -76,8 +82,40 @@ public class LanguageUtils {
     return name.trim();
   }
 
+  /**
+   * Returns whether a BCP 47 language tag conforms OpenStreetMap's conventions for a localized name subkey.
+   */
+  public static boolean isValidLanguageTag(String tag) {
+    // Locale maps the empty string to "und", but we wouldn't use a subkey for that. 
+    if (tag.isEmpty()) {
+      return false;
+    }
+
+    // A subkey starting with a capital letter likely qualifies a name by the organization that assigned it.
+    if (!Character.isLowerCase(tag.charAt(0))) {
+      return false;
+    }
+
+    // Check whether the code is well-formed according to BCP 47.
+    Locale locale;
+    try {
+      locale = Locale.forLanguageTag(tag);
+    } catch (NullPointerException e) {
+      return false;
+    }
+
+    String lang = locale.getLanguage();
+    // BCP 47 technically allows a language code up to 8 characters long for future use.
+    // Such a long subkey is likely to be something other than a language tag.
+    return lang.length() <= 3;
+  }
+
+  /**
+   * Returns whether a key conforms to OpenStreetMap's conventions for a localized name subkey, but not the primary name
+   * key or a subkey of some other kind of name such as the short name.
+   */
   public static boolean isValidOsmNameTag(String tag) {
-    return VALID_NAME_TAGS.test(tag);
+    return tag.startsWith("name:") && isValidLanguageTag(tag.substring(5));
   }
 
 }
