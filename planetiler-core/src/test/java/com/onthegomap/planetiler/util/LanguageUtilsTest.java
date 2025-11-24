@@ -30,26 +30,58 @@ class LanguageUtilsTest {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    "name:es",
-    "name:en-US",
-    "name:en-001",
-    "name:fr-x-gallo",
-    "name:ko-Latn",
-    "name:be-tarask",
-    "name:ja_rm",
-    "name:ja_kana",
-    "name:vls",
-    "name:zh-hant-CN",
-    "name:zh_pinyin",
-    "name:zh_zhuyin",
-    "name:zh-Latn-tongyong",
-    "name:zh-Latn-pinyin",
-    "name:zh-Latn-wadegiles",
-    "name:yue-Latn-jyutping",
-    "name:tec",
-    "name:be-tarask",
-    "name:nan-Latn-pehoeji",
-    "name:zh-Latn-pinyin",
+    "es",
+    "en-US",
+    "en-001",
+    "fr-x-gallo",
+    "ko-Latn",
+    "be-tarask",
+    "ja-Latn",
+    "ja-Hira",
+    "vls",
+    "zh-hant-CN",
+    "zh-Bopo",
+    "zh-Latn-tongyong",
+    "zh-Latn-pinyin",
+    "zh-Latn-wadegile",
+    "yue-Latn-jyutping",
+    "tec",
+    "be-tarask",
+    "nan-Latn-pehoeji",
+    "zh-Latn-pinyin",
+    "en-t-zh",
+    "zh-u-nu-hant",
+    "en-u-sd-usnc",
+    "es-fonipa",
+    "fr-x-gallo",
+    "i-mingo",
+  })
+  void testIsValidLanguageTag(String in) {
+    assertTrue(LanguageUtils.isValidLanguageTag(in));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "nombre",
+    "",
+    "xxxxx",
+    "TEC",
+    "en-x",
+    "ja_rm",
+    "ja_kana",
+    "zh_pinyin",
+    "zh_zhuyin",
+    "zh-Latn-wadegiles",
+    "etymology",
+    "etymology:wikidata",
+  })
+  void testIsNotValidLanguageTag(String in) {
+    assertFalse(LanguageUtils.isValidLanguageTag(in));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "name:tlh",
   })
   void testIsValidOsmNameTag(String in) {
     assertTrue(LanguageUtils.isValidOsmNameTag(in));
@@ -57,10 +89,10 @@ class LanguageUtilsTest {
 
   @ParameterizedTest
   @ValueSource(strings = {
-    "nombre",
+    "name",
     "name:",
-    "name:xxxxx",
     "name:TEC",
+    "official_name:en-US",
   })
   void testIsNotValidOsmNameTag(String in) {
     assertFalse(LanguageUtils.isValidOsmNameTag(in));
