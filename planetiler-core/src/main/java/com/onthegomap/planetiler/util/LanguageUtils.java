@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import java.util.IllformedLocaleException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -87,7 +88,7 @@ public class LanguageUtils {
    */
   public static boolean isValidLanguageTag(String tag) {
     // Locale maps the empty string to "und", but we wouldn't use a subkey for that. 
-    if (tag.isEmpty()) {
+    if (tag == null || tag.isEmpty()) {
       return false;
     }
 
@@ -99,8 +100,8 @@ public class LanguageUtils {
     // Check whether the code is well-formed according to BCP 47.
     Locale locale;
     try {
-      locale = Locale.forLanguageTag(tag);
-    } catch (NullPointerException e) {
+      locale = new Locale.Builder().setLanguageTag(tag).build();
+    } catch (IllformedLocaleException e) {
       return false;
     }
 
