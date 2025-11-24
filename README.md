@@ -17,7 +17,7 @@ format.
 
 Planetiler works by mapping input elements to vector tile features, flattening them into a big list, then sorting by
 tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details or
-this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
+this [blog post](https://medium.com/@onthegomap/dc419f3af75d)
 for more of the backstory.
 
 ## Demo
