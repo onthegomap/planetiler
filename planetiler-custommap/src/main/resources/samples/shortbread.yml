@@ -15,7 +15,7 @@ sources:
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
   admin_points:
     type: shapefile
-    url: https://shortbread.geofabrik.de/shapefiles/admin-points-4326.zip
+    url: https://raw.githubusercontent.com/onthegomap/planetiler/refs/heads/main/shortbread-data/admin-points-4326.zip
   osm:
     type: osm
     url: '${ args.osm_url }'
@@ -326,7 +326,7 @@ layers:
     geometry: line
     min_zoom: 12
     include_when: &pier_filter
-      man_made: 
+      man_made:
         - pier
         - breakwater
         - groyne
@@ -595,7 +595,7 @@ layers:
   - source: osm
     geometry: polygon_centroid_if_convex
     min_zoom: 14
-    include_when: &address_filter 
+    include_when: &address_filter
       __all__:
       - addr:housenumber: __any__
         addr:housename: __any__
