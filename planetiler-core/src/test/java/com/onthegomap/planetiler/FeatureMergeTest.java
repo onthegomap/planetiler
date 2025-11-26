@@ -82,7 +82,7 @@ class FeatureMergeTest {
   void dontMergeDisconnectedLineStrings() {
     assertEquals(
       List.of(
-        feature(1, newMultiLineString(
+        feature(0, newMultiLineString(
           newLineString(10, 10, 20, 20),
           newLineString(30, 30, 40, 40)
         ), Map.of())
@@ -122,7 +122,7 @@ class FeatureMergeTest {
   void mergeConnectedLineStringsSameAttrs() {
     assertEquals(
       List.of(
-        feature(1, newLineString(10, 10, 30, 30), Map.of("a", 1))
+        feature(0, newLineString(10, 10, 30, 30), Map.of("a", 1))
       ),
       FeatureMerge.mergeLineStrings(
         List.of(
@@ -188,7 +188,7 @@ class FeatureMergeTest {
   void mergeMultiLineString() {
     assertEquals(
       List.of(
-        feature(1, newLineString(10, 10, 40, 40), Map.of("a", 1))
+        feature(0, newLineString(10, 10, 40, 40), Map.of("a", 1))
       ),
       FeatureMerge.mergeLineStrings(
         List.of(
@@ -211,7 +211,7 @@ class FeatureMergeTest {
       List.of(
         feature(3, newPoint(5, 5), Map.of("a", 1)),
         feature(4, rectangle(50, 60), Map.of("a", 1)),
-        feature(1, newLineString(10, 10, 30, 30), Map.of("a", 1))
+        feature(0, newLineString(10, 10, 30, 30), Map.of("a", 1))
       ),
       FeatureMerge.mergeLineStrings(
         List.of(
@@ -231,7 +231,7 @@ class FeatureMergeTest {
   void mergeLineStringRemoveDetailOutsideTile() {
     assertEquals(
       List.of(
-        feature(1, newMultiLineString(
+        feature(0, newMultiLineString(
           newLineString(
             10, 10,
             -10, 20,
@@ -274,7 +274,7 @@ class FeatureMergeTest {
   void mergeLineStringMinLength() {
     assertEquals(
       List.of(
-        feature(2, newLineString(20, 20, 20, 25), Map.of("a", 1))
+        feature(0, newLineString(20, 20, 20, 25), Map.of("a", 1))
       ),
       FeatureMerge.mergeLineStrings(
         List.of(
@@ -318,7 +318,7 @@ class FeatureMergeTest {
   void dontMergeDisconnectedPolygons() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, newMultiPolygon(
+        feature(0, newMultiPolygon(
           rectangle(10, 20),
           rectangle(22, 10, 30, 20)
         ), Map.of("a", 1))
@@ -360,7 +360,7 @@ class FeatureMergeTest {
   void mergeConnectedPolygonsWithSameAttrs() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
+        feature(0, rectangle(10, 10, 30, 20), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -383,7 +383,7 @@ class FeatureMergeTest {
     );
     assertEquivalentFeatures(
       List.of(
-        feature(1, newPolygon(
+        feature(0, newPolygon(
           10, 10,
           20, 10,
           20, 20,
@@ -446,7 +446,7 @@ class FeatureMergeTest {
   void mergeMultiPolygons() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, rectangle(10, 10, 40, 20), Map.of("a", 1))
+        feature(0, rectangle(10, 10, 40, 20), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -488,7 +488,7 @@ class FeatureMergeTest {
   void mergePolygonsWithinMinDist() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
+        feature(0, rectangle(10, 10, 30, 20), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -507,7 +507,7 @@ class FeatureMergeTest {
   void mergePolygonsInsideEachother() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, rectangle(10, 40), Map.of("a", 1))
+        feature(0, rectangle(10, 40), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -526,7 +526,7 @@ class FeatureMergeTest {
   void dontMergePolygonsAboveMinDist() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, newMultiPolygon(
+        feature(0, newMultiPolygon(
           rectangle(10, 20),
           rectangle(21.1, 10, 30, 20)
         ), Map.of("a", 1))
@@ -566,7 +566,7 @@ class FeatureMergeTest {
   void allowPolygonsAboveMinSize() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, newMultiPolygon(
+        feature(0, newMultiPolygon(
           rectangle(10, 20),
           rectangle(30, 10, 40, 20)
         ), Map.of("a", 1))
@@ -745,7 +745,7 @@ class FeatureMergeTest {
     Collections.reverse(innerRing);
     assertTopologicallyEquivalentFeatures(
       List.of(
-        feature(1, newPolygon(rectangleCoordList(10, 22), List.of(innerRing)), Map.of("a", 1))
+        feature(0, newPolygon(rectangleCoordList(10, 22), List.of(innerRing)), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -767,7 +767,7 @@ class FeatureMergeTest {
     Collections.reverse(innerRing);
     assertTopologicallyEquivalentFeatures(
       List.of(
-        feature(1, rectangle(10, 22), Map.of("a", 1))
+        feature(0, rectangle(10, 22), Map.of("a", 1))
       ),
       FeatureMerge.mergeNearbyPolygons(
         List.of(
@@ -844,7 +844,7 @@ class FeatureMergeTest {
     assertTopologicallyEquivalentFeatures(
       List.of(
         feature(4, otherGeometry, Map.of("a", 1)),
-        feature(1, combineJTS.apply(List.of(geom1, geom2, geom3, geom4)), Map.of("a", 1)),
+        feature(0, combineJTS.apply(List.of(geom1, geom2, geom3, geom4)), Map.of("a", 1)),
         feature(3, geom5, Map.of("a", 2))
       ),
       merge.apply(
@@ -1016,7 +1016,7 @@ class FeatureMergeTest {
   void mergeFillPolygonsDoesNotNormalizeIrregularFill() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
-        feature(1, newPolygon(
+        feature(0, newPolygon(
           -2, -2,
           200, -2,
           200, -1,
@@ -1061,5 +1061,78 @@ class FeatureMergeTest {
     var actualSingle = actual.getFirst();
     assertEquals(input.geometry().decode(), actualSingle.geometry().decode());
     assertEquals(List.of(input), actual);
+  }
+
+  @Test
+  void mergedLineStringIdEndsInZero() {
+    var result = FeatureMerge.mergeLineStrings(
+      List.of(
+        feature(123, newLineString(10, 10, 20, 20), Map.of("a", 1)),
+        feature(456, newLineString(20, 20, 30, 30), Map.of("a", 1))
+      ),
+      0, 0, 0
+    );
+    assertEquals(1, result.size());
+    assertEquals(120, result.getFirst().id(), "merged feature ID should end in 0");
+  }
+
+  @Test
+  void mergedMultiPointIdEndsInZero() {
+    var result = FeatureMerge.mergeMultiPoint(
+      List.of(
+        feature(123, newPoint(10, 10), Map.of("a", 1)),
+        feature(456, newPoint(20, 20), Map.of("a", 1))
+      )
+    );
+    assertEquals(1, result.size());
+    assertEquals(120, result.getFirst().id(), "merged feature ID should end in 0");
+  }
+
+  @Test
+  void mergedMultiPolygonIdEndsInZero() {
+    var result = FeatureMerge.mergeMultiPolygon(
+      List.of(
+        feature(123, rectangle(10, 20), Map.of("a", 1)),
+        feature(456, rectangle(30, 40), Map.of("a", 1))
+      )
+    );
+    assertEquals(1, result.size());
+    assertEquals(120, result.getFirst().id(), "merged feature ID should end in 0");
+  }
+
+  @Test
+  void mergedMultiLineStringIdEndsInZero() {
+    var result = FeatureMerge.mergeMultiLineString(
+      List.of(
+        feature(123, newLineString(10, 10, 20, 20), Map.of("a", 1)),
+        feature(456, newLineString(30, 30, 40, 40), Map.of("a", 1))
+      )
+    );
+    assertEquals(1, result.size());
+    assertEquals(120, result.getFirst().id(), "merged feature ID should end in 0");
+  }
+
+  @Test
+  void mergedNearbyPolygonsIdEndsInZero() throws GeometryException {
+    var result = FeatureMerge.mergeNearbyPolygons(
+      List.of(
+        feature(123, rectangle(10, 20), Map.of("a", 1)),
+        feature(456, rectangle(20, 10, 30, 20), Map.of("a", 1))
+      ),
+      0, 0, 0, 1
+    );
+    assertEquals(1, result.size());
+    assertEquals(120, result.getFirst().id(), "merged feature ID should end in 0");
+  }
+
+  @Test
+  void singleFeatureIdUnchanged() {
+    var result = FeatureMerge.mergeMultiPoint(
+      List.of(
+        feature(123, newPoint(10, 10), Map.of("a", 1))
+      )
+    );
+    assertEquals(1, result.size());
+    assertEquals(123, result.getFirst().id(), "single feature ID should not be modified");
   }
 }
