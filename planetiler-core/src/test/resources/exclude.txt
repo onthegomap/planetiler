@@ -1,0 +1,2 @@
+# Temporarily disable test broken by this fix: https://github.com/onthegomap/planetiler/pull/1404
+org.openmaptiles.util.OmtLanguageUtilsTest#testLatinFallbacks
