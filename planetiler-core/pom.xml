@@ -16,7 +16,7 @@
   </parent>
 
   <properties>
-    <geotools.version>34.0</geotools.version>
+    <geotools.version>34.1</geotools.version>
     <log4j.version>2.25.2</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
@@ -242,7 +242,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.4.2</version>
+          <version>3.5.0</version>
           <executions>
             <execution>
               <goals>

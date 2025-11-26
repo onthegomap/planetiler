@@ -5,3 +5,5 @@ org.openmaptiles.layers.WaterwayTest#testWaterwayImportantRiverPostProcess
 org.openmaptiles.layers.TransportationTest#testMergesDisconnectedRoadNameFeatures
 org.openmaptiles.layers.TransportationTest#testMergesDisconnectedRoadFeaturesUnlessOneway
 org.openmaptiles.layers.TransportationTest#testMergesDisconnectedRoadFeaturesUnlessOnewayLong
+# Temporarily disable test broken by this fix: https://github.com/onthegomap/planetiler/pull/1404
+org.openmaptiles.util.OmtLanguageUtilsTest#testLatinFallbacks

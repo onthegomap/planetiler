@@ -86,7 +86,7 @@
       <dependency>
         <groupId>org.snakeyaml</groupId>
         <artifactId>snakeyaml-engine</artifactId>
-        <version>3.0</version>
+        <version>3.0.1</version>
       </dependency>
       <dependency>
         <groupId>org.commonmark</groupId>
@@ -171,7 +171,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.0</version>
         <configuration>
           <java>
             <includes>
@@ -311,7 +311,7 @@
         <plugin>
           <groupId>com.google.cloud.tools</groupId>
           <artifactId>jib-maven-plugin</artifactId>
-          <version>3.4.6</version>
+          <version>3.5.1</version>
           <configuration>
             <skip>true</skip>
           </configuration>
