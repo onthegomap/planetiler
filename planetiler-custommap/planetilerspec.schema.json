@@ -25,11 +25,19 @@
               },
               "geometry": {
                 "description": "Geometry type of the input feature",
-                "type": "string",
-                "enum": [
-                  "polygon",
-                  "line",
-                  "point"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "polygon",
+                      "line",
+                      "point"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(POLYGON|LINESTRING|POINT) "
+                  }
                 ]
               },
               "tags": {
