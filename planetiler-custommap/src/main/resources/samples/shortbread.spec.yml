@@ -983,89 +983,105 @@ examples:
       place: hamlet
   output: [ ]
 
+- name: 'non administrative boundarys are not boundary labels'
+  input:
+    source: osm
+    geometry: POLYGON ((-0.5 -0.5, 0.5 -0.5, 0.5 0.5, -0.5 0.5, -0.5 -0.5))
+    tags:
+      admin_level: 4
+      government: transportation
+      short_name: DMV
+      name: New York State Department of Motor Vehicles
+  output: []
+
 - name: 'boundary_labels'
   input:
-    source: admin_points
-    geometry: point
+    source: osm
+    geometry: POLYGON ((-0.5 -0.5, 0.5 -0.5, 0.5 0.5, -0.5 0.5, -0.5 -0.5))
     tags:
-      WAY_AREA: 10.5
-      ADMIN_LEVEL: 2
-      NAME: Name
-      NAME_EN: ''
-      NAME_DE: Name (de)
+      admin_level: 2
+      boundary: administrative
+      name: Name
+      name:en: ''
+      name:de: Name (de)
   output:
     layer: boundary_labels
     geometry: point
     allow_extra_tags: false
     min_zoom: 5
     tags:
-      way_area: 10.5
       admin_level: 2
       name: Name
       name_de: Name (de)
+      # verified with a naive "projection" and sizes from https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616
+      # 1° lat ~ 110.567km at the equator
+      # 1° lon ~ 111.321km at the equator
+        # => ~12308.429km² = ~1230842,9 ha
+        # similar enough to ~1236418 ha adjusting for projection
+      way_area: 1236418.8935608722
 
-- name: 'boundary_labels z4'
+- name: 'boundary_labels admin_level=2 z4'
   input:
-    source: admin_points
-    geometry: point
+    source: osm
+    geometry: POLYGON ((-1.5 -1.5, 1.5 -1.5, 1.5 1.5, -1.5 1.5, -1.5 -1.5))
     tags:
-      WAY_AREA: 1e7
-      ADMIN_LEVEL: 2
-      NAME: name
+      admin_level: 2
+      boundary: administrative
+      name: Name
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 4
     tags:
-      way_area: 1e7
+      way_area: 1.112664016653054E7
       admin_level: 2
 
-- name: 'boundary_labels z3'
+- name: 'boundary_labels admin_level=2 z3'
   input:
-    source: admin_points
-    geometry: point
+    source: osm
+    geometry: POLYGON ((-4 -4, 4 -4, 4 4, -4 4, -4 -4))
     tags:
-      WAY_AREA: 7e7
-      ADMIN_LEVEL: 2
-      NAME: name
+      admin_level: 2
+      boundary: administrative
+      name: Name
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
     tags:
-      way_area: 7e7
+      way_area: 7.906754940857396E7
       admin_level: 2
 
-- name: 'boundary_labels z2'
+- name: 'boundary_labels admin_level=2 z2'
   input:
-    source: admin_points
-    geometry: point
+    source: osm
+    geometry: POLYGON ((-10 -10, 10 -10, 10 10, -10 10, -10 -10))
     tags:
-      WAY_AREA: 2e8
-      ADMIN_LEVEL: '2'
-      NAME: name
+      admin_level: 2
+      boundary: administrative
+      name: Name
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 2
     tags:
-      way_area: 2e8
+      way_area: 4.920667262278699E8
       admin_level: 2
 
 - name: 'boundary_labels admin_level=4 z3'
   input:
-    source: admin_points
-    geometry: point
+    source: osm
+    geometry: POLYGON ((-10 -10, 10 -10, 10 10, -10 10, -10 -10))
     tags:
-      WAY_AREA: 7e7
-      ADMIN_LEVEL: 4
-      NAME: name
+      admin_level: 4
+      boundary: administrative
+      name: Name
   output:
     layer: boundary_labels
     geometry: point
     min_zoom: 3
     tags:
-      way_area: 7e7
+      way_area: 4.920667262278699E8
       admin_level: 4
 
 - name: 'country boundary'

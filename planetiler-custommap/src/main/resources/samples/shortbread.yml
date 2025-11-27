@@ -13,9 +13,6 @@ sources:
   ocean:
     type: shapefile
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
-  admin_points:
-    type: shapefile
-    url: https://github.com/shortbread-tiles/shortbread-tilemaker/raw/refs/heads/main/data/admin-points-4326/admin_points.shp
   osm:
     type: osm
     url: '${ args.osm_url }'
@@ -378,29 +375,27 @@ layers:
 
 - id: boundary_labels
   features:
-  - source: admin_points
-    geometry: point
+  - source: osm
+    geometry: polygon_point_on_surface
     min_zoom:
       default_value: 5
       overrides:
-        # WAY_AREA is in ha
-        2: '${ feature.tags.has("ADMIN_LEVEL", "2") && double(feature.tags.WAY_AREA) >= 2e8 }'
-        3: '${ double(feature.tags.WAY_AREA) >= 7e7 }'
-        4: '${ double(feature.tags.WAY_AREA) >= 1e7 }'
-    # TODO sort by WAY_AREA descending
+        2: '${ feature.tags["admin_level"] == "2" && feature.area("km2") >= 2e6 }'
+        3: '${ feature.area("km2") >= 7e5 }'
+        4: '${ feature.area("km2") >= 1e5 }'
+    include_when:
+      __all__:
+      - boundary: administrative
+      - admin_level: [ 2, 4 ]
+    # TODO sort by way_area descending
     attributes:
-    - key: way_area
-      tag_value: WAY_AREA
-      type: double
     - key: admin_level
-      tag_value: ADMIN_LEVEL
       type: integer
-    - key: name
-      tag_value: NAME
-    - key: name_en
-      tag_value: NAME_EN
-    - key: name_de
-      tag_value: NAME_DE
+    - *name
+    - *name_en
+    - *name_de
+    - key: way_area # area in hectare (Mercator Projection)
+      value: "${ feature.area('ha') }"
 
 - id: place_labels
   features:
