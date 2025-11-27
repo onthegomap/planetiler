@@ -20,7 +20,7 @@
     <log4j.version>2.25.2</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
-    <protobuf.version>4.33.0</protobuf.version>
+    <protobuf.version>4.33.1</protobuf.version>
     <geopackage.version>6.6.5</geopackage.version>
   </properties>
 
