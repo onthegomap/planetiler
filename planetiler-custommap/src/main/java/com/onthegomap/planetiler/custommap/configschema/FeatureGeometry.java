@@ -5,6 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -32,7 +37,44 @@ public enum FeatureGeometry {
   @JsonProperty("point_on_line")
   POINT_ON_LINE(GeometryType.LINE, FeatureCollector::pointOnSurface),
   @JsonProperty("innermost_point")
-  INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint);
+  INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint),
+  @JsonProperty("relation_members")
+  RELATION_MEMBERS(GeometryType.UNKNOWN, null) {
+    @Override
+    public Expression featureTest() {
+      // Use inline script to check if feature is a relation
+      // We'll create the expression lazily when needed, but for now return a simple check
+      return new Expression() {
+        @Override
+        public boolean evaluate(WithTags input, List<String> matchKeys) {
+          if (input instanceof SourceFeature sourceFeature && sourceFeature instanceof OsmSourceFeature osmFeature) {
+            return osmFeature.originalElement().type() == OsmElement.Type.RELATION;
+          }
+          return false;
+        }
+
+        @Override
+        public Expression simplifyOnce() {
+          return this;
+        }
+
+        @Override
+        public String generateJavaCode() {
+          return "relationTypeTest()";
+        }
+      };
+    }
+
+    @Override
+    public Function<FeatureCollector, FeatureCollector.Feature> newGeometryFactory(String layerName) {
+      // This will be set up properly in ConfiguredFeature constructor
+      // For now return a placeholder that will be replaced
+      return features -> {
+        throw new UnsupportedOperationException(
+          "RELATION_MEMBERS geometry factory must be set up in ConfiguredFeature constructor");
+      };
+    }
+  };
 
   public final GeometryType geometryType;
   public final BiFunction<FeatureCollector, String, FeatureCollector.Feature> geometryFactory;

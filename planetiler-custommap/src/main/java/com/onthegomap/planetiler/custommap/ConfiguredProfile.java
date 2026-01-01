@@ -6,12 +6,17 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
+import com.onthegomap.planetiler.custommap.configschema.RelationMembersInfo;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.reader.osm.RelationSourceFeature;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +35,7 @@ public class ConfiguredProfile implements Profile {
   private final Index<ConfiguredFeature> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
+  private final Index<ConfiguredFeature> relationMembersMatcher;
 
   public ConfiguredProfile(SchemaConfig schema, Contexts.Root rootContext) {
     this.schema = schema;
@@ -43,6 +49,7 @@ public class ConfiguredProfile implements Profile {
     tagValueProducer = new TagValueProducer(schema.inputMappings());
 
     List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
+    List<MultiExpression.Entry<ConfiguredFeature>> relationMembersEntries = new ArrayList<>();
 
     for (var layer : layers) {
       String layerId = layer.id();
@@ -51,10 +58,17 @@ public class ConfiguredProfile implements Profile {
         var configuredFeature = new ConfiguredFeature(layer, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
         configuredFeatureEntries.add(entry);
+        
+        // Track features with relation_members geometry for preprocessOsmRelation
+        if (feature.geometry() == FeatureGeometry.RELATION_MEMBERS) {
+          relationMembersEntries.add(entry);
+        }
       }
     }
 
     featureLayerMatcher = MultiExpression.of(configuredFeatureEntries).index();
+    relationMembersMatcher = relationMembersEntries.isEmpty() ? null :
+      MultiExpression.of(relationMembersEntries).index();
 
   }
 
@@ -159,5 +173,26 @@ public class ConfiguredProfile implements Profile {
 
   public FeatureLayer findFeatureLayer(String layerId) {
     return layersById.get(layerId);
+  }
+
+  @Override
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    // Check if this relation matches any relation_members features
+    if (relationMembersMatcher == null) {
+      return null;
+    }
+
+    // Create a RelationSourceFeature to test if this relation matches
+    SourceFeature fakeFeature = new RelationSourceFeature(relation, List.of());
+    
+    var context = rootContext.createProcessFeatureContext(fakeFeature, tagValueProducer);
+    var matches = relationMembersMatcher.getMatchesWithTriggers(context);
+    
+    if (!matches.isEmpty()) {
+      // This relation matches a relation_members feature, return RelationMembersInfo
+      return List.of(new RelationMembersInfo(relation.id()));
+    }
+    
+    return null;
   }
 }
