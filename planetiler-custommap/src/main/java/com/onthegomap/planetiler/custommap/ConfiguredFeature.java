@@ -105,24 +105,20 @@ public class ConfiguredFeature {
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryType.newGeometryFactory(layer.id());
 
-    // Check if this is a relation_members geometry
+    // Member processing configuration (only used for RELATION_MEMBERS geometry)
     isRelationMembers = geometryType == FeatureGeometry.RELATION_MEMBERS;
     
-    // Initialize member processing configuration
     if (isRelationMembers) {
       memberContext = Contexts.MemberContext.description(rootContext);
       
-      // Parse member_types
       List<String> memberTypesList = feature.memberTypes();
       memberTypes = memberTypesList.isEmpty() ? 
         Set.of("node", "way", "relation") : Set.copyOf(memberTypesList);
       
-      // Parse member_roles
       List<String> memberRolesList = feature.memberRoles();
       memberRoles = memberRolesList == null || memberRolesList.isEmpty() ? 
         null : Set.copyOf(memberRolesList);
       
-      // Parse member_include_when
       if (feature.memberIncludeWhen() != null) {
         memberIncludeWhen = BooleanExpressionParser.parse(
           feature.memberIncludeWhen(), tagValueProducer, memberContext);
@@ -130,15 +126,13 @@ public class ConfiguredFeature {
         memberIncludeWhen = Expression.TRUE;
       }
       
-      // Parse member_exclude_when
       if (feature.memberExcludeWhen() != null) {
         memberExcludeWhen = BooleanExpressionParser.parse(
           feature.memberExcludeWhen(), tagValueProducer, memberContext);
       } else {
-        memberExcludeWhen = Expression.TRUE;
+        memberExcludeWhen = Expression.FALSE;
       }
       
-      // Parse member_attributes
       List<BiConsumer<Contexts.MemberContext, Feature>> memberAttrProcessors = new ArrayList<>();
       for (var memberAttr : feature.memberAttributes()) {
         memberAttrProcessors.add(memberAttributeProcessor(memberAttr));
@@ -444,71 +438,85 @@ public class ConfiguredFeature {
     var relation = relationFeature.relation();
     var relationPostMatch = context;
     
-    // Track processed member refs to skip duplicates
     Set<Long> processedRefs = new HashSet<>();
     
     for (var member : relation.members()) {
-      // Skip duplicates
-      if (!processedRefs.add(member.ref())) {
-        continue;
-      }
-      
-      // Filter by member type
-      String memberTypeStr = member.type().name().toLowerCase();
-      if (!memberTypes.contains(memberTypeStr)) {
-        continue;
-      }
-      
-      // Skip nested relations (not supported yet)
-      if (member.type() == OsmElement.Type.RELATION) {
-        continue;
-      }
-      
-      // Filter by role
-      if (memberRoles != null) {
-        String role = member.role();
-        // Empty string matches members with no role
-        if (!memberRoles.contains(role) && !(role.isEmpty() && memberRoles.contains(""))) {
-          continue;
+      if (shouldProcessMember(member, processedRefs, relationFeature, relationPostMatch)) {
+          try {
+          createMemberFeature(member, getMemberContext(member, relationFeature, relationPostMatch), 
+            relationPostMatch, features);
+        } catch (Exception e) {
+          org.slf4j.LoggerFactory.getLogger(ConfiguredFeature.class)
+            .warn("Error creating feature for relation member {} in relation {}: {}", 
+              member.ref(), relation.id(), e.getMessage());
         }
       }
-      
-      // Get member tags - for now, we'll need to get them from the member's relationInfo
-      // This is a limitation - we need member tags stored during pass2
-      // For now, create a minimal member context and try to filter
-      Map<String, Object> memberTags = getMemberTags(member, relationFeature);
-      
-      // Create member context
-      var memberContextInstance = new Contexts.MemberContext(
-        relationPostMatch,
-        memberTags,
-        member.role(),
-        memberTypeStr,
-        member.ref()
-      );
-      
-      // Filter by member_include_when
-      if (!memberIncludeWhen.evaluate(memberContextInstance, List.of())) {
-        continue;
-      }
-      
-      // Filter by member_exclude_when
-      if (!memberExcludeWhen.evaluate(memberContextInstance, List.of())) {
-        continue;
-      }
-      
-      // Get member geometry - this is complex and requires access to stored member geometries
-      // For now, we'll create a placeholder feature
-      // TODO: Implement proper member geometry retrieval
-      try {
-        createMemberFeature(member, memberContextInstance, relationPostMatch, features);
-      } catch (Exception e) {
-        // Log error but continue processing other members
-        org.slf4j.LoggerFactory.getLogger(ConfiguredFeature.class)
-          .warn("Error creating feature for relation member {} in relation {}: {}", 
-            member.ref(), relation.id(), e.getMessage());
+    }
+  }
+  
+  /**
+   * Check if a relation member should be processed based on filters.
+   * Returns true if the member should be processed, false otherwise.
+   */
+  private boolean shouldProcessMember(OsmElement.Relation.Member member, Set<Long> processedRefs,
+    RelationSourceFeature relationFeature, Contexts.FeaturePostMatch relationPostMatch) {
+    if (!processedRefs.add(member.ref())) {
+      return false;
+    }
+    
+    String memberTypeStr = member.type().name().toLowerCase();
+    if (!memberTypes.contains(memberTypeStr)) {
+      return false;
+    }
+    
+    // Nested relations are not supported
+    if (member.type() == OsmElement.Type.RELATION) {
+      return false;
+    }
+    
+    if (memberRoles != null) {
+      String role = member.role();
+      // Empty string matches members with no role
+      if (!memberRoles.contains(role) && !(role.isEmpty() && memberRoles.contains(""))) {
+        return false;
       }
     }
+    
+    Map<String, Object> memberTags = getMemberTags(member, relationFeature);
+    
+    var memberContextInstance = new Contexts.MemberContext(
+      relationPostMatch,
+      memberTags,
+      member.role(),
+      memberTypeStr,
+      member.ref()
+    );
+    
+    if (!memberIncludeWhen.evaluate(memberContextInstance, new ArrayList<>())) {
+      return false;
+    }
+    
+    if (memberExcludeWhen.evaluate(memberContextInstance, new ArrayList<>())) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Create a member context for expression evaluation.
+   */
+  private Contexts.MemberContext getMemberContext(OsmElement.Relation.Member member,
+    RelationSourceFeature relationFeature, Contexts.FeaturePostMatch relationPostMatch) {
+    Map<String, Object> memberTags = getMemberTags(member, relationFeature);
+    String memberTypeStr = member.type().name().toLowerCase();
+    return new Contexts.MemberContext(
+      relationPostMatch,
+      memberTags,
+      member.role(),
+      memberTypeStr,
+      member.ref()
+    );
   }
   
   /**
@@ -538,7 +546,7 @@ public class ConfiguredFeature {
   private void createMemberFeature(OsmElement.Relation.Member member,
     Contexts.MemberContext memberContext,
     Contexts.FeaturePostMatch relationContext,
-    FeatureCollector features) throws GeometryException {
+    FeatureCollector features) {
     
     RelationSourceFeature relationFeature = (RelationSourceFeature) relationContext.feature();
     RelationMemberDataProvider dataProvider = relationFeature.memberDataProvider();
@@ -552,31 +560,25 @@ public class ConfiguredFeature {
     Geometry geometry = null;
     
     if (member.type() == OsmElement.Type.NODE) {
-      // Create point geometry for node
       org.locationtech.jts.geom.Coordinate coord = dataProvider.getNodeCoordinate(member.ref());
       if (coord == null) {
-        // Node coordinate not found - skip this member
         return;
       }
       geometry = GeoUtils.JTS_FACTORY.createPoint(coord);
       memberFeature = features.geometry(layerId, geometry);
       
     } else if (member.type() == OsmElement.Type.WAY) {
-      // Get way geometry (node IDs)
       LongArrayList nodeIds = dataProvider.getWayGeometry(member.ref());
       if (nodeIds == null || nodeIds.isEmpty()) {
-        // Way geometry not found - skip this member
         return;
       }
       
-      // Build coordinate sequence from node IDs
       CoordinateSequence coords = buildCoordinateSequence(nodeIds, dataProvider);
       if (coords == null || coords.size() < 2) {
-        // Not enough coordinates - skip this member
         return;
       }
       
-      // Determine if way should be polygon or line
+      // Determine if closed way should be polygon or line based on area tag and geometry
       boolean closed = coords.size() > 1 && 
         coords.getCoordinate(0).equals(coords.getCoordinate(coords.size() - 1));
       Map<String, Object> wayTags = dataProvider.getWayTags(member.ref());
@@ -592,23 +594,21 @@ public class ConfiguredFeature {
       }
       
     } else {
-      // Skip relations (not supported)
+      // Nested relations are not supported
       return;
     }
     
-    // Apply relation-level attributes
     for (var processor : featureProcessors) {
       processor.accept(relationContext, memberFeature);
     }
     
-    // Apply member-level attributes
     if (memberAttributeProcessors != null) {
       for (var processor : memberAttributeProcessors) {
         processor.accept(memberContext, memberFeature);
       }
     }
     
-    // Set a unique feature ID to avoid collisions
+    // Generate unique feature ID: relation ID * 1M + member ref to avoid collisions
     long uniqueId = relationContext.feature().id() * 1000000L + member.ref();
     memberFeature.setId(uniqueId);
   }
@@ -626,7 +626,6 @@ public class ConfiguredFeature {
       if (coord != null) {
         coords[validCount++] = coord;
       } else {
-        // Missing node coordinate - return null to skip this way
         return null;
       }
     }
@@ -635,7 +634,7 @@ public class ConfiguredFeature {
       return null;
     }
     
-    // Trim array if some coordinates were missing (shouldn't happen, but be safe)
+    // Defensive: trim array if coordinates were missing (shouldn't happen in practice)
     if (validCount < coords.length) {
       org.locationtech.jts.geom.Coordinate[] trimmed = new org.locationtech.jts.geom.Coordinate[validCount];
       System.arraycopy(coords, 0, trimmed, 0, validCount);

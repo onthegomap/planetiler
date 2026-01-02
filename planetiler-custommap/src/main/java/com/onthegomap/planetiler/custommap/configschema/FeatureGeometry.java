@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap.configschema;
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -42,13 +43,14 @@ public enum FeatureGeometry {
   RELATION_MEMBERS(GeometryType.UNKNOWN, null) {
     @Override
     public Expression featureTest() {
-      // Use inline script to check if feature is a relation
-      // We'll create the expression lazily when needed, but for now return a simple check
       return new Expression() {
         @Override
         public boolean evaluate(WithTags input, List<String> matchKeys) {
-          if (input instanceof SourceFeature sourceFeature && sourceFeature instanceof OsmSourceFeature osmFeature) {
-            return osmFeature.originalElement().type() == OsmElement.Type.RELATION;
+          // Input is always a ProcessFeature context in production code
+          if (input instanceof Contexts.ProcessFeature processFeature) {
+            SourceFeature sourceFeature = processFeature.feature();
+            return sourceFeature instanceof OsmSourceFeature osmFeature &&
+              osmFeature.originalElement().type() == OsmElement.Type.RELATION;
           }
           return false;
         }
@@ -67,8 +69,8 @@ public enum FeatureGeometry {
 
     @Override
     public Function<FeatureCollector, FeatureCollector.Feature> newGeometryFactory(String layerName) {
-      // This will be set up properly in ConfiguredFeature constructor
-      // For now return a placeholder that will be replaced
+      // RELATION_MEMBERS geometry is handled specially in ConfiguredFeature.processRelationMembers()
+      // This factory should never be called
       return features -> {
         throw new UnsupportedOperationException(
           "RELATION_MEMBERS geometry factory must be set up in ConfiguredFeature constructor");

@@ -316,19 +316,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               }
             }
             // Track relations that need member processing (relation_members geometry)
-            // Check if any of the relation infos is a RelationMembersInfo by class name
-            // (can't import directly since it's in a different module)
+            // Note: RelationMembersInfo is in a different module, so we check by class name
             List<OsmRelationInfo> infos = relationInfo.get(relation.id()) != null ?
               List.of(relationInfo.get(relation.id())) : null;
             if (infos != null && !infos.isEmpty()) {
               for (OsmRelationInfo info : infos) {
-                // Check if this is a RelationMembersInfo by class name
                 String className = info.getClass().getName();
                 if (className.contains("RelationMembersInfo")) {
                   synchronized (relationsForMemberProcessingLock) {
                     relationsForMemberProcessing.add(relation.id());
                   }
-                  // Track member ways and nodes for this relation
                   synchronized (waysInRelationMembersLock) {
                     synchronized (nodesInRelationMembersLock) {
                       for (var member : relation.members()) {
@@ -394,9 +391,45 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         try (var renderer = createFeatureRenderer(writer, config, next)) {
           var phaser = pass2Phaser.forWorker();
           var relationHandler = relationDistributor.forThread(relation -> {
-            var feature = processRelationPass2(relation, nodeLocations);
-            if (feature != null) {
-              render(featureCollectors, renderer, relation, feature);
+            // Process as multipolygon if applicable (independent check)
+            if (isMultipolygon(relation)) {
+              List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(relation.id());
+              SourceFeature multipolygonFeature = new MultipolygonSourceFeature(relation, nodeLocations, parentRelations);
+              render(featureCollectors, renderer, relation, multipolygonFeature);
+            }
+            // Process as relation_members if applicable (independent check - can be both)
+            if (relationsForMemberProcessing.contains(relation.id())) {
+              List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(relation.id());
+              RelationMemberDataProvider dataProvider = new RelationMemberDataProvider() {
+                @Override
+                public LongArrayList getWayGeometry(long wayId) {
+                  return relationMembersWayGeometries != null ? relationMembersWayGeometries.get(wayId) : null;
+                }
+                
+                @Override
+                public Map<String, Object> getWayTags(long wayId) {
+                  return relationMembersWayTags != null ? relationMembersWayTags.get(wayId) : null;
+                }
+                
+                @Override
+                public Map<String, Object> getNodeTags(long nodeId) {
+                  return relationMembersNodeTags != null ? relationMembersNodeTags.get(nodeId) : null;
+                }
+                
+                @Override
+                public org.locationtech.jts.geom.Coordinate getNodeCoordinate(long nodeId) {
+                  long encoded = nodeLocationDb.get(nodeId);
+                  if (encoded == LongLongMap.MISSING_VALUE) {
+                    return null;
+                  }
+                  return new org.locationtech.jts.geom.CoordinateXY(
+                    GeoUtils.decodeWorldX(encoded),
+                    GeoUtils.decodeWorldY(encoded)
+                  );
+                }
+              };
+              SourceFeature relationMembersFeature = new RelationSourceFeature(relation, parentRelations, dataProvider);
+              render(featureCollectors, renderer, relation, relationMembersFeature);
             }
             rels.inc();
           });
@@ -590,7 +623,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     if (isMultipolygon(rel)) {
       List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.id());
       return new MultipolygonSourceFeature(rel, nodeLocations, parentRelations);
-    } else if (relationsForMemberProcessing.contains(rel.id())) {
+    }
+    if (relationsForMemberProcessing.contains(rel.id())) {
       // This relation needs member processing (relation_members geometry)
       List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.id());
       RelationMemberDataProvider dataProvider = new RelationMemberDataProvider() {
@@ -622,9 +656,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       };
       return new RelationSourceFeature(rel, parentRelations, dataProvider);
-    } else {
-      return null;
     }
+    return null;
   }
 
   private List<RelationMember<OsmRelationInfo>> getRelationMembershipForWay(long wayId) {

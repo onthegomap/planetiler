@@ -544,6 +544,13 @@ public class Contexts {
     }
 
     @Override
+    public Map<String, Object> tags() {
+      // Override to return member tags instead of relation tags
+      // Return a mutable copy to avoid UnsupportedOperationException
+      return new HashMap<>(memberTags);
+    }
+
+    @Override
     public Object apply(String key) {
       if (key != null) {
         return switch (key) {

@@ -179,7 +179,7 @@ public class ConfiguredProfile implements Profile {
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     // Check if this relation matches any relation_members features
     if (relationMembersMatcher == null) {
-      return null;
+      return List.of();
     }
 
     // Create a RelationSourceFeature to test if this relation matches
@@ -193,6 +193,6 @@ public class ConfiguredProfile implements Profile {
       return List.of(new RelationMembersInfo(relation.id()));
     }
     
-    return null;
+    return List.of();
   }
 }
