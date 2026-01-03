@@ -27,11 +27,11 @@ echo "::endgroup::"
 echo "::endgroup::"
 echo "::group::OpenMapTiles monaco (docker)"
 # vary threads to stress-test determinism check
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles --threads=4 --force
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles --threads=4 --force
 ./scripts/check-monaco.sh data/docker-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (docker)"
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/docker-example.mbtiles --force
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/docker-example.mbtiles --force
 ./scripts/check-mbtiles.sh data/docker-example.mbtiles
 echo "::endgroup::"
 
