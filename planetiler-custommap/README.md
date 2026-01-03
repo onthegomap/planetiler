@@ -7,7 +7,7 @@ file as the first argument:
 # from a java build
 java -jar planetiler.jar generate-custom --schema=schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom --schema=/data/schema.yml
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom --schema=/data/schema.yml
 ```
 
 Schema files are in [YAML 1.2](https://yaml.org) format and support [anchors and aliases](#anchors-and-aliases) for
@@ -786,7 +786,7 @@ the input file(s) for changes and validate the test cases on each change:
 # from a java build
 java -jar planetiler.jar verify schema.yml --watch
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /data/schema.yml --watch
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /data/schema.yml --watch
 ```
 
 - `name` - Unique name for this test case.
