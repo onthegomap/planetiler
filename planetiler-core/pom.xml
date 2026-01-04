@@ -199,7 +199,7 @@
     <dependency>
       <groupId>org.maplibre</groupId>
       <artifactId>mlt</artifactId>
-      <version>0.0.4</version>
+      <version>0.0.5</version>
       <exclusions>
         <exclusion>
           <groupId>no.ecc.vectortile</groupId>
