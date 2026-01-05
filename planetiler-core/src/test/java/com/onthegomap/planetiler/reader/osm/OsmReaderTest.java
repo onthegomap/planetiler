@@ -15,6 +15,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -647,6 +655,79 @@ class OsmReaderTest {
     assertThrows(GeometryException.class, feature::worldGeometry);
     assertThrows(GeometryException.class, feature::polygon);
     assertThrows(GeometryException.class, feature::validatedPolygon);
+  }
+
+  /**
+   * Custom appender to capture log events for testing.
+   */
+  private static class TestAppender extends AbstractAppender {
+    private final List<LogEvent> logEvents = new ArrayList<>();
+
+    protected TestAppender(String name) {
+      super(name, null, null, false, null);
+    }
+
+    @Override
+    public void append(LogEvent event) {
+      logEvents.add(event.toImmutable());
+    }
+
+    public List<LogEvent> getLogEvents() {
+      return new ArrayList<>(logEvents);
+    }
+  }
+
+  @Test
+  void testIncompleteRelationLoggedAsWarningWithoutStackTrace() {
+    // Set up TestAppender to capture log events
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    Configuration config = context.getConfiguration();
+    LoggerConfig loggerConfig = config.getLoggerConfig("com.onthegomap.planetiler.reader.osm.OsmReader");
+    TestAppender testAppender = new TestAppender("TestAppender");
+    testAppender.start();
+    loggerConfig.addAppender(testAppender, Level.ALL, null);
+    context.updateLoggers();
+
+    try {
+      // Create a profile that throws an incomplete relation exception during preprocessing
+      Profile testProfile = new Profile.NullProfile() {
+        @Override
+        public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+          // Throw an exception that matches incomplete relation pattern
+          throw new IllegalArgumentException("Missing location for node: 123");
+        }
+      };
+
+      OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, testProfile, stats);
+      var relation = new OsmElement.Relation(6);
+      relation.setTag("type", "multipolygon");
+
+      // Process the relation - this should trigger the exception and log it as a warning
+      processPass1Block(reader, List.of(relation));
+
+      // Verify that incomplete relation exceptions are logged as WARN without stack trace
+      List<LogEvent> events = testAppender.getLogEvents();
+      boolean foundIncompleteWarning = false;
+      for (LogEvent event : events) {
+        String message = event.getMessage().getFormattedMessage();
+        if (message.contains("Incomplete OSM relation")) {
+          // Should be WARN level, not ERROR
+          assertEquals(Level.WARN, event.getLevel(),
+            "Incomplete relation exception should be logged as WARN, not " + event.getLevel());
+          // Should not have a stack trace (throwable should be null)
+          assertNull(event.getThrown(),
+            "Incomplete relation exception should not include stack trace, but got: " + event.getThrown());
+          foundIncompleteWarning = true;
+        }
+      }
+      assertTrue(foundIncompleteWarning, "Should have logged a warning for incomplete relation. Events: " +
+        events.stream().map(e -> e.getLevel() + ": " + e.getMessage().getFormattedMessage()).toList());
+    } finally {
+      // Clean up
+      loggerConfig.removeAppender("TestAppender");
+      testAppender.stop();
+      context.updateLoggers();
+    }
   }
 
   @Test

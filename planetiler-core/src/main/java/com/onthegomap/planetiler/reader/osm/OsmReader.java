@@ -233,6 +233,43 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     timer.stop();
   }
 
+  /**
+   * Checks if an exception is related to an incomplete OSM relation (missing ways or nodes).
+   * These are expected in regional extracts and should be logged as warnings without stack traces.
+   *
+   * @param e the exception to check
+   * @return true if the exception is related to incomplete relations
+   */
+  private static boolean isIncompleteRelationException(Throwable e) {
+    if (e == null) {
+      return false;
+    }
+    String message = e.getMessage();
+    if (message != null) {
+      // Check for missing node exceptions
+      if (message.contains("Missing location for node")) {
+        return true;
+      }
+      // Check for incomplete multipolygon exceptions
+      if (message.contains("error building multipolygon") ||
+        message.contains("no rings to process") ||
+        message.contains("multipolygon not closed") ||
+        message.contains("missing_way") ||
+        message.contains("missing node")) {
+        return true;
+      }
+      // Check for GeometryException related to incomplete relations
+      if (e instanceof GeometryException) {
+        String stat = ((GeometryException) e).stat();
+        if (stat != null && (stat.contains("invalid_multipolygon") || stat.contains("missing"))) {
+          return true;
+        }
+      }
+    }
+    // Check cause chain
+    return isIncompleteRelationException(e.getCause());
+  }
+
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
     // may be called by multiple threads so need to synchronize access to any shared data structures
     try (
@@ -284,7 +321,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                 }
               }
             } catch (Exception e) {
-              LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
+              if (isIncompleteRelationException(e)) {
+                LOGGER.warn("Incomplete OSM relation {}: {}", relation.id(), e.getMessage());
+              } else {
+                LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
+              }
             }
             // TODO allow limiting multipolygon storage to only ones that profile cares about
             if (isMultipolygon(relation)) {
@@ -482,7 +523,12 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       }
     } catch (Exception e) {
       String type = element.getClass().getSimpleName();
-      LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
+      // For relations, check if it's an incomplete relation exception
+      if (element instanceof OsmElement.Relation && isIncompleteRelationException(e)) {
+        LOGGER.warn("Incomplete OSM relation {}: {}", element.id(), e.getMessage());
+      } else {
+        LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
+      }
     }
   }
 
