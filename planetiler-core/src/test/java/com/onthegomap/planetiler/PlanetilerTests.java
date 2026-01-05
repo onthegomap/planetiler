@@ -57,7 +57,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -350,7 +349,6 @@ class PlanetilerTests {
     );
   }
 
-  @Disabled
   @Test
   void testAttributeTypeCoercion() throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
