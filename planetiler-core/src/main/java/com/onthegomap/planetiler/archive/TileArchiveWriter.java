@@ -309,8 +309,8 @@ public class TileArchiveWriter {
                 Map<String, FeatureTableOptimizations> optimizations = Map.of();
                 var conversionConfig = ConversionConfig.builder()
                   .includeIds(true)
-                  .useFastPFOR(config.mltAdvanced())
-                  .useFSST(config.mltAdvanced())
+                  .useFastPFOR(config.mltFastPfor())
+                  .useFSST(config.mltFsst())
                   .coercePropertyValues(true)
                   .optimizations(optimizations)
                   .preTessellatePolygons(false)

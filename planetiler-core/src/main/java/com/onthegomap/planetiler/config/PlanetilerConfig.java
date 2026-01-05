@@ -58,7 +58,8 @@ public record PlanetilerConfig(
   boolean keepUnzippedSources,
   TileCompression tileCompression,
   TileFormat tileFormat,
-  boolean mltAdvanced,
+  boolean mltFsst,
+  boolean mltFastPfor,
   boolean outputLayerStats,
   String debugUrlPattern,
   Path tmpDir,
@@ -132,6 +133,9 @@ public record PlanetilerConfig(
     Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
     List<String> extraNameTags = arguments.getList("extra_name_tags", "Extra name tags to copy from OSM to output",
       List.of());
+
+    boolean mltAdvanced =
+      arguments.getBoolean("mlt_advanced", "Use FSST and FastPFOR encoding schemes when tile format=MLT", false);
 
     return new PlanetilerConfig(
       arguments,
@@ -215,7 +219,8 @@ public record PlanetilerConfig(
           "the tile format, one of " +
             TileFormat.availableValues().stream().map(TileFormat::id).toList(),
           "mvt")),
-      arguments.getBoolean("mlt_advanced", "Use advanced encoding schemes when tile format=MLT", false),
+      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
+      arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
       arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
         "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
