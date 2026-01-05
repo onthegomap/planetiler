@@ -349,7 +349,6 @@ class PlanetilerTests {
     );
   }
 
-
   @Test
   void testAttributeTypeCoercion() throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;

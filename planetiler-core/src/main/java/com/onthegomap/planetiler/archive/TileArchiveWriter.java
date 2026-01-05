@@ -307,14 +307,15 @@ public class TileArchiveWriter {
                 Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
                 var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true, true, false);
                 Map<String, FeatureTableOptimizations> optimizations = Map.of();
-                var conversionConfig = new ConversionConfig(
-                  true,
-                  config.mltAdvanced(),
-                  /* coercePropertyValues= */ true,
-                  optimizations,
-                  /* preTessellatePolygons= */ false,
-                  /* useMortonEncoding= */ true,
-                  /* outlineFeatureTableNames= */ null);
+                var conversionConfig = ConversionConfig.builder()
+                  .includeIds(true)
+                  .useFastPFOR(config.mltFastPfor())
+                  .useFSST(config.mltFsst())
+                  .coercePropertyValues(true)
+                  .optimizations(optimizations)
+                  .preTessellatePolygons(false)
+                  .useMortonEncoding(true)
+                  .build();
                 var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
                 layerStats = TileSizeStats.computeMltTileStats(tile, mltInput, mlt);
                 yield mlt;

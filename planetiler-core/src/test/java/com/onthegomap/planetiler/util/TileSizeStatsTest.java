@@ -132,7 +132,8 @@ class TileSizeStatsTest {
     Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     Map<String, FeatureTableOptimizations> optimizations = Map.of();
-    var conversionConfig = new ConversionConfig(true, false, optimizations);
+    var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(false).useFastPFOR(false)
+      .optimizations(optimizations).build();
     var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
     var stats = TileSizeStats.computeMltTileStats(vectorTile, mltInput, mlt);
     assertEquals(2, stats.size());
@@ -141,7 +142,7 @@ class TileSizeStatsTest {
     assertEquals(2, entry1.layerFeatures());
     assertEquals(85, entry1.layerBytes());
 
-    assertEquals(24, entry1.layerAttrBytes());
+    assertEquals(41, entry1.layerAttrBytes());
     assertEquals(2, entry1.layerAttrKeys());
     assertEquals(3, entry1.layerAttrValues());
     var entry2 = stats.get(1);
@@ -152,7 +153,7 @@ class TileSizeStatsTest {
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_geometries	layer_attr_bytes	layer_attr_keys	layer_attr_values
-        3	1	2	34	999	a	85	2	2	24	2	3
+        3	1	2	34	999	a	85	2	2	41	2	3
         3	1	2	34	999	b	25	1	1	0	0	0
         """
         .trim(),
