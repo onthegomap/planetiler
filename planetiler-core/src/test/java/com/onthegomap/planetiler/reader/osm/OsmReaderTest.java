@@ -660,7 +660,7 @@ class OsmReaderTest {
   /**
    * Custom appender to capture log events for testing.
    */
-  private static class TestAppender extends AbstractAppender {
+  private static class TestAppender extends AbstractAppender implements AutoCloseable {
     private final List<LogEvent> logEvents = new ArrayList<>();
 
     protected TestAppender(String name) {
@@ -675,6 +675,11 @@ class OsmReaderTest {
     public List<LogEvent> getLogEvents() {
       return new ArrayList<>(logEvents);
     }
+
+    @Override
+    public void close() {
+      stop();
+    }
   }
 
   @Test
@@ -688,7 +693,7 @@ class OsmReaderTest {
     loggerConfig.addAppender(testAppender, Level.ALL, null);
     context.updateLoggers();
 
-    try {
+    try (testAppender) {
       // Create a profile that throws an incomplete relation exception during preprocessing
       Profile testProfile = new Profile.NullProfile() {
         @Override
@@ -725,8 +730,137 @@ class OsmReaderTest {
     } finally {
       // Clean up
       loggerConfig.removeAppender("TestAppender");
-      testAppender.stop();
       context.updateLoggers();
+    }
+  }
+
+  @Test
+  void testIncompleteRelationExceptionDetection() {
+    // Test various incomplete relation exception patterns
+    assertTrue(isIncompleteRelationException(new IllegalArgumentException("Missing location for node: 123")));
+    assertTrue(isIncompleteRelationException(new RuntimeException("error building multipolygon 123")));
+    assertTrue(isIncompleteRelationException(new Exception("no rings to process")));
+    assertTrue(isIncompleteRelationException(new Exception("multipolygon not closed")));
+    assertTrue(isIncompleteRelationException(new Exception("missing_way")));
+    assertTrue(isIncompleteRelationException(new Exception("missing node")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_invalid_multipolygon", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_way", "test")));
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("test", new IllegalArgumentException("Missing location for node: 123"))));
+
+    // Test non-incomplete exceptions
+    assertFalse(isIncompleteRelationException(new RuntimeException("Some other error")));
+    assertFalse(isIncompleteRelationException(new GeometryException("other_error", "test")));
+    assertFalse(isIncompleteRelationException(null));
+    assertFalse(isIncompleteRelationException(new Exception())); // null message
+  }
+
+  @Test
+  void testNonIncompleteRelationExceptionLoggedAsError() {
+    // Set up TestAppender to capture log events
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    Configuration config = context.getConfiguration();
+    LoggerConfig loggerConfig = config.getLoggerConfig("com.onthegomap.planetiler.reader.osm.OsmReader");
+    TestAppender testAppender = new TestAppender("TestAppender");
+    testAppender.start();
+    loggerConfig.addAppender(testAppender, Level.ALL, null);
+    context.updateLoggers();
+
+    try (testAppender) {
+      // Create a profile that throws a non-incomplete exception
+      Profile testProfile = new Profile.NullProfile() {
+        @Override
+        public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+          throw new RuntimeException("Unexpected error");
+        }
+      };
+
+      OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, testProfile, stats);
+      var relation = new OsmElement.Relation(6);
+      relation.setTag("type", "multipolygon");
+
+      // Process the relation - should log as ERROR with stack trace
+      processPass1Block(reader, List.of(relation));
+
+      // Verify that non-incomplete exceptions are logged as ERROR
+      List<LogEvent> events = testAppender.getLogEvents();
+      boolean foundError = false;
+      for (LogEvent event : events) {
+        String message = event.getMessage().getFormattedMessage();
+        if (message.contains("Error preprocessing OSM relation")) {
+          assertEquals(Level.ERROR, event.getLevel(),
+            "Non-incomplete exception should be logged as ERROR");
+          assertNotNull(event.getThrown(),
+            "Non-incomplete exception should include stack trace");
+          foundError = true;
+        }
+      }
+      assertTrue(foundError, "Should have logged an error for non-incomplete exception");
+    } finally {
+      // Clean up
+      loggerConfig.removeAppender("TestAppender");
+      context.updateLoggers();
+    }
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithVariousMessages() {
+    // Test all the different message patterns that indicate incomplete relations
+    assertTrue(isIncompleteRelationException(new Exception("error building multipolygon 123")));
+    assertTrue(isIncompleteRelationException(new Exception("no rings to process")));
+    assertTrue(isIncompleteRelationException(new Exception("multipolygon not closed")));
+    assertTrue(isIncompleteRelationException(new Exception("missing_way")));
+    assertTrue(isIncompleteRelationException(new Exception("missing node")));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithGeometryExceptionStats() {
+    // Test GeometryException with different stat values
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_invalid_multipolygon", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_way", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_node", "test")));
+    // Note: "other_invalid_multipolygon" contains "invalid_multipolygon" so it matches
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("other_invalid_multipolygon", "test")));
+    assertFalse(isIncompleteRelationException(
+      new GeometryException("osm_other_error", "test")));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithCauseChain() {
+    // Test exception with cause chain
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("outer", new IllegalArgumentException("Missing location for node: 123"))));
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("outer", new Exception("error building multipolygon"))));
+    assertFalse(isIncompleteRelationException(
+      new RuntimeException("outer", new Exception("other error"))));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionEdgeCases() {
+    // Test edge cases
+    assertFalse(isIncompleteRelationException(null));
+    assertFalse(isIncompleteRelationException(new Exception())); // null message
+    assertFalse(isIncompleteRelationException(new Exception(""))); // empty message
+    assertFalse(isIncompleteRelationException(new RuntimeException("Some other error")));
+  }
+
+
+  // Helper method to access private method for testing
+  private boolean isIncompleteRelationException(Throwable e) {
+    // Use reflection to test the private method
+    try {
+      var method = OsmReader.class.getDeclaredMethod("isIncompleteRelationException", Throwable.class);
+      method.setAccessible(true);
+      return (Boolean) method.invoke(null, e);
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
     }
   }
 

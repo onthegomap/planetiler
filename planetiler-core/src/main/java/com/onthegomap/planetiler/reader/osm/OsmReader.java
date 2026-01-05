@@ -259,8 +259,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         return true;
       }
       // Check for GeometryException related to incomplete relations
-      if (e instanceof GeometryException) {
-        String stat = ((GeometryException) e).stat();
+      if (e instanceof GeometryException geometryException) {
+        String stat = geometryException.stat();
         if (stat != null && (stat.contains("invalid_multipolygon") || stat.contains("missing"))) {
           return true;
         }
