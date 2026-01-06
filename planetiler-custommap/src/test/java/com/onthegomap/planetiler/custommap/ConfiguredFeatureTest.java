@@ -925,6 +925,8 @@ class ConfiguredFeatureTest {
     testInvalidSchema("bad_geometry_type.yml", "Profile defined with invalid geometry type");
     testInvalidSchema("no_layers.yml", "Profile defined with no layers");
     testInvalidSchema("invalid_post_process.yml", "Profile defined with invalid post process element");
+    testInvalidSchema("member_fields_wrong_geometry.yml", "member_types, member_roles, member_include_when, member_exclude_when, and member_attributes can only be used with geometry: relation_members");
+    testInvalidSchema("invalid_member_types.yml", "Invalid member_types value");
   }
 
   private void testInvalidSchema(String filename, String message) {
