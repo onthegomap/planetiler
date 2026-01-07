@@ -15,6 +15,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -647,6 +655,213 @@ class OsmReaderTest {
     assertThrows(GeometryException.class, feature::worldGeometry);
     assertThrows(GeometryException.class, feature::polygon);
     assertThrows(GeometryException.class, feature::validatedPolygon);
+  }
+
+  /**
+   * Custom appender to capture log events for testing.
+   */
+  private static class TestAppender extends AbstractAppender implements AutoCloseable {
+    private final List<LogEvent> logEvents = new ArrayList<>();
+
+    protected TestAppender(String name) {
+      super(name, null, null, false, null);
+    }
+
+    @Override
+    public void append(LogEvent event) {
+      logEvents.add(event.toImmutable());
+    }
+
+    public List<LogEvent> getLogEvents() {
+      return new ArrayList<>(logEvents);
+    }
+
+    @Override
+    public void close() {
+      stop();
+    }
+  }
+
+  @Test
+  void testIncompleteRelationLoggedAsWarningWithoutStackTrace() {
+    // Set up TestAppender to capture log events
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    Configuration config = context.getConfiguration();
+    LoggerConfig loggerConfig = config.getLoggerConfig("com.onthegomap.planetiler.reader.osm.OsmReader");
+    TestAppender testAppender = new TestAppender("TestAppender");
+    testAppender.start();
+    loggerConfig.addAppender(testAppender, Level.ALL, null);
+    context.updateLoggers();
+
+    try (testAppender) {
+      // Create a profile that throws an incomplete relation exception during preprocessing
+      Profile testProfile = new Profile.NullProfile() {
+        @Override
+        public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+          // Throw an exception that matches incomplete relation pattern
+          throw new IllegalArgumentException("Missing location for node: 123");
+        }
+      };
+
+      OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, testProfile, stats);
+      var relation = new OsmElement.Relation(6);
+      relation.setTag("type", "multipolygon");
+
+      // Process the relation - this should trigger the exception and log it as a warning
+      processPass1Block(reader, List.of(relation));
+
+      // Verify that incomplete relation exceptions are logged as WARN without stack trace
+      List<LogEvent> events = testAppender.getLogEvents();
+      boolean foundIncompleteWarning = false;
+      for (LogEvent event : events) {
+        String message = event.getMessage().getFormattedMessage();
+        if (message.contains("Incomplete OSM relation")) {
+          // Should be WARN level, not ERROR
+          assertEquals(Level.WARN, event.getLevel(),
+            "Incomplete relation exception should be logged as WARN, not " + event.getLevel());
+          // Should not have a stack trace (throwable should be null)
+          assertNull(event.getThrown(),
+            "Incomplete relation exception should not include stack trace, but got: " + event.getThrown());
+          foundIncompleteWarning = true;
+        }
+      }
+      assertTrue(foundIncompleteWarning, "Should have logged a warning for incomplete relation. Events: " +
+        events.stream().map(e -> e.getLevel() + ": " + e.getMessage().getFormattedMessage()).toList());
+    } finally {
+      // Clean up
+      loggerConfig.removeAppender("TestAppender");
+      context.updateLoggers();
+    }
+  }
+
+  @Test
+  void testIncompleteRelationExceptionDetection() {
+    // Test various incomplete relation exception patterns
+    assertTrue(isIncompleteRelationException(new IllegalArgumentException("Missing location for node: 123")));
+    assertTrue(isIncompleteRelationException(new RuntimeException("error building multipolygon 123")));
+    assertTrue(isIncompleteRelationException(new Exception("no rings to process")));
+    assertTrue(isIncompleteRelationException(new Exception("multipolygon not closed")));
+    assertTrue(isIncompleteRelationException(new Exception("missing_way")));
+    assertTrue(isIncompleteRelationException(new Exception("missing node")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_invalid_multipolygon", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_way", "test")));
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("test", new IllegalArgumentException("Missing location for node: 123"))));
+
+    // Test non-incomplete exceptions
+    assertFalse(isIncompleteRelationException(new RuntimeException("Some other error")));
+    assertFalse(isIncompleteRelationException(new GeometryException("other_error", "test")));
+    assertFalse(isIncompleteRelationException(null));
+    assertFalse(isIncompleteRelationException(new Exception())); // null message
+  }
+
+  @Test
+  void testNonIncompleteRelationExceptionLoggedAsError() {
+    // Set up TestAppender to capture log events
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    Configuration config = context.getConfiguration();
+    LoggerConfig loggerConfig = config.getLoggerConfig("com.onthegomap.planetiler.reader.osm.OsmReader");
+    TestAppender testAppender = new TestAppender("TestAppender");
+    testAppender.start();
+    loggerConfig.addAppender(testAppender, Level.ALL, null);
+    context.updateLoggers();
+
+    try (testAppender) {
+      // Create a profile that throws a non-incomplete exception
+      Profile testProfile = new Profile.NullProfile() {
+        @Override
+        public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+          throw new RuntimeException("Unexpected error");
+        }
+      };
+
+      OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, testProfile, stats);
+      var relation = new OsmElement.Relation(6);
+      relation.setTag("type", "multipolygon");
+
+      // Process the relation - should log as ERROR with stack trace
+      processPass1Block(reader, List.of(relation));
+
+      // Verify that non-incomplete exceptions are logged as ERROR
+      List<LogEvent> events = testAppender.getLogEvents();
+      boolean foundError = false;
+      for (LogEvent event : events) {
+        String message = event.getMessage().getFormattedMessage();
+        if (message.contains("Error preprocessing OSM relation")) {
+          assertEquals(Level.ERROR, event.getLevel(),
+            "Non-incomplete exception should be logged as ERROR");
+          assertNotNull(event.getThrown(),
+            "Non-incomplete exception should include stack trace");
+          foundError = true;
+        }
+      }
+      assertTrue(foundError, "Should have logged an error for non-incomplete exception");
+    } finally {
+      // Clean up
+      loggerConfig.removeAppender("TestAppender");
+      context.updateLoggers();
+    }
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithVariousMessages() {
+    // Test all the different message patterns that indicate incomplete relations
+    assertTrue(isIncompleteRelationException(new Exception("error building multipolygon 123")));
+    assertTrue(isIncompleteRelationException(new Exception("no rings to process")));
+    assertTrue(isIncompleteRelationException(new Exception("multipolygon not closed")));
+    assertTrue(isIncompleteRelationException(new Exception("missing_way")));
+    assertTrue(isIncompleteRelationException(new Exception("missing node")));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithGeometryExceptionStats() {
+    // Test GeometryException with different stat values
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_invalid_multipolygon", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_way", "test")));
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("osm_missing_node", "test")));
+    // Note: "other_invalid_multipolygon" contains "invalid_multipolygon" so it matches
+    assertTrue(isIncompleteRelationException(
+      new GeometryException("other_invalid_multipolygon", "test")));
+    assertFalse(isIncompleteRelationException(
+      new GeometryException("osm_other_error", "test")));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionWithCauseChain() {
+    // Test exception with cause chain
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("outer", new IllegalArgumentException("Missing location for node: 123"))));
+    assertTrue(isIncompleteRelationException(
+      new RuntimeException("outer", new Exception("error building multipolygon"))));
+    assertFalse(isIncompleteRelationException(
+      new RuntimeException("outer", new Exception("other error"))));
+  }
+
+  @Test
+  void testIncompleteRelationExceptionEdgeCases() {
+    // Test edge cases
+    assertFalse(isIncompleteRelationException(null));
+    assertFalse(isIncompleteRelationException(new Exception())); // null message
+    assertFalse(isIncompleteRelationException(new Exception(""))); // empty message
+    assertFalse(isIncompleteRelationException(new RuntimeException("Some other error")));
+  }
+
+
+  // Helper method to access private method for testing
+  private boolean isIncompleteRelationException(Throwable e) {
+    // Use reflection to test the private method
+    try {
+      var method = OsmReader.class.getDeclaredMethod("isIncompleteRelationException", Throwable.class);
+      method.setAccessible(true);
+      return (Boolean) method.invoke(null, e);
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   @Test
