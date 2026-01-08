@@ -7,6 +7,7 @@ import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
@@ -1758,5 +1759,81 @@ class ConfiguredFeatureTest {
       "tourism", "viewpoint"
     ), "osm", null, 1, emptyList(), OSM_INFO), feature -> assertEquals("black", feature.getAttrsAtZoom(14).get("attr")),
       1);
+  }
+
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testSplitWays(boolean split) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: line
+          split_at_intersections: %s
+          include_when:
+            highway:
+            - motorway
+            - footway
+          exclude_when:
+            footway:
+            - sidewalk
+      """.formatted(split);
+    var profile = loadConfig(config);
+    var way = new OsmElement.Way(1, Map.of(), LongArrayList.from(1, 2));
+    assertFalse(profile.splitOsmWayAtIntersections(way));
+    assertFalse(profile.splitOsmWayAtIntersections(way.withTags(Map.of(
+      "waterway", "river"
+    ))));
+
+
+    assertEquals(split, profile.splitOsmWayAtIntersections(way.withTags(Map.of(
+      "highway", "motorway"
+    ))));
+    assertEquals(split, profile.splitOsmWayAtIntersections(way.withTags(Map.of(
+      "highway", "footway"
+    ))));
+    assertFalse(profile.splitOsmWayAtIntersections(way.withTags(Map.of(
+      "highway", "footway",
+      "footway", "sidewalk"
+    ))));
+  }
+
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "${feature.osm_user_name == 'user'}",
+    "${feature.tags.key == 'value'}",
+    "{ '${feature.osm_user_name}': 'user' }",
+    "{ '${feature.tags.key}': 'value' }",
+  }, delimiter = '\t')
+  void testSplitWithExpression(String filter) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: line
+          split_at_intersections: true
+          include_when: %s
+      """.formatted(filter);
+    var profile = loadConfig(config);
+    assertFalse(profile.splitOsmWayAtIntersections(
+      new OsmElement.Way(1, Map.of(), LongArrayList.from(1, 2),
+        new OsmElement.Info(1L, 2L, 3, 4, "other_user"))));
+    assertTrue(profile.splitOsmWayAtIntersections(new OsmElement.Way(1, Map.of(
+      "key", "value"
+    ), LongArrayList.from(1, 2), new OsmElement.Info(1L, 2L, 3, 4, "user"))));
   }
 }

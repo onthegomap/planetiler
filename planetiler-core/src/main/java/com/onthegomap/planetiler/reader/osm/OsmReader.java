@@ -612,6 +612,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += estimateSize(roleIds);
     size += roleSizes.get();
     size += relationInfoSizes.get();
+    size += waySplitter.estimateMemoryUsageBytes();
     return size;
   }
 

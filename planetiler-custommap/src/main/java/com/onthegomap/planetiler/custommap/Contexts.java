@@ -393,7 +393,7 @@ public class Contexts {
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());
           case FEATURE_GEOMETRY -> new GeometryVal(feature);
           default -> {
-            OsmElement elem = feature instanceof OsmSourceFeature osm ? osm.originalElement() : null;
+            OsmElement elem = feature instanceof OsmSourceFeature<?> osm ? osm.originalElement() : null;
             if (FEATURE_OSM_TYPE.equals(key)) {
               yield elem == null ? null : elem.type().name().toLowerCase();
             }

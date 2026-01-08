@@ -16,7 +16,8 @@ public record FeatureItem(
   @JsonProperty FeatureGeometry geometry,
   @JsonProperty("include_when") Object includeWhen,
   @JsonProperty("exclude_when") Object excludeWhen,
-  Collection<AttributeDefinition> attributes
+  Collection<AttributeDefinition> attributes,
+  @JsonProperty("split_at_intersections") Boolean splitAtIntersections
 ) {
 
   @Override
