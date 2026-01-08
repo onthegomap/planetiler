@@ -23,7 +23,7 @@ public abstract class SourceFeature extends WithGeometry
   private final Map<String, Object> tags;
   private final String source;
   private final String sourceLayer;
-  private final List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos;
+  protected final List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos;
   private final long id;
 
   /**

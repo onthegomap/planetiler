@@ -888,4 +888,117 @@ class OsmReaderTest {
   private OsmReader newOsmReader() {
     return new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, profile, stats);
   }
+
+  @Test
+  void testSplitLine() throws GeometryException {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+        return true;
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
+    var node1 = node(1, 0, 0);
+    var node2 = node(2, 0.5, 0.5);
+    var node3 = node(3, 0.75, 0.75);
+    var node4 = node(4, 0.75, 0.5);
+    var way1 = new OsmElement.Way(1);
+    var way2 = new OsmElement.Way(2);
+    way1.nodes().add(node1.id(), node2.id(), node3.id());
+    way2.nodes().add(node2.id(), node4.id());
+
+    processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2));
+
+    List<OsmReader.WaySourceFeature> features =
+      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache));
+    assertEquals(2, features.size());
+
+    var f1 = features.getFirst();
+    var f2 = features.get(1);
+
+    assertTrue(f1.canBeLine());
+    assertFalse(f1.isPoint());
+    assertFalse(f1.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0, 0, 0.5, 0.5
+      ),
+      TestUtils.round(f1.worldGeometry()),
+      TestUtils.round(f1.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f1.latLonGeometry()))
+    );
+
+    assertTrue(f2.canBeLine());
+    assertFalse(f2.isPoint());
+    assertFalse(f2.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0.5, 0.5, 0.75, 0.75
+      ),
+      TestUtils.round(f2.worldGeometry()),
+      TestUtils.round(f2.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f2.latLonGeometry()))
+    );
+
+
+    features =
+      reader.splitWayIfNecessary(way2, reader.processWayPass2(way2, nodeCache));
+    assertEquals(1, features.size());
+
+    var f3 = features.getFirst();
+
+    assertTrue(f3.canBeLine());
+    assertFalse(f3.isPoint());
+    assertFalse(f3.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0.5, 0.5, 0.75, 0.5
+      ),
+      TestUtils.round(f3.worldGeometry()),
+      TestUtils.round(f3.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f3.latLonGeometry()))
+    );
+  }
+
+  @Test
+  void testSplitLineLoop() throws GeometryException {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+        return true;
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
+    var node1 = node(1, 0, 0);
+    var node2 = node(2, 0.5, 0.5);
+    var node3 = node(3, 0.75, 0.75);
+    var node4 = node(4, 0.75, 0.5);
+    var way1 = new OsmElement.Way(1);
+    var way2 = new OsmElement.Way(2);
+    way1.nodes().add(node1.id(), node2.id(), node3.id(), node1.id());
+    way2.nodes().add(node2.id(), node4.id());
+
+    processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2));
+
+    List<OsmReader.WaySourceFeature> features =
+      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache));
+    assertEquals(3, features.size());
+
+    var f1 = features.getFirst();
+
+    assertFalse(f1.canBeLine());
+    assertFalse(f1.isPoint());
+    assertTrue(f1.canBePolygon());
+    assertSameNormalizedFeature(
+      newPolygon(
+        0, 0, 0.5, 0.5, 0.75, 0.75, 0, 0
+      ),
+      TestUtils.round(f1.worldGeometry()),
+      TestUtils.round(f1.polygon()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f1.latLonGeometry()))
+    );
+
+  }
+
+  // TODO polygon with split
 }

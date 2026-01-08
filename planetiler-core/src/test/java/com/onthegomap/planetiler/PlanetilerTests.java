@@ -1243,6 +1243,100 @@ class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
+  @Test
+  void testBreakOsmLine() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new OsmElement.Node(1, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.5)),
+        with(new OsmElement.Way(4), way -> {
+          way.setTag("attr", "value1");
+          way.nodes().add(1, 2, 3);
+        }),
+        with(new OsmElement.Way(5), way -> {
+          way.setTag("attr", "value2");
+          way.nodes().add(2, 4);
+        })
+      ),
+      new Profile() {
+        @Override
+        public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+          if (sourceFeature.canBeLine()) {
+            features.line("layer")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+          }
+        }
+
+        @Override
+        public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+          return true;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        // split way 4, but keep same tags and ID
+        feature(newLineString(64, 128, 128, 128), Map.of(
+          "attr", "value1"
+        ), 42),
+        feature(newLineString(128, 128, 192, 128), Map.of(
+          "attr", "value1"
+        ), 42),
+        feature(newLineString(128, 128, 128, 192), Map.of(
+          "attr", "value2"
+        ), 52)
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  void testBreakOsmLineWithLoop() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new OsmElement.Node(1, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.5)),
+        with(new OsmElement.Way(4), way -> {
+          way.setTag("attr", "value1");
+          way.nodes().add(1, 2, 3, 4, 2);
+        })
+      ),
+      new Profile() {
+        @Override
+        public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+          if (sourceFeature.canBeLine()) {
+            features.line("layer")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+          }
+        }
+
+        @Override
+        public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+          return true;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newLineString(64, 128, 128, 128), Map.of(
+          "attr", "value1"
+        ), 42),
+        feature(newLineString(128, 128, 192, 128, 128, 192, 128, 128), Map.of(
+          "attr", "value1"
+        ), 42)
+      )
+    ), results.tiles);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
   void testOsmMultipolygon(String relationType) throws Exception {

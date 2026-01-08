@@ -66,6 +66,20 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   default void preprocessOsmWay(OsmElement.Way way) {}
 
   /**
+   * To break OSM ways at nodes where they intersect, return true from this method to make it participate in way
+   * splitting.
+   * <p>
+   * The default implementation returns false, which means this OSM way will not get split or split other ways if it
+   * intersects them at a node.
+   *
+   * @param way the OSM way
+   * @return true for this way to participate in way splitting or false to not participate.
+   */
+  default boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+    return false;
+  }
+
+  /**
    * Extracts information from <a href="https://wiki.openstreetmap.org/wiki/Relation">OSM relations</a> that will be
    * passed along to {@link #processFeature(SourceFeature, FeatureCollector)} for any OSM element in that relation.
    * <p>

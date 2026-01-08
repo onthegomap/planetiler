@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.reader.osm;
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongObjectHashMap;
@@ -102,6 +103,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
   private final AtomicLong roleSizes = new AtomicLong(0);
   private final OsmPhaser pass1Phaser = new OsmPhaser(0);
+  private final OsmWaySplitter waySplitter = OsmWaySplitter.roaringBitmapSplitter();
 
   /**
    * Constructs a new {@code OsmReader} from an {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
@@ -231,6 +233,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     LOGGER.debug("Processed " + FORMAT.integer(PASS1_BLOCKS.get()) + " blocks:");
     pass1Phaser.printSummary();
     timer.stop();
+
+    waySplitter.finish();
   }
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
@@ -238,7 +242,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     try (
       var nodeWriter = nodeLocationDb.newWriter();
       var phases = pass1Phaser.forWorker()
-        .whenWorkerFinishes(OsmPhaser.Phase.NODES, nodeWriter::close)
+        .whenWorkerFinishes(OsmPhaser.Phase.NODES, nodeWriter::close);
+      var waySplitWriter = waySplitter.writerForThread();
     ) {
       for (var block : blocks) {
         for (OsmElement element : block) {
@@ -250,7 +255,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             try {
               profile.preprocessOsmNode(node);
             } catch (Exception e) {
-              LOGGER.error("Error preprocessing OSM node " + node.id(), e);
+              LOGGER.error("Error preprocessing OSM node {}", node.id(), e);
             }
             // TODO allow limiting node storage to only ones that profile cares about
             nodeWriter.put(node.id(), node.encodedLocation());
@@ -258,8 +263,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             phases.arriveAndWaitForOthers(OsmPhaser.Phase.WAYS);
             try {
               profile.preprocessOsmWay(way);
+              if (profile.splitOsmWayAtIntersections(way)) {
+                waySplitWriter.addWay(way.nodes());
+              }
             } catch (Exception e) {
-              LOGGER.error("Error preprocessing OSM way " + way.id(), e);
+              LOGGER.error("Error preprocessing OSM way {}", way.id(), e);
             }
           } else if (element instanceof OsmElement.Relation relation) {
             phases.arrive(OsmPhaser.Phase.RELATIONS);
@@ -284,7 +292,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                 }
               }
             } catch (Exception e) {
-              LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
+              LOGGER.error("Error preprocessing OSM relation {}", relation.id(), e);
             }
             // TODO allow limiting multipolygon storage to only ones that profile cares about
             if (isMultipolygon(relation)) {
@@ -354,21 +362,19 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           });
           for (var block : prev) {
             for (var element : block.decodeElements()) {
-              SourceFeature feature = null;
               if (element instanceof OsmElement.Node node) {
                 phaser.arrive(OsmPhaser.Phase.NODES);
-                feature = processNodePass2(node);
+                SourceFeature feature = processNodePass2(node);
+                render(featureCollectors, renderer, element, feature);
               } else if (element instanceof OsmElement.Way way) {
                 phaser.arrive(OsmPhaser.Phase.WAYS);
-                feature = processWayPass2(way, nodeLocations);
+                WaySourceFeature feature = processWayPass2(way, nodeLocations);
+                for (var splitFeature : splitWayIfNecessary(way, feature)) {
+                  render(featureCollectors, renderer, element, splitFeature);
+                }
               } else if (element instanceof OsmElement.Relation relation) {
                 phaser.arriveAndWaitForOthers(OsmPhaser.Phase.RELATIONS);
                 relationHandler.accept(relation);
-              }
-              // render features specified by profile and hand them off to next step that will
-              // write them intermediate storage
-              if (feature != null) {
-                render(featureCollectors, renderer, element, feature);
               }
             }
             blocks.inc();
@@ -418,6 +424,22 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       profile.finish(name, new FeatureCollector.Factory(config, stats), renderer);
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
+    }
+  }
+
+  List<WaySourceFeature> splitWayIfNecessary(OsmElement.Way way, WaySourceFeature feature) {
+    IntArrayList splits;
+    if (feature.canBeLine() && profile.splitOsmWayAtIntersections(way) &&
+      !(splits = waySplitter.getSplitIndices(way.nodes())).isEmpty()) {
+      List<WaySourceFeature> features = new ArrayList<>();
+      if (feature.canBePolygon()) {
+        features.add(feature.asPolygon());
+      }
+
+      features.addAll(feature.asSplitLine(splits));
+      return features;
+    } else {
+      return List.of(feature);
     }
   }
 
@@ -503,7 +525,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     return new NodeSourceFeature(node);
   }
 
-  SourceFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
+  WaySourceFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
     // ways contain an ordered list of node IDs, so we need to join that with node locations
     // from pass1 to reconstruct the geometry.
     LongArrayList nodes = way.nodes();
@@ -675,9 +697,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * A source feature generated from OSM elements. Inferring the geometry can be expensive, so each subclass is
    * constructed with the inputs necessary to create the geometry, but the geometry is constructed lazily on read.
    */
-  private abstract class OsmFeature extends SourceFeature implements OsmSourceFeature {
+  private abstract class OsmFeature<T extends OsmElement> extends SourceFeature implements OsmSourceFeature<T> {
 
-    private final OsmElement originalElement;
+    private final T originalElement;
     private final boolean polygon;
     private final boolean line;
     private final boolean point;
@@ -685,7 +707,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     private Geometry worldGeom;
 
 
-    public OsmFeature(OsmElement elem, boolean point, boolean line, boolean polygon,
+    public OsmFeature(T elem, boolean point, boolean line, boolean polygon,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
       super(elem.tags(), name, null, relationInfo, elem.id());
       this.originalElement = elem;
@@ -727,13 +749,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
 
     @Override
-    public OsmElement originalElement() {
+    public T originalElement() {
       return originalElement;
     }
   }
 
   /** A {@link Point} created from an OSM node. */
-  private class NodeSourceFeature extends OsmFeature {
+  private class NodeSourceFeature extends OsmFeature<OsmElement.Node> {
 
     private final long encodedLocation;
 
@@ -778,20 +800,27 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * linestring unless {@code area=yes} tag prevents them from being a linestring or {@code area=no} tag prevents them
    * from being a polygon.
    */
-  private class WaySourceFeature extends OsmFeature {
+  class WaySourceFeature extends OsmFeature<OsmElement.Way> {
 
     private final NodeLocationProvider nodeLocations;
     private final LongArrayList nodeIds;
 
-    public WaySourceFeature(OsmElement.Way way, boolean closed, String area, NodeLocationProvider nodeLocations,
-      List<RelationMember<OsmRelationInfo>> relationInfo) {
-      super(way, false,
-        OsmReader.canBeLine(closed, area, way.nodes().size()),
-        OsmReader.canBePolygon(closed, area, way.nodes().size()),
-        relationInfo
-      );
+    private WaySourceFeature(OsmElement.Way way, boolean canBeLine, boolean canBePolygon,
+      NodeLocationProvider nodeLocations, List<RelationMember<OsmRelationInfo>> relationInfo) {
+      super(way, false, canBeLine, canBePolygon, relationInfo);
       this.nodeIds = way.nodes();
       this.nodeLocations = nodeLocations;
+    }
+
+    public WaySourceFeature(OsmElement.Way way, boolean closed, String area, NodeLocationProvider nodeLocations,
+      List<RelationMember<OsmRelationInfo>> relationInfo) {
+      this(
+        way,
+        OsmReader.canBeLine(closed, area, way.nodes().size()),
+        OsmReader.canBePolygon(closed, area, way.nodes().size()),
+        nodeLocations,
+        relationInfo
+      );
     }
 
     @Override
@@ -823,6 +852,27 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     public String toString() {
       return "OsmWay[" + id() + ']';
     }
+
+    public WaySourceFeature asPolygon() {
+      return new WaySourceFeature(originalElement(), false, super.canBePolygon(), nodeLocations, relationInfos);
+    }
+
+    public List<WaySourceFeature> asSplitLine(IntArrayList splits) {
+      List<WaySourceFeature> result = new ArrayList<>(splits.size() + 1);
+      OsmElement.Way way = originalElement();
+      int start = 0;
+      for (var split : splits) {
+        int end = split.value;
+        result
+          .add(new WaySourceFeature(way.split(start, end + 1), super.canBeLine(), false, nodeLocations,
+            relationInfos));
+        start = end;
+      }
+      result
+        .add(new WaySourceFeature(way.split(start, way.nodes().size()), super.canBeLine(), false, nodeLocations,
+          relationInfos));
+      return result;
+    }
   }
 
   /**
@@ -830,7 +880,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * <p>
    * Delegates complex reconstruction work to {@link OsmMultipolygon}.
    */
-  private class MultipolygonSourceFeature extends OsmFeature {
+  private class MultipolygonSourceFeature extends OsmFeature<OsmElement.Relation> {
 
     private final OsmElement.Relation relation;
     private final NodeLocationProvider nodeLocations;
