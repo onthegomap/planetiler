@@ -1273,7 +1273,7 @@ class PlanetilerTests {
 
         @Override
         public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
-          return true;
+          return way.hasTag("highway");
         }
       }
     );

@@ -91,7 +91,15 @@ public interface OsmWaySplitter extends MemoryEstimator.HasEstimate {
   }
 
   class RoaringBitmapSplitter implements OsmWaySplitter {
-    // global bitmaps to track collisions across all threads
+    // The basic algorithm works like:
+    //   if visited.contains(nodeId): shared.add(node)
+    //   else visited.add(nodeId)
+    // Each thread does that with local bitmaps, then we periodically do a batch operation to merge those bitmaps into
+    // global ones:
+    //   crossPartitionCollisions = allVisited & threadVisited
+    //   allShared |= crossPartitionCollisions | shared
+    //   allVisited |= threadVisited
+
     private final RoaringBitmap[] allVisited;
     private final RoaringBitmap[] allShared;
     private final Object[] locks;
@@ -124,8 +132,8 @@ public interface OsmWaySplitter extends MemoryEstimator.HasEstimate {
     @Override
     public PerThreadWriter writerForThread() {
       // thread-local bitmaps updated on every way
-      RoaringBitmap[] visited = new RoaringBitmap[numBitmaps];
-      RoaringBitmap[] shared = new RoaringBitmap[numBitmaps];
+      RoaringBitmap[] threadVisited = new RoaringBitmap[numBitmaps];
+      RoaringBitmap[] threadShared = new RoaringBitmap[numBitmaps];
       int[] counts = new int[numBitmaps];
 
       return new PerThreadWriter() {
@@ -136,12 +144,12 @@ public interface OsmWaySplitter extends MemoryEstimator.HasEstimate {
             var node = nodes.get(i);
             int index = index(node);
             int offset = offset(node);
-            if (visited[index] == null) {
-              visited[index] = new RoaringBitmap();
-              shared[index] = new RoaringBitmap();
+            if (threadVisited[index] == null) {
+              threadVisited[index] = new RoaringBitmap();
+              threadShared[index] = new RoaringBitmap();
             }
-            if (!visited[index].checkedAdd(offset)) {
-              shared[index].add(offset);
+            if (!threadVisited[index].checkedAdd(offset)) {
+              threadShared[index].add(offset);
             }
             if (counts[index]++ > flushLimit) {
               flush(index);
@@ -153,18 +161,18 @@ public interface OsmWaySplitter extends MemoryEstimator.HasEstimate {
           if (counts[index] > 0) {
             synchronized (locks[index]) {
               if (allVisited[index] == null) {
-                allVisited[index] = visited[index].clone();
-                allShared[index] = shared[index].clone();
-              } else if (visited[index] != null) {
+                allVisited[index] = threadVisited[index].clone();
+                allShared[index] = threadShared[index].clone();
+              } else {
                 // Merge intermediate bitmaps into result
-                RoaringBitmap crossPartitionCollisions = RoaringBitmap.and(allVisited[index], visited[index]);
+                RoaringBitmap crossPartitionCollisions = RoaringBitmap.and(allVisited[index], threadVisited[index]);
                 allShared[index].or(crossPartitionCollisions);
-                allVisited[index].or(visited[index]);
-                allShared[index].or(shared[index]);
+                allVisited[index].or(threadVisited[index]);
+                allShared[index].or(threadShared[index]);
               }
             }
-            visited[index] = null;
-            shared[index] = null;
+            threadVisited[index] = null;
+            threadShared[index] = null;
             counts[index] = 0;
           }
         }
