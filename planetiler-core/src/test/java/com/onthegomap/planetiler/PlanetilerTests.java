@@ -1361,7 +1361,7 @@ class PlanetilerTests {
         ), 42),
         feature(newLineString(128, 128, 192, 128, 128, 192, 128, 128), Map.of(
           "attr", "value1"
-        ), 42)
+        ), 142)
       )
     ), results.tiles);
   }
