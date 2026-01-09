@@ -373,6 +373,7 @@
             "any",
             "point",
             "line",
+            "split_line",
             "polygon",
             "polygon_centroid",
             "line_centroid",

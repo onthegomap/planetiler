@@ -1242,6 +1242,129 @@ class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
+  @Test
+  void testSplitAmbiguousOsmPolygon() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new OsmElement.Node(1, GeoUtils.getWorldLat(120 / 256d), GeoUtils.getWorldLon(120 / 256d)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(120 / 256d), GeoUtils.getWorldLon(140 / 256d)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(140 / 256d), GeoUtils.getWorldLon(140 / 256d)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
+        with(new OsmElement.Way(4), way -> {
+          way.setTag("attr", "value1");
+          way.nodes().add(1, 2, 3, 1);
+        }),
+        with(new OsmElement.Way(5), way -> {
+          way.setTag("attr", "value2");
+          way.nodes().add(2, 4);
+        })
+      ),
+      new Profile() {
+        @Override
+        public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+          if (sourceFeature.canBeLine()) {
+            features.splitLine("split")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.anyGeometry("any")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.line("full")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.polygon("full-polygon")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+          }
+        }
+
+        @Override
+        public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+          return true;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)), "any",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "any", Map.of(
+          "attr", "value2"
+        ), 52L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120, 140, 140, 120, 120)), "full",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "full", Map.of(
+          "attr", "value2"
+        ), 52L),
+
+        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)),
+          "full-polygon",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120)), "split", Map.of(
+          "attr", "value1"
+        ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "split", Map.of(
+          "attr", "value2"
+        ), 52L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 140, 140, 120, 120)), "split", Map.of(
+          "attr", "value1"
+        ), 142L)
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  void testSplitOsmLineWithLoop() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new OsmElement.Node(1, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.5)),
+        with(new OsmElement.Way(4), way -> {
+          way.setTag("attr", "value1");
+          way.nodes().add(1, 2, 3, 4, 2);
+        })
+      ),
+      new Profile() {
+        @Override
+        public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+          if (sourceFeature.canBeLine()) {
+            features.splitLine("layer")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+          }
+        }
+
+        @Override
+        public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+          return true;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newLineString(64, 128, 128, 128), Map.of(
+          "attr", "value1"
+        ), 42),
+        feature(newLineString(128, 128, 192, 128, 128, 192, 128, 128), Map.of(
+          "attr", "value1"
+        ), 142)
+      )
+    ), results.tiles);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
   void testOsmMultipolygon(String relationType) throws Exception {

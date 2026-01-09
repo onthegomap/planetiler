@@ -1,5 +1,5 @@
 package com.onthegomap.planetiler.reader.osm;
 
-public interface OsmSourceFeature {
-  OsmElement originalElement();
+public interface OsmSourceFeature<T extends OsmElement> {
+  T originalElement();
 }

@@ -10,6 +10,9 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.Struct;
+import com.onthegomap.planetiler.reader.osm.FullWay;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.SplitWay;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
@@ -63,16 +66,22 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    *
    * @param layer    the output vector tile layer this feature will be written to
    * @param geometry the explicit geometry to use instead of what is present in source data
+   * @param renumber true to renumber split ways, false to keep original IDs
    * @return a feature that can be configured further.
    */
-  public Feature geometry(String layer, Geometry geometry) {
+  public Feature geometry(String layer, Geometry geometry, boolean renumber) {
     // TODO args could also provide a list of source IDs to put into slot 4, 5, 6, etc..
     // to differentiate between other sources besides just OSM and "other"
     long vectorTileId = config.featureSourceIdMultiplier() < 4 ? source.id() :
-      source.vectorTileFeatureId(config.featureSourceIdMultiplier());
+      source.vectorTileFeatureId(config.featureSourceIdMultiplier(), renumber);
     Feature feature = new Feature(layer, geometry, vectorTileId);
     output.add(feature);
     return feature;
+  }
+
+  /** Alias for {@link #geometry(String, Geometry, boolean)} where {@code renumber=false} */
+  public Feature geometry(String layer, Geometry geometry) {
+    return geometry(layer, geometry, false);
   }
 
   /**
@@ -108,12 +117,45 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * @return a feature that can be configured further.
    */
   public Feature line(String layer) {
-    try {
-      return geometry(layer, source.line());
-    } catch (GeometryException e) {
-      e.log(stats, "feature_line", "Error constructing line for " + source);
+    if (source instanceof SplitWay) {
+      // when a way gets split there is a FullWay and SplitWay's, you need to use splitLine(...) to opt-into processing SplitWays
       return empty(layer);
+    } else {
+      try {
+        return geometry(layer, source.line());
+      } catch (GeometryException e) {
+        e.log(stats, "feature_line", "Error constructing line for " + source);
+        return empty(layer);
+      }
     }
+  }
+
+  /**
+   * Starts building a new line map feature for each segment of a way if
+   * {@link Profile#splitOsmWayAtIntersections(OsmElement.Way)} was enabled for that way.
+   *
+   * @param layer    the output vector tile layer this feature will be written to
+   * @param renumber true to assign distinct vector tile feature IDs to each segment of a way, false for them to inherit
+   *                 the ID of the original way
+   * @return a feature that can be configured further.
+   */
+  public Feature splitLine(String layer, boolean renumber) {
+    if (source instanceof FullWay) {
+      // when a way gets split there is a FullWay and SplitWay's, so exclude the full one when you opt-into split ways
+      return empty(layer);
+    } else {
+      try {
+        return geometry(layer, source.line(), renumber);
+      } catch (GeometryException e) {
+        e.log(stats, "feature_line", "Error constructing line for " + source);
+        return empty(layer);
+      }
+    }
+  }
+
+  /** Alias for {@link #splitLine(String, boolean)} where {@code renumber=true} */
+  public Feature splitLine(String layer) {
+    return splitLine(layer, true);
   }
 
 

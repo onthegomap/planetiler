@@ -229,6 +229,7 @@ A feature is a defined set of objects that meet a specified filter criteria.
   - `polygon_centroid` to match on polygons, and emit a point at the center
   - `line_centroid` to match on lines, and emit a point at the centroid of the line
   - `line_midpoint` to match on lines, and emit a point at midpoint of the line
+  - `split_line` to split OSM ways at nodes where they intersect and re-number the resulting segment features
   - `centroid` to match any geometry, and emit a point at the center
   - `polygon_point_on_surface` to match on polygons, and emit an interior point
   - `point_on_line` to match on lines, and emit a point somewhere along the line
@@ -244,15 +245,18 @@ A feature is a defined set of objects that meet a specified filter criteria.
 - `min_size` - An [Expression](#expression) that returns the minimum length of line features or square root of the
   minimum area of polygon features to emit below the maximum zoom-level of the map. This value is ignored if the layer
   [Tile Post Process](#tile-post-process) is defined.
-- `min_size_at_max_zoom` - An [Expression](#expression) that returns the minimum length of line features or square root of the
+- `min_size_at_max_zoom` - An [Expression](#expression) that returns the minimum length of line features or square root
+  of the
   minimum area of polygon features to emit at the maximum zoom-level of the map. This value is ignored if the layer
   [Tile Post Process](#tile-post-process) is defined.
 - `tolerance` - An [Expression](#expression) that returns the value for the tile pixel tolerance to use when
-  simplifying features below the maximum zoom level of the map.  This value is ignored for lines or polygons if the layer
-  [Tile Post Process](#tile-post-process) `tolerance` is defined for `merge_line_strings` or `merge_polygons`, respectively.
+  simplifying features below the maximum zoom level of the map. This value is ignored for lines or polygons if the layer
+  [Tile Post Process](#tile-post-process) `tolerance` is defined for `merge_line_strings` or `merge_polygons`,
+  respectively.
 - `tolerance_at_max_zoom` - An [Expression](#expression) that returns the value for the tile pixel tolerance to use when
   simplifying features at the maximum zoom level of the map. This value is ignored for lines or polygons if the layer
-  [Tile Post Process](#tile-post-process) `tolerance_at_max_zoom` is defined for `merge_line_strings` or `merge_polygons`, respectively.
+  [Tile Post Process](#tile-post-process) `tolerance_at_max_zoom` is defined for `merge_line_strings` or
+  `merge_polygons`, respectively.
 - `attributes` - An array of [Feature Attribute](#feature-attribute) objects that specify the attributes to be included
   on this output feature.
 
@@ -328,7 +332,8 @@ The follow attributes for `merge_line_strings` may be set:
   at the maximum zoom-level of the map.
 - `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step,
   below the maximum zoom-level of the map.
-- `tolerance_at_max_zoom` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step,
+- `tolerance_at_max_zoom` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification
+  step,
   at the maximum zoom-level of the map.
 - `buffer` - Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step.
 
@@ -535,6 +540,8 @@ Additional variables, on top of the root context:
 - `feature.osm_timestamp` - optional OSM last modified timestamp for this feature
 - `feature.osm_user_id` - optional ID of the OSM user that last modified this feature
 - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
+- `feature.osm_from_node_id` - ID of the first node in an OSM way
+- `feature.osm_to_node_id` - ID of the last node in an OSM way
 - `feature.osm_type` - type of the OSM element as a string: `"node"`, `"way"`, or `"relation"`
 
 On the original feature or any accessor that returns a geometry, you can also use:
