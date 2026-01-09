@@ -113,7 +113,7 @@ public abstract class SourceFeature extends WithGeometry
   }
 
   /** By default, the feature id is taken as-is from the input data source id. */
-  public long vectorTileFeatureId(int multiplier) {
+  public long vectorTileFeatureId(int multiplier, boolean renumber) {
     return multiplier * id;
   }
 
@@ -129,5 +129,4 @@ public abstract class SourceFeature extends WithGeometry
       ", id=" + id() +
       ", tags=" + tags + ']';
   }
-
 }

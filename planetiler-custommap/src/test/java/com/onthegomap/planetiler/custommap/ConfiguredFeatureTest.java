@@ -25,6 +25,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
@@ -1761,7 +1763,6 @@ class ConfiguredFeatureTest {
       1);
   }
 
-
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testSplitWays(boolean split) {
@@ -1775,8 +1776,7 @@ class ConfiguredFeatureTest {
       - id: testLayer
         features:
         - source: osm
-          geometry: line
-          split_at_intersections: %s
+          geometry: %s
           include_when:
             highway:
             - motorway
@@ -1784,7 +1784,12 @@ class ConfiguredFeatureTest {
           exclude_when:
             footway:
             - sidewalk
-      """.formatted(split);
+          attributes:
+            - key: from
+              value: ${feature.osm_from_node_id}
+            - key: to
+              value: ${feature.osm_to_node_id}
+      """.formatted(split ? "split_line" : "line");
     var profile = loadConfig(config);
     var way = new OsmElement.Way(1, Map.of(), LongArrayList.from(1, 2));
     assertFalse(profile.splitOsmWayAtIntersections(way));
@@ -1806,6 +1811,77 @@ class ConfiguredFeatureTest {
   }
 
 
+  @Test
+  void testFromToNodeId() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: line
+          include_when:
+            highway:
+            - motorway
+          attributes:
+            - key: from
+              value: ${feature.osm_from_node_id}
+            - key: to
+              value: ${feature.osm_to_node_id}
+      """;
+
+    class FakeWay extends SourceFeature implements OsmSourceFeature<OsmElement.Way> {
+
+      private final OsmElement.Way way;
+
+      protected FakeWay(OsmElement.Way way) {
+        super(way.tags(), "osm", null, List.of(), way.id());
+        this.way = way;
+      }
+
+      @Override
+      public Geometry worldGeometry() {
+        return GeoUtils.EMPTY_LINE;
+      }
+
+      @Override
+      public Geometry latLonGeometry() {
+        return GeoUtils.EMPTY_LINE;
+      }
+
+      @Override
+      public boolean isPoint() {
+        return false;
+      }
+
+      @Override
+      public boolean canBePolygon() {
+        return false;
+      }
+
+      @Override
+      public boolean canBeLine() {
+        return true;
+      }
+
+      @Override
+      public OsmElement.Way originalElement() {
+        return way;
+      }
+    }
+
+    var way = new OsmElement.Way(1, Map.of("highway", "motorway"), LongArrayList.from(1, 2));
+    testFeature(config, new FakeWay(way), feature -> {
+      assertEquals(1L, feature.getAttrsAtZoom(14).get("from"));
+      assertEquals(2L, feature.getAttrsAtZoom(14).get("to"));
+    }, 1);
+  }
+
+
   @ParameterizedTest
   @CsvSource(value = {
     "${feature.osm_user_name == 'user'}",
@@ -1824,8 +1900,7 @@ class ConfiguredFeatureTest {
       - id: testLayer
         features:
         - source: osm
-          geometry: line
-          split_at_intersections: true
+          geometry: split_line
           include_when: %s
       """.formatted(filter);
     var profile = loadConfig(config);

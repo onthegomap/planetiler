@@ -362,6 +362,8 @@ public class Contexts {
     private static final String FEATURE_OSM_TIMESTAMP = "feature.osm_timestamp";
     private static final String FEATURE_OSM_USER_ID = "feature.osm_user_id";
     private static final String FEATURE_OSM_USER_NAME = "feature.osm_user_name";
+    private static final String FEATURE_OSM_FROM_NODE_ID = "feature.osm_from_node_id";
+    private static final String FEATURE_OSM_TO_NODE_ID = "feature.osm_to_node_id";
     private static final String FEATURE_OSM_TYPE = "feature.osm_type";
     private static final String FEATURE_GEOMETRY = "feature";
 
@@ -378,6 +380,8 @@ public class Contexts {
           Decls.newVar(FEATURE_OSM_TIMESTAMP, Decls.Int),
           Decls.newVar(FEATURE_OSM_USER_ID, Decls.Int),
           Decls.newVar(FEATURE_OSM_USER_NAME, Decls.String),
+          Decls.newVar(FEATURE_OSM_FROM_NODE_ID, Decls.Int),
+          Decls.newVar(FEATURE_OSM_TO_NODE_ID, Decls.Int),
           Decls.newVar(FEATURE_OSM_TYPE, Decls.String),
           Decls.newVar(FEATURE_GEOMETRY, GeometryVal.PROTO_TYPE)
         );
@@ -396,7 +400,12 @@ public class Contexts {
             OsmElement elem = feature instanceof OsmSourceFeature<?> osm ? osm.originalElement() : null;
             if (FEATURE_OSM_TYPE.equals(key)) {
               yield elem == null ? null : elem.type().name().toLowerCase();
+            } else if (FEATURE_OSM_FROM_NODE_ID.equals(key)) {
+              yield elem instanceof OsmElement.Way way ? way.nodes().get(0) : null;
+            } else if (FEATURE_OSM_TO_NODE_ID.equals(key)) {
+              yield elem instanceof OsmElement.Way way ? way.nodes().get(way.nodes().size() - 1) : null;
             }
+
             OsmElement.Info info = elem != null ? elem.info() : null;
             yield info == null ? null : switch (key) {
               case FEATURE_OSM_CHANGESET -> info.changeset();

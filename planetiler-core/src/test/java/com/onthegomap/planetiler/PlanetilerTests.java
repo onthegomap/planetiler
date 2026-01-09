@@ -1244,17 +1244,17 @@ class PlanetilerTests {
   }
 
   @Test
-  void testBreakOsmLine() throws Exception {
+  void testSplitAmbiguousOsmPolygon() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new OsmElement.Node(1, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.25)),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
-        new OsmElement.Node(3, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.75)),
-        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.5)),
+        new OsmElement.Node(1, GeoUtils.getWorldLat(120 / 256d), GeoUtils.getWorldLon(120 / 256d)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(120 / 256d), GeoUtils.getWorldLon(140 / 256d)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(140 / 256d), GeoUtils.getWorldLon(140 / 256d)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.5), GeoUtils.getWorldLon(0.5)),
         with(new OsmElement.Way(4), way -> {
           way.setTag("attr", "value1");
-          way.nodes().add(1, 2, 3);
+          way.nodes().add(1, 2, 3, 1);
         }),
         with(new OsmElement.Way(5), way -> {
           way.setTag("attr", "value2");
@@ -1265,7 +1265,16 @@ class PlanetilerTests {
         @Override
         public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
           if (sourceFeature.canBeLine()) {
-            features.line("layer")
+            features.splitLine("split")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.anyGeometry("any")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.line("full")
+              .setZoomRange(0, 0)
+              .inheritAttrFromSource("attr");
+            features.polygon("full-polygon")
               .setZoomRange(0, 0)
               .inheritAttrFromSource("attr");
           }
@@ -1273,29 +1282,49 @@ class PlanetilerTests {
 
         @Override
         public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
-          return way.hasTag("highway");
+          return true;
         }
       }
     );
 
     assertSubmap(Map.of(
       TileCoord.ofXYZ(0, 0, 0), List.of(
-        // split way 4, but keep same tags and ID
-        feature(newLineString(64, 128, 128, 128), Map.of(
-          "attr", "value1"
-        ), 42),
-        feature(newLineString(128, 128, 192, 128), Map.of(
-          "attr", "value1"
-        ), 42),
-        feature(newLineString(128, 128, 128, 192), Map.of(
+        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)), "any",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "any", Map.of(
           "attr", "value2"
-        ), 52)
+        ), 52L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120, 140, 140, 120, 120)), "full",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "full", Map.of(
+          "attr", "value2"
+        ), 52L),
+
+        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)),
+          "full-polygon",
+          Map.of(
+            "attr", "value1"
+          ), 42L),
+
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120)), "split", Map.of(
+          "attr", "value1"
+        ), 42L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "split", Map.of(
+          "attr", "value2"
+        ), 52L),
+        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 140, 140, 120, 120)), "split", Map.of(
+          "attr", "value1"
+        ), 142L)
       )
     ), results.tiles);
   }
 
   @Test
-  void testBreakOsmLineWithLoop() throws Exception {
+  void testSplitOsmLineWithLoop() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -1312,7 +1341,7 @@ class PlanetilerTests {
         @Override
         public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
           if (sourceFeature.canBeLine()) {
-            features.line("layer")
+            features.splitLine("layer")
               .setZoomRange(0, 0)
               .inheritAttrFromSource("attr");
           }

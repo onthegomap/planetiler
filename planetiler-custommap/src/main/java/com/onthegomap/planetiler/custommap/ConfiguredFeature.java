@@ -102,7 +102,7 @@ public class ConfiguredFeature {
       .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
-    splitAtIntersections = Boolean.TRUE.equals(feature.splitAtIntersections());
+    splitAtIntersections = feature.geometry() == FeatureGeometry.SPLIT_LINE;
   }
 
   /** Consider implications of Post Processing on the feature's processors **/

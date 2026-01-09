@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.reader.osm;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -910,53 +911,73 @@ class OsmReaderTest {
     processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2));
 
     List<OsmReader.WaySourceFeature> features =
-      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache));
-    assertEquals(2, features.size());
+      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache), 100);
+    assertEquals(3, features.size());
 
     var f1 = features.getFirst();
     var f2 = features.get(1);
+    var f3 = features.get(2);
 
+    assertInstanceOf(FullWay.class, f1);
     assertTrue(f1.canBeLine());
     assertFalse(f1.isPoint());
     assertFalse(f1.canBePolygon());
     assertSameNormalizedFeature(
       newLineString(
-        0, 0, 0.5, 0.5
+        0, 0, 0.5, 0.5, 0.75, 0.75
       ),
       TestUtils.round(f1.worldGeometry()),
       TestUtils.round(f1.line()),
       TestUtils.round(GeoUtils.latLonToWorldCoords(f1.latLonGeometry()))
     );
 
+    assertInstanceOf(SplitWay.class, f2);
     assertTrue(f2.canBeLine());
     assertFalse(f2.isPoint());
     assertFalse(f2.canBePolygon());
     assertSameNormalizedFeature(
       newLineString(
-        0.5, 0.5, 0.75, 0.75
+        0, 0, 0.5, 0.5
       ),
       TestUtils.round(f2.worldGeometry()),
       TestUtils.round(f2.line()),
       TestUtils.round(GeoUtils.latLonToWorldCoords(f2.latLonGeometry()))
     );
+    assertEquals(1, ((SplitWay) f2).uniqueId());
 
-
-    features =
-      reader.splitWayIfNecessary(way2, reader.processWayPass2(way2, nodeCache));
-    assertEquals(1, features.size());
-
-    var f3 = features.getFirst();
-
+    assertInstanceOf(SplitWay.class, f3);
     assertTrue(f3.canBeLine());
     assertFalse(f3.isPoint());
     assertFalse(f3.canBePolygon());
     assertSameNormalizedFeature(
       newLineString(
-        0.5, 0.5, 0.75, 0.5
+        0.5, 0.5, 0.75, 0.75
       ),
       TestUtils.round(f3.worldGeometry()),
       TestUtils.round(f3.line()),
       TestUtils.round(GeoUtils.latLonToWorldCoords(f3.latLonGeometry()))
+    );
+    assertEquals(101, ((SplitWay) f3).uniqueId());
+
+
+    features =
+      reader.splitWayIfNecessary(way2, reader.processWayPass2(way2, nodeCache), 100);
+    assertEquals(1, features.size());
+
+    var f4 = features.getFirst();
+
+    assertFalse(f4 instanceof SplitWay, f4.getClass().getSimpleName());
+    assertFalse(f4 instanceof FullWay, f4.getClass().getSimpleName());
+    assertTrue(f4.canBeLine());
+    assertFalse(f4.isPoint());
+    assertFalse(f4.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0.5, 0.5, 0.75, 0.5
+      ),
+      TestUtils.round(f4.worldGeometry()),
+      TestUtils.round(f4.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f4.latLonGeometry()))
     );
   }
 
@@ -981,24 +1002,86 @@ class OsmReaderTest {
     processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2));
 
     List<OsmReader.WaySourceFeature> features =
-      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache));
+      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache), 100);
     assertEquals(3, features.size());
 
-    var f1 = features.getFirst();
+    var f = features.getFirst();
 
-    assertFalse(f1.canBeLine());
-    assertFalse(f1.isPoint());
-    assertTrue(f1.canBePolygon());
+    assertInstanceOf(FullWay.class, f);
+    assertTrue(f.canBeLine());
+    assertFalse(f.isPoint());
+    assertTrue(f.canBePolygon());
     assertSameNormalizedFeature(
       newPolygon(
         0, 0, 0.5, 0.5, 0.75, 0.75, 0, 0
       ),
-      TestUtils.round(f1.worldGeometry()),
-      TestUtils.round(f1.polygon()),
-      TestUtils.round(GeoUtils.latLonToWorldCoords(f1.latLonGeometry()))
+      TestUtils.round(f.worldGeometry()),
+      TestUtils.round(f.polygon()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f.latLonGeometry()))
+    );
+    assertSameNormalizedFeature(
+      newLineString(
+        0, 0, 0.5, 0.5, 0.75, 0.75, 0, 0
+      ),
+      TestUtils.round(f.line())
     );
 
+    f = features.get(1);
+
+    assertInstanceOf(SplitWay.class, f);
+    assertTrue(f.canBeLine());
+    assertFalse(f.isPoint());
+    assertFalse(f.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0, 0, 0.5, 0.5
+      ),
+      TestUtils.round(f.worldGeometry()),
+      TestUtils.round(f.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f.latLonGeometry()))
+    );
+
+    f = features.get(2);
+
+    assertInstanceOf(SplitWay.class, f);
+    assertTrue(f.canBeLine());
+    assertFalse(f.isPoint());
+    assertFalse(f.canBePolygon());
+    assertSameNormalizedFeature(
+      newLineString(
+        0.5, 0.5, 0.75, 0.75, 0, 0
+      ),
+      TestUtils.round(f.worldGeometry()),
+      TestUtils.round(f.line()),
+      TestUtils.round(GeoUtils.latLonToWorldCoords(f.latLonGeometry()))
+    );
   }
 
-  // TODO polygon with split
+  @Test
+  void testDontSplitLineWithAreaYes() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+        return true;
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
+    var node1 = node(1, 0, 0);
+    var node2 = node(2, 0.5, 0.5);
+    var node3 = node(3, 0.75, 0.75);
+    var node4 = node(4, 0.75, 0.5);
+    var way1 = new OsmElement.Way(1, Map.of("area", "yes"), LongArrayList.from(1, 2, 3, 1));
+    var way2 = new OsmElement.Way(2, Map.of(), LongArrayList.from(2, 4));
+
+    processPass1Block(reader, List.of(node1, node2, node3, node4, way1, way2));
+
+    List<OsmReader.WaySourceFeature> features =
+      reader.splitWayIfNecessary(way1, reader.processWayPass2(way1, nodeCache), 100);
+    assertEquals(1, features.size());
+
+    var f = features.getFirst();
+
+    assertFalse(f instanceof SplitWay, f.getClass().getSimpleName());
+    assertFalse(f instanceof FullWay, f.getClass().getSimpleName());
+  }
 }

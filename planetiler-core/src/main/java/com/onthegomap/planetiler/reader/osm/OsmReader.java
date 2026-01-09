@@ -104,6 +104,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private final AtomicLong roleSizes = new AtomicLong(0);
   private final OsmPhaser pass1Phaser = new OsmPhaser(0);
   private final OsmWaySplitter waySplitter = OsmWaySplitter.roaringBitmapSplitter();
+  private final AtomicLong maxWayId = new AtomicLong(Long.MIN_VALUE);
 
   /**
    * Constructs a new {@code OsmReader} from an {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
@@ -239,6 +240,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
     // may be called by multiple threads so need to synchronize access to any shared data structures
+    long maxWayId = Long.MIN_VALUE;
     try (
       var nodeWriter = nodeLocationDb.newWriter();
       var phases = pass1Phaser.forWorker()
@@ -269,6 +271,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             } catch (Exception e) {
               LOGGER.error("Error preprocessing OSM way {}", way.id(), e);
             }
+            maxWayId = Math.max(maxWayId, way.id());
           } else if (element instanceof OsmElement.Relation relation) {
             phases.arrive(OsmPhaser.Phase.RELATIONS);
             try {
@@ -309,6 +312,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         PASS1_BLOCKS.inc();
       }
     }
+    this.maxWayId.accumulateAndGet(maxWayId, Long::max);
   }
 
   private static boolean isMultipolygon(OsmElement.Relation relation) {
@@ -326,6 +330,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     var timer = stats.startStage("osm_pass2");
     int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
+    long splitWayMultiplier = getSplitWayMultiplier(maxWayId.get());
     Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
     // track relation count separately because they get enqueued onto the distributor near the end
     Counter.MultiThreadCounter relationsProcessed = Counter.newMultiThreadCounter();
@@ -369,7 +374,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               } else if (element instanceof OsmElement.Way way) {
                 phaser.arrive(OsmPhaser.Phase.WAYS);
                 WaySourceFeature feature = processWayPass2(way, nodeLocations);
-                for (var splitFeature : splitWayIfNecessary(way, feature)) {
+                for (var splitFeature : splitWayIfNecessary(way, feature, splitWayMultiplier)) {
                   render(featureCollectors, renderer, element, splitFeature);
                 }
               } else if (element instanceof OsmElement.Relation relation) {
@@ -427,16 +432,21 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
   }
 
-  List<WaySourceFeature> splitWayIfNecessary(OsmElement.Way way, WaySourceFeature feature) {
+  private long getSplitWayMultiplier(long maxWayId) {
+    long splitWayMultiplier = 1;
+    while (splitWayMultiplier < maxWayId) {
+      splitWayMultiplier *= 10L;
+    }
+    return splitWayMultiplier;
+  }
+
+  List<WaySourceFeature> splitWayIfNecessary(OsmElement.Way way, WaySourceFeature feature, long multiplier) {
     IntArrayList splits;
     if (feature.canBeLine() && profile.splitOsmWayAtIntersections(way) &&
       !(splits = waySplitter.getSplitIndices(way.nodes())).isEmpty()) {
       List<WaySourceFeature> features = new ArrayList<>();
-      if (feature.canBePolygon()) {
-        features.add(feature.asPolygon());
-      }
-
-      features.addAll(feature.asSplitLine(splits));
+      features.add(feature.asFullWay());
+      features.addAll(feature.asSplitLine(splits, multiplier));
       return features;
     } else {
       return List.of(feature);
@@ -718,7 +728,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
 
     @Override
-    public long vectorTileFeatureId(int multiplier) {
+    public long vectorTileFeatureId(int multiplier, boolean renumber) {
       return OsmElement.vectorTileFeatureId(multiplier, id(), originalElement.type());
     }
 
@@ -854,25 +864,57 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       return "OsmWay[" + id() + ']';
     }
 
-    public WaySourceFeature asPolygon() {
-      return new WaySourceFeature(originalElement(), false, super.canBePolygon(), nodeLocations, relationInfos);
-    }
-
-    public List<WaySourceFeature> asSplitLine(IntArrayList splits) {
+    public List<WaySourceFeature> asSplitLine(IntArrayList splits, long idMulitplier) {
       List<WaySourceFeature> result = new ArrayList<>(splits.size() + 1);
       OsmElement.Way way = originalElement();
       int start = 0;
+      int segmentIndex = 0;
       for (var split : splits) {
         int end = split.value;
         result
-          .add(new WaySourceFeature(way.split(start, end + 1), super.canBeLine(), false, nodeLocations,
-            relationInfos));
+          .add(new SplitWaySourceFeature(way.split(start, end + 1), super.canBeLine(), false, nodeLocations,
+            relationInfos, id() + (segmentIndex++) * idMulitplier));
         start = end;
       }
       result
-        .add(new WaySourceFeature(way.split(start, way.nodes().size()), super.canBeLine(), false, nodeLocations,
-          relationInfos));
+        .add(new SplitWaySourceFeature(way.split(start, way.nodes().size()), super.canBeLine(), false, nodeLocations,
+          relationInfos, id() + segmentIndex * idMulitplier));
       return result;
+    }
+
+    public WaySourceFeature asFullWay() {
+      return new FullWaySourceFeature(originalElement(), super.canBeLine(), super.canBePolygon(), nodeLocations,
+        relationInfos);
+    }
+  }
+
+  class FullWaySourceFeature extends WaySourceFeature implements FullWay {
+
+    private FullWaySourceFeature(OsmElement.Way way, boolean canBeLine, boolean canBePolygon,
+      NodeLocationProvider nodeLocations, List<RelationMember<OsmRelationInfo>> relationInfo) {
+      super(way, canBeLine, canBePolygon, nodeLocations, relationInfo);
+    }
+  }
+
+  class SplitWaySourceFeature extends WaySourceFeature implements SplitWay {
+
+    private final long uniqueId;
+
+    private SplitWaySourceFeature(OsmElement.Way way, boolean canBeLine, boolean canBePolygon,
+      NodeLocationProvider nodeLocations, List<RelationMember<OsmRelationInfo>> relationInfo, long uniqueId) {
+      super(way, canBeLine, canBePolygon, nodeLocations, relationInfo);
+      this.uniqueId = uniqueId;
+    }
+
+    @Override
+    public long vectorTileFeatureId(int multiplier, boolean renumber) {
+      return OsmElement.vectorTileFeatureId(multiplier, renumber ? uniqueId() : id(), originalElement().type());
+    }
+
+
+    @Override
+    public long uniqueId() {
+      return uniqueId;
     }
   }
 
