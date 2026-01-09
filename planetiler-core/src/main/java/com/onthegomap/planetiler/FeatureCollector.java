@@ -118,6 +118,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    */
   public Feature line(String layer) {
     if (source instanceof SplitWay) {
+      // when a way gets split there is a FullWay and SplitWay's, you need to use splitLine(...) to opt-into processing SplitWays
       return empty(layer);
     } else {
       try {
@@ -140,6 +141,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    */
   public Feature splitLine(String layer, boolean renumber) {
     if (source instanceof FullWay) {
+      // when a way gets split there is a FullWay and SplitWay's, so exclude the full one when you opt-into split ways
       return empty(layer);
     } else {
       try {

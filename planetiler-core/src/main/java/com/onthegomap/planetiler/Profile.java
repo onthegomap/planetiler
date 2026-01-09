@@ -67,7 +67,8 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
 
   /**
    * To break OSM ways at nodes where they intersect, return true from this method to make it participate in way
-   * splitting.
+   * splitting and also ask for the split way instead of full one using {@link FeatureCollector#splitLine(String)} in
+   * {@link #processFeature(SourceFeature, FeatureCollector)}.
    * <p>
    * The default implementation returns false, which means this OSM way will not get split or split other ways if it
    * intersects them at a node.
@@ -188,8 +189,8 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   }
 
   /**
-   * Returns {@code true} to set {@code type="overlay"} in {@link Mbtiles} metadata otherwise sets {@code
-   * type="baselayer"}
+   * Returns {@code true} to set {@code type="overlay"} in {@link Mbtiles} metadata otherwise sets
+   * {@code type="baselayer"}
    * <p>
    * The default implementation sets {@code type="baselayer"}
    *

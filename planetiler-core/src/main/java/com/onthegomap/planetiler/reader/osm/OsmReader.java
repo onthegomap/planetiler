@@ -240,7 +240,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
     // may be called by multiple threads so need to synchronize access to any shared data structures
-    long maxWayId = Long.MIN_VALUE;
+    long threadLocalMaxWayId = Long.MIN_VALUE;
     try (
       var nodeWriter = nodeLocationDb.newWriter();
       var phases = pass1Phaser.forWorker()
@@ -271,7 +271,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             } catch (Exception e) {
               LOGGER.error("Error preprocessing OSM way {}", way.id(), e);
             }
-            maxWayId = Math.max(maxWayId, way.id());
+            threadLocalMaxWayId = Math.max(threadLocalMaxWayId, way.id());
           } else if (element instanceof OsmElement.Relation relation) {
             phases.arrive(OsmPhaser.Phase.RELATIONS);
             try {
@@ -312,7 +312,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         PASS1_BLOCKS.inc();
       }
     }
-    this.maxWayId.accumulateAndGet(maxWayId, Long::max);
+    maxWayId.accumulateAndGet(threadLocalMaxWayId, Long::max);
   }
 
   private static boolean isMultipolygon(OsmElement.Relation relation) {
