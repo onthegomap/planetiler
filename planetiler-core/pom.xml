@@ -199,7 +199,7 @@
     <dependency>
       <groupId>org.maplibre</groupId>
       <artifactId>mlt</artifactId>
-      <version>0.0.6</version>
+      <version>0.0.8</version>
       <exclusions>
         <exclusion>
           <groupId>no.ecc.vectortile</groupId>
@@ -210,11 +210,6 @@
           <artifactId>slf4j-simple</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>me.lemire.integercompression</groupId>
-      <artifactId>JavaFastPFOR</artifactId>
-      <version>0.2.1</version>
     </dependency>
 
   </dependencies>
