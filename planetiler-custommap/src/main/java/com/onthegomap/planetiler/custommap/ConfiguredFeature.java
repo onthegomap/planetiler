@@ -2,13 +2,14 @@ package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.constOf;
 import static com.onthegomap.planetiler.expression.Expression.not;
+import static com.onthegomap.planetiler.util.Coalesce.coalesce;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -40,6 +41,7 @@ public class ConfiguredFeature {
   private final ScriptEnvironment<Contexts.ProcessFeature> processFeatureContext;
   private final ScriptEnvironment<Contexts.FeatureAttribute> featureAttributeContext;
   private ScriptEnvironment<Contexts.FeaturePostMatch> featurePostMatchContext;
+  private final boolean splitAtIntersections;
 
 
   public ConfiguredFeature(FeatureLayer layer, TagValueProducer tagValueProducer, FeatureItem feature,
@@ -92,14 +94,20 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
+    Double buffer = layer.buffer();
+    if (buffer != null) {
+      processors.add((c, f) -> f.setBufferPixels(buffer));
+    }
 
     addPostProcessingImplications(layer, feature, processors, rootContext);
-    
+
     // per-feature tolerance settings should take precedence over defaults from post-processing config
     processors.add(makeFeatureProcessor(feature.tolerance(), Double.class, Feature::setPixelTolerance));
-    processors.add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
+    processors
+      .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
+    splitAtIntersections = feature.geometry() == FeatureGeometry.SPLIT_LINE;
   }
 
   /** Consider implications of Post Processing on the feature's processors **/
@@ -115,16 +123,21 @@ public class ConfiguredFeature {
       return;
     }
     // In order for Post-processing to receive all features, the default MinPixelSize* are zero when features are collected
-    processors.add(makeFeatureProcessor(Objects.requireNonNullElse(feature.minSize(),0), Double.class, Feature::setMinPixelSize));
-    processors.add(makeFeatureProcessor(Objects.requireNonNullElse(feature.minSizeAtMaxZoom(),0), Double.class, Feature::setMinPixelSizeAtMaxZoom));
+    processors.add(
+      makeFeatureProcessor(Objects.requireNonNullElse(feature.minSize(), 0), Double.class, Feature::setMinPixelSize));
+    processors.add(makeFeatureProcessor(Objects.requireNonNullElse(feature.minSizeAtMaxZoom(), 0), Double.class,
+      Feature::setMinPixelSizeAtMaxZoom));
     // Implications of tile_post_process.merge_line_strings
     var mergeLineStrings = postProcess.mergeLineStrings();
     if (mergeLineStrings != null) {
-      processors.add(makeLineFeatureProcessor(mergeLineStrings.tolerance(),Feature::setPixelTolerance));
-      processors.add(makeLineFeatureProcessor(mergeLineStrings.toleranceAtMaxZoom(),Feature::setPixelToleranceAtMaxZoom));
+      processors.add(makeLineFeatureProcessor(mergeLineStrings.tolerance(), Feature::setPixelTolerance));
+      processors
+        .add(makeLineFeatureProcessor(mergeLineStrings.toleranceAtMaxZoom(), Feature::setPixelToleranceAtMaxZoom));
       // postProcess.mergeLineStrings.minLength* and postProcess.mergeLineStrings.buffer
-      var bufferPixels = maxIgnoringNulls(mergeLineStrings.minLength(), mergeLineStrings.buffer());
-      var bufferPixelsAtMaxZoom = maxIgnoringNulls(mergeLineStrings.minLengthAtMaxZoom(), mergeLineStrings.buffer());
+      var bufferPixels = maxIgnoringNulls(mergeLineStrings.minLength(),
+        coalesce(mergeLineStrings.buffer(), layer.buffer()));
+      var bufferPixelsAtMaxZoom = maxIgnoringNulls(mergeLineStrings.minLengthAtMaxZoom(),
+        coalesce(mergeLineStrings.buffer(), layer.buffer()));
       int maxZoom = rootContext.config().maxzoomForRendering();
       if (bufferPixels != null || bufferPixelsAtMaxZoom != null) {
         processors.add((context, f) -> {
@@ -139,8 +152,9 @@ public class ConfiguredFeature {
     var mergePolygons = postProcess.mergePolygons();
     if (mergePolygons != null) {
       // postProcess.mergePolygons.tolerance*
-      processors.add(makePolygonFeatureProcessor(mergePolygons.tolerance(),Feature::setPixelTolerance));
-      processors.add(makePolygonFeatureProcessor(mergePolygons.toleranceAtMaxZoom(),Feature::setPixelToleranceAtMaxZoom));
+      processors.add(makePolygonFeatureProcessor(mergePolygons.tolerance(), Feature::setPixelTolerance));
+      processors
+        .add(makePolygonFeatureProcessor(mergePolygons.toleranceAtMaxZoom(), Feature::setPixelToleranceAtMaxZoom));
       // TODO: postProcess.mergeLineStrings.minArea*
     }
   }
@@ -363,8 +377,14 @@ public class ConfiguredFeature {
   }
 
   private Double maxIgnoringNulls(Double a, Double b) {
-    if (a == null) return b;
-    if (b == null) return a;
+    if (a == null)
+      return b;
+    if (b == null)
+      return a;
     return Double.max(a, b);
+  }
+
+  public boolean splitAtIntersections() {
+    return splitAtIntersections;
   }
 }

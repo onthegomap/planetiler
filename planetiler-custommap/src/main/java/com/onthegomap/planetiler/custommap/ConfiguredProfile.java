@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.expression.MultiExpression.Entry;
+import static com.onthegomap.planetiler.util.Coalesce.coalesce;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -8,10 +9,15 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.locationtech.jts.geom.Geometry;
 
 /**
  * A profile configured from a yml file.
@@ -30,6 +37,7 @@ public class ConfiguredProfile implements Profile {
   private final Index<ConfiguredFeature> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
+  private final Expression splitFeaturesAtWays;
 
   public ConfiguredProfile(SchemaConfig schema, Contexts.Root rootContext) {
     this.schema = schema;
@@ -44,6 +52,8 @@ public class ConfiguredProfile implements Profile {
 
     List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
 
+    List<Expression> splitAtIntersectionTests = new ArrayList<>();
+
     for (var layer : layers) {
       String layerId = layer.id();
       layersById.put(layerId, layer);
@@ -51,11 +61,23 @@ public class ConfiguredProfile implements Profile {
         var configuredFeature = new ConfiguredFeature(layer, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
         configuredFeatureEntries.add(entry);
+
+        if (configuredFeature.splitAtIntersections()) {
+          splitAtIntersectionTests.add(configuredFeature.matchExpression());
+        }
       }
     }
 
     featureLayerMatcher = MultiExpression.of(configuredFeatureEntries).index();
 
+    splitFeaturesAtWays =
+      splitAtIntersectionTests.isEmpty() ? null :
+        Expression.or(splitAtIntersectionTests)
+          .replace(e -> e instanceof Expression.MatchSource || e instanceof Expression.MatchSourceLayer,
+            Expression.TRUE)
+          .replace(Expression.matchType("linestring"), Expression.TRUE)
+          .replace(e -> e instanceof Expression.MatchType, Expression.FALSE)
+          .simplify();
   }
 
   @Override
@@ -112,7 +134,7 @@ public class ConfiguredProfile implements Profile {
           merge.toleranceAtMaxZoom() :
           merge.tolerance(),
         config.tolerance(zoom));
-      var buffer = Objects.requireNonNullElse(merge.buffer(), 4.0);
+      var buffer = coalesce(merge.buffer(), featureLayer.buffer(), 4.0);
 
       items = FeatureMerge.mergeLineStrings(items,
         minLength, // after merging, remove lines that are still less than {minLength}px long
@@ -127,7 +149,7 @@ public class ConfiguredProfile implements Profile {
         (zoom == config.maxzoomForRendering()) ?
           merge.minAreaAtMaxZoom() :
           merge.minArea(),
-        config.minFeatureSize(zoom)*config.minFeatureSize(zoom));
+        config.minFeatureSize(zoom) * config.minFeatureSize(zoom));
 
       items = FeatureMerge.mergeOverlappingPolygons(items,
         minArea // after merging, remove polygons that are still less than {minArea} in square tile pixels
@@ -159,5 +181,55 @@ public class ConfiguredProfile implements Profile {
 
   public FeatureLayer findFeatureLayer(String layerId) {
     return layersById.get(layerId);
+  }
+
+  @Override
+  public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
+
+    return splitFeaturesAtWays != null &&
+      OsmReader.canBeLine(way.isClosed(), way.getTag("area") instanceof String string ? string : null,
+        way.nodes().size()) &&
+      splitFeaturesAtWays
+        .evaluate(rootContext.createProcessFeatureContext(new TestForSplitFeature(way), tagValueProducer));
+  }
+
+  private static class TestForSplitFeature extends SourceFeature implements OsmSourceFeature<OsmElement.Way> {
+
+    private final OsmElement.Way way;
+
+    public TestForSplitFeature(OsmElement.Way way) {
+      super(way.tags(), null, null, List.of(), way.id());
+      this.way = way;
+    }
+
+    @Override
+    public Geometry worldGeometry() {
+      return GeoUtils.EMPTY_LINE;
+    }
+
+    @Override
+    public Geometry latLonGeometry() {
+      return GeoUtils.EMPTY_LINE;
+    }
+
+    @Override
+    public boolean isPoint() {
+      return false;
+    }
+
+    @Override
+    public boolean canBePolygon() {
+      return false;
+    }
+
+    @Override
+    public boolean canBeLine() {
+      return true;
+    }
+
+    @Override
+    public OsmElement.Way originalElement() {
+      return way;
+    }
   }
 }

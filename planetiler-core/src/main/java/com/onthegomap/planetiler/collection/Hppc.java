@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
+import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongByteHashMap;
 import com.carrotsearch.hppc.LongByteMap;
 import com.carrotsearch.hppc.LongIntHashMap;
@@ -44,5 +45,13 @@ public class Hppc {
 
   public static <T> SortedIterationLongObjectHashMap<T> sortedView(LongObjectHashMap<T> input) {
     return new SortedIterationLongObjectHashMap<>(input, Long::compare);
+  }
+
+  public static LongArrayList subList(LongArrayList nodes, int fromIndex, int toIndex) {
+    int length = toIndex - fromIndex;
+    LongArrayList result = new LongArrayList(length);
+    result.elementsCount = length;
+    System.arraycopy(nodes.buffer, fromIndex, result.buffer, 0, length);
+    return result;
   }
 }

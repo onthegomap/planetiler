@@ -32,7 +32,9 @@ public enum FeatureGeometry {
   @JsonProperty("point_on_line")
   POINT_ON_LINE(GeometryType.LINE, FeatureCollector::pointOnSurface),
   @JsonProperty("innermost_point")
-  INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint);
+  INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint),
+  @JsonProperty("split_line")
+  SPLIT_LINE(GeometryType.LINE, FeatureCollector::splitLine);
 
   public final GeometryType geometryType;
   public final BiFunction<FeatureCollector, String, FeatureCollector.Feature> geometryFactory;
