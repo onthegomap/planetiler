@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.expression.MultiExpression.Entry;
+import static com.onthegomap.planetiler.util.Coalesce.coalesce;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -133,7 +134,7 @@ public class ConfiguredProfile implements Profile {
           merge.toleranceAtMaxZoom() :
           merge.tolerance(),
         config.tolerance(zoom));
-      var buffer = Objects.requireNonNullElse(merge.buffer(), 4.0);
+      var buffer = coalesce(merge.buffer(), featureLayer.buffer(), 4.0);
 
       items = FeatureMerge.mergeLineStrings(items,
         minLength, // after merging, remove lines that are still less than {minLength}px long

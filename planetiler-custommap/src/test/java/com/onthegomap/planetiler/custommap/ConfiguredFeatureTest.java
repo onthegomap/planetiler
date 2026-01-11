@@ -1911,4 +1911,27 @@ class ConfiguredFeatureTest {
       "key", "value"
     ), LongArrayList.from(1, 2), new OsmElement.Info(1L, 2L, 3, 4, "user"))));
   }
+
+  @Test
+  void testBuffer() {
+    testPolygon("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        buffer: 5
+        features:
+        - source: osm
+          geometry: polygon
+      """, Map.of(
+      "int", "1",
+      "long", "-1",
+      "double", "1.5"
+    ), feature -> {
+      assertEquals(5, feature.getBufferPixelsAtZoom(14));
+    }, 1);
+  }
 }

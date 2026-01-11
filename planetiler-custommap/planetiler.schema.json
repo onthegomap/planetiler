@@ -133,6 +133,10 @@
               "$ref": "#/$defs/feature"
             }
           },
+          "buffer": {
+            "description": "The default number of pixels of detail to render outside the visible tile boundary",
+            "type": "number"
+          },
           "tile_post_process": {
             "description": "Optional processing operations to merge features with the same attributes in a rendered tile",
             "$ref": "#/$defs/tile_post_process"

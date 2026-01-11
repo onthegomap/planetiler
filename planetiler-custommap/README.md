@@ -197,6 +197,7 @@ Built-in arguments can also be accessed from the config file if desired: `${ arg
 A layer contains a thematically-related set of features from one or more input sources.
 
 - `id` - Unique name of this layer
+- `buffer` - The default number of pixels of detail to render outside the visible tile boundary
 - `features` - A list of features contained in this layer. See [Layer Features](#layer-feature)
 - `tile_post_process` - Optional processing operations to merge features with the same attributes in a rendered tile.
   See [Tile Post Process](#tile-post-process)

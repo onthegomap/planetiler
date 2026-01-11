@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.constOf;
 import static com.onthegomap.planetiler.expression.Expression.not;
+import static com.onthegomap.planetiler.util.Coalesce.coalesce;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
@@ -93,6 +94,10 @@ public class ConfiguredFeature {
     }
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
+    Double buffer = layer.buffer();
+    if (buffer != null) {
+      processors.add((c, f) -> f.setBufferPixels(buffer));
+    }
 
     addPostProcessingImplications(layer, feature, processors, rootContext);
 
@@ -129,8 +134,10 @@ public class ConfiguredFeature {
       processors
         .add(makeLineFeatureProcessor(mergeLineStrings.toleranceAtMaxZoom(), Feature::setPixelToleranceAtMaxZoom));
       // postProcess.mergeLineStrings.minLength* and postProcess.mergeLineStrings.buffer
-      var bufferPixels = maxIgnoringNulls(mergeLineStrings.minLength(), mergeLineStrings.buffer());
-      var bufferPixelsAtMaxZoom = maxIgnoringNulls(mergeLineStrings.minLengthAtMaxZoom(), mergeLineStrings.buffer());
+      var bufferPixels = maxIgnoringNulls(mergeLineStrings.minLength(),
+        coalesce(mergeLineStrings.buffer(), layer.buffer()));
+      var bufferPixelsAtMaxZoom = maxIgnoringNulls(mergeLineStrings.minLengthAtMaxZoom(),
+        coalesce(mergeLineStrings.buffer(), layer.buffer()));
       int maxZoom = rootContext.config().maxzoomForRendering();
       if (bufferPixels != null || bufferPixelsAtMaxZoom != null) {
         processors.add((context, f) -> {
