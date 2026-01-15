@@ -313,7 +313,7 @@ public class TileArchiveWriter {
                   .useFSST(config.mltFsst())
                   .coercePropertyValues(true)
                   .optimizations(optimizations)
-                  .preTessellatePolygons(false)
+                  .preTessellatePolygons(config.mltTessellatePolygons())
                   .useMortonEncoding(true)
                   .build();
                 var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
