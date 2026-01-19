@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiLineString;
@@ -191,19 +192,73 @@ public class SimpleFeature extends SourceFeature {
     return tags;
   }
 
+  private boolean isCollectionOfPoints() {
+    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
+    if (geom instanceof GeometryCollection collection) {
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        if (!isPoint(collection.getGeometryN(i))) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private static boolean isPoint(Geometry geom) {
+    return geom instanceof Puntal;
+  }
+
   @Override
   public boolean isPoint() {
-    return latLonGeometry instanceof Puntal || worldGeometry instanceof Puntal;
+    return isPoint(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfPoints();
+  }
+
+  private boolean isCollectionOfPolygons() {
+    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
+    if (geom instanceof GeometryCollection collection) {
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        if (!canBePolygon(collection.getGeometryN(i))) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private static boolean canBePolygon(Geometry geom) {
+    return geom instanceof Polygonal;
   }
 
   @Override
   public boolean canBePolygon() {
-    return latLonGeometry instanceof Polygonal || worldGeometry instanceof Polygonal;
+    return canBePolygon(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfPolygons();
+  }
+
+  private boolean isCollectionOfLines() {
+    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
+    if (geom instanceof GeometryCollection collection) {
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        if (!canBeLine(collection.getGeometryN(i))) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  private static boolean canBeLine(Geometry geom) {
+    return geom instanceof Lineal;
   }
 
   @Override
   public boolean canBeLine() {
-    return latLonGeometry instanceof Lineal || worldGeometry instanceof Lineal;
+    return canBeLine(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfLines();
   }
 
   @Override
