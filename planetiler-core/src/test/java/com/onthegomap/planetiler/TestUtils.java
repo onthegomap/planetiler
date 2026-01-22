@@ -29,6 +29,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.validator.BaseSchemaValidator;
@@ -508,7 +509,7 @@ public class TestUtils {
     String layer,
     Map<String, Object> attrs,
     Long id
-  ) {
+  ) implements WithTags {
     ComparableFeature(
       GeometryComparision geometry,
       String layer,
@@ -535,6 +536,11 @@ public class TestUtils {
 
     ComparableFeature withId(long id) {
       return new ComparableFeature(geometry, layer, attrs, id);
+    }
+
+    @Override
+    public Map<String, Object> tags() {
+      return attrs;
     }
   }
 

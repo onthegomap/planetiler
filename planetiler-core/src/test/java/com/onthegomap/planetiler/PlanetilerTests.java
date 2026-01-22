@@ -2371,7 +2371,8 @@ class PlanetilerTests {
     "--compress-temp",
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
-    "--tile-format=mlt --mlt-advanced",
+    "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --exclude-ids",
+    "--exclude-ids",
     "--output-format=pmtiles",
     "--output-format=pmtiles --tile-format=mlt",
     "--output-format=csv",
@@ -2431,7 +2432,7 @@ class PlanetilerTests {
           if (source.canBePolygon() && source.hasTag("building", "yes")) {
             features.polygon("building").setZoomRange(0, 14).setMinPixelSize(1);
           } else if (source.isPoint() && source.hasTag("place")) {
-            features.point("place").setZoomRange(0, 14);
+            features.point("place").setZoomRange(0, 14).inheritAttrFromSource("name");
           }
         }
       })
@@ -2450,18 +2451,31 @@ class PlanetilerTests {
 
     try (var db = readableTileArchiveFactory.create(outputPath)) {
       int features = 0;
+      int featuresWithIds = 0;
+      int monacoPoints = 0;
       var tileMap = TestUtils.getTileMap(db, tileCompression, tileFormat);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
           features++;
+          if (feature.hasTag("name", "Monaco")) {
+            monacoPoints++;
+          }
+          if (feature.id() != 0) {
+            featuresWithIds++;
+          }
         }
       }
+
+      assertEquals(30, monacoPoints, "monaco points");
 
       int expectedFeatures = args.contains("max-point-buffer=1") ? 2311 : 2313;
 
       assertEquals(22, tileMap.size(), "num tiles");
       assertEquals(expectedFeatures, features, "num feature");
+
+      int expectedIds = args.contains("exclude-ids") ? 0 : expectedFeatures;
+      assertEquals(expectedIds, featuresWithIds);
 
       final boolean checkMetadata = switch (format) {
         case MBTILES -> true;
