@@ -270,24 +270,7 @@ public class TileSizeStats {
             byte[] tile = countStream.readNBytes((int) (bodySize - countStream.getCount()));
             final var offset = new IntWrapper(0);
             for (var columnMetadata : metadata.columns) {
-              final var hasStreamCount = MltTypeMap.Tag0x01.hasStreamCount(columnMetadata);
-              int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
-
-              int start = offset.get();
-              if (numStreams == 0) {
-                if (columnMetadata.isNullable) {
-                  skipOverStream(tile, offset);
-                }
-                skipOverStream(tile, offset);
-              } else {
-                for (int i = 0; i < numStreams; i++) {
-                  skipOverStream(tile, offset);
-                }
-              }
-              int size = offset.get() - start;
-              if (!MltTypeMap.Tag0x01.isGeometry(columnMetadata) && !MltTypeMap.Tag0x01.isID(columnMetadata)) {
-                attrBytes += size;
-              }
+              attrBytes += consumeColumn(columnMetadata, tile, offset);
             }
             encodedLayerSizes.put(metadata.name, length);
             encodedLayerAttributeSizes.put(metadata.name, attrBytes);
@@ -309,6 +292,40 @@ public class TileSizeStats {
       vtile.getNumKeys(layer.name()),
       vtile.getNumValues(layer.name())
     )).toList();
+  }
+
+  private static int consumeColumn(MltMetadata.Field columnMetadata, byte[] tile, IntWrapper offset)
+    throws IOException {
+    final var hasStreamCount =
+      columnMetadata instanceof MltMetadata.Column col && MltTypeMap.Tag0x01.hasStreamCount(col);
+    int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
+
+    int start = offset.get();
+    if (numStreams == 0) {
+      if (columnMetadata.isNullable) {
+        skipOverStream(tile, offset);
+      }
+      skipOverStream(tile, offset);
+    } else if (columnMetadata.complexType != null &&
+      columnMetadata.complexType.physicalType == MltMetadata.ComplexType.STRUCT) {
+      // skip over shared dictionary
+      skipOverStream(tile, offset);
+      skipOverStream(tile, offset);
+
+      for (var child : columnMetadata.complexType.children) {
+        consumeColumn(child, tile, offset);
+      }
+    } else {
+      for (int i = 0; i < numStreams; i++) {
+        skipOverStream(tile, offset);
+      }
+    }
+    int size = offset.get() - start;
+    if (columnMetadata instanceof MltMetadata.Column col && !MltTypeMap.Tag0x01.isGeometry(col) &&
+      !MltTypeMap.Tag0x01.isID(col)) {
+      return size;
+    }
+    return 0;
   }
 
   private static void skipOverStream(byte[] tile, IntWrapper offset) throws IOException {
