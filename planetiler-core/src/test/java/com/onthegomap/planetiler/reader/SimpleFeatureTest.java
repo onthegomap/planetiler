@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -135,7 +136,12 @@ class SimpleFeatureTest {
     return List.of(
       GeoUtils.JTS_FACTORY.createGeometryCollection(pl.toArray(new Geometry[0])),
       GeoUtils.JTS_FACTORY.createGeometryCollection(lp.toArray(new Geometry[0])),
-      GeoUtils.JTS_FACTORY.createGeometryCollection(plp.toArray(new Geometry[0]))
+      GeoUtils.JTS_FACTORY.createGeometryCollection(plp.toArray(new Geometry[0])),
+      GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(point).toArray(new Geometry[0])),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(line).toArray(new Geometry[0])),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(polygon).toArray(new Geometry[0]))
+      ).toArray(new Geometry[0]))
     );
   }
 
@@ -173,10 +179,22 @@ class SimpleFeatureTest {
     return Stream.of(
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(new Geometry[0])), 0, 0),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(new Geometry[0])), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+        GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(new Geometry[0])),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(new Geometry[0]))
+      ).toArray(new Geometry[0])), 1.0 / 3.0, 1.0 / 3.0),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(new Geometry[0])), 0.5, 0.5),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(new Geometry[0])), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+        GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(new Geometry[0])),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(new Geometry[0]))
+      ).toArray(new Geometry[0])), 0.5, 0.5),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(new Geometry[0])), 0.5, 0.5),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(new Geometry[0])), 0.5, 0.5)
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(new Geometry[0])), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(new Geometry[0])),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(new Geometry[0]))
+      ).toArray(new Geometry[0])), 0.5, 0.5)
     );
   }
 
