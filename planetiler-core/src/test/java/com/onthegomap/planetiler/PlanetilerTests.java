@@ -1539,6 +1539,93 @@ class PlanetilerTests {
     ), results.tiles);
   }
 
+  static Stream<org.junit.jupiter.params.provider.Arguments> polygonCollections() {
+    double x1 = 0.125;
+    double y1 = 0.125;
+    double x2 = 0.875;
+    double y2 = 0.875;
+    double x3 = 0.25;
+    double y3 = 0.25;
+    double x4 = 0.75;
+    double y4 = 0.75;
+    double x5 = 0.375;
+    double y5 = 0.375;
+    double x6 = 0.625;
+    double y6 = 0.625;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+    double lat3 = GeoUtils.getWorldLat(y3);
+    double lng3 = GeoUtils.getWorldLon(x3);
+    double lat4 = GeoUtils.getWorldLat(y4);
+    double lng4 = GeoUtils.getWorldLon(x4);
+    double lat5 = GeoUtils.getWorldLat(y5);
+    double lng5 = GeoUtils.getWorldLon(x5);
+    double lat6 = GeoUtils.getWorldLat(y6);
+    double lng6 = GeoUtils.getWorldLon(x6);
+
+    var polygon1 = newPolygon(
+      rectangleCoordList(lng1, lat1, lng2, lat2),
+      List.of(rectangleCoordList(lng3, lat3, lng4, lat4))
+    );
+    var polygon2 = rectangle(lng5, lat5, lng6, lat6);
+
+    return Stream.of(
+      // one collection with several polygons
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          polygon1,
+          polygon2
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one polygon, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(polygon1).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(polygon2).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("polygonCollections")
+  void testPolygonCollection(List<SimpleFeature> polygons) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      polygons,
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 0)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(rectangle(0.375 * 256, 0.625 * 256), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPolygon(
+          rectangleCoordList(0.125 * 256, 0.875 * 256),
+          List.of(
+            rectangleCoordList(0.25 * 256, 0.75 * 256)
+          )
+        ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
   @Test
   void testOsmLineInRelation() throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
