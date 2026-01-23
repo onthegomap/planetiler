@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
@@ -10,12 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.Puntal;
 
 /**
  * An input feature read from a data source with geometry and tags known at creation-time.
@@ -192,73 +190,19 @@ public class SimpleFeature extends SourceFeature {
     return tags;
   }
 
-  private boolean isCollectionOfPoints() {
-    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
-    if (geom instanceof GeometryCollection collection) {
-      for (int i = 0; i < collection.getNumGeometries(); i++) {
-        if (!isPoint(collection.getGeometryN(i))) {
-          return false;
-        }
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  private static boolean isPoint(Geometry geom) {
-    return geom instanceof Puntal;
-  }
-
   @Override
   public boolean isPoint() {
-    return isPoint(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfPoints();
-  }
-
-  private boolean isCollectionOfPolygons() {
-    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
-    if (geom instanceof GeometryCollection collection) {
-      for (int i = 0; i < collection.getNumGeometries(); i++) {
-        if (!canBePolygon(collection.getGeometryN(i))) {
-          return false;
-        }
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  private static boolean canBePolygon(Geometry geom) {
-    return geom instanceof Polygonal;
+    return GeometryType.POINT.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override
   public boolean canBePolygon() {
-    return canBePolygon(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfPolygons();
-  }
-
-  private boolean isCollectionOfLines() {
-    Geometry geom = latLonGeometry != null ? latLonGeometry : worldGeometry;
-    if (geom instanceof GeometryCollection collection) {
-      for (int i = 0; i < collection.getNumGeometries(); i++) {
-        if (!canBeLine(collection.getGeometryN(i))) {
-          return false;
-        }
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  private static boolean canBeLine(Geometry geom) {
-    return geom instanceof Lineal;
+    return GeometryType.POLYGON.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override
   public boolean canBeLine() {
-    return canBeLine(latLonGeometry != null ? latLonGeometry : worldGeometry) || isCollectionOfLines();
+    return GeometryType.LINE.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override
