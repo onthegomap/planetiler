@@ -39,9 +39,9 @@ public enum GeometryType {
 
   public static GeometryType typeOf(Geometry geom) {
     if (geom instanceof GeometryCollection collection && collection.getNumGeometries() >= 1) {
-      var result = typeOfPrimitive(collection.getGeometryN(0));
+      var result = typeOf(collection.getGeometryN(0));
       for (int i = 1; i < collection.getNumGeometries(); i++) {
-        if (!result.equals(typeOfPrimitive(collection.getGeometryN(i)))) {
+        if (!result.equals(typeOf(collection.getGeometryN(i)))) {
           return UNKNOWN;
         }
       }
