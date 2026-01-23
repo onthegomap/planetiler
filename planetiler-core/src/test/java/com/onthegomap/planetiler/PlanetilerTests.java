@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -235,7 +236,7 @@ class PlanetilerTests {
     );
   }
 
-  private SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
+  private static SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
     return SimpleFeature.create(geometry, attrs);
   }
 
@@ -443,6 +444,75 @@ class PlanetilerTests {
           newPoint(64, 64),
           newPoint(65, 65)
         ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  static Stream<org.junit.jupiter.params.provider.Arguments> pointCollections() {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z13_WIDTH / 256d;
+    double y2 = y1 + Z13_WIDTH / 256d;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    return Stream.of(
+      // one collection with several points
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          newPoint(lng1, lat1),
+          newPoint(lng2, lat2)
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one point, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(newPoint(lng1, lat1)).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(newPoint(lng2, lat2)).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  // note: Same as testMultiPoint() but we get list of points in the result, not one multipoint
+  @ParameterizedTest
+  @MethodSource("pointCollections")
+  void testPointCollection(List<SimpleFeature> points) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      points,
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(128, 128), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPoint(130, 130), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newPoint(64, 64), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPoint(65, 65), Map.of(
           "attr", "value",
           "name", "name value"
         ))
@@ -717,6 +787,7 @@ class PlanetilerTests {
     ), results.tiles);
   }
 
+  // TODO: multilines are handles same as collection of lines (e.g. multiline is the result) => merge this into lineCollections()
   @Test
   void testMultiLineString() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
@@ -738,6 +809,73 @@ class PlanetilerTests {
           "attr", "value"
         ))
       ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .setBufferPixels(4)
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newMultiLineString(
+          newLineString(128, 128, 260, 260),
+          newLineString(260, 260, 128, 128)
+        ), Map.of())
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14), List.of(
+        feature(newMultiLineString(
+          newLineString(-4, -4, 128, 128),
+          newLineString(128, 128, -4, -4)
+        ), Map.of())
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newMultiLineString(
+          newLineString(64, 64, 192, 192),
+          newLineString(192, 192, 64, 64)
+        ), Map.of())
+      )
+    ), results.tiles);
+  }
+
+  static Stream<org.junit.jupiter.params.provider.Arguments> lineCollections() {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z14_WIDTH;
+    double y2 = y1 + Z14_WIDTH;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    return Stream.of(
+      // one collection with several lines
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          newLineString(lng1, lat1, lng2, lat2),
+          newLineString(lng2, lat2, lng1, lat1)
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one line, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(newLineString(lng1, lat1, lng2, lat2)).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(newLineString(lng2, lat2, lng1, lat1)).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("lineCollections")
+  void testLineCollection(List<SimpleFeature> lines) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      lines,
       (in, features) -> features.line("layer")
         .setZoomRange(13, 14)
         .setBufferPixels(4)
