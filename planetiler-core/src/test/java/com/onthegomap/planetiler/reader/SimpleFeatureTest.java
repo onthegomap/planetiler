@@ -59,7 +59,7 @@ class SimpleFeatureTest {
     var lines = List.of(line);
     return List.of(
       line,
-      GeoUtils.JTS_FACTORY.createGeometryCollection(lines.toArray(new Geometry[0]))
+      GeoUtils.JTS_FACTORY.createGeometryCollection(lines.toArray(Geometry[]::new))
     );
   }
 
@@ -83,7 +83,7 @@ class SimpleFeatureTest {
     var polygons = List.of(polygon);
     return List.of(
       polygon,
-      GeoUtils.JTS_FACTORY.createGeometryCollection(polygons.toArray(new Geometry[0]))
+      GeoUtils.JTS_FACTORY.createGeometryCollection(polygons.toArray(Geometry[]::new))
     );
   }
 
@@ -107,7 +107,7 @@ class SimpleFeatureTest {
     var points = List.of(point);
     return List.of(
       point,
-      GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]))
+      GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(Geometry[]::new))
     );
   }
 
@@ -134,14 +134,14 @@ class SimpleFeatureTest {
     var lp = List.of(line, polygon);
     var plp = List.of(point, line, polygon);
     return List.of(
-      GeoUtils.JTS_FACTORY.createGeometryCollection(pl.toArray(new Geometry[0])),
-      GeoUtils.JTS_FACTORY.createGeometryCollection(lp.toArray(new Geometry[0])),
-      GeoUtils.JTS_FACTORY.createGeometryCollection(plp.toArray(new Geometry[0])),
+      GeoUtils.JTS_FACTORY.createGeometryCollection(pl.toArray(Geometry[]::new)),
+      GeoUtils.JTS_FACTORY.createGeometryCollection(lp.toArray(Geometry[]::new)),
+      GeoUtils.JTS_FACTORY.createGeometryCollection(plp.toArray(Geometry[]::new)),
       GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
-        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(point).toArray(new Geometry[0])),
-        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(line).toArray(new Geometry[0])),
-        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(polygon).toArray(new Geometry[0]))
-      ).toArray(new Geometry[0]))
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(point).toArray(Geometry[]::new)),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(line).toArray(Geometry[]::new)),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(polygon).toArray(Geometry[]::new))
+      ).toArray(Geometry[]::new))
     );
   }
 
@@ -177,24 +177,24 @@ class SimpleFeatureTest {
     var polygons2 = List.of(polygon1, polygon2);
 
     return Stream.of(
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(new Geometry[0])), 0, 0),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(new Geometry[0])), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(Geometry[]::new)), 0, 0),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(Geometry[]::new)), 0.5, 0.5),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
-        GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(new Geometry[0])),
-        GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(new Geometry[0]))
-      ).toArray(new Geometry[0])), 1.0 / 3.0, 1.0 / 3.0),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(new Geometry[0])), 0.5, 0.5),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(new Geometry[0])), 0.5, 0.5),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(points1.toArray(Geometry[]::new)),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(points2.toArray(Geometry[]::new))
+      ).toArray(Geometry[]::new)), 1.0 / 3.0, 1.0 / 3.0),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(Geometry[]::new)), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(Geometry[]::new)), 0.5, 0.5),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
-        GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(new Geometry[0])),
-        GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(new Geometry[0]))
-      ).toArray(new Geometry[0])), 0.5, 0.5),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(new Geometry[0])), 0.5, 0.5),
-      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(new Geometry[0])), 0.5, 0.5),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(lines1.toArray(Geometry[]::new)),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(lines2.toArray(Geometry[]::new))
+      ).toArray(Geometry[]::new)), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(Geometry[]::new)), 0.5, 0.5),
+      Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(Geometry[]::new)), 0.5, 0.5),
       Arguments.of(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
-        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(new Geometry[0])),
-        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(new Geometry[0]))
-      ).toArray(new Geometry[0])), 0.5, 0.5)
+        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons1.toArray(Geometry[]::new)),
+        GeoUtils.JTS_FACTORY.createGeometryCollection(polygons2.toArray(Geometry[]::new))
+      ).toArray(Geometry[]::new)), 0.5, 0.5)
     );
   }
 
