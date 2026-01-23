@@ -41,7 +41,7 @@ public enum GeometryType {
     if (geom instanceof GeometryCollection collection && collection.getNumGeometries() >= 1) {
       var result = typeOfPrimitive(collection.getGeometryN(0));
       for (int i = 1; i < collection.getNumGeometries(); i++) {
-        if (!result.equals(typeOfPrimitive(collection.getGeometryN(1)))) {
+        if (!result.equals(typeOfPrimitive(collection.getGeometryN(i)))) {
           return UNKNOWN;
         }
       }
