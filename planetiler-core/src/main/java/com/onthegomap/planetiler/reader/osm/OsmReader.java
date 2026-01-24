@@ -99,18 +99,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongLongMultimap.Replaceable multipolygonWayGeometries;
   // for relation_members: track relations that need member processing
   private Roaring64Bitmap relationsForMemberProcessing = new Roaring64Bitmap();
-  private final Object relationsForMemberProcessingLock = new Object();
-  // for relation_members: track ways that are members of relations we care about
+  // for relation_members: track node-to-relation membership
+  private LongLongMultimap.Appendable nodesToRelations = LongLongMultimap.newAppendableMultimap();
+  // for relation_members: track ways-to-relation membership
   private Roaring64Bitmap waysInRelationMembers = new Roaring64Bitmap();
-  private final Object waysInRelationMembersLock = new Object();
   // for relation_members: store way geometries (node IDs) for member ways
   private LongLongMultimap.Replaceable relationMembersWayGeometries;
   // for relation_members: store way tags for member ways
   private LongObjectHashMap<Map<String, Object>> relationMembersWayTags = Hppc.newLongObjectHashMap();
   private final Object relationMembersWayTagsLock = new Object();
-  // for relation_members: track nodes that are members of relations we care about
-  private Roaring64Bitmap nodesInRelationMembers = new Roaring64Bitmap();
-  private final Object nodesInRelationMembersLock = new Object();
   // for relation_members: store node tags for member nodes
   private LongObjectHashMap<Map<String, Object>> relationMembersNodeTags = Hppc.newLongObjectHashMap();
   private final Object relationMembersNodeTagsLock = new Object();
@@ -285,19 +282,28 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             try {
               List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
               if (infos != null && !infos.isEmpty()) {
+                boolean needsMemberProcessing = infos.stream()
+                  .anyMatch(info -> info.getClass().getName().contains("RelationMembersInfo"));
                 synchronized (wayToRelationsLock) {
+                  if (needsMemberProcessing) {
+                    relationsForMemberProcessing.add(relation.id());
+                  }
                   for (OsmRelationInfo info : infos) {
                     relationInfo.put(relation.id(), info);
                     relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
                   }
                   for (var member : relation.members()) {
                     var type = member.type();
-                    // TODO handle nodes in relations
-                    if (type == OsmElement.Type.WAY) {
+                    if (type == OsmElement.Type.NODE) {
+                      nodesToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                    } else if (type == OsmElement.Type.WAY) {
                       wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                      if (needsMemberProcessing) {
+                        waysInRelationMembers.add(member.ref());
+                      }
                     } else if (type == OsmElement.Type.RELATION) {
                       relationToParentRelations.put(member.ref(),
-                        encodeRelationMembership(member.role(), relation.id()));
+                          encodeRelationMembership(member.role(), relation.id()));
                     }
                   }
                 }
@@ -312,32 +318,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                   if (member.type() == OsmElement.Type.WAY) {
                     waysInMultipolygon.add(member.ref());
                   }
-                }
-              }
-            }
-            // Track relations that need member processing (relation_members geometry)
-            // Note: RelationMembersInfo is in a different module, so we check by class name
-            List<OsmRelationInfo> infos = relationInfo.get(relation.id()) != null ?
-              List.of(relationInfo.get(relation.id())) : null;
-            if (infos != null && !infos.isEmpty()) {
-              for (OsmRelationInfo info : infos) {
-                String className = info.getClass().getName();
-                if (className.contains("RelationMembersInfo")) {
-                  synchronized (relationsForMemberProcessingLock) {
-                    relationsForMemberProcessing.add(relation.id());
-                  }
-                  synchronized (waysInRelationMembersLock) {
-                    synchronized (nodesInRelationMembersLock) {
-                      for (var member : relation.members()) {
-                        if (member.type() == OsmElement.Type.WAY) {
-                          waysInRelationMembers.add(member.ref());
-                        } else if (member.type() == OsmElement.Type.NODE) {
-                          nodesInRelationMembers.add(member.ref());
-                        }
-                      }
-                    }
-                  }
-                  break;
                 }
               }
             }
@@ -400,34 +380,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             // Process as relation_members if applicable (independent check - can be both)
             if (relationsForMemberProcessing.contains(relation.id())) {
               List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(relation.id());
-              RelationMemberDataProvider dataProvider = new RelationMemberDataProvider() {
-                @Override
-                public LongArrayList getWayGeometry(long wayId) {
-                  return relationMembersWayGeometries != null ? relationMembersWayGeometries.get(wayId) : null;
-                }
-                
-                @Override
-                public Map<String, Object> getWayTags(long wayId) {
-                  return relationMembersWayTags != null ? relationMembersWayTags.get(wayId) : null;
-                }
-                
-                @Override
-                public Map<String, Object> getNodeTags(long nodeId) {
-                  return relationMembersNodeTags != null ? relationMembersNodeTags.get(nodeId) : null;
-                }
-                
-                @Override
-                public org.locationtech.jts.geom.Coordinate getNodeCoordinate(long nodeId) {
-                  long encoded = nodeLocationDb.get(nodeId);
-                  if (encoded == LongLongMap.MISSING_VALUE) {
-                    return null;
-                  }
-                  return new org.locationtech.jts.geom.CoordinateXY(
-                    GeoUtils.decodeWorldX(encoded),
-                    GeoUtils.decodeWorldY(encoded)
-                  );
-                }
-              };
+              RelationMemberDataProvider dataProvider = createRelationMemberDataProvider();
               SourceFeature relationMembersFeature = new RelationSourceFeature(relation, parentRelations, dataProvider);
               render(featureCollectors, renderer, relation, relationMembersFeature);
             }
@@ -579,15 +532,48 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     );
   }
 
+  private RelationMemberDataProvider createRelationMemberDataProvider() {
+    return new RelationMemberDataProvider() {
+      @Override
+      public LongArrayList getWayGeometry(long wayId) {
+        return relationMembersWayGeometries != null ? relationMembersWayGeometries.get(wayId) : null;
+      }
+
+      @Override
+      public Map<String, Object> getWayTags(long wayId) {
+        return relationMembersWayTags != null ? relationMembersWayTags.get(wayId) : null;
+      }
+
+      @Override
+      public Map<String, Object> getNodeTags(long nodeId) {
+        return relationMembersNodeTags != null ? relationMembersNodeTags.get(nodeId) : null;
+      }
+
+      @Override
+      public org.locationtech.jts.geom.Coordinate getNodeCoordinate(long nodeId) {
+        long encoded = nodeLocationDb.get(nodeId);
+        if (encoded == LongLongMap.MISSING_VALUE) {
+          return null;
+        }
+        return new org.locationtech.jts.geom.CoordinateXY(
+          GeoUtils.decodeWorldX(encoded),
+          GeoUtils.decodeWorldY(encoded)
+        );
+      }
+    };
+  }
+
   SourceFeature processNodePass2(OsmElement.Node node) {
     // nodes are simple because they already contain their location
-    // Store node tags if this node is a member of a relation we care about
-    if (nodesInRelationMembers.contains(node.id())) {
+    // Store node tags if this node is a member of a relation_members relation
+    //
+    if (!nodesToRelations.get(node.id()).isEmpty()) {
       synchronized (relationMembersNodeTagsLock) {
         relationMembersNodeTags.put(node.id(), node.tags());
       }
     }
-    return new NodeSourceFeature(node);
+    List<RelationMember<OsmRelationInfo>> rels = getRelationMembershipForNode(node.id());
+    return new NodeSourceFeature(node, rels);
   }
 
   SourceFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
@@ -601,7 +587,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         multipolygonWayGeometries.replaceValues(way.id(), nodes);
       }
     }
-    // Store way geometry and tags if this way is a member of a relation we care about
+    // Store way geometry and tags if this way is a member of a relation_members relation
     if (waysInRelationMembers.contains(way.id())) {
       synchronized (this) {
         relationMembersWayGeometries.replaceValues(way.id(), nodes);
@@ -627,41 +613,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     if (relationsForMemberProcessing.contains(rel.id())) {
       // This relation needs member processing (relation_members geometry)
       List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.id());
-      RelationMemberDataProvider dataProvider = new RelationMemberDataProvider() {
-        @Override
-        public LongArrayList getWayGeometry(long wayId) {
-          return relationMembersWayGeometries != null ? relationMembersWayGeometries.get(wayId) : null;
-        }
-        
-        @Override
-        public Map<String, Object> getWayTags(long wayId) {
-          return relationMembersWayTags != null ? relationMembersWayTags.get(wayId) : null;
-        }
-        
-        @Override
-        public Map<String, Object> getNodeTags(long nodeId) {
-          return relationMembersNodeTags != null ? relationMembersNodeTags.get(nodeId) : null;
-        }
-        
-        @Override
-        public org.locationtech.jts.geom.Coordinate getNodeCoordinate(long nodeId) {
-          long encoded = nodeLocationDb.get(nodeId);
-          if (encoded == LongLongMap.MISSING_VALUE) {
-            return null;
-          }
-          return new org.locationtech.jts.geom.CoordinateXY(
-            GeoUtils.decodeWorldX(encoded),
-            GeoUtils.decodeWorldY(encoded)
-          );
-        }
-      };
+      RelationMemberDataProvider dataProvider = createRelationMemberDataProvider();
       return new RelationSourceFeature(rel, parentRelations, dataProvider);
     }
     return null;
   }
 
-  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForWay(long wayId) {
-    LongArrayList relationIds = wayToRelations.get(wayId);
+  private List<RelationMember<OsmRelationInfo>> getRelationMembership(
+    LongLongMultimap.Appendable relationshipMap, long elementId) {
+    LongArrayList relationIds = relationshipMap.get(elementId);
     List<RelationMember<OsmRelationInfo>> rels = null;
     if (!relationIds.isEmpty()) {
       rels = new ArrayList<>(relationIds.size());
@@ -685,6 +645,14 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       }
     }
     return rels;
+  }
+
+  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForWay(long wayId) {
+    return getRelationMembership(wayToRelations, wayId);
+  }
+
+  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForNode(long nodeId) {
+    return getRelationMembership(nodesToRelations, nodeId);
   }
 
   private List<RelationMember<OsmRelationInfo>> getRelationInfosForRelationId(long relationIdAndRole,
@@ -712,10 +680,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += waysInMultipolygon == null ? 0 : waysInMultipolygon.serializedSizeInBytes();
     // multipolygonWayGeometries is reported separately
     size += waysInRelationMembers == null ? 0 : waysInRelationMembers.serializedSizeInBytes();
-    size += nodesInRelationMembers == null ? 0 : nodesInRelationMembers.serializedSizeInBytes();
     size += estimateSize(relationMembersWayTags);
     size += estimateSize(relationMembersNodeTags);
     size += estimateSize(wayToRelations);
+    size += estimateSize(nodesToRelations);
     size += estimateSize(relationToParentRelations);
     size += estimateSize(relationInfo);
     size += estimateSize(roleIdsReverse);
@@ -736,10 +704,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       relationMembersWayGeometries = null;
     }
     wayToRelations = null;
+    nodesToRelations = null;
     relationToParentRelations = null;
     waysInMultipolygon = null;
     waysInRelationMembers = null;
-    nodesInRelationMembers = null;
     relationMembersWayTags = null;
     relationMembersNodeTags = null;
     relationInfo = null;
@@ -879,6 +847,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     NodeSourceFeature(OsmElement.Node node) {
       super(node, true, false, false, null);
+      this.encodedLocation = node.encodedLocation();
+    }
+
+    NodeSourceFeature(OsmElement.Node node, List<RelationMember<OsmRelationInfo>> relationInfo) {
+      super(node, true, false, false, relationInfo);
       this.encodedLocation = node.encodedLocation();
     }
 
