@@ -18,11 +18,11 @@ jobs:
     steps:
     # report status back to pull request
     - uses: haya14busa/action-workflow_run-status@v1
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: 'Download branch build info'
-      uses: dawidd6/action-download-artifact@v11
+      uses: dawidd6/action-download-artifact@v12
       with:
         workflow: ${{ github.event.workflow_run.workflow_id }}
         run_id: ${{ github.event.workflow_run.id }}

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Set up JDK 21
@@ -34,18 +34,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        jdk: [ 21, 23, 24 ]
-        include:
-        - os: ubuntu-latest
-          jdk: 21
-          args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
-        - os: ubuntu-latest
-          jdk: 21
-          args: ""
+        jdk: [ 21, 25 ]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Set up JDK ${{ matrix.jdk }}
@@ -69,7 +62,7 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Set up JDK 21
@@ -95,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Cache data/sources
@@ -111,7 +104,7 @@ jobs:
       run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
 
     - name: 'Upload artifact'
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
@@ -132,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Cache data/sources

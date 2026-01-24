@@ -532,9 +532,18 @@ public class VectorTile {
   }
 
   /**
-   * Returns a vector tile protobuf object with all features in this tile.
+   * Alias for {@link #toProto(boolean)} where {@code includeIds=true}
    */
   public VectorTileProto.Tile toProto() {
+    return toProto(true);
+  }
+
+  /**
+   * Returns a vector tile protobuf object with all features in this tile.
+   *
+   * @param includeIds True to set IDs on each feature, false to exclude
+   */
+  public VectorTileProto.Tile toProto(boolean includeIds) {
     VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
     for (Map.Entry<String, Layer> e : layers.entrySet()) {
       if (e.getValue().encodedFeatures.isEmpty()) {
@@ -570,7 +579,7 @@ public class VectorTile {
           .setType(feature.geometry().geomType().asProtobufType())
           .addAllGeometry(Ints.asList(feature.geometry().commands()));
 
-        if (feature.id != NO_FEATURE_ID) {
+        if (includeIds && feature.id != NO_FEATURE_ID) {
           featureBuilder.setId(feature.id);
         }
 
@@ -1131,6 +1140,19 @@ public class VectorTile {
       return newGeometry == geometry ? this : new Feature(
         layer,
         id,
+        newGeometry,
+        tags,
+        group
+      );
+    }
+
+    /**
+     * Returns a copy of this feature with {@code id} and {@code geometry} replaced.
+     */
+    public Feature copyWithIdAndGeometry(long newId, VectorGeometry newGeometry) {
+      return new Feature(
+        layer,
+        newId,
         newGeometry,
         tags,
         group

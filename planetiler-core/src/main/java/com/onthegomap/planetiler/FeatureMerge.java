@@ -69,6 +69,20 @@ public class FeatureMerge {
   private FeatureMerge() {}
 
   /**
+   * Modifies a feature ID to end in 0, indicating the feature was created by merging and doesn't correspond to a
+   * single source element.
+   * <p>
+   * For OSM features, IDs are encoded as {@code osm_id * 10 + element_type} where element_type is 1 for nodes, 2 for
+   * ways, and 3 for relations. IDs ending in 0 are reserved for features that don't map to a single OSM element.
+   *
+   * @param id the original feature ID
+   * @return the modified ID ending in 0
+   */
+  private static long makeMergedId(long id) {
+    return (id / 10) * 10;
+  }
+
+  /**
    * Combines linestrings with the same set of attributes into a multilinestring where segments with touching endpoints
    * are merged by {@link LineMerger}, removing any linestrings under {@code minLength}.
    * <p>
@@ -141,7 +155,7 @@ public class FeatureMerge {
           .sorted(BY_HILBERT_INDEX)
           .map(d -> d.feature.geometry())
           .forEachOrdered(combined);
-        result.add(feature1.copyWithNewGeometry(combined.finish()));
+        result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()), combined.finish()));
       }
     }
     return result;
@@ -204,7 +218,12 @@ public class FeatureMerge {
         if (!outputSegments.isEmpty()) {
           outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
-          result.add(feature1.copyWithNewGeometry(newGeometry));
+          if (groupedFeatures.size() > 1) {
+            result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()),
+              VectorTile.encodeGeometry(newGeometry)));
+          } else {
+            result.add(feature1.copyWithNewGeometry(newGeometry));
+          }
         }
       }
     }
@@ -363,7 +382,12 @@ public class FeatureMerge {
       if (!outPolygons.isEmpty()) {
         outPolygons = sortByHilbertIndex(outPolygons);
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
-        result.add(feature1.copyWithNewGeometry(combined));
+        if (groupedFeatures.size() > 1) {
+          result.add(feature1.copyWithIdAndGeometry(makeMergedId(feature1.id()),
+            VectorTile.encodeGeometry(combined)));
+        } else {
+          result.add(feature1.copyWithNewGeometry(combined));
+        }
       }
     }
     return result;

@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
@@ -187,6 +188,21 @@ public interface OsmElement extends WithTags {
     @Override
     public Type type() {
       return Type.WAY;
+    }
+
+    /** Returns a copy of this way from node {@code fromIndex} (inclusive) to {@code toIndex} (exclusive). */
+    public Way split(int fromIndex, int toIndex) {
+      return new Way(id, tags, Hppc.subList(nodes, fromIndex, toIndex), info);
+    }
+
+    /** Returns a copy of this way with new tags */
+    public Way withTags(Map<String, Object> newTags) {
+      return new Way(id, newTags, nodes, info);
+    }
+
+    /** Returns true if the first node is the same as the last node */
+    public boolean isClosed() {
+      return !nodes.isEmpty() && nodes.get(0) == nodes.get(nodes.size() - 1);
     }
   }
 

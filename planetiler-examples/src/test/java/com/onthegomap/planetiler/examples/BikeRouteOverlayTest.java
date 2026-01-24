@@ -98,7 +98,7 @@ class BikeRouteOverlayTest {
       attrs
     );
     // merged: (0, 0) to (20, 0)
-    var connected = new VectorTile.Feature(layer, 1, // id
+    var connected = new VectorTile.Feature(layer, 0, // id
       VectorTile.encodeGeometry(newLineString(0, 0, 20, 0)),
       attrs
     );

@@ -39,6 +39,8 @@ public enum FeatureGeometry {
   POINT_ON_LINE(GeometryType.LINE, FeatureCollector::pointOnSurface),
   @JsonProperty("innermost_point")
   INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint),
+  @JsonProperty("split_line")
+  SPLIT_LINE(GeometryType.LINE, FeatureCollector::splitLine),
   @JsonProperty("relation_members")
   RELATION_MEMBERS(GeometryType.UNKNOWN, null) {
     @Override

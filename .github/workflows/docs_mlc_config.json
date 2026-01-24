@@ -2,6 +2,9 @@
   "ignorePatterns": [
     {
       "pattern": "^http://localhost.*$"
+    },
+    {
+      "pattern": "^.*medium.com.*$"
     }
   ],
   "retryCount": 5,

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import me.lemire.integercompression.IntWrapper;
 import org.apache.commons.lang3.tuple.Pair;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -45,7 +46,8 @@ import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.maplibre.mlt.data.Feature;
 import org.maplibre.mlt.decoder.DecodingUtils;
 import org.maplibre.mlt.decoder.MltDecoder;
-import org.maplibre.mlt.metadata.tileset.MltTilesetMetadata;
+import org.maplibre.mlt.metadata.stream.StreamMetadataDecoder;
+import org.maplibre.mlt.metadata.tileset.MltMetadata;
 import vector_tile.VectorTileProto;
 
 /**
@@ -252,7 +254,7 @@ public class TileSizeStats {
     return result;
   }
 
-  public static List<LayerStats> computeMltTileStats(VectorTile tile, MapboxVectorTile input, byte[] output) {
+  public static List<LayerStats> computeMltTileStats(VectorTile vtile, MapboxVectorTile input, byte[] output) {
     Map<String, Integer> encodedLayerSizes = new HashMap<>();
     Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
     try (final var stream = new ByteArrayInputStream(output)) {
@@ -264,15 +266,14 @@ public class TileSizeStats {
         if (tag.getLeft() == 1) {
           try (var countStream = new CountingInputStream(stream)) {
             final var metadataExtent = MltDecoder.parseEmbeddedMetadata(countStream);
-            MltTilesetMetadata.FeatureTableSchema metadata = metadataExtent.getLeft();
-            countStream.skipNBytes(bodySize - countStream.getCount());
-            for (var column : metadata.getColumnsList()) {
-              if (!MltTypeMap.Tag0x01.isGeometry(column) && !MltTypeMap.Tag0x01.isID(column)) {
-                attrBytes += column.getSerializedSize();
-              }
+            MltMetadata.FeatureTable metadata = metadataExtent.getLeft();
+            byte[] tile = countStream.readNBytes((int) (bodySize - countStream.getCount()));
+            final var offset = new IntWrapper(0);
+            for (var columnMetadata : metadata.columns) {
+              attrBytes += consumeColumn(columnMetadata, tile, offset);
             }
-            encodedLayerSizes.put(metadata.getName(), length);
-            encodedLayerAttributeSizes.put(metadata.getName(), attrBytes);
+            encodedLayerSizes.put(metadata.name, length);
+            encodedLayerAttributeSizes.put(metadata.name, attrBytes);
           }
         } else {
           // Skip the remainder of this one
@@ -288,9 +289,48 @@ public class TileSizeStats {
       layer.features().size(),
       countGeometries(layer.features()),
       encodedLayerAttributeSizes.getOrDefault(layer.name(), -1),
-      tile.getNumKeys(layer.name()),
-      tile.getNumValues(layer.name())
+      vtile.getNumKeys(layer.name()),
+      vtile.getNumValues(layer.name())
     )).toList();
+  }
+
+  private static int consumeColumn(MltMetadata.Field columnMetadata, byte[] tile, IntWrapper offset)
+    throws IOException {
+    final var hasStreamCount =
+      columnMetadata instanceof MltMetadata.Column col && MltTypeMap.Tag0x01.hasStreamCount(col);
+    int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
+
+    int start = offset.get();
+    if (numStreams == 0) {
+      if (columnMetadata.isNullable) {
+        skipOverStream(tile, offset);
+      }
+      skipOverStream(tile, offset);
+    } else if (columnMetadata.complexType != null &&
+      columnMetadata.complexType.physicalType == MltMetadata.ComplexType.STRUCT) {
+      // skip over shared dictionary
+      skipOverStream(tile, offset);
+      skipOverStream(tile, offset);
+
+      for (var child : columnMetadata.complexType.children) {
+        consumeColumn(child, tile, offset);
+      }
+    } else {
+      for (int i = 0; i < numStreams; i++) {
+        skipOverStream(tile, offset);
+      }
+    }
+    int size = offset.get() - start;
+    if (columnMetadata instanceof MltMetadata.Column col && !MltTypeMap.Tag0x01.isGeometry(col) &&
+      !MltTypeMap.Tag0x01.isID(col)) {
+      return size;
+    }
+    return 0;
+  }
+
+  private static void skipOverStream(byte[] tile, IntWrapper offset) throws IOException {
+    var streamMetadata = StreamMetadataDecoder.decode(tile, offset);
+    offset.add(streamMetadata.byteLength());
   }
 
   private static int countGeometries(List<Feature> features) {
