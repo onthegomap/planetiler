@@ -1645,7 +1645,6 @@ class PlanetilerTests {
     double lng6 = GeoUtils.getWorldLon(0.625);
     var polygon = rectangle(lng5, lat5, lng6, lat6);
 
-    // TODO collection of those
     var input = List.of(newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
       point,
       line,
