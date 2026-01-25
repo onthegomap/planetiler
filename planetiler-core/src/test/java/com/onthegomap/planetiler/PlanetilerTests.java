@@ -65,6 +65,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -1619,6 +1620,75 @@ class PlanetilerTests {
             rectangleCoordList(0.25 * 256, 0.75 * 256)
           )
         ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  void testMixedCollection() throws Exception {
+    double lat1 = GeoUtils.getWorldLat(0.125);
+    double lng1 = GeoUtils.getWorldLon(0.125);
+    var point = newPoint(lng1, lat1);
+
+    double lat2 = GeoUtils.getWorldLat(0.25);
+    double lng2 = GeoUtils.getWorldLon(0.25);
+    double lat3 = GeoUtils.getWorldLat(0.75);
+    double lng3 = GeoUtils.getWorldLon(0.75);
+    var line = newLineString(lng2, lat2, lng3, lat3);
+
+    double lat5 = GeoUtils.getWorldLat(0.375);
+    double lng5 = GeoUtils.getWorldLon(0.375);
+    double lat6 = GeoUtils.getWorldLat(0.625);
+    double lng6 = GeoUtils.getWorldLon(0.625);
+    var polygon = rectangle(lng5, lat5, lng6, lat6);
+
+    // TODO collection of those
+    var input = List.of(newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+      point,
+      line,
+      polygon
+    ).toArray(Geometry[]::new)), Map.of(
+      "attr", "value"
+    )));
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      input,
+      (in, features) -> {
+        try {
+          // FeatureCollector.anyGeometry() & co. expect just one feature hence to process several possibly even mixed
+          // type features from collection we need a profile to do the iteration itself:
+          var geom = in.worldGeometry();
+          if (geom instanceof GeometryCollection collection) {
+            for (int i = 0; i < collection.getNumGeometries(); i++) {
+              features.geometry("layer", collection.getGeometryN(i))
+                .setZoomRange(0, 0)
+                .setAttr("name", "name value")
+                .inheritAttrFromSource("attr");
+            }
+          } else {
+            throw new RuntimeException("only collections expected in this test");
+          }
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newPoint(32, 32), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(rectangle(0.375 * 256, 0.625 * 256), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newLineString(64, 64, 192, 192), Map.of(
           "attr", "value",
           "name", "name value"
         ))
