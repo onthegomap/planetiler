@@ -105,10 +105,14 @@ public class ConfiguredProfile implements Profile {
     var context = rootContext.createProcessFeatureContext(sourceFeature, tagValueProducer);
     var matches = featureLayerMatcher.getMatchesWithTriggers(context);
     for (var configuredFeature : matches) {
-      configuredFeature.match().processFeature(
-        context.createPostMatchContext(configuredFeature.keys()),
-        featureCollector
-      );
+      try {
+        configuredFeature.match().processFeature(
+          context.createPostMatchContext(configuredFeature.keys()),
+          featureCollector
+        );
+      } catch (GeometryException.Uncaught e) {
+        e.getCause().log(rootContext.config().arguments().getStats(), "process_feature", "process_feature");
+      }
     }
   }
 

@@ -149,4 +149,19 @@ public class GeometryException extends Exception {
       LOGGER.trace(log);
     }
   }
+
+  public static class Uncaught extends RuntimeException {
+    public Uncaught(GeometryException e) {
+      super(e);
+    }
+
+    @Override
+    public synchronized GeometryException getCause() {
+      return (GeometryException) super.getCause();
+    }
+  }
+
+  public Uncaught uncaught() {
+    return new Uncaught(this);
+  }
 }

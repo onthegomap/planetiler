@@ -1179,6 +1179,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return source;
     }
 
+    public boolean isEmpty() {
+      return geom == EMPTY_GEOM;
+    }
+
 
     /**
      * A builder that can be used to configure linear-scoped attributes for a partial segment of a line feature.
