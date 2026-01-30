@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.geo.GeometryException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
@@ -23,6 +24,8 @@ public class Exceptions {
       throw runtimeException;
     } else if (exception instanceof IOException ioe) {
       throw new UncheckedIOException(ioe);
+    } else if (exception instanceof GeometryException geoe) {
+      throw geoe.uncaught();
     } else if (exception instanceof Error error) {
       throw error;
     }
