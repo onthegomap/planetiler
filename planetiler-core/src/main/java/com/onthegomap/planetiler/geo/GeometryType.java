@@ -7,6 +7,7 @@ import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
@@ -37,6 +38,19 @@ public enum GeometryType {
   }
 
   public static GeometryType typeOf(Geometry geom) {
+    if (geom instanceof GeometryCollection collection && collection.getNumGeometries() >= 1) {
+      var result = typeOf(collection.getGeometryN(0));
+      for (int i = 1; i < collection.getNumGeometries(); i++) {
+        if (!result.equals(typeOf(collection.getGeometryN(i)))) {
+          return UNKNOWN;
+        }
+      }
+      return result;
+    }
+    return typeOfPrimitive(geom);
+  }
+
+  private static GeometryType typeOfPrimitive(Geometry geom) {
     return geom instanceof Puntal ? POINT : geom instanceof Lineal ? LINE : geom instanceof Polygonal ? POLYGON :
       UNKNOWN;
   }

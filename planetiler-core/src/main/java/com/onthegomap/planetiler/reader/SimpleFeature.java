@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
@@ -11,10 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.Puntal;
 
 /**
  * An input feature read from a data source with geometry and tags known at creation-time.
@@ -193,17 +192,17 @@ public class SimpleFeature extends SourceFeature {
 
   @Override
   public boolean isPoint() {
-    return latLonGeometry instanceof Puntal || worldGeometry instanceof Puntal;
+    return GeometryType.POINT.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override
   public boolean canBePolygon() {
-    return latLonGeometry instanceof Polygonal || worldGeometry instanceof Polygonal;
+    return GeometryType.POLYGON.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override
   public boolean canBeLine() {
-    return latLonGeometry instanceof Lineal || worldGeometry instanceof Lineal;
+    return GeometryType.LINE.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));
   }
 
   @Override

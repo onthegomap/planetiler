@@ -61,9 +61,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -235,7 +237,7 @@ class PlanetilerTests {
     );
   }
 
-  private SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
+  private static SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
     return SimpleFeature.create(geometry, attrs);
   }
 
@@ -443,6 +445,75 @@ class PlanetilerTests {
           newPoint(64, 64),
           newPoint(65, 65)
         ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  static Stream<org.junit.jupiter.params.provider.Arguments> pointCollections() {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z13_WIDTH / 256d;
+    double y2 = y1 + Z13_WIDTH / 256d;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    return Stream.of(
+      // one collection with several points
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          newPoint(lng1, lat1),
+          newPoint(lng2, lat2)
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one point, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(newPoint(lng1, lat1)).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(newPoint(lng2, lat2)).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  // note: Same as testMultiPoint() but we get list of points in the result, not one multipoint
+  @ParameterizedTest
+  @MethodSource("pointCollections")
+  void testPointCollection(List<SimpleFeature> points) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      points,
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(128, 128), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPoint(130, 130), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newPoint(64, 64), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPoint(65, 65), Map.of(
           "attr", "value",
           "name", "name value"
         ))
@@ -717,8 +788,7 @@ class PlanetilerTests {
     ), results.tiles);
   }
 
-  @Test
-  void testMultiLineString() throws Exception {
+  static Stream<org.junit.jupiter.params.provider.Arguments> lineCollections() {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -728,16 +798,45 @@ class PlanetilerTests {
     double lat2 = GeoUtils.getWorldLat(y2);
     double lng2 = GeoUtils.getWorldLon(x2);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
+    return Stream.of(
+      // simple multiline
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
         newReaderFeature(newMultiLineString(
           newLineString(lng1, lat1, lng2, lat2),
           newLineString(lng2, lat2, lng1, lat1)
         ), Map.of(
           "attr", "value"
         ))
-      ),
+      )),
+      // one collection with several lines
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          newLineString(lng1, lat1, lng2, lat2),
+          newLineString(lng2, lat2, lng1, lat1)
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one line, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(newLineString(lng1, lat1, lng2, lat2)).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(newLineString(lng2, lat2, lng1, lat1)).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("lineCollections")
+  void testMultiLineString(List<SimpleFeature> lines) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      lines,
       (in, features) -> features.line("layer")
         .setZoomRange(13, 14)
         .setBufferPixels(4)
@@ -1437,6 +1536,161 @@ class PlanetilerTests {
           "name", "name value",
           "relname", "rel name"
         ), 173)
+      )
+    ), results.tiles);
+  }
+
+  static Stream<org.junit.jupiter.params.provider.Arguments> polygonCollections() {
+    double x1 = 0.125;
+    double y1 = 0.125;
+    double x2 = 0.875;
+    double y2 = 0.875;
+    double x3 = 0.25;
+    double y3 = 0.25;
+    double x4 = 0.75;
+    double y4 = 0.75;
+    double x5 = 0.375;
+    double y5 = 0.375;
+    double x6 = 0.625;
+    double y6 = 0.625;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+    double lat3 = GeoUtils.getWorldLat(y3);
+    double lng3 = GeoUtils.getWorldLon(x3);
+    double lat4 = GeoUtils.getWorldLat(y4);
+    double lng4 = GeoUtils.getWorldLon(x4);
+    double lat5 = GeoUtils.getWorldLat(y5);
+    double lng5 = GeoUtils.getWorldLon(x5);
+    double lat6 = GeoUtils.getWorldLat(y6);
+    double lng6 = GeoUtils.getWorldLon(x6);
+
+    var polygon1 = newPolygon(
+      rectangleCoordList(lng1, lat1, lng2, lat2),
+      List.of(rectangleCoordList(lng3, lat3, lng4, lat4))
+    );
+    var polygon2 = rectangle(lng5, lat5, lng6, lat6);
+
+    return Stream.of(
+      // one collection with several polygons
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          polygon1,
+          polygon2
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      )),
+      // nested collections, i.e. several collection, each with one polygon, in one collection
+      org.junit.jupiter.params.provider.Arguments.of(List.of(
+        newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(polygon1).toArray(Geometry[]::new)),
+          GeoUtils.JTS_FACTORY
+            .createGeometryCollection(Set.of(polygon2).toArray(Geometry[]::new))
+        ).toArray(Geometry[]::new)), Map.of(
+          "attr", "value"
+        ))
+      ))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("polygonCollections")
+  void testPolygonCollection(List<SimpleFeature> polygons) throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      polygons,
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 0)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(rectangle(0.375 * 256, 0.625 * 256), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newPolygon(
+          rectangleCoordList(0.125 * 256, 0.875 * 256),
+          List.of(
+            rectangleCoordList(0.25 * 256, 0.75 * 256)
+          )
+        ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  void testMixedCollection() throws Exception {
+    double lat1 = GeoUtils.getWorldLat(0.125);
+    double lng1 = GeoUtils.getWorldLon(0.125);
+    var point = newPoint(lng1, lat1);
+
+    double lat2 = GeoUtils.getWorldLat(0.25);
+    double lng2 = GeoUtils.getWorldLon(0.25);
+    double lat3 = GeoUtils.getWorldLat(0.75);
+    double lng3 = GeoUtils.getWorldLon(0.75);
+    var line = newLineString(lng2, lat2, lng3, lat3);
+
+    double lat5 = GeoUtils.getWorldLat(0.375);
+    double lng5 = GeoUtils.getWorldLon(0.375);
+    double lat6 = GeoUtils.getWorldLat(0.625);
+    double lng6 = GeoUtils.getWorldLon(0.625);
+    var polygon = rectangle(lng5, lat5, lng6, lat6);
+
+    var input = List.of(newReaderFeature(GeoUtils.JTS_FACTORY.createGeometryCollection(Set.of(
+      point,
+      line,
+      polygon
+    ).toArray(Geometry[]::new)), Map.of(
+      "attr", "value"
+    )));
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      input,
+      (in, features) -> {
+        try {
+          // FeatureCollector.anyGeometry() & co. expect just one feature hence to process several possibly even mixed
+          // type features from collection we need a profile to do the iteration itself:
+          var geom = in.worldGeometry();
+          if (geom instanceof GeometryCollection collection) {
+            for (int i = 0; i < collection.getNumGeometries(); i++) {
+              features.geometry("layer", collection.getGeometryN(i))
+                .setZoomRange(0, 0)
+                .setAttr("name", "name value")
+                .inheritAttrFromSource("attr");
+            }
+          } else {
+            throw new RuntimeException("only collections expected in this test");
+          }
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newPoint(32, 32), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(rectangle(0.375 * 256, 0.625 * 256), Map.of(
+          "attr", "value",
+          "name", "name value"
+        )),
+        feature(newLineString(64, 64, 192, 192), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
       )
     ), results.tiles);
   }

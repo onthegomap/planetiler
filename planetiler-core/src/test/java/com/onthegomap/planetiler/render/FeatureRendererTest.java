@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -102,9 +103,19 @@ class FeatureRendererTest {
    * POINT TESTS
    */
 
-  @Test
-  void testSinglePoint() {
-    var feature = pointFeature(newPoint(0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2))
+  static List<Geometry> points() {
+    var point = newPoint(0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2);
+    var points = List.of(point);
+    return List.of(
+      point,
+      GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("points")
+  void testSinglePoint(Geometry point) {
+    var feature = pointFeature(point)
       .setZoomRange(14, 14);
     assertSameNormalizedFeatures(Map.of(
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
@@ -232,12 +243,24 @@ class FeatureRendererTest {
     ), renderGeometry(feature));
   }
 
-  @Test
-  void testMultipointNoLabelGrid() {
-    var feature = pointFeature(newMultiPoint(
-      newPoint(0.25, 0.25),
-      newPoint(0.25 + 1d / 256, 0.25 + 1d / 256)
-    ))
+  static List<Geometry> multiPoints() {
+    var point1 = newPoint(0.25, 0.25);
+    var point2 = newPoint(0.25 + 1d / 256, 0.25 + 1d / 256);
+    //var points = List.of(point1, point2);
+    return List.of(
+      newMultiPoint(point1, point2)
+    /* For now disabled since that generates set of two points, while multipoint would be more logical, given that
+     * multiline is generated for collection of lines and multi-polygon for collection of polygons.
+     * TODO: Discuss whether it is OK as is or tweak other parts of planetiler-core to generate multipoint.
+    GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]))
+     */
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("multiPoints")
+  void testMultipointNoLabelGrid(Geometry multiPoint) {
+    var feature = pointFeature(multiPoint)
       .setZoomRange(0, 1)
       .setBufferPixels(4);
     assertSameNormalizedFeatures(Map.of(
@@ -322,13 +345,23 @@ class FeatureRendererTest {
     return collector(geom).line("layer");
   }
 
-  @Test
-  void testSplitLineFeatureSingleTile() {
+  static List<Geometry> lines() {
     double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
-    var feature = lineFeature(newLineString(
+    var line = newLineString(
       0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
       0.5 + z14hypot * 3 / 4, 0.5 + z14hypot * 3 / 4
-    ))
+    );
+    var lines = List.of(line);
+    return List.of(
+      line,
+      GeoUtils.JTS_FACTORY.createGeometryCollection(lines.toArray(new Geometry[0]))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("lines")
+  void testSplitLineFeatureSingleTile(Geometry line) {
+    var feature = lineFeature(line)
       .setZoomRange(14, 14)
       .setBufferPixels(8);
     assertExactSameFeatures(Map.of(
@@ -587,16 +620,24 @@ class FeatureRendererTest {
     return collector(geom).polygon("layer");
   }
 
-  @Test
-  void testSimpleTriangleCCW() {
-    var feature = polygonFeature(
-      newPolygon(
-        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
-        0.5 + Z14_PX * 20, 0.5 + Z14_PX * 10,
-        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 20,
-        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10
-      )
-    )
+  static List<Geometry> polygons() {
+    var polygon = newPolygon(
+      0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
+      0.5 + Z14_PX * 20, 0.5 + Z14_PX * 10,
+      0.5 + Z14_PX * 10, 0.5 + Z14_PX * 20,
+      0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10
+    );
+    var polygons = List.of(polygon);
+    return List.of(
+      polygon,
+      GeoUtils.JTS_FACTORY.createGeometryCollection(polygons.toArray(new Geometry[0]))
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("polygons")
+  void testSimpleTriangleCCW(Geometry polygon) {
+    var feature = polygonFeature(polygon)
       .setMinPixelSize(1)
       .setZoomRange(14, 14)
       .setBufferPixels(0);
