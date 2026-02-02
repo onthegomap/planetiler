@@ -5,10 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Duration;
 import java.util.Locale;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.CoordinateXY;
 
 class FormatTest {
+
+  private Locale defaultLocale;
 
   @ParameterizedTest
   @CsvSource({
@@ -92,5 +98,22 @@ class FormatTest {
   })
   void testFormatDuration(double seconds, String out, Locale locale) {
     assertEquals(out, Format.forLocale(locale).duration(Duration.ofNanos((long) (seconds * NANOSECONDS_PER_SECOND))));
+  }
+
+  @BeforeEach
+  void getLocale() {
+    this.defaultLocale = Locale.getDefault();
+  }
+
+  @AfterEach
+  void resetLocale() {
+    Locale.setDefault(defaultLocale);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"en-US", "fr-FR", "en-GB"})
+  void testFormat(String locale) {
+    Locale.setDefault(Locale.forLanguageTag(locale));
+    assertEquals("https://www.openstreetmap.org/#map=1/2.3/1.2", Format.osmDebugUrl(1, new CoordinateXY(1.2, 2.3)));
   }
 }
