@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.util;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.Locale;
@@ -111,10 +113,11 @@ public class Format {
 
   /** Returns an openstreetmap.org map link for a lat/lon */
   public static String osmDebugUrl(int zoom, Coordinate coord) {
-    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(
+    DecimalFormat format = new DecimalFormat("0.#####", DecimalFormatSymbols.getInstance(Locale.US));
+    return "https://www.openstreetmap.org/#map=%d/%s/%s".formatted(
       zoom,
-      coord.y,
-      coord.x
+      format.format(coord.y),
+      format.format(coord.x)
     );
   }
 
