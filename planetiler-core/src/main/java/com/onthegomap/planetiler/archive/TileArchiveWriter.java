@@ -392,11 +392,17 @@ public class TileArchiveWriter {
 
   private static void findStringColumns(MapboxVectorTile mltInput, Set<String> stringColumns,
     Map<String, Set<String>> stringColumnsByLayer) {
+    Map<String, Integer> valueCounts = new HashMap<>();
     Set<String> notStringColumns = new HashSet<>();
+    int numRepeats = 0;
     for (var layer : mltInput.layers()) {
       for (var feature : layer.features()) {
         for (var entry : feature.properties().entrySet()) {
-          if (entry.getValue() instanceof String) {
+          if (entry.getValue() instanceof String value) {
+            int count = valueCounts.merge(value, 1, Integer::sum);
+            if (count > 1) {
+              numRepeats += count == 2 ? 2 : 1;
+            }
             stringColumns.add(entry.getKey());
             stringColumnsByLayer.computeIfAbsent(layer.name(), name -> new HashSet<>()).add(entry.getKey());
           } else {
@@ -404,6 +410,11 @@ public class TileArchiveWriter {
           }
         }
       }
+    }
+    // you need enough repeated values for the overhead of the offsets and indices to be worth it
+    if (numRepeats < 50) {
+      stringColumns.clear();
+      stringColumnsByLayer.clear();
     }
     stringColumns.removeAll(notStringColumns);
     stringColumnsByLayer.values().forEach(c -> c.removeAll(notStringColumns));
