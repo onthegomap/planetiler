@@ -26,11 +26,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,6 +62,7 @@ public class TileArchiveWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
+  public static final Pattern MATCH_ALL = Pattern.compile(".*");
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final WriteableTileArchive archive;
@@ -307,8 +311,13 @@ public class TileArchiveWriter {
             encoded = switch (config.tileFormat()) {
               case MLT -> {
                 MapboxVectorTile mltInput = tile.toMltInput(stats);
-                // TODO enabled shared dictionaries among string fields when clients support it
-                Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
+                Set<String> stringColumns = new HashSet<>();
+                Map<String, Set<String>> stringColumnsByLayer = new HashMap<>();
+                if (config.mltSharedDictionaries()) {
+                  findStringColumns(mltInput, stringColumns, stringColumnsByLayer);
+                }
+                Map<Pattern, List<ColumnMapping>> columnMappings = stringColumns.isEmpty() ? Map.of() :
+                  Map.of(MATCH_ALL, List.of(new ColumnMapping(stringColumns, true)));
                 var tilesetMetadata =
                   MltConverter.createTilesetMetadata(mltInput, columnMappings, includeIds, true, false);
                 var conversionConfig = ConversionConfig.builder()
@@ -318,7 +327,12 @@ public class TileArchiveWriter {
                   .coercePropertyValues(true)
                   .optimizations(mltInput.layers().stream().collect(Collectors.toMap(
                     Layer::name,
-                    layer -> new FeatureTableOptimizations(config.mltReorderFeature(), !includeIds, null)
+                    layer -> {
+                      Set<String> layerStringColumns = stringColumnsByLayer.get(layer.name());
+                      return new FeatureTableOptimizations(config.mltReorderFeature(), !includeIds,
+                        layerStringColumns == null || layerStringColumns.isEmpty() ? null :
+                          List.of(new ColumnMapping(layerStringColumns, true)));
+                    }
                   )))
                   .preTessellatePolygons(config.mltTessellatePolygons())
                   .useMortonEncoding(true)
@@ -373,6 +387,44 @@ public class TileArchiveWriter {
       }
       // hand result off to writer
       batch.out.complete(result);
+    }
+  }
+
+  private static void findStringColumns(MapboxVectorTile mltInput, Set<String> stringColumns,
+    Map<String, Set<String>> stringColumnsByLayer) {
+    Map<String, Integer> valueCounts = new HashMap<>();
+    Set<String> notStringColumns = new HashSet<>();
+    int numRepeats = 0;
+    boolean haveEnoughRepeatedValues = false;
+    for (var layer : mltInput.layers()) {
+      for (var feature : layer.features()) {
+        for (var entry : feature.properties().entrySet()) {
+          if (entry.getValue() instanceof String value) {
+            if (!haveEnoughRepeatedValues) {
+              int count = valueCounts.merge(value, 1, Integer::sum);
+              if (count > 1) {
+                numRepeats += count == 2 ? 2 : 1;
+                if (numRepeats >= 50) {
+                  haveEnoughRepeatedValues = true;
+                }
+              }
+            }
+            stringColumns.add(entry.getKey());
+            stringColumnsByLayer.computeIfAbsent(layer.name(), name -> new HashSet<>()).add(entry.getKey());
+          } else {
+            notStringColumns.add(entry.getKey());
+          }
+        }
+      }
+    }
+    // you need enough repeated values for the overhead of the offsets and indices to be worth it
+    // testing showed that you need >~50 shared strings for deduplication benefit to outweigh shared dictionary cost
+    if (!haveEnoughRepeatedValues) {
+      stringColumns.clear();
+      stringColumnsByLayer.clear();
+    } else {
+      stringColumns.removeAll(notStringColumns);
+      stringColumnsByLayer.values().forEach(c -> c.removeAll(notStringColumns));
     }
   }
 
