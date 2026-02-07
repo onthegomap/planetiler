@@ -395,13 +395,19 @@ public class TileArchiveWriter {
     Map<String, Integer> valueCounts = new HashMap<>();
     Set<String> notStringColumns = new HashSet<>();
     int numRepeats = 0;
+    boolean haveEnoughRepeatedValues = false;
     for (var layer : mltInput.layers()) {
       for (var feature : layer.features()) {
         for (var entry : feature.properties().entrySet()) {
           if (entry.getValue() instanceof String value) {
-            int count = valueCounts.merge(value, 1, Integer::sum);
-            if (count > 1) {
-              numRepeats += count == 2 ? 2 : 1;
+            if (!haveEnoughRepeatedValues) {
+              int count = valueCounts.merge(value, 1, Integer::sum);
+              if (count > 1) {
+                numRepeats += count == 2 ? 2 : 1;
+                if (numRepeats >= 50) {
+                  haveEnoughRepeatedValues = true;
+                }
+              }
             }
             stringColumns.add(entry.getKey());
             stringColumnsByLayer.computeIfAbsent(layer.name(), name -> new HashSet<>()).add(entry.getKey());
@@ -412,12 +418,13 @@ public class TileArchiveWriter {
       }
     }
     // you need enough repeated values for the overhead of the offsets and indices to be worth it
-    if (numRepeats < 50) {
+    if (!haveEnoughRepeatedValues) {
       stringColumns.clear();
       stringColumnsByLayer.clear();
+    } else {
+      stringColumns.removeAll(notStringColumns);
+      stringColumnsByLayer.values().forEach(c -> c.removeAll(notStringColumns));
     }
-    stringColumns.removeAll(notStringColumns);
-    stringColumnsByLayer.values().forEach(c -> c.removeAll(notStringColumns));
   }
 
   private final AtomicBoolean firstTileWriterTracker = new AtomicBoolean(true);
