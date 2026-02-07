@@ -418,6 +418,7 @@ public class TileArchiveWriter {
       }
     }
     // you need enough repeated values for the overhead of the offsets and indices to be worth it
+    // testing showed that you need >~50 shared strings for deduplication benefit to outweigh shared dictionary cost
     if (!haveEnoughRepeatedValues) {
       stringColumns.clear();
       stringColumnsByLayer.clear();
