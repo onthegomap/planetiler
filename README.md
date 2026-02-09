@@ -96,7 +96,7 @@ You will need the full data sources to run anywhere besides Monaco.
 Generate a [pmtiles](https://docs.protomaps.com/pmtiles/) tile archive by adding `--output=data/output.pmtiles` then
 drag and drop `output.pmtiles` to [pmtiles.io](https://pmtiles.io/).
 
-Or with the default mbtiles output format, use [tileserver-gl-light](https://www.npmjs.com/package/tileserver-gl-light):
+Or with the default mbtiles output format, use [tileserver-gl-light](https://github.com/maptiler/tileserver-gl):
 
 ```bash
 npm install -g tileserver-gl-light
