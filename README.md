@@ -1,7 +1,6 @@
 # Planetiler
 
-Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that generates
-[Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
+Planetiler is a tool that generates [Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
 from geographic data sources like [OpenStreetMap](https://www.openstreetmap.org/). Planetiler aims to be fast and
 memory-efficient so that you can build a map of the world in a few hours on a single machine without any external tools
 or database.
@@ -15,9 +14,19 @@ even [queried directly from the browser](https://github.com/protomaps/PMTiles/tr
 See [awesome-vector-tiles](https://github.com/mapbox/awesome-vector-tiles) for more projects that work with data in this
 format.
 
+Several full-featured basemaps are built using planetiler:
+
+- [OpenMapTiles](https://github.com/openmaptiles/planetiler-openmaptiles)
+- [Protomaps Basemaps](https://github.com/protomaps/basemaps/tree/main/tiles)
+- [Shortbread](./planetiler-custommap/src/main/resources/samples/shortbread.yml)
+
+You can also create your own custom base maps or overlays
+using [YAML](#option-1-custom-maps-using-yaml-no-java-required)
+or [Java](#option-2-custom-maps-using-java-profiles).
+
 Planetiler works by mapping input elements to vector tile features, flattening them into a big list, then sorting by
-tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details or
-this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
+tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details
+or this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
 for more of the backstory.
 
 ## Demo
@@ -84,17 +93,14 @@ You will need the full data sources to run anywhere besides Monaco.
 
 #### To view tiles locally:
 
-Using [Node.js](https://nodejs.org/en/download/package-manager):
+Generate a [pmtiles](https://docs.protomaps.com/pmtiles/) tile archive by adding `--output=data/output.pmtiles` then
+drag and drop `output.pmtiles` to [pmtiles.io](https://pmtiles.io/).
+
+Or with the default mbtiles output format, use [tileserver-gl-light](https://www.npmjs.com/package/tileserver-gl-light):
 
 ```bash
 npm install -g tileserver-gl-light
 tileserver-gl-light data/output.mbtiles
-```
-
-Or using [Docker](https://docs.docker.com/get-docker/):
-
-```bash
-docker run --rm -it -v "$(pwd)/data":/data -p 8080:8080 maptiler/tileserver-gl -p 8080
 ```
 
 Then open http://localhost:8080 to view tiles.
@@ -103,7 +109,8 @@ Some common arguments:
 
 - `--output` tells planetiler where to write output to, and what format to write it in. For
   example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
-  It is best to specify the full path to the file. In docker image you should be using `/data/australia.pmtiles` to let the docker know where to write the file.
+  It is best to specify the full path to the file. In docker image you should be using `/data/australia.pmtiles` to let
+  the docker know where to write the file.
 - `--download` downloads input sources automatically and `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
@@ -111,6 +118,169 @@ Some common arguments:
   memory-mapped files)
 - `--force` overwrites the output file
 - `--help` shows all of the options and exits
+
+## Generating a Map of the World
+
+See [PLANET.md](PLANET.md).
+
+## Generating Custom Maps
+
+Planetiler supports custom vector tile maps in two ways, depending on how much control you need:
+
+1. **YAML configuration (no Java required)** – recommended for simple custom maps
+2. **Java profiles** – for advanced logic and full control
+
+Both approaches generate standard Mapbox Vector Tiles (MVT) that can be used with MapLibre GL, Mapbox GL, and other
+vector-tile clients.
+
+### Option 1: Custom Maps Using YAML (No Java Required)
+
+For many use cases, you can define a custom vector tile map using a YAML configuration file.
+This approach does not require writing Java code and is ideal for:
+
+- Simple or moderately complex maps
+- Prototyping
+- Users who prefer declarative configuration
+
+YAML-based maps are powered by the `planetiler-custommap` module. See examples and documentation:
+https://github.com/onthegomap/planetiler/tree/main/planetiler-custommap.
+
+#### Example YAML configuration
+
+```yaml
+schema_name: Roads
+attribution: <a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+layers:
+- id: roads
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 6
+    include_when:
+      highway: [primary, secondary, tertiary]
+    attributes:
+    - key: class
+      tag_value: highway
+```
+
+To run:
+
+```bash
+java -jar planetiler.jar roads.yaml --download --output=roads.pmtiles
+```
+
+### Option 2: Custom Maps Using Java Profiles
+
+For more complex use cases, Planetiler supports custom Java profiles that allow full control over feature processing,
+attributes, zoom logic, and geometry handling. Java profiles are recommended when you need:
+
+- Complex conditional logic
+- Advanced attribute derivation
+- Non-trivial feature interactions
+- Maximum performance tuning
+
+See examples and documentation: https://github.com/onthegomap/planetiler-examples/.
+
+#### Example Java profile
+
+```java
+import com.onthegomap.planetiler.*;
+import com.onthegomap.planetiler.config.*;
+import com.onthegomap.planetiler.reader.*;
+import java.nio.file.Path;
+
+public class Roads implements Profile {
+
+  @Override
+  public String attribution() {
+    return """
+      <a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
+      """.trim();
+  }
+
+  @Override
+  public void processFeature(SourceFeature feature, FeatureCollector features) {
+    if (feature.canBeLine() && feature.hasTag("highway", "primary", "secondary", "tertiary")) {
+      features.line("roads").setAttr("class", feature.getTag("highway"));
+    }
+  }
+
+  public static void main(String[] args) {
+    Planetiler.create(Arguments.fromArgs(args)).addOsmSource("osm", Path.of("ri.osm.pbf"), "geofabrik:rhode-island")
+      .overwriteOutput(Path.of("roads.pmtiles"))
+      .setProfile(new Roads())
+      .run();
+  }
+}
+```
+
+To run:
+
+```bash
+java -cp planetiler.jar Roads.java --download --output=roads.pmtiles
+```
+
+## Use as a library
+
+Since Java 22, you can use Planetiler as a library with a custom profile by running:
+
+`java -cp planetiler.jar Profile.java`.
+
+See [the examples](https://github.com/onthegomap/planetiler-examples) for more details.
+
+For larger projects with more complex dependencies, Planetiler can be used as a maven-style dependency in a Java project
+using the settings below:
+
+### Maven
+
+Add this repository block to your `pom.xml`:
+
+```xml
+<repositories>
+  <repository>
+    <id>osgeo</id>
+    <name>OSGeo Release Repository</name>
+    <url>https://repo.osgeo.org/repository/release/</url>
+    <snapshots>
+      <enabled>false</enabled>
+    </snapshots>
+    <releases>
+      <enabled>true</enabled>
+    </releases>
+  </repository>
+</repositories>
+```
+
+Then add the following dependency:
+
+```xml
+<dependency>
+  <groupId>com.onthegomap.planetiler</groupId>
+  <artifactId>planetiler-core</artifactId>
+  <version>${planetiler.version}</version>
+</dependency>
+```
+
+### Gradle
+
+Set up your repositories block::
+
+```groovy
+mavenCentral()
+maven {
+    url "https://repo.osgeo.org/repository/release/"
+}
+```
+
+Set up your dependencies block:
+
+```groovy
+implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
+```
 
 ### Git submodules
 
@@ -137,27 +307,6 @@ git config --local submodule.recurse true
 ```
 
 Learn more about working with submodules [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-
-## Generating a Map of the World
-
-See [PLANET.md](PLANET.md).
-
-## Generating Custom Vector Tiles
-
-If you want to customize the OpenMapTiles schema or generate an mbtiles file with OpenMapTiles + extra layers, then
-fork https://github.com/openmaptiles/planetiler-openmaptiles make changes there, and run directly from that repo. It
-is a standalone Java project with a dependency on Planetiler.
-
-If you want to generate a separate mbtiles file with overlay layers or a full custom basemap, then:
-
-- For simple schemas, run a recent planetiler jar or docker image with a custom schema defined in a yaml
-  configuration file. See [planetiler-custommap](planetiler-custommap) for details.
-- For complex schemas (or if you prefer working in Java), create a new Java project
-  that [depends on Planetiler](#use-as-a-library). See the [planetiler-examples](planetiler-examples) project for a
-  working example.
-
-If you want to customize how planetiler works internally, then fork this project, build from source, and
-consider [contributing](#contributing) your change back for others to use!
 
 ## Benchmarks
 
@@ -239,63 +388,6 @@ download regularly-updated tilesets.
   finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
-## Use as a library
-
-Since Java 22, you can use Planetile as a library with a custom profile by running:
-
-`java -cp planetiler.jar Profile.java`.
-
-See [the examples](https://github.com/onthegomap/planetiler-examples) for more details.
-
-Planetiler can be used as a maven-style dependency in a Java project using the settings below:
-
-### Maven
-
-Add this repository block to your `pom.xml`:
-
-```xml
-<repositories>
-  <repository>
-    <id>osgeo</id>
-    <name>OSGeo Release Repository</name>
-    <url>https://repo.osgeo.org/repository/release/</url>
-    <snapshots>
-      <enabled>false</enabled>
-    </snapshots>
-    <releases>
-      <enabled>true</enabled>
-    </releases>
-  </repository>
-</repositories>
-```
-
-Then add the following dependency:
-
-```xml
-<dependency>
-  <groupId>com.onthegomap.planetiler</groupId>
-  <artifactId>planetiler-core</artifactId>
-  <version>${planetiler.version}</version>
-</dependency>
-```
-
-### Gradle
-
-Set up your repositories block::
-
-```groovy
-mavenCentral()
-maven {
-    url "https://repo.osgeo.org/repository/release/"
-}
-```
-
-Set up your dependencies block:
-
-```groovy
-implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
-```
-
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
@@ -343,6 +435,8 @@ Planetiler is made possible by these awesome open source projects:
 - [PMTiles](https://github.com/protomaps/PMTiles) optimized tile storage format
 - [Apache Parquet](https://github.com/apache/parquet-mr) to support reading geoparquet files in java (with dependencies
   minimized by [parquet-floor](https://github.com/strategicblue/parquet-floor))
+- [MapLibre Tile](https://github.com/maplibre/maplibre-tile-spec) for writing tiles using the
+  new [MapLibre Tile format](https://maplibre.org/maplibre-tile-spec/specification/).
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 
