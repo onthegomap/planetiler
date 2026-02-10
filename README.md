@@ -357,10 +357,10 @@ Some services that generate and host tiles for you:
   [geopackage](https://www.geopackage.org/), [GeoJson](https://geojson.org/)
   [Esri Shapefile](https://en.wikipedia.org/wiki/Shapefile), and [GeoParquet](https://geoparquet.org/)
   (ie. [Overture Maps](https://overturemaps.org/)) input data sources
-- Writes to [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md) or
-  or [PMTiles](https://github.com/protomaps/PMTiles) output.
-- Generate to [Mapbox Vector Tiles (MVT)](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) or
-  or [MapLibre Tiles (MLT)](https://github.com/maplibre/maplibre-tile-spec) output by running with `--tile-format=mlt`
+- Writes to [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md)
+  or [PMTiles](https://github.com/protomaps/PMTiles) output archives.
+- Generates [Mapbox Vector Tiles (MVT)](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
+  or [MapLibre Tiles (MLT)](https://github.com/maplibre/maplibre-tile-spec) by running with `--tile-format=mlt`
 - Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
   elements map to vector tile features, and post-process generated tiles
   using [JTS geometry utilities](https://github.com/locationtech/jts)
