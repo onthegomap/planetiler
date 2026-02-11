@@ -31,6 +31,7 @@ The `planetiler-core` module includes the following software:
   - org.commonmark:commonmark (BSD 2-clause license)
   - org.tukaani:xz (BSD 0-Clause License)
   - blue.strategic.parquet:parquet-floor (Apache license)
+  - org.maplibre:mlt (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)

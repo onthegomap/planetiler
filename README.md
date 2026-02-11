@@ -1,7 +1,6 @@
 # Planetiler
 
-Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that generates
-[Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
+Planetiler is a tool that generates [Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
 from geographic data sources like [OpenStreetMap](https://www.openstreetmap.org/). Planetiler aims to be fast and
 memory-efficient so that you can build a map of the world in a few hours on a single machine without any external tools
 or database.
@@ -15,9 +14,19 @@ even [queried directly from the browser](https://github.com/protomaps/PMTiles/tr
 See [awesome-vector-tiles](https://github.com/mapbox/awesome-vector-tiles) for more projects that work with data in this
 format.
 
+Several full-featured basemaps are built using planetiler:
+
+- [OpenMapTiles](https://github.com/openmaptiles/planetiler-openmaptiles)
+- [Protomaps Basemaps](https://github.com/protomaps/basemaps/tree/main/tiles)
+- [Shortbread](./planetiler-custommap/src/main/resources/samples/shortbread.yml)
+
+You can also create your own custom base maps or overlays
+using [YAML](#option-1-custom-maps-using-yaml-no-java-required)
+or [Java](#option-2-custom-maps-using-java-profiles).
+
 Planetiler works by mapping input elements to vector tile features, flattening them into a big list, then sorting by
-tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details or
-this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
+tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details
+or this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
 for more of the backstory.
 
 ## Demo
@@ -84,17 +93,14 @@ You will need the full data sources to run anywhere besides Monaco.
 
 #### To view tiles locally:
 
-Using [Node.js](https://nodejs.org/en/download/package-manager):
+Generate a [pmtiles](https://docs.protomaps.com/pmtiles/) tile archive by adding `--output=data/output.pmtiles` then
+drag and drop `output.pmtiles` to [pmtiles.io](https://pmtiles.io/).
+
+Or with the default mbtiles output format, use [tileserver-gl-light](https://github.com/maptiler/tileserver-gl):
 
 ```bash
 npm install -g tileserver-gl-light
 tileserver-gl-light data/output.mbtiles
-```
-
-Or using [Docker](https://docs.docker.com/get-docker/):
-
-```bash
-docker run --rm -it -v "$(pwd)/data":/data -p 8080:8080 maptiler/tileserver-gl -p 8080
 ```
 
 Then open http://localhost:8080 to view tiles.
@@ -103,7 +109,8 @@ Some common arguments:
 
 - `--output` tells planetiler where to write output to, and what format to write it in. For
   example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
-  It is best to specify the full path to the file. In docker image you should be using `/data/australia.pmtiles` to let the docker know where to write the file.
+  It is best to specify the full path to the file. In docker image you should be using `/data/australia.pmtiles` to let
+  the docker know where to write the file.
 - `--download` downloads input sources automatically and `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
@@ -112,142 +119,115 @@ Some common arguments:
 - `--force` overwrites the output file
 - `--help` shows all of the options and exits
 
-### Git submodules
-
-Planetiler has a submodule dependency
-on [planetiler-openmaptiles](https://github.com/openmaptiles/planetiler-openmaptiles). Add `--recurse-submodules`
-to `git clone`, `git pull`, or `git checkout` commands to also update submodule dependencies.
-
-To clone the repo with submodules:
-
-```bash
-git clone --recurse-submodules https://github.com/onthegomap/planetiler.git
-```
-
-If you already pulled the repo, you can initialize submodules with:
-
-```bash
-git submodule update --init
-```
-
-To force git to always update submodules (recommended), run this command in your local repo:
-
-```bash
-git config --local submodule.recurse true
-```
-
-Learn more about working with submodules [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-
 ## Generating a Map of the World
 
 See [PLANET.md](PLANET.md).
 
-## Generating Custom Vector Tiles
+## Generating Custom Maps
 
-If you want to customize the OpenMapTiles schema or generate an mbtiles file with OpenMapTiles + extra layers, then
-fork https://github.com/openmaptiles/planetiler-openmaptiles make changes there, and run directly from that repo. It
-is a standalone Java project with a dependency on Planetiler.
+Planetiler supports custom vector tile maps in two ways, depending on how much control you need:
 
-If you want to generate a separate mbtiles file with overlay layers or a full custom basemap, then:
+1. **YAML configuration (no Java required)** – for simple custom maps
+2. **Java profiles** – for advanced logic and full control
 
-- For simple schemas, run a recent planetiler jar or docker image with a custom schema defined in a yaml
-  configuration file. See [planetiler-custommap](planetiler-custommap) for details.
-- For complex schemas (or if you prefer working in Java), create a new Java project
-  that [depends on Planetiler](#use-as-a-library). See the [planetiler-examples](planetiler-examples) project for a
-  working example.
+Both approaches generate standard Mapbox Vector Tiles (MVT) that can be used with MapLibre GL, Mapbox GL, and other
+vector-tile clients.
 
-If you want to customize how planetiler works internally, then fork this project, build from source, and
-consider [contributing](#contributing) your change back for others to use!
+### Option 1: Custom Maps Using YAML (No Java Required)
 
-## Benchmarks
+For many use cases, you can define a custom vector tile map using a YAML configuration file.
+This approach does not require writing Java code and is ideal for:
 
-Some example runtimes for the OpenMapTiles profile (excluding downloading resources):
+- Simple or moderately complex maps
+- Prototyping
+- Users who prefer declarative configuration
 
-|                     Input                      | Version |             Machine             |           Time            | output size  |                                                      Logs                                                      |
-|------------------------------------------------|---------|---------------------------------|---------------------------|--------------|----------------------------------------------------------------------------------------------------------------|
-| s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 22m cpu:44h34m  avg:120   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180.txt)                                                         |
-| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 42m cpu:42m28s avg:52     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb.txt)                                                               |
-| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 53m cpu:41h58m avg:47.1   | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-128gb.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb.nps) |
-| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.8xlarge (32cpu/64GB)       | 1h27m cpu:37h55m avg:26.1 | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-64gb.txt)                                                                |
-| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.4xlarge (16cpu/32GB)       | 2h38m cpu:34h3m avg:12.9  | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-32gb.txt)                                                                |
+YAML-based maps are powered by the `planetiler-custommap` module. See examples and documentation:
+https://github.com/onthegomap/planetiler/tree/main/planetiler-custommap.
 
-Merging nearby buildings at z13 is very expensive, when run with `--building-merge-z13=false`:
+#### Example YAML configuration
 
-|                     Input                      | Version |             Machine             |           Time           | output size  |                                                                            Logs                                                                            |
-|------------------------------------------------|---------|---------------------------------|--------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 16m cpu:27h45m avg:104   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180-no-z13-building-merge.txt)                                                                               |
-| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 29m cpu:23h57 avg:50     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb-no-z13-building-merge.txt)                                                                                     |
-| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.2xlarge (8cpu/16GB)        | 3h35m cpu:19h45 avg:5.5  | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-16gb-no-z13-building-merge.txt)                                                                                      |
-| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | im4gn.large (2cpu/8GB)          | 18h18m cpu:28h6m avg:1.5 | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-im4gn-8gb-no-z13-building-merge.txt)                                                                                      |
-| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 39m cpu:27h4m avg:42.1   | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.nps) |
+```yaml
+schema_name: Roads
+attribution: <a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+layers:
+- id: roads
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 6
+    include_when:
+      highway: [primary, secondary, tertiary]
+    attributes:
+    - key: class
+      tag_value: highway
+```
 
-## Alternatives
+To run:
 
-Some other tools that generate vector tiles from OpenStreetMap data:
+```bash
+java -jar planetiler.jar roads.yaml --download --output=roads.pmtiles
+```
 
-- [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) is the reference implementation of
-  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that
-  the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles)
-  is based on. It uses an intermediate postgres database and operates in two modes:
-  1. Import data into database (~1 day) then serve vector tiles directly from the database. Tile serving is slower and
-     requires bigger machines, but lets you easily incorporate realtime updates
-  2. Import data into database (~1 day) then pregenerate every tile for the planet into an mbtiles file which
-     takes [over 100 days](https://github.com/openmaptiles/openmaptiles/issues/654#issuecomment-724606293)
-     or a cluster of machines, but then tiles can be served faster on smaller machines
-- [Tilemaker](https://github.com/systemed/tilemaker) uses a similar approach to Planetiler (no intermediate database),
-  is more mature, and has a convenient lua API for building custom profiles without recompiling the tool, but takes
-  [about a day](https://github.com/systemed/tilemaker/issues/315#issue-994322040) to generate a map of the world
+### Option 2: Custom Maps Using Java Profiles
 
-Some companies that generate and host tiles for you:
+For more complex use cases, Planetiler supports custom Java profiles that allow full control over feature processing,
+attributes, zoom logic, and geometry handling. Java profiles are recommended when you need:
 
-- [Mapbox](https://www.mapbox.com/) - data from the pioneer of vector tile technologies
-- [Maptiler](https://www.maptiler.com/) - data from the creator of OpenMapTiles schema
-- [Stadia Maps](https://stadiamaps.com/) - what [onthegomap.com](https://onthegomap.com/) uses in production
+- Complex conditional logic
+- Advanced attribute derivation
+- Non-trivial feature interactions
+- Maximum performance tuning
 
-If you want to host tiles yourself but have someone else generate them for you, those companies also offer plans to
-download regularly-updated tilesets.
+See examples and documentation: https://github.com/onthegomap/planetiler-examples/.
 
-## Features
+#### Example Java profile
 
-- Supports [Natural Earth](https://www.naturalearthdata.com/),
-  OpenStreetMap [.osm.pbf](https://wiki.openstreetmap.org/wiki/PBF_Format),
-  [`geopackage`](https://www.geopackage.org/),
-  and [Esri Shapefiles](https://en.wikipedia.org/wiki/Shapefile) data sources
-- Writes to [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md) or
-  or [PMTiles](https://github.com/protomaps/PMTiles) output.
-- Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
-  elements map to vector tile features, and post-process generated tiles
-  using [JTS geometry utilities](https://github.com/locationtech/jts)
-- [YAML config file format](planetiler-custommap) that lets you create custom schemas without writing Java code
-- Merge nearby lines or polygons with the same tags before emitting vector tiles
-- Automatically fixes self-intersecting polygons
-- Built-in OpenMapTiles profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13.1
-- Optionally download additional name translations for elements from Wikidata
-- Export real-time stats to a [prometheus push gateway](https://github.com/prometheus/pushgateway) using
-  `--pushgateway=http://user:password@ip` argument (and a [grafana dashboard](grafana.json) for viewing)
-- Automatically downloads region extracts from [Geofabrik](https://download.geofabrik.de/)
-  using `geofabrik:australia` shortcut as a source URL
-- Unit-test profiles to verify mapping logic, or integration-test to verify the actual contents of a generated mbtiles
-  file ([example](planetiler-examples/src/test/java/com/onthegomap/planetiler/examples/BikeRouteOverlayTest.java))
+```java
+import com.onthegomap.planetiler.*;
+import com.onthegomap.planetiler.config.*;
+import com.onthegomap.planetiler.reader.*;
+import java.nio.file.Path;
 
-## Limitations
+public class Roads implements Profile {
 
-- It is harder to join and group data than when using database. Planetiler automatically groups features into tiles, so
-  you can easily post-process nearby features in the same tile before emitting, but if you want to group or join across
-  features in different tiles, then you must explicitly store data when processing a feature to use with later features
-  or store features and defer processing until an input source is
-  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
-- Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
+  @Override
+  public String attribution() {
+    return """
+      <a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
+      """.trim();
+  }
+
+  @Override
+  public void processFeature(SourceFeature feature, FeatureCollector features) {
+    if (feature.canBeLine() && feature.hasTag("highway", "primary", "secondary", "tertiary")) {
+      features.line("roads").setAttr("class", feature.getTag("highway"));
+    }
+  }
+
+  public static void main(String[] args) {
+    Planetiler.create(Arguments.fromArgs(args)).addOsmSource("osm", Path.of("ri.osm.pbf"), "geofabrik:rhode-island")
+      .overwriteOutput(Path.of("roads.pmtiles"))
+      .setProfile(new Roads())
+      .run();
+  }
+}
+```
+
+This can be run with Java 22 or later without any compile step or build tools:
+
+```bash
+java -cp planetiler.jar Roads.java --download --output=roads.pmtiles
+```
 
 ## Use as a library
 
-Since Java 22, you can use Planetile as a library with a custom profile by running:
-
-`java -cp planetiler.jar Profile.java`.
-
-See [the examples](https://github.com/onthegomap/planetiler-examples) for more details.
-
-Planetiler can be used as a maven-style dependency in a Java project using the settings below:
+For larger projects with other dependencies, Planetiler can be used as a maven-style dependency in a Java project
+using the settings below:
 
 ### Maven
 
@@ -296,6 +276,116 @@ Set up your dependencies block:
 implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
 ```
 
+### Git submodules
+
+Planetiler has a submodule dependency
+on [planetiler-openmaptiles](https://github.com/openmaptiles/planetiler-openmaptiles). Add `--recurse-submodules`
+to `git clone`, `git pull`, or `git checkout` commands to also update submodule dependencies.
+
+To clone the repo with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/onthegomap/planetiler.git
+```
+
+If you already pulled the repo, you can initialize submodules with:
+
+```bash
+git submodule update --init
+```
+
+To force git to always update submodules (recommended), run this command in your local repo:
+
+```bash
+git config --local submodule.recurse true
+```
+
+Learn more about working with submodules [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+
+## Benchmarks
+
+Some example runtimes for the OpenMapTiles profile (excluding downloading resources):
+
+|                     Input                      | Version |             Machine             |           Time            | output size  |                                                      Logs                                                      |
+|------------------------------------------------|---------|---------------------------------|---------------------------|--------------|----------------------------------------------------------------------------------------------------------------|
+| s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 22m cpu:44h34m  avg:120   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180.txt)                                                         |
+| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 42m cpu:42m28s avg:52     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb.txt)                                                               |
+| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 53m cpu:41h58m avg:47.1   | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-128gb.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb.nps) |
+| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.8xlarge (32cpu/64GB)       | 1h27m cpu:37h55m avg:26.1 | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-64gb.txt)                                                                |
+| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.4xlarge (16cpu/32GB)       | 2h38m cpu:34h3m avg:12.9  | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-32gb.txt)                                                                |
+
+Merging nearby buildings at z13 is very expensive, when run with `--building-merge-z13=false`:
+
+|                     Input                      | Version |             Machine             |           Time           | output size  |                                                                            Logs                                                                            |
+|------------------------------------------------|---------|---------------------------------|--------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 16m cpu:27h45m avg:104   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180-no-z13-building-merge.txt)                                                                               |
+| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 29m cpu:23h57 avg:50     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb-no-z13-building-merge.txt)                                                                                     |
+| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.2xlarge (8cpu/16GB)        | 3h35m cpu:19h45 avg:5.5  | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-16gb-no-z13-building-merge.txt)                                                                                      |
+| s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | im4gn.large (2cpu/8GB)          | 18h18m cpu:28h6m avg:1.5 | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-im4gn-8gb-no-z13-building-merge.txt)                                                                                      |
+| s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 39m cpu:27h4m avg:42.1   | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.nps) |
+
+## Alternatives
+
+Some other tools that generate vector tiles from OpenStreetMap data:
+
+- [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) is the reference implementation of
+  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that
+  the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles)
+  is based on. It uses an intermediate postgres database and operates in two modes:
+  1. Import data into database (~1 day) then serve vector tiles directly from the database. Tile serving is slower and
+     requires bigger machines, but lets you easily incorporate realtime updates
+  2. Import data into database (~1 day) then pregenerate every tile for the planet into an mbtiles file which
+     takes [over 100 days](https://github.com/openmaptiles/openmaptiles/issues/654#issuecomment-724606293)
+     or a cluster of machines, but then tiles can be served faster on smaller machines
+- [Tilemaker](https://github.com/systemed/tilemaker) uses a similar approach to Planetiler (no intermediate database)
+  using lua scripts to customize handling.
+- [Tippecanoe](https://github.com/felt/tippecanoe) generates vector tiles directly from GeoJSON and is designed for
+  visualizing all features across all zoom levels, but unlike Planetiler it is not built for filtering and processing
+  raw OpenStreetMap planet files at global scale.
+
+Some services that generate and host tiles for you:
+
+- [Mapbox](https://www.mapbox.com/) - data from the creator of vector tile technologies
+- [Maptiler](https://www.maptiler.com/) - data from the creator of OpenMapTiles schema
+- [Stadia Maps](https://stadiamaps.com/) - reasonably priced hosted OpenMapTiles tiles
+- [OpenFreeMap](https://openfreemap.org/) - free API serving OpenMapTiles tiles generated by planetiler weekly
+
+## Features
+
+- Supports OpenStreetMap [.osm.pbf](https://wiki.openstreetmap.org/wiki/PBF_Format),
+  [Natural Earth](https://www.naturalearthdata.com/),
+  [geopackage](https://www.geopackage.org/), [GeoJson](https://geojson.org/)
+  [Esri Shapefile](https://en.wikipedia.org/wiki/Shapefile), and [GeoParquet](https://geoparquet.org/)
+  (ie. [Overture Maps](https://overturemaps.org/)) input data sources
+- Writes to [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md)
+  or [PMTiles](https://github.com/protomaps/PMTiles) output archives.
+- Generates [Mapbox Vector Tiles (MVT)](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
+  or [MapLibre Tiles (MLT)](https://github.com/maplibre/maplibre-tile-spec) by running with `--tile-format=mlt`
+- Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
+  elements map to vector tile features, and post-process generated tiles
+  using [JTS geometry utilities](https://github.com/locationtech/jts)
+- [YAML config file format](planetiler-custommap) that lets you create custom schemas without writing Java code
+- Merge nearby lines or polygons with the same tags before emitting vector tiles
+- Robust geometry handling that automatically fixes self-intersecting polygons and avoids invalid geometries when
+  snapping tiles to a grid
+- Built-in [OpenMapTiles](https://openmaptiles.org/) profile
+- Optionally download additional name translations for elements from Wikidata
+- Export real-time stats to a [prometheus push gateway](https://github.com/prometheus/pushgateway) using
+  `--pushgateway=http://user:password@ip` argument (and a [grafana dashboard](grafana.json) for viewing)
+- Automatically downloads region extracts from [Geofabrik](https://download.geofabrik.de/)
+  using `geofabrik:australia` shortcut as a source URL
+- Unit-test profiles to verify mapping logic, or integration-test to verify the actual contents of a generated mbtiles
+  file ([example](planetiler-examples/src/test/java/com/onthegomap/planetiler/examples/BikeRouteOverlayTest.java))
+
+## Limitations
+
+- It is harder to join and group data than when using database. Planetiler automatically groups features into tiles, so
+  you can easily post-process nearby features in the same tile before emitting, but if you want to group or join across
+  features in different tiles, then you must explicitly store data when processing a feature to use with later features
+  or store features and defer processing until an input source is
+  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
+- Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
+
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
@@ -343,6 +433,8 @@ Planetiler is made possible by these awesome open source projects:
 - [PMTiles](https://github.com/protomaps/PMTiles) optimized tile storage format
 - [Apache Parquet](https://github.com/apache/parquet-mr) to support reading geoparquet files in java (with dependencies
   minimized by [parquet-floor](https://github.com/strategicblue/parquet-floor))
+- [MapLibre Tile Java](https://github.com/maplibre/maplibre-tile-spec/tree/main/java) for writing tiles using the
+  new [MapLibre Tile format](https://maplibre.org/maplibre-tile-spec/specification/).
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 
