@@ -92,6 +92,7 @@ public class ConfiguredFeature {
     for (var attribute : feature.attributes()) {
       processors.add(attributeProcessor(attribute));
     }
+    processors.add(makeFeatureProcessor(feature.id(), Long.class, Feature::setId));
     processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
     processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
     Double buffer = layer.buffer();
