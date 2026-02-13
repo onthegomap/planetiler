@@ -7,6 +7,7 @@ import java.util.List;
 
 public record FeatureItem(
   @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY) List<String> source,
+  @JsonProperty("id") Object id,
   @JsonProperty("min_zoom") Object minZoom,
   @JsonProperty("max_zoom") Object maxZoom,
   @JsonProperty("min_size") Object minSize,

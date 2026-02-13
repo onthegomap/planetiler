@@ -1934,4 +1934,28 @@ class ConfiguredFeatureTest {
       assertEquals(5, feature.getBufferPixelsAtZoom(14));
     }, 1);
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "100, 100",
+    "${ int(feature.id) }, 1",
+  })
+  void testId(String input, Long output) {
+    String schema = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          id: <TEST INPUT>
+      """.replace("<TEST INPUT>", input);
+    testPolygon(schema, Map.of(), feature -> {
+      assertEquals(output, feature.getId());
+    }, 1);
+  }
 }
