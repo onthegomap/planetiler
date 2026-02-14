@@ -14,7 +14,6 @@ public record FeatureItem(
   @JsonProperty("min_size_at_max_zoom") Object minSizeAtMaxZoom,
   @JsonProperty("tolerance") Object tolerance,
   @JsonProperty("tolerance_at_max_zoom") Object toleranceAtMaxZoom,
-  @JsonProperty("buffer_pixels") Object bufferPixels,
   @JsonProperty("point_label_grid_pixel_size") PointLabelGridPixelSize pointLabelGridPixelSize,
   @JsonProperty("point_label_grid_limit") PointLabelGridLimit pointLabelGridLimit,
   @JsonProperty("sort_key") Object sortKey,

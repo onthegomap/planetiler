@@ -110,7 +110,6 @@ public class ConfiguredFeature {
     processors
       .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
-    processors.add(makeFeatureProcessor(feature.bufferPixels(), Double.class, Feature::setBufferPixels));
     processors.add(makeFeatureProcessor(feature.pointLabelGridPixelSize(), PointLabelGridPixelSize.class,
       (f, a) -> f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.maxZoom(), a.size()))));
     processors.add(makeFeatureProcessor(feature.pointLabelGridLimit(), PointLabelGridLimit.class,
