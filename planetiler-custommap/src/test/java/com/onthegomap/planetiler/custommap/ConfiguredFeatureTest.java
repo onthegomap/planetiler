@@ -1987,4 +1987,30 @@ class ConfiguredFeatureTest {
       assertEquals(0, feature.getPointLabelGridLimitAtZoom(9));
     }, 1);
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "sort_key: 100 }, 100",
+    "sort_key: ${ int(feature.id) }, 1",
+    "sort_key_descending: 100 }, -101",
+    "sort_key_descending: ${ int(feature.id) }, -2",
+  })
+  void testSortKey(String input, Long output) {
+    String schema = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          <TEST INPUT>
+      """.replace("<TEST INPUT>", input);
+    testPolygon(schema, Map.of(), feature -> {
+      assertEquals(output, feature.getSortKey());
+    }, 1);
+  }
 }
