@@ -10,10 +10,13 @@ import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
+import com.onthegomap.planetiler.custommap.configschema.PointLabelGridLimit;
+import com.onthegomap.planetiler.custommap.configschema.PointLabelGridPixelSize;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,6 +109,14 @@ public class ConfiguredFeature {
     processors.add(makeFeatureProcessor(feature.tolerance(), Double.class, Feature::setPixelTolerance));
     processors
       .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
+
+    processors.add(makeFeatureProcessor(feature.bufferPixels(), Double.class, Feature::setBufferPixels));
+    processors.add(makeFeatureProcessor(feature.pointLabelGridPixelSize(), PointLabelGridPixelSize.class,
+      (f, a) -> f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.maxZoom(), a.size()))));
+    processors.add(makeFeatureProcessor(feature.pointLabelGridLimit(), PointLabelGridLimit.class,
+      (f, a) -> f.setPointLabelGridLimit(ZoomFunction.maxZoom(a.maxZoom(), a.limit()))));
+    processors.add(makeFeatureProcessor(feature.sortKey(), Integer.class, Feature::setSortKey));
+    processors.add(makeFeatureProcessor(feature.sortKeyDescending(), Integer.class, Feature::setSortKeyDescending));
 
     featureProcessors = processors.stream().filter(Objects::nonNull).toList();
     splitAtIntersections = feature.geometry() == FeatureGeometry.SPLIT_LINE;
