@@ -1958,4 +1958,33 @@ class ConfiguredFeatureTest {
       assertEquals(output, feature.getId());
     }, 1);
   }
+
+  @Test
+  void testLabelGrid() {
+    String schema = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        buffer: 64
+        features:
+        - source: osm
+          geometry: point
+          point_label_grid_pixel_size:
+            maxzoom: 8
+            size: 32
+          point_label_grid_limit:
+            maxzoom: 8
+            limit: 64
+      """;
+    testPoint(schema, Map.of(), feature -> {
+      assertEquals(32, feature.getPointLabelGridPixelSizeAtZoom(8));
+      assertEquals(0, feature.getPointLabelGridPixelSizeAtZoom(9));
+      assertEquals(64, feature.getPointLabelGridLimitAtZoom(8));
+      assertEquals(0, feature.getPointLabelGridLimitAtZoom(9));
+    }, 1);
+  }
 }
