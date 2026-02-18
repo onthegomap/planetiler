@@ -3,6 +3,7 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.carrotsearch.hppc.IntArrayList;
@@ -736,6 +737,33 @@ class FeatureMergeTest {
         TestUtils.validateGeometry(geometry);
       }
       assertEquals(expected, total);
+    }
+  }
+
+  @Test
+  void testProtomaps538LakeMerge() throws IOException, GeometryException {
+    // see https://github.com/protomaps/basemaps/issues/538
+    try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource("protomaps538lakemerge.mbtiles"))) {
+      byte[] tileData = db.getTile(35, 46, 7);
+      byte[] gunzipped = gunzip(tileData);
+      List<VectorTile.Feature> features = VectorTile.decode(gunzipped);
+      double areaBefore = features.stream().mapToDouble(f -> {
+        try {
+          return f.geometry().decode().getArea();
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      }).sum();
+      List<VectorTile.Feature> merged = FeatureMerge.mergeNearbyPolygons(features, 1.0, 1.0, 0.5, 0.0625,
+        Stats.inMemory(), null);
+      double areaAfter = 0;
+      for (var feature : merged) {
+        Geometry geometry = feature.geometry().decode();
+        areaAfter += geometry.getArea();
+        TestUtils.validateGeometry(geometry);
+      }
+      double ratio = areaAfter / areaBefore;
+      assertTrue(ratio > 0.99 && ratio < 1.01, "Area changed too much %f -> %f".formatted(areaBefore, areaAfter));
     }
   }
 

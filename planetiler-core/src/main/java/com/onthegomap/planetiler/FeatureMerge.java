@@ -69,8 +69,8 @@ public class FeatureMerge {
   private FeatureMerge() {}
 
   /**
-   * Modifies a feature ID to end in 0, indicating the feature was created by merging and doesn't correspond to a
-   * single source element.
+   * Modifies a feature ID to end in 0, indicating the feature was created by merging and doesn't correspond to a single
+   * source element.
    * <p>
    * For OSM features, IDs are encoded as {@code osm_id * 10 + element_type} where element_type is 1 for nodes, 2 for
    * ways, and 3 for relations. IDs ending in 0 are reserved for features that don't map to a single OSM element.
@@ -471,10 +471,13 @@ public class FeatureMerge {
      * not choke on dense nearby polygons:
      */
     List<Geometry> buffered = new ArrayList<>(polygonGroup.size());
+    double areaBefore = 0;
     for (Geometry geometry : polygonGroup) {
+      areaBefore += geometry.getArea();
       buffered.add(buffer(buffer, geometry));
     }
     Geometry merged = GeoUtils.createGeometryCollection(buffered);
+    Geometry beforeUnion = merged;
     try {
       merged = union(merged);
     } catch (TopologyException e) {
@@ -485,6 +488,18 @@ public class FeatureMerge {
       merged = union(merged);
     }
     merged = unbuffer(buffer, merged);
+    // in extremely rare cases this can make output too small (see https://github.com/locationtech/jts/issues/1183).
+    // Until that issue is fixed, try un-buffering the output of the buffer step before unioning
+    if (areaBefore > 100) {
+      double areaAfter = merged.getArea();
+      if (areaAfter < areaBefore * 0.95) {
+        stats.dataError("buffer_union_unbuffer_too_small");
+        var merged2 = unbuffer(buffer, beforeUnion);
+        if (merged2.getArea() > areaAfter) {
+          merged = merged2;
+        }
+      }
+    }
     return merged;
   }
 
