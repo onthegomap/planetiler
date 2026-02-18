@@ -60,7 +60,7 @@ java -Xmx1g -jar planetiler.jar --download --area=monaco
 Or using Docker:
 
 ```bash
-docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest --download --area=monaco
+docker run --rm -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest --download --area=monaco
 ```
 
 :warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles
@@ -82,7 +82,7 @@ java -Xmx1g -jar planetiler.jar --download --area=monaco \
 Docker:
 
 ```bash
-docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest --download --area=monaco \
+docker run --rm -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest --download --area=monaco \
   --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
   --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip
 ```
