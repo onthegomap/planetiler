@@ -1991,9 +1991,9 @@ class ConfiguredFeatureTest {
   @ParameterizedTest
   @CsvSource({
     "sort_key: 100 }, 100",
-    "sort_key: ${ int(feature.id) }, 1",
+    "sort_key: ${ feature.id }, 1",
     "sort_key_descending: 100 }, -101",
-    "sort_key_descending: ${ int(feature.id) }, -2",
+    "sort_key_descending: ${ feature.id }, -2",
   })
   void testSortKey(String input, Long output) {
     String schema = """
