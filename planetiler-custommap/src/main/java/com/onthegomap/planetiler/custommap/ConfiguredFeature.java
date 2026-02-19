@@ -382,8 +382,10 @@ public class ConfiguredFeature {
     assert sources.isEmpty() || sources.contains(sourceFeature.getSource());
 
     var f = geometryFactory.apply(features);
-    for (var processor : featureProcessors) {
-      processor.accept(context, f);
+    if (!f.isEmpty()) {
+      for (var processor : featureProcessors) {
+        processor.accept(context, f);
+      }
     }
   }
 
