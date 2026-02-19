@@ -471,9 +471,9 @@ public class FeatureMerge {
      * not choke on dense nearby polygons:
      */
     List<Geometry> buffered = new ArrayList<>(polygonGroup.size());
-    double areaBefore = 0;
+    double maxAreaBefore = 0;
     for (Geometry geometry : polygonGroup) {
-      areaBefore += geometry.getArea();
+      maxAreaBefore = Math.max(maxAreaBefore, geometry.getArea());
       buffered.add(buffer(buffer, geometry));
     }
     Geometry merged = GeoUtils.createGeometryCollection(buffered);
@@ -490,12 +490,16 @@ public class FeatureMerge {
     merged = unbuffer(buffer, merged);
     // in extremely rare cases this can make output too small (see https://github.com/locationtech/jts/issues/1183).
     // Until that issue is fixed, try un-buffering the output of the buffer step before unioning
-    if (areaBefore > 100) {
+    if (maxAreaBefore > 100) {
       double areaAfter = merged.getArea();
-      if (areaAfter < areaBefore * 0.95) {
+      if (areaAfter < maxAreaBefore * 0.95) {
         stats.dataError("buffer_union_unbuffer_too_small");
         var merged2 = unbuffer(buffer, beforeUnion);
-        if (merged2.getArea() > areaAfter) {
+        double areaAfter2 = merged2.getArea();
+        if (areaAfter2 < maxAreaBefore * 0.95) {
+          stats.dataError("buffer_union_unbuffer_still_too_small");
+        }
+        if (areaAfter2 > areaAfter) {
           merged = merged2;
         }
       }
