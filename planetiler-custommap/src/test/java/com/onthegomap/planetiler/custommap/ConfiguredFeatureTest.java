@@ -1938,7 +1938,7 @@ class ConfiguredFeatureTest {
   @ParameterizedTest
   @CsvSource({
     "100, 100",
-    "${ int(feature.id) }, 1",
+    "${ feature.id }, 1",
   })
   void testId(String input, Long output) {
     String schema = """
