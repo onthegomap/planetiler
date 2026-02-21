@@ -123,6 +123,11 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
     return items;
   }
 
+  default List<VectorTile.Feature> postProcessLayerFeatures(String layer, TileCoord tileCoord,
+    List<VectorTile.Feature> items) throws GeometryException {
+    return postProcessLayerFeatures(layer, tileCoord.z(), items);
+  }
+
   /**
    * Apply any post-processing to layers in an output tile before writing it to the output.
    * <p>
