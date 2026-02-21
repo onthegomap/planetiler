@@ -487,17 +487,18 @@ public class FeatureMerge {
       merged = GeometryFixer.fix(merged);
       merged = union(merged);
     }
+    var beforeMerge = merged;
     merged = unbuffer(buffer, merged);
     // in extremely rare cases this can make output too small (see https://github.com/locationtech/jts/issues/1183).
     // Until that issue is fixed, try un-buffering the output of the buffer step before unioning
     if (maxAreaBefore > 100) {
       double areaAfter = merged.getArea();
       if (areaAfter < maxAreaBefore * 0.95) {
-        stats.dataError("buffer_union_unbuffer_too_small");
+        stats.dataError("buffer_union_unbuffer_too_small", "unbuffer(" + buffer + ")", beforeMerge);
         var merged2 = unbuffer(buffer, beforeUnion);
         double areaAfter2 = merged2.getArea();
         if (areaAfter2 < maxAreaBefore * 0.95) {
-          stats.dataError("buffer_union_unbuffer_still_too_small");
+          stats.dataError("buffer_union_unbuffer_still_too_small", "unbuffer(" + buffer + ")", beforeUnion);
         }
         if (areaAfter2 > areaAfter) {
           merged = merged2;
