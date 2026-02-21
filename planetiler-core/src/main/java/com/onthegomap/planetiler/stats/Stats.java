@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
  * <a href="https://github.com/prometheus/pushgateway">prometheus push gateway</a>.
  */
 public interface Stats extends AutoCloseable {
-  Logger LOGGER = LoggerFactory.getLogger(Stats.class);
 
   /** Returns a new stat collector that stores basic stats in-memory to report through {@link #printSummary()}. */
   static Stats inMemory() {
@@ -188,16 +187,6 @@ public interface Stats extends AutoCloseable {
     dataErrors().merge(errorCode, 1L, Long::sum);
   }
 
-  default Stats logDataError(String context) {
-    return new Forwarding(this) {
-      @Override
-      public void dataError(String errorCode) {
-        LOGGER.info("Data error {} {}", context, errorCode);
-        super.dataError(errorCode);
-      }
-    };
-  }
-
   /**
    * A stat collector that stores top-level metrics in-memory to report through {@link #printSummary()}.
    * <p>
@@ -261,81 +250,6 @@ public interface Stats extends AutoCloseable {
     @Override
     public void close() {
 
-    }
-  }
-
-  class Forwarding implements Stats {
-
-    private final Stats delegate;
-
-    private Forwarding(Stats delegate) {
-      this.delegate = delegate;
-    }
-
-
-    @Override
-    public void wroteTile(int zoom, int bytes) {
-      delegate.wroteTile(zoom, bytes);
-    }
-
-    @Override
-    public Timers timers() {
-      return delegate.timers();
-    }
-
-    @Override
-    public Map<String, MonitoredFile> monitoredFiles() {
-      return delegate.monitoredFiles();
-    }
-
-    @Override
-    public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
-      delegate.monitorInMemoryObject(name, object);
-    }
-
-    @Override
-    public void counter(String name, Supplier<Number> supplier) {
-      delegate.counter(name, supplier);
-    }
-
-    @Override
-    public Counter.MultiThreadCounter longCounter(String name) {
-      return delegate.longCounter(name);
-    }
-
-    @Override
-    public Counter.MultiThreadCounter nanoCounter(String name) {
-      return delegate.nanoCounter(name);
-    }
-
-    @Override
-    public void counter(String name, String label, Supplier<Map<String, LongSupplier>> values) {
-      delegate.counter(name, label, values);
-    }
-
-    @Override
-    public Map<String, Long> dataErrors() {
-      return delegate.dataErrors();
-    }
-
-    @Override
-    public void processedElement(String elemType, String layer, int zoom) {
-      delegate.processedElement(elemType, layer, zoom);
-    }
-
-    @Override
-    public void gauge(String name, Supplier<Number> value) {
-      delegate.gauge(name, value);
-    }
-
-    @Override
-    public void emittedFeatures(int z, String layer, int numFeatures) {
-      delegate.emittedFeatures(z, layer, numFeatures);
-    }
-
-    @Override
-    public void close() throws Exception {
-      delegate.close();
     }
   }
 

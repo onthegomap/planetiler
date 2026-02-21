@@ -495,7 +495,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
       try {
         List<VectorTile.Feature> postProcessed = makeMutable(profile
-          .postProcessLayerFeatures(layer, tileCoord, makeMutable(features)));
+          .postProcessLayerFeatures(layer, tileCoord.z(), makeMutable(features)));
         features = postProcessed == null ? features : postProcessed;
         // lines are stored using a higher precision so that rounding does not
         // introduce artificial intersections between endpoints to confuse line merging,
