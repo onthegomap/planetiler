@@ -2,17 +2,23 @@ package com.onthegomap.planetiler.stats;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
+import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.WKBWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +30,7 @@ import org.slf4j.LoggerFactory;
  * <a href="https://github.com/prometheus/pushgateway">prometheus push gateway</a>.
  */
 public interface Stats extends AutoCloseable {
+  Logger LOGGER = LoggerFactory.getLogger(Stats.class);
 
   /** Returns a new stat collector that stores basic stats in-memory to report through {@link #printSummary()}. */
   static Stats inMemory() {
@@ -185,6 +192,20 @@ public interface Stats extends AutoCloseable {
    */
   default void dataError(String errorCode) {
     dataErrors().merge(errorCode, 1L, Long::sum);
+  }
+
+  /**
+   * Records that an invalid input feature was discarded and if {@link PlanetilerConfig#logJtsExceptions()} is enabled
+   * it will print the current tile being processed and also the input geometry.
+   */
+  default void dataError(String errorCode, String other, Geometry input) {
+    dataError(errorCode);
+
+    TileCoord coord = FeatureGroup.getCurrentTileForDebugging();
+    if (coord != null) {
+      LOGGER.info("{} on {} {} for wkb: {}", errorCode, coord, other,
+        Base64.getEncoder().encodeToString(new WKBWriter().write(input)));
+    }
   }
 
   /**
