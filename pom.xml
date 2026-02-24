@@ -19,7 +19,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>21</maven.compiler.release>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.21.0</jackson.version>
+    <jackson.version>2.21.1</jackson.version>
     <junit.version>6.0.3</junit.version>
     <jts.version>1.20.0</jts.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
