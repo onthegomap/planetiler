@@ -100,11 +100,11 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   public void init() {
     try {
-      for (Integer oldKey : writeBuffers.keySet()) {
-        if (oldKey < Integer.MAX_VALUE) {
+      for (var entry : writeBuffers.entrySet()) {
+        if (entry.getKey() < Integer.MAX_VALUE) {
           // no one else needs this segment, flush it
-          var toFlush = writeBuffers.remove(oldKey);
-          if (toFlush != null) {
+          var toFlush = entry.setValue(DONE_SEGMENT);
+          if (toFlush != null && toFlush != DONE_SEGMENT) {
             toFlush.flushToDisk();
           }
         }
@@ -206,6 +206,28 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
+  private final Segment DONE_SEGMENT = new Segment() {
+    @Override
+    ByteBuffer await() {
+      throw new IllegalArgumentException("await called on closed segment");
+    }
+
+    @Override
+    void allocate() {
+      throw new IllegalArgumentException("allocate called on closed segment");
+    }
+
+    @Override
+    void flushToDisk() {
+      throw new IllegalArgumentException("flushToDisk called on closed segment");
+    }
+
+    @Override
+    public String toString() {
+      return "DONE";
+    }
+  };
+
   /**
    * A segment of the storage file that threads can update in parallel, and can be flushed to disk when all threads are
    * done writing to it.
@@ -221,8 +243,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       this.id = id;
     }
 
-    public int id() {
-      return id;
+    public Segment() {
+      this(0);
     }
 
     @Override
@@ -307,6 +329,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         buffer = actions.awaitBuffer();
         lastSegment = segment;
         segmentOffset = segment << segmentBits;
+      } else if (segment < lastSegment) {
+        throw new IllegalStateException("Out-of-order insertions not allowed");
       }
       buffer.putLong((int) (offset - segmentOffset), value);
     }
@@ -318,15 +342,19 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
         if (min == Integer.MAX_VALUE) {
           // all workers are done, flush everything
-          result.flush.addAll(writeBuffers.values());
-          writeBuffers.clear();
+          for (var entry : writeBuffers.entrySet()) {
+            var old = entry.setValue(DONE_SEGMENT);
+            if (old != DONE_SEGMENT) {
+              result.flush.add(old);
+            }
+          }
           tail = min;
         } else if (value == Integer.MAX_VALUE) {
           // this worker is done, advance tail to min
-          for (Integer key : writeBuffers.keySet()) {
-            if (key < min) {
-              var segment = writeBuffers.remove(key);
-              if (segment != null) {
+          for (var entry : writeBuffers.entrySet()) {
+            if (entry.getKey() < min) {
+              var segment = entry.setValue(DONE_SEGMENT);
+              if (segment != null && segment != DONE_SEGMENT) {
                 result.flush.add(segment);
               }
             }
@@ -335,11 +363,9 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         } else {
           // if the tail segment just finished, then advance the tail and flush all pending segments
           while (tail < min) {
-            if (writeBuffers.containsKey(tail)) {
-              var segment = writeBuffers.remove(tail);
-              if (segment != null) {
-                result.flush.add(segment);
-              }
+            var segment = writeBuffers.put(tail, DONE_SEGMENT);
+            if (segment != null && segment != DONE_SEGMENT) {
+              result.flush.add(segment);
             }
             tail++;
           }

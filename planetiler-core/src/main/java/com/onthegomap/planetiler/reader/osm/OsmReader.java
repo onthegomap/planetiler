@@ -253,7 +253,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
           }
           if (element instanceof OsmElement.Node node) {
-            phases.arrive(OsmPhaser.Phase.NODES);
+            phases.arriveAndWaitForOthers(OsmPhaser.Phase.NODES);
             try {
               profile.preprocessOsmNode(node);
             } catch (Exception e) {
