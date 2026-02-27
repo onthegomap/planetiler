@@ -44,8 +44,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
    * TODO: extract maintaining segments list into a separate utility?
    */
 
-  // 32MB per chunk
-  private static final int DEFAULT_SEGMENT_BITS = 25;
+  // 16MB per chunk
+  private static final int DEFAULT_SEGMENT_BITS = 24;
   // work on up to 5GB of data at a time
   private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
   private final boolean madvise;
