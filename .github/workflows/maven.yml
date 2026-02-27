@@ -104,7 +104,7 @@ jobs:
       run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
 
     - name: 'Upload artifact'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
