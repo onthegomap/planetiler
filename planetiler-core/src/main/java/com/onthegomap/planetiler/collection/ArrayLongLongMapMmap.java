@@ -17,12 +17,14 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -37,15 +39,14 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
    * In order to limit the number of in-memory segments during writes and ensure liveliness, keep track
    * of the current segment index that each worker is working on in the "segments" array. Then use
    * slidingWindow to make threads that try to allocate new segments wait until old segments are
-   * finished. Also use activeSegments semaphore to make new segments wait to allocate until
-   * old segments are actually flushed to disk.
+   * finished. Also use bufferPool blocking queue to limit the total amount of memory used and avoid OOM
+   * errors allocating large slabs of memory while running.
    *
-   * TODO: cleaner way to limit in-memory segments with sliding window that does not also need the semaphore?
    * TODO: extract maintaining segments list into a separate utility?
    */
 
-  // 128MB per chunk
-  private static final int DEFAULT_SEGMENT_BITS = 27;
+  // 16MB per chunk
+  private static final int DEFAULT_SEGMENT_BITS = 24;
   // work on up to 5GB of data at a time
   private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
   private final boolean madvise;
@@ -56,7 +57,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private final Path path;
   private final CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
-  private final Semaphore activeSegments;
+  private final BlockingQueue<ByteBuffer> bufferPool;
   private final BitSet usedSegments = new BitSet();
   private FileChannel writeChannel;
   private MappedByteBuffer[] segmentsArray;
@@ -77,7 +78,11 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }
-    this.activeSegments = new Semaphore(maxPendingSegments);
+    this.bufferPool = new ArrayBlockingQueue<>(maxPendingSegments);
+    // pre-allocate byte buffers to avoid later OOM errors allocating large slabs of memory
+    for (int i = 0; i < maxPendingSegments; i++) {
+      bufferPool.add(ByteBuffer.allocate(1 << segmentBits));
+    }
     this.madvise = madvise;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
@@ -221,10 +226,6 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       this.id = id;
     }
 
-    public int id() {
-      return id;
-    }
-
     @Override
     public String toString() {
       return "Segment[" + id + ']';
@@ -244,15 +245,15 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     void allocate() {
       slidingWindow.waitUntilInsideWindow(id);
       try {
-        activeSegments.acquire();
+        ByteBuffer buffer = bufferPool.take();
+        synchronized (usedSegments) {
+          usedSegments.set(id);
+        }
+        result.complete(buffer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwFatalException(e);
       }
-      synchronized (usedSegments) {
-        usedSegments.set(id);
-      }
-      result.complete(ByteBuffer.allocate(1 << segmentBits));
     }
 
     void flushToDisk() {
@@ -260,7 +261,10 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         result = null;
-        activeSegments.release();
+        // return buffer to the pool
+        buffer.clear();
+        Arrays.fill(buffer.array(), (byte) 0);
+        bufferPool.add(buffer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwFatalException(e);
@@ -307,6 +311,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         buffer = actions.awaitBuffer();
         lastSegment = segment;
         segmentOffset = segment << segmentBits;
+      } else if (segment < lastSegment) {
+        throw new IllegalStateException("Out-of-order insertions not allowed");
       }
       buffer.putLong((int) (offset - segmentOffset), value);
     }
@@ -321,6 +327,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           result.flush.addAll(writeBuffers.values());
           writeBuffers.clear();
           tail = min;
+          bufferPool.clear();
         } else if (value == Integer.MAX_VALUE) {
           // this worker is done, advance tail to min
           for (Integer key : writeBuffers.keySet()) {
@@ -352,8 +359,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         }
 
         // let workers waiting to allocate new segments to the head of the sliding window proceed
-        // NOTE: the memory hasn't been released yet, so the activeChunks semaphore will cause
-        // those workers to wait until the memory has been released.
+        // NOTE: the buffer hasn't been returned yet, so the bufferPool blocking queue will cause
+        // those workers to wait until the buffer is available.
         slidingWindow.advanceTail(tail);
         return result;
       }
