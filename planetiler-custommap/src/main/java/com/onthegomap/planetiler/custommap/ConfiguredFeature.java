@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.co
 import static com.onthegomap.planetiler.expression.Expression.not;
 import static com.onthegomap.planetiler.util.Coalesce.coalesce;
 
+import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
@@ -12,10 +13,15 @@ import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.RelationMemberDataProvider;
+import com.onthegomap.planetiler.reader.osm.RelationSourceFeature;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +29,9 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.ObjDoubleConsumer;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 
 /**
  * A map feature, configured from a YML configuration file.
@@ -38,15 +47,26 @@ public class ConfiguredFeature {
   private final TagValueProducer tagValueProducer;
   private final List<BiConsumer<Contexts.FeaturePostMatch, Feature>> featureProcessors;
   private final Set<String> sources;
+  private final String layerId;
   private final ScriptEnvironment<Contexts.ProcessFeature> processFeatureContext;
   private final ScriptEnvironment<Contexts.FeatureAttribute> featureAttributeContext;
   private ScriptEnvironment<Contexts.FeaturePostMatch> featurePostMatchContext;
+  private ScriptEnvironment<Contexts.MemberContext> memberContext;
+  
+  // Member processing configuration (only used for RELATION_MEMBERS geometry)
+  private final boolean isRelationMembers;
+  private final Set<String> memberTypes;
+  private final Set<String> memberRoles;
+  private final Expression memberIncludeWhen;
+  private final Expression memberExcludeWhen;
+  private final List<BiConsumer<Contexts.MemberContext, Feature>> memberAttributeProcessors;
   private final boolean splitAtIntersections;
 
 
   public ConfiguredFeature(FeatureLayer layer, TagValueProducer tagValueProducer, FeatureItem feature,
     Contexts.Root rootContext) {
     sources = Set.copyOf(feature.source());
+    layerId = layer.id();
 
     FeatureGeometry geometryType = feature.geometry();
 
@@ -86,6 +106,47 @@ public class ConfiguredFeature {
 
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryType.newGeometryFactory(layer.id());
+
+    // Member processing configuration (only used for RELATION_MEMBERS geometry)
+    isRelationMembers = geometryType == FeatureGeometry.RELATION_MEMBERS;
+    
+    if (isRelationMembers) {
+      memberContext = Contexts.MemberContext.description(rootContext);
+      
+      List<String> memberTypesList = feature.memberTypes();
+      memberTypes = memberTypesList.isEmpty() ? 
+        Set.of("node", "way", "relation") : Set.copyOf(memberTypesList);
+      
+      List<String> memberRolesList = feature.memberRoles();
+      memberRoles = memberRolesList == null || memberRolesList.isEmpty() ? 
+        null : Set.copyOf(memberRolesList);
+      
+      if (feature.memberIncludeWhen() != null) {
+        memberIncludeWhen = BooleanExpressionParser.parse(
+          feature.memberIncludeWhen(), tagValueProducer, memberContext);
+      } else {
+        memberIncludeWhen = Expression.TRUE;
+      }
+      
+      if (feature.memberExcludeWhen() != null) {
+        memberExcludeWhen = BooleanExpressionParser.parse(
+          feature.memberExcludeWhen(), tagValueProducer, memberContext);
+      } else {
+        memberExcludeWhen = Expression.FALSE;
+      }
+      
+      List<BiConsumer<Contexts.MemberContext, Feature>> memberAttrProcessors = new ArrayList<>();
+      for (var memberAttr : feature.memberAttributes()) {
+        memberAttrProcessors.add(memberAttributeProcessor(memberAttr));
+      }
+      memberAttributeProcessors = memberAttrProcessors;
+    } else {
+      memberTypes = null;
+      memberRoles = null;
+      memberIncludeWhen = null;
+      memberExcludeWhen = null;
+      memberAttributeProcessors = null;
+    }
 
     //Configure logic for each attribute in the output tile
     List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors = new ArrayList<>();
@@ -371,12 +432,299 @@ public class ConfiguredFeature {
     // Ensure that this feature is from the correct source (index should enforce this, so just check when assertions enabled)
     assert sources.isEmpty() || sources.contains(sourceFeature.getSource());
 
+    // Special handling for relation_members geometry
+    if (isRelationMembers && sourceFeature instanceof RelationSourceFeature relationFeature) {
+      processRelationMembers(context, relationFeature, features);
+      return;
+    }
+
     var f = geometryFactory.apply(features);
     if (!f.isEmpty()) {
       for (var processor : featureProcessors) {
         processor.accept(context, f);
       }
     }
+  }
+  
+  /**
+   * Process relation members for relation_members geometry type.
+   * Iterates over relation members, filters them, and creates features for each qualifying member.
+   */
+  private void processRelationMembers(Contexts.FeaturePostMatch context, RelationSourceFeature relationFeature,
+    FeatureCollector features) {
+    var relation = relationFeature.relation();
+    var relationPostMatch = context;
+    
+    Set<Long> processedRefs = new HashSet<>();
+    
+    for (var member : relation.members()) {
+      if (shouldProcessMember(member, processedRefs, relationFeature, relationPostMatch)) {
+          try {
+          createMemberFeature(member, getMemberContext(member, relationFeature, relationPostMatch), 
+            relationPostMatch, features);
+        } catch (Exception e) {
+          org.slf4j.LoggerFactory.getLogger(ConfiguredFeature.class)
+            .warn("Error creating feature for relation member {} in relation {}: {}", 
+              member.ref(), relation.id(), e.getMessage());
+        }
+      }
+    }
+  }
+  
+  /**
+   * Check if a relation member should be processed based on filters.
+   * Returns true if the member should be processed, false otherwise.
+   */
+  private boolean shouldProcessMember(OsmElement.Relation.Member member, Set<Long> processedRefs,
+    RelationSourceFeature relationFeature, Contexts.FeaturePostMatch relationPostMatch) {
+    if (!processedRefs.add(member.ref())) {
+      return false;
+    }
+    
+    String memberTypeStr = member.type().name().toLowerCase();
+    if (!memberTypes.contains(memberTypeStr)) {
+      return false;
+    }
+    
+    // Nested relations are not supported
+    if (member.type() == OsmElement.Type.RELATION) {
+      return false;
+    }
+    
+    if (memberRoles != null) {
+      String role = member.role();
+      // Empty string matches members with no role
+      if (!memberRoles.contains(role) && !(role.isEmpty() && memberRoles.contains(""))) {
+        return false;
+      }
+    }
+    
+    Map<String, Object> memberTags = getMemberTags(member, relationFeature);
+    
+    var memberContextInstance = new Contexts.MemberContext(
+      relationPostMatch,
+      memberTags,
+      member.role(),
+      memberTypeStr,
+      member.ref()
+    );
+    
+    if (!memberIncludeWhen.evaluate(memberContextInstance, new ArrayList<>())) {
+      return false;
+    }
+    
+    if (memberExcludeWhen.evaluate(memberContextInstance, new ArrayList<>())) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Create a member context for expression evaluation.
+   */
+  private Contexts.MemberContext getMemberContext(OsmElement.Relation.Member member,
+    RelationSourceFeature relationFeature, Contexts.FeaturePostMatch relationPostMatch) {
+    Map<String, Object> memberTags = getMemberTags(member, relationFeature);
+    String memberTypeStr = member.type().name().toLowerCase();
+    return new Contexts.MemberContext(
+      relationPostMatch,
+      memberTags,
+      member.role(),
+      memberTypeStr,
+      member.ref()
+    );
+  }
+  
+  /**
+   * Get tags for a relation member from the stored member data.
+   */
+  private Map<String, Object> getMemberTags(OsmElement.Relation.Member member, 
+    RelationSourceFeature relationFeature) {
+    RelationMemberDataProvider dataProvider = relationFeature.memberDataProvider();
+    if (dataProvider == null) {
+      return Map.of();
+    }
+    
+    if (member.type() == OsmElement.Type.WAY) {
+      Map<String, Object> tags = dataProvider.getWayTags(member.ref());
+      return tags != null ? tags : Map.of();
+    } else if (member.type() == OsmElement.Type.NODE) {
+      Map<String, Object> tags = dataProvider.getNodeTags(member.ref());
+      return tags != null ? tags : Map.of();
+    }
+    
+    return Map.of();
+  }
+  
+  /**
+   * Create a feature for a relation member with actual geometry.
+   */
+  private void createMemberFeature(OsmElement.Relation.Member member,
+    Contexts.MemberContext memberContext,
+    Contexts.FeaturePostMatch relationContext,
+    FeatureCollector features) {
+    
+    RelationSourceFeature relationFeature = (RelationSourceFeature) relationContext.feature();
+    RelationMemberDataProvider dataProvider = relationFeature.memberDataProvider();
+    
+    if (dataProvider == null) {
+      // No data provider available - skip this member
+      return;
+    }
+    
+    FeatureCollector.Feature memberFeature;
+    Geometry geometry = null;
+    
+    if (member.type() == OsmElement.Type.NODE) {
+      org.locationtech.jts.geom.Coordinate coord = dataProvider.getNodeCoordinate(member.ref());
+      if (coord == null) {
+        return;
+      }
+      geometry = GeoUtils.JTS_FACTORY.createPoint(coord);
+      memberFeature = features.geometry(layerId, geometry);
+      
+    } else if (member.type() == OsmElement.Type.WAY) {
+      LongArrayList nodeIds = dataProvider.getWayGeometry(member.ref());
+      if (nodeIds == null || nodeIds.isEmpty()) {
+        return;
+      }
+      
+      CoordinateSequence coords = buildCoordinateSequence(nodeIds, dataProvider);
+      if (coords == null || coords.size() < 2) {
+        return;
+      }
+      
+      // Determine if closed way should be polygon or line based on area tag and geometry
+      boolean closed = coords.size() > 1 && 
+        coords.getCoordinate(0).equals(coords.getCoordinate(coords.size() - 1));
+      Map<String, Object> wayTags = dataProvider.getWayTags(member.ref());
+      String area = wayTags != null ? (String) wayTags.get("area") : null;
+      boolean canBePolygon = closed && !"no".equals(area) && coords.size() >= 4;
+      
+      if (canBePolygon) {
+        geometry = GeoUtils.JTS_FACTORY.createPolygon(coords);
+        memberFeature = features.geometry(layerId, geometry);
+      } else {
+        geometry = GeoUtils.JTS_FACTORY.createLineString(coords);
+        memberFeature = features.geometry(layerId, geometry);
+      }
+      
+    } else {
+      // Nested relations are not supported
+      return;
+    }
+    
+    for (var processor : featureProcessors) {
+      processor.accept(relationContext, memberFeature);
+    }
+    
+    if (memberAttributeProcessors != null) {
+      for (var processor : memberAttributeProcessors) {
+        processor.accept(memberContext, memberFeature);
+      }
+    }
+    
+    // Generate unique feature ID: relation ID * 1M + member ref to avoid collisions
+    long uniqueId = relationContext.feature().id() * 1000000L + member.ref();
+    memberFeature.setId(uniqueId);
+  }
+  
+  /**
+   * Build a coordinate sequence from node IDs using the data provider.
+   */
+  private CoordinateSequence buildCoordinateSequence(LongArrayList nodeIds, 
+    RelationMemberDataProvider dataProvider) {
+    org.locationtech.jts.geom.Coordinate[] coords = new org.locationtech.jts.geom.Coordinate[nodeIds.size()];
+    int validCount = 0;
+    
+    for (int i = 0; i < nodeIds.size(); i++) {
+      org.locationtech.jts.geom.Coordinate coord = dataProvider.getNodeCoordinate(nodeIds.get(i));
+      if (coord != null) {
+        coords[validCount++] = coord;
+      } else {
+        return null;
+      }
+    }
+    
+    if (validCount < 2) {
+      return null;
+    }
+    
+    // Defensive: trim array if coordinates were missing (shouldn't happen in practice)
+    if (validCount < coords.length) {
+      org.locationtech.jts.geom.Coordinate[] trimmed = new org.locationtech.jts.geom.Coordinate[validCount];
+      System.arraycopy(coords, 0, trimmed, 0, validCount);
+      coords = trimmed;
+    }
+    
+    return new CoordinateArraySequence(coords);
+  }
+  
+  /**
+   * Generate logic which processes member-level attributes.
+   */
+  private BiConsumer<Contexts.MemberContext, Feature> memberAttributeProcessor(AttributeDefinition attribute) {
+    var tagKey = attribute.key();
+    var attributeValueProducer = memberAttributeValueProducer(attribute);
+    var fallback = attribute.fallback();
+    
+    var attrIncludeWhen = attribute.includeWhen();
+    var attrExcludeWhen = attribute.excludeWhen();
+    
+    var attributeTest = Expression.and(
+      attrIncludeWhen == null ? Expression.TRUE :
+        BooleanExpressionParser.parse(attrIncludeWhen, tagValueProducer, memberContext),
+      attrExcludeWhen == null ? Expression.TRUE :
+        Expression.not(BooleanExpressionParser.parse(attrExcludeWhen, tagValueProducer, memberContext))
+    ).simplify();
+    
+    return (context, f) -> {
+      Object value = null;
+      if (attributeTest.evaluate(context)) {
+        value = attributeValueProducer.apply(context);
+        if ("".equals(value)) {
+          value = null;
+        }
+      }
+      if (value == null) {
+        value = fallback;
+      }
+      if (value != null) {
+        f.setAttr(tagKey, value);
+      }
+    };
+  }
+  
+  /**
+   * Produces logic that generates attribute values for member attributes.
+   */
+  private Function<Contexts.MemberContext, Object> memberAttributeValueProducer(AttributeDefinition attribute) {
+    Object type = attribute.type();
+    
+    Map<String, Object> value = new HashMap<>();
+    if ("match_key".equals(type)) {
+      value.put("value", "${match_key}");
+    } else if ("match_value".equals(type)) {
+      value.put("value", "${match_value}");
+    } else {
+      if (type != null) {
+        value.put("type", type);
+      }
+      if (attribute.coalesce() != null) {
+        value.put("coalesce", attribute.coalesce());
+      } else if (attribute.value() != null) {
+        value.put("value", attribute.value());
+      } else if (attribute.tagValue() != null) {
+        value.put("tag_value", attribute.tagValue());
+      } else if (attribute.argValue() != null) {
+        value.put("arg_value", attribute.argValue());
+      } else {
+        value.put("tag_value", attribute.key());
+      }
+    }
+    
+    return ConfigExpressionParser.parse(value, tagValueProducer, memberContext, Object.class);
   }
 
   private Double maxIgnoringNulls(Double a, Double b) {

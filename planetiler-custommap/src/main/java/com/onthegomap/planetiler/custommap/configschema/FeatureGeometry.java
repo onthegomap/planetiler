@@ -3,8 +3,14 @@ package com.onthegomap.planetiler.custommap.configschema;
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -34,7 +40,45 @@ public enum FeatureGeometry {
   @JsonProperty("innermost_point")
   INNERMOST_POINT(GeometryType.UNKNOWN, FeatureCollector::innermostPoint),
   @JsonProperty("split_line")
-  SPLIT_LINE(GeometryType.LINE, FeatureCollector::splitLine);
+  SPLIT_LINE(GeometryType.LINE, FeatureCollector::splitLine),
+  @JsonProperty("relation_members")
+  RELATION_MEMBERS(GeometryType.UNKNOWN, null) {
+    @Override
+    public Expression featureTest() {
+      return new Expression() {
+        @Override
+        public boolean evaluate(WithTags input, List<String> matchKeys) {
+          // Input is always a ProcessFeature context in production code
+          if (input instanceof Contexts.ProcessFeature processFeature) {
+            SourceFeature sourceFeature = processFeature.feature();
+            return sourceFeature instanceof OsmSourceFeature osmFeature &&
+              osmFeature.originalElement().type() == OsmElement.Type.RELATION;
+          }
+          return false;
+        }
+
+        @Override
+        public Expression simplifyOnce() {
+          return this;
+        }
+
+        @Override
+        public String generateJavaCode() {
+          return "relationTypeTest()";
+        }
+      };
+    }
+
+    @Override
+    public Function<FeatureCollector, FeatureCollector.Feature> newGeometryFactory(String layerName) {
+      // RELATION_MEMBERS geometry is handled specially in ConfiguredFeature.processRelationMembers()
+      // This factory should never be called
+      return features -> {
+        throw new UnsupportedOperationException(
+          "RELATION_MEMBERS geometry factory must be set up in ConfiguredFeature constructor");
+      };
+    }
+  };
 
   public final GeometryType geometryType;
   public final BiFunction<FeatureCollector, String, FeatureCollector.Feature> geometryFactory;

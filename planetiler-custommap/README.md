@@ -7,7 +7,7 @@ file as the first argument:
 # from a java build
 java -jar planetiler.jar generate-custom --schema=schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom --schema=/data/schema.yml
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom --schema=/data/schema.yml
 ```
 
 Schema files are in [YAML 1.2](https://yaml.org) format and support [anchors and aliases](#anchors-and-aliases) for
@@ -238,6 +238,8 @@ A feature is a defined set of objects that meet a specified filter criteria.
     interior point
   - `innermost_point` to match on any geometry and for polygons, emit the furthest point from an edge, or for lines emit
     the midpoint.
+  - `relation_members` to match on OSM relations, and emit one feature per qualifying member (way or node) using each
+    member's geometry and tags. See [Relation Members](#relation-members) for details.
 - `include_when` - A [Boolean Expression](#boolean-expression) which determines the features to include.
   If unspecified, all features from the specified sources are included.
 - `exclude_when` - A [Boolean Expression](#boolean-expression) which determines if a feature that matched the include
@@ -260,6 +262,23 @@ A feature is a defined set of objects that meet a specified filter criteria.
   `merge_polygons`, respectively.
 - `attributes` - An array of [Feature Attribute](#feature-attribute) objects that specify the attributes to be included
   on this output feature.
+- `member_types` - (Only valid with `geometry: relation_members`) A list of OSM element types to include as members.
+  Valid values are `node`, `way`, or `relation`. Nested relations are not supported. If unspecified, all member types
+  are included.
+- `member_roles` - (Only valid with `geometry: relation_members`) A list of role values to filter relation members by.
+  Only members with matching roles (or empty string for members with no role) will be processed. If unspecified, all
+  roles are included.
+- `member_include_when` - (Only valid with `geometry: relation_members`) A [Boolean Expression](#boolean-expression)
+  that filters which relation members to include. The expression is evaluated in a [Member Context](#5-member-context)
+  that provides access to member tags, role, type, and reference ID. If unspecified, all members matching `member_types`
+  and `member_roles` are included.
+- `member_exclude_when` - (Only valid with `geometry: relation_members`) A [Boolean Expression](#boolean-expression)
+  that excludes relation members from processing. The expression is evaluated in a [Member Context](#5-member-context).
+  This rule is applied after `member_include_when`. If unspecified, no exclusion filter is applied.
+- `member_attributes` - (Only valid with `geometry: relation_members`) An array of [Feature Attribute](#feature-attribute)
+  objects that specify attributes to be included on output features from member tags. These attributes are evaluated
+  in a [Member Context](#5-member-context) that provides access to member-specific variables. Relation-level attributes
+  can be accessed via `feature.tags` in the parent context.
 
 For example:
 
@@ -274,6 +293,112 @@ attributes:
   - { ... }
   - { ... }
 ```
+
+## Relation Members
+
+The `relation_members` geometry type allows you to process individual members of OSM relations as separate features.
+Instead of emitting one feature per relation, this emits one feature per qualifying member, using each member's geometry
+and tags.
+
+This is useful for scenarios like:
+- Extracting route segments from route relations (e.g., individual railway segments from a railway route)
+- Processing individual way members of multipolygon relations
+- Creating features from relation members with different attributes than the relation itself
+
+### How It Works
+
+When `geometry: relation_members` is specified:
+
+1. **Relation Selection**: The feature's `include_when` and `exclude_when` filters are applied to select which OSM
+   relations to process. Only relations matching these filters will have their members processed.
+
+2. **Member Filtering**: For each matching relation, members are filtered using:
+
+   - `member_types`: Filter by OSM element type (node, way, relation)
+   - `member_roles`: Filter by the member's role in the relation
+   - `member_include_when`: Filter by member tags using structured or inline script expressions
+   - `member_exclude_when`: Exclude members by tags using structured or inline script expressions
+3. **Feature Creation**: For each qualifying member:
+   - A feature is created using the member's actual geometry (point for nodes, line/polygon for ways)
+   - Relation-level attributes (from `attributes`) are applied using the relation's tags
+   - Member-level attributes (from `member_attributes`) are applied using the member's tags
+   - The feature ID is generated as `relation_id * 1000000 + member_ref` to ensure uniqueness
+
+### Examples
+
+Extract railway route segments:
+
+```yaml
+layers:
+  - id: route_segments
+    features:
+      - source: osm
+        geometry: relation_members
+        include_when:
+          type: route
+          route: railway
+        member_types: [way]
+        member_include_when:
+          railway: rail
+        attributes:
+          - key: route_name
+            tag_value: name
+        member_attributes:
+          - key: segment_ref
+            tag_value: ref
+```
+
+Extract route segments with inline script filtering:
+
+```yaml
+layers:
+  - id: electrified_railway_segments
+    features:
+      - source: osm
+        geometry: relation_members
+        include_when:
+          type: route
+          route: railway
+        member_types: [way]
+        member_include_when: '${ member.tags.railway == "rail" && member.tags.electrified != null }'
+        member_exclude_when: '${ member.tags.service != null || member.tags.access == "private" }'
+        attributes:
+          - key: route_name
+            tag_value: name
+        member_attributes:
+          - key: voltage
+            tag_value: voltage
+            type: integer
+          - key: electrified
+            tag_value: electrified
+```
+
+Extract nodes from route relations:
+
+```yaml
+layers:
+  - id: route_stops
+    features:
+      - source: osm
+        geometry: relation_members
+        include_when:
+          type: route
+          route: bus
+        member_types: [node]
+        member_roles: [stop]
+        attributes:
+          - key: route_name
+            tag_value: name
+        member_attributes:
+          - key: stop_name
+            tag_value: name
+```
+
+### Limitations
+
+- Nested relations (relation members that are themselves relations) are not supported
+- Member geometries are resolved from the relation's member data provider, which must be available during relation processing
+- Member features use the member's actual geometry, so closed ways may be emitted as polygons if they have `area=yes` or no `area=no` tag
 
 ## Feature Attribute
 
@@ -602,6 +727,39 @@ For example:
 value: '${ match_value.lowerAscii() }'
 ```
 
+##### 5. Member Context
+
+Context available when processing relation members (only used with `geometry: relation_members`). This context is used
+when evaluating `member_include_when`, `member_exclude_when`, and `member_attributes` expressions.
+
+Additional variables, on top of the post-match context:
+
+- `member.tags` - map with key/value tags from the relation member (way or node)
+- `member.role` - string role of the member in the relation (empty string if no role)
+- `member.type` - OSM element type of the member as a string: `"node"`, `"way"`, or `"relation"`
+- `member.ref` - numeric OSM ID of the member element
+- `member.id` - alias for `member.ref`
+
+Note: The parent context's `feature.tags` still refers to the relation's tags, not the member's tags. Use `member.tags`
+to access member-specific tag values.
+
+For example:
+
+```yaml
+# Filter members by their tags
+member_include_when: '${ member.tags.railway == "rail" && member.tags.electrified != null }'
+
+# Combine member and relation tags in an attribute
+member_attributes:
+  - key: full_name
+    value: '${ member.tags.name + " (" + feature.tags.name + ")" }'
+
+# Use member reference ID
+member_attributes:
+  - key: member_id
+    value: '${ member.ref }'
+```
+
 #### Built-In Functions
 
 Inline scripts can use
@@ -794,7 +952,7 @@ the input file(s) for changes and validate the test cases on each change:
 # from a java build
 java -jar planetiler.jar verify schema.yml --watch
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /data/schema.yml --watch
+docker run --rm -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /data/schema.yml --watch
 ```
 
 - `name` - Unique name for this test case.
