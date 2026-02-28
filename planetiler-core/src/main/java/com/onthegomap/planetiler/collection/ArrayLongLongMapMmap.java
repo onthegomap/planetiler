@@ -39,10 +39,9 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
    * In order to limit the number of in-memory segments during writes and ensure liveliness, keep track
    * of the current segment index that each worker is working on in the "segments" array. Then use
    * slidingWindow to make threads that try to allocate new segments wait until old segments are
-   * finished. Also use activeSegments semaphore to make new segments wait to allocate until
-   * old segments are actually flushed to disk.
+   * finished. Also use bufferPool blocking queue to limit the total amount of memory used and avoid OOM
+   * errors allocating large slabs of memory while running.
    *
-   * TODO: cleaner way to limit in-memory segments with sliding window that does not also need the semaphore?
    * TODO: extract maintaining segments list into a separate utility?
    */
 
@@ -360,8 +359,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         }
 
         // let workers waiting to allocate new segments to the head of the sliding window proceed
-        // NOTE: the memory hasn't been released yet, so the activeChunks semaphore will cause
-        // those workers to wait until the memory has been released.
+        // NOTE: the buffer hasn't been returned yet, so the bufferPool blocking queue will cause
+        // those workers to wait until the buffer is available.
         slidingWindow.advanceTail(tail);
         return result;
       }
