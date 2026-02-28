@@ -17,12 +17,14 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -56,7 +58,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private final Path path;
   private final CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
-  private final Semaphore activeSegments;
+  private final BlockingQueue<ByteBuffer> bufferPool;
   private final BitSet usedSegments = new BitSet();
   private FileChannel writeChannel;
   private MappedByteBuffer[] segmentsArray;
@@ -77,7 +79,11 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }
-    this.activeSegments = new Semaphore(maxPendingSegments);
+    this.bufferPool = new ArrayBlockingQueue<>(maxPendingSegments);
+    // pre-allocate byte buffers to avoid later OOM errors allocating large slabs of memory
+    for (int i = 0; i < maxPendingSegments; i++) {
+      bufferPool.add(ByteBuffer.allocate(1 << segmentBits));
+    }
     this.madvise = madvise;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
@@ -240,15 +246,15 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     void allocate() {
       slidingWindow.waitUntilInsideWindow(id);
       try {
-        activeSegments.acquire();
+        ByteBuffer buffer = bufferPool.take();
+        synchronized (usedSegments) {
+          usedSegments.set(id);
+        }
+        result.complete(buffer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwFatalException(e);
       }
-      synchronized (usedSegments) {
-        usedSegments.set(id);
-      }
-      result.complete(ByteBuffer.allocate(1 << segmentBits));
     }
 
     void flushToDisk() {
@@ -256,7 +262,10 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         result = null;
-        activeSegments.release();
+        // return buffer to the pool
+        buffer.clear();
+        Arrays.fill(buffer.array(), buffer.arrayOffset(), buffer.arrayOffset() + buffer.capacity(), (byte) 0);
+        bufferPool.add(buffer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwFatalException(e);
@@ -319,6 +328,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           result.flush.addAll(writeBuffers.values());
           writeBuffers.clear();
           tail = min;
+          bufferPool.clear();
         } else if (value == Integer.MAX_VALUE) {
           // this worker is done, advance tail to min
           for (Integer key : writeBuffers.keySet()) {
