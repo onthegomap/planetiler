@@ -263,7 +263,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         result = null;
         // return buffer to the pool
         buffer.clear();
-        Arrays.fill(buffer.array(), buffer.arrayOffset(), buffer.arrayOffset() + buffer.capacity(), (byte) 0);
+        Arrays.fill(buffer.array(), (byte) 0);
         bufferPool.add(buffer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
