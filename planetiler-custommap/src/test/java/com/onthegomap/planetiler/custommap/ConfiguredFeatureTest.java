@@ -1958,4 +1958,59 @@ class ConfiguredFeatureTest {
       assertEquals(output, feature.getId());
     }, 1);
   }
+
+  @Test
+  void testLabelGrid() {
+    String schema = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        buffer: 64
+        features:
+        - source: osm
+          geometry: point
+          point_label_grid_pixel_size:
+            maxzoom: 8
+            size: 32
+          point_label_grid_limit:
+            maxzoom: 8
+            limit: 64
+      """;
+    testPoint(schema, Map.of(), feature -> {
+      assertEquals(32, feature.getPointLabelGridPixelSizeAtZoom(8));
+      assertEquals(0, feature.getPointLabelGridPixelSizeAtZoom(9));
+      assertEquals(64, feature.getPointLabelGridLimitAtZoom(8));
+      assertEquals(0, feature.getPointLabelGridLimitAtZoom(9));
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "sort_key: 100 }, 100",
+    "sort_key: ${ feature.id }, 1",
+    "sort_key_descending: 100 }, -101",
+    "sort_key_descending: ${ feature.id }, -2",
+  })
+  void testSortKey(String input, Long output) {
+    String schema = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          <TEST INPUT>
+      """.replace("<TEST INPUT>", input);
+    testPolygon(schema, Map.of(), feature -> {
+      assertEquals(output, feature.getSortKey());
+    }, 1);
+  }
 }
