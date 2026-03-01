@@ -317,9 +317,14 @@ public class GeoUtils {
   }
 
   private static class OrientationFixer extends GeometryTransformer {
+    Geometry lastPolygon = null;
+
     @Override
-    protected Geometry transformPolygon(Polygon geom, Geometry parent) {
-      return Orientation.isCCW(geom.getExteriorRing().getCoordinateSequence()) ? geom.reverse() : geom;
+    protected Geometry transformLinearRing(LinearRing geom, Geometry parent) {
+      // GeometryTransformer processes a polygon's exterior then interior rings
+      boolean isOuter = lastPolygon != parent;
+      lastPolygon = parent;
+      return Orientation.isCCW(geom.getCoordinateSequence()) == isOuter ? geom.reverse() : geom;
     }
   }
 
