@@ -14,6 +14,7 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.locationtech.jts.algorithm.Area;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -315,6 +316,13 @@ public class GeoUtils {
     return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
   }
 
+  private static class OrientationFixer extends GeometryTransformer {
+    @Override
+    protected Geometry transformPolygon(Polygon geom, Geometry parent) {
+      return Orientation.isCCW(geom.getExteriorRing().getCoordinateSequence()) ? geom.reverse() : geom;
+    }
+  }
+
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
@@ -324,6 +332,10 @@ public class GeoUtils {
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
     throws GeometryException {
     try {
+      Geometry naiveSnap = GeometryPrecisionReducer.reducePointwise(geom, tilePrecision);
+      if (naiveSnap.isValid()) {
+        return new OrientationFixer().transform(naiveSnap);
+      }
       if (!geom.isValid()) {
         geom = fixPolygon(geom);
         stats.dataError(stage + "_snap_fix_input");

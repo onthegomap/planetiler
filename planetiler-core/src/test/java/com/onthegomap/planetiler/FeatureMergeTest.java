@@ -711,8 +711,8 @@ class FeatureMergeTest {
   @ParameterizedTest
   @CsvSource({
     "bostonbuildings.mbtiles, 2477, 3028, 13, 1141",
-    "bostonbuildings.mbtiles, 2481, 3026, 13, 949",
-    "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
+    "bostonbuildings.mbtiles, 2481, 3026, 13, 947",
+    "bostonbuildings.mbtiles, 2479, 3028, 13, 1073",
     "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
   void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
