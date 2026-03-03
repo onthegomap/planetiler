@@ -10,8 +10,7 @@ import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
-import com.onthegomap.planetiler.custommap.configschema.PointLabelGridLimit;
-import com.onthegomap.planetiler.custommap.configschema.PointLabelGridPixelSize;
+import com.onthegomap.planetiler.custommap.configschema.PointLabelGrid;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -110,10 +109,11 @@ public class ConfiguredFeature {
     processors
       .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
-    processors.add(makeFeatureProcessor(feature.pointLabelGridPixelSize(), PointLabelGridPixelSize.class,
-      (f, a) -> f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.maxZoom(), a.size()))));
-    processors.add(makeFeatureProcessor(feature.pointLabelGridLimit(), PointLabelGridLimit.class,
-      (f, a) -> f.setPointLabelGridLimit(ZoomFunction.maxZoom(a.maxZoom(), a.limit()))));
+    processors.add(makeFeatureProcessor(feature.pointLabelGrid(), PointLabelGrid.class,
+      (f, a) -> {
+        f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.pixelSize().maxZoom(), a.pixelSize().value()));
+        f.setPointLabelGridLimit(ZoomFunction.maxZoom(a.limit().maxZoom(), a.limit().value()));
+      }));
     processors.add(makeFeatureProcessor(feature.sortKey(), Integer.class, Feature::setSortKey));
     processors.add(makeFeatureProcessor(feature.sortKeyDescending(), Integer.class, Feature::setSortKeyDescending));
 

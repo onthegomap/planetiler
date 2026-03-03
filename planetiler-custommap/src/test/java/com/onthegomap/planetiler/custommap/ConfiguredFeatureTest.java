@@ -1960,7 +1960,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testLabelGrid() {
+  void testPointLabelGrid() {
     String schema = """
       sources:
         osm:
@@ -1973,12 +1973,13 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: point
-          point_label_grid_pixel_size:
-            maxzoom: 8
-            size: 32
-          point_label_grid_limit:
-            maxzoom: 8
-            limit: 64
+          point_label_grid:
+            pixel_size:
+              maxzoom: 8
+              value: 32
+            limit:
+              maxzoom: 8
+              value: 64
       """;
     testPoint(schema, Map.of(), feature -> {
       assertEquals(32, feature.getPointLabelGridPixelSizeAtZoom(8));
