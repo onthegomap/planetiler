@@ -20,6 +20,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.Gzip;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -516,4 +518,40 @@ class FeatureGroupTest {
 
   private static record PuTileArgs(long id, int tile, String layer, Map<String, Object> attrs, Geometry geom,
     int sortKey, boolean hasGroup, long group, int limit) {}
+
+  @Test
+  void testStringEncoderSaveLoad(@TempDir Path dir) {
+    var stringsPath = dir.resolve("strings");
+    var manifestPath = dir.resolve("manifest");
+    var featureDbDir = dir.resolve("feature.db");
+
+    var diskFeatures = FeatureGroup.newDiskBackedFeatureGroup(TileOrder.TMS, featureDbDir,
+      new Profile.NullProfile(), config, Stats.inMemory());
+    var writer = diskFeatures.writerForThread();
+
+    var feature = new RenderedFeature(
+      TileCoord.decode(1),
+      new VectorTile.Feature("mylayer", 1L, VectorTile.encodeGeometry(newPoint(1, 2)), Map.of("k", "v")),
+      0,
+      Optional.empty()
+    );
+    writer.accept(diskFeatures.newRenderedFeatureEncoder().apply(feature));
+    diskFeatures.prepare();
+    diskFeatures.saveStringEncoders(stringsPath);
+    diskFeatures.saveChunkManifest(manifestPath);
+
+    // read back from disk using reuse mode
+    var reused = FeatureGroup.newDiskBackedFeatureGroup(TileOrder.TMS, featureDbDir,
+      new Profile.NullProfile(), config, Stats.inMemory(), true);
+    reused.loadStringEncoders(stringsPath);
+    reused.initFromManifest(manifestPath);
+
+    var tiles = new ArrayList<FeatureGroup.TileFeatures>();
+    reused.forEach(tiles::add);
+    assertEquals(1, tiles.size());
+    var decoded = VectorTile.decode(tiles.getFirst().getVectorTile().encode());
+    assertEquals(1, decoded.size());
+    assertEquals("mylayer", decoded.getFirst().layer());
+    assertEquals(Map.of("k", "v"), decoded.getFirst().tags());
+  }
 }

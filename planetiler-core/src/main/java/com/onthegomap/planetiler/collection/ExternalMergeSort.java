@@ -27,6 +27,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,6 +92,25 @@ class ExternalMergeSort implements FeatureSort {
       config.mmapTempStorage(),
       true,
       true,
+      false,
+      config,
+      stats
+    );
+  }
+
+  ExternalMergeSort(Path tempDir, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
+    this(
+      tempDir,
+      config.threads(),
+      (int) Math.min(
+        MAX_CHUNK_SIZE,
+        ProcessInfo.getMaxMemoryBytes() / 3
+      ),
+      config.compressTempStorage(),
+      config.mmapTempStorage(),
+      true,
+      true,
+      reuseExisting,
       config,
       stats
     );
@@ -98,6 +118,11 @@ class ExternalMergeSort implements FeatureSort {
 
   ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean compress, boolean mmap, boolean parallelSort,
     boolean madvise, PlanetilerConfig config, Stats stats) {
+    this(dir, workers, chunkSizeLimit, compress, mmap, parallelSort, madvise, false, config, stats);
+  }
+
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean compress, boolean mmap, boolean parallelSort,
+    boolean madvise, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
     this.config = config;
     this.madvise = madvise;
     this.dir = dir;
@@ -118,12 +143,16 @@ class ExternalMergeSort implements FeatureSort {
     this.workers = Math.min(workers, maxWorkersBasedOnMemory);
     this.readerLimit = Math.max(1, config.sortMaxReaders());
     this.writerLimit = Math.max(1, config.sortMaxWriters());
-    LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000, workers);
-    try {
-      FileUtils.deleteDirectory(dir);
-      Files.createDirectories(dir);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    if (reuseExisting) {
+      LOGGER.info("Reusing existing merge sort feature map at {}", dir);
+    } else {
+      LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000, workers);
+      try {
+        FileUtils.deleteDirectory(dir);
+        Files.createDirectories(dir);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
   }
 
@@ -419,7 +448,6 @@ class ExternalMergeSort implements FeatureSort {
 
     private void newChunk() throws IOException {
       Path chunkPath = dir.resolve("chunk" + chunkNum.incrementAndGet());
-      FileUtils.deleteOnExit(chunkPath);
       if (currentChunk != null) {
         currentChunk.close();
       }
@@ -471,6 +499,44 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   /**
+   * Saves the list of sorted chunks to {@code manifestPath} so they can be restored on the next run via
+   * {@link #initFromManifest(Path)}.
+   * <p>
+   * Format: number of chunks (int), then for each chunk: filename (UTF string), itemCount (int), bytesInMemory (int).
+   */
+  void saveManifest(Path manifestPath) {
+    try (var out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(manifestPath)))) {
+      out.writeInt(chunks.size());
+      for (var chunk : chunks) {
+        out.writeUTF(chunk.path.getFileName().toString());
+        out.writeInt(chunk.itemCount);
+        out.writeInt(chunk.bytesInMemory);
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Restores sorted chunks from a manifest written by {@link #saveManifest(Path)} so that {@link #iterator} can be
+   * called without running {@link #sort()} again.
+   */
+  void initFromManifest(Path manifestPath) {
+    try (var in = new DataInputStream(new BufferedInputStream(Files.newInputStream(manifestPath)))) {
+      int count = in.readInt();
+      for (int i = 0; i < count; i++) {
+        var filename = in.readUTF();
+        int itemCount = in.readInt();
+        int bytesInMemory = in.readInt();
+        chunks.add(new Chunk(dir.resolve(filename), itemCount, bytesInMemory));
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    sorted = true;
+  }
+
+  /**
    * An output segment that can be sorted with a fixed amount of RAM.
    */
   private class Chunk implements Closeable {
@@ -484,6 +550,14 @@ class ExternalMergeSort implements FeatureSort {
     private Chunk(Path path) {
       this.path = path;
       this.writer = newWriter(path);
+    }
+
+    // Used when restoring chunks from a manifest - no writer needed since chunks are already sorted
+    private Chunk(Path path, int itemCount, int bytesInMemory) {
+      this.path = path;
+      this.writer = null;
+      this.itemCount = itemCount;
+      this.bytesInMemory = bytesInMemory;
     }
 
     public void add(SortableFeature entry) throws IOException {
@@ -542,7 +616,9 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     public void close() throws IOException {
-      writer.close();
+      if (writer != null) {
+        writer.close();
+      }
     }
 
     public void remove() {

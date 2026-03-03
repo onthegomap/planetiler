@@ -17,8 +17,14 @@ import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.worker.Worker;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,10 +93,80 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    */
   public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
     PlanetilerConfig config, Stats stats) {
+    return newDiskBackedFeatureGroup(tileOrder, tempDir, profile, config, stats, false);
+  }
+
+  /**
+   * Returns a feature grouper backed by disk storage. When {@code reuseExisting} is true, skips clearing the temp
+   * directory so that a previously-sorted feature DB can be restored via {@link #initFromManifest(Path)}.
+   */
+  public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
+    PlanetilerConfig config, Stats stats, boolean reuseExisting) {
     return new FeatureGroup(
-      new ExternalMergeSort(tempDir, config, stats),
+      new ExternalMergeSort(tempDir, reuseExisting, config, stats),
       tileOrder, profile, config, stats
     );
+  }
+
+  /**
+   * Saves the string encoder tables to {@code path} so they can be restored via {@link #loadStringEncoders(Path)}.
+   * <p>
+   * Format: layerString count (int) + each layer string (UTF), then valueString count (int) + each value string (UTF).
+   * Strings are written in the order they were assigned IDs so that loading them back in the same order recreates the
+   * same ID mapping.
+   */
+  public void saveStringEncoders(Path path) {
+    try (var out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
+      var layerStrings = commonLayerStrings.getStringsInOrder();
+      out.writeInt(layerStrings.size());
+      for (var s : layerStrings) {
+        out.writeUTF(s);
+      }
+      var valueStrings = commonValueStrings.getStringsInOrder();
+      out.writeInt(valueStrings.size());
+      for (var s : valueStrings) {
+        out.writeUTF(s);
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Restores string encoder tables from a file written by {@link #saveStringEncoders(Path)}.
+   */
+  public void loadStringEncoders(Path path) {
+    try (var in = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
+      int layerCount = in.readInt();
+      for (int i = 0; i < layerCount; i++) {
+        commonLayerStrings.encode(in.readUTF());
+      }
+      int valueCount = in.readInt();
+      for (int i = 0; i < valueCount; i++) {
+        commonValueStrings.encode(in.readUTF());
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Saves the sorted chunk manifest to {@code path} via the underlying {@link ExternalMergeSort}.
+   */
+  public void saveChunkManifest(Path path) {
+    if (sorter instanceof ExternalMergeSort ems) {
+      ems.saveManifest(path);
+    }
+  }
+
+  /**
+   * Restores sorted chunks from a manifest written by {@link #saveChunkManifest(Path)}.
+   */
+  public void initFromManifest(Path path) {
+    if (sorter instanceof ExternalMergeSort ems) {
+      ems.initFromManifest(path);
+      prepared = true;
+    }
   }
 
   /**

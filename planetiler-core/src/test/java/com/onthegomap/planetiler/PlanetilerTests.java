@@ -3303,6 +3303,42 @@ class PlanetilerTests {
     assertFalse(translations.careAboutLanguage("fr"));
   }
 
+  @Test
+  void testReuseFeatureDb() throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    Path mbtiles2 = tempDir.resolve("output2.mbtiles");
+    Path tmpData = tempDir.resolve("data");
+
+    var profile = new Profile.NullProfile() {
+      @Override
+      public void processFeature(SourceFeature source, FeatureCollector features) {
+        features.point("points")
+          .setZoomRange(0, 14)
+          .setAttr("source", source.getSource());
+      }
+    };
+
+    // first run: build feature DB and tiles
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData))
+      .setProfile(profile)
+      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
+      .setOutput(mbtiles)
+      .run();
+
+    // second run: reuse feature DB, write to a different output
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData, "--reuse_featuredb=true", "--force=true"))
+      .setProfile(profile)
+      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
+      .setOutput(mbtiles2)
+      .run();
+
+    // both outputs should contain the same tiles
+    try (Mbtiles db1 = Mbtiles.newReadOnlyDatabase(mbtiles);
+      Mbtiles db2 = Mbtiles.newReadOnlyDatabase(mbtiles2)) {
+      assertEquals(TestUtils.getTileMap(db1), TestUtils.getTileMap(db2));
+    }
+  }
+
   @FunctionalInterface
   private interface ReadableTileArchiveFactory {
     ReadableTileArchive create(Path p) throws IOException;

@@ -71,7 +71,8 @@ public record PlanetilerConfig(
   double maxPointBuffer,
   boolean logJtsExceptions,
   int featureSourceIdMultiplier,
-  List<String> extraNameTags
+  List<String> extraNameTags,
+  boolean reuseFeatureDb
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -247,7 +248,10 @@ public record PlanetilerConfig(
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
         10),
-      extraNameTags
+      extraNameTags,
+      arguments.getBoolean("reuse_featuredb",
+        "Reuse existing feature DB on disk, skipping source reading stages (for iterating on post-processing logic)",
+        false)
     );
   }
 
