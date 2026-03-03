@@ -136,7 +136,7 @@ class FeatureSortTest {
   }
 
   @Test
-  void testReuseAfterManifest() throws Exception {
+  void testReuseAfterManifest() {
     var manifestPath = tmpDir.resolve("test.manifest");
     var sorter = (ExternalMergeSort) newSorter(1, 100, false, false);
     var writer = sorter.writerForThread();
