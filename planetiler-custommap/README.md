@@ -251,6 +251,12 @@ A feature is a defined set of objects that meet a specified filter criteria.
   of the
   minimum area of polygon features to emit at the maximum zoom-level of the map. This value is ignored if the layer
   [Tile Post Process](#tile-post-process) is defined.
+- `point_label_grid` - An object that defines label grid pixel size and limit for limiting the density of features in
+  the output tile.
+- `sort_key` - An [Expression](#expression) that determines the value by which features are sorted within a layer in
+  the output vector tile.
+- `sort_key_descending` - An [Expression](#expression) that that determines the value by which features are sorted
+  (descending, e.g. from high to low sort key) within a layer in the output vector tile.
 - `tolerance` - An [Expression](#expression) that returns the value for the tile pixel tolerance to use when
   simplifying features below the maximum zoom level of the map. This value is ignored for lines or polygons if the layer
   [Tile Post Process](#tile-post-process) `tolerance` is defined for `merge_line_strings` or `merge_polygons`,
@@ -274,6 +280,19 @@ include_when:
 attributes:
   - { ... }
   - { ... }
+```
+
+```yaml
+source: osm
+geometry: point
+min_zoom: 7
+point_label_grid:
+  pixel_size:
+    max_zoom: 12
+    value: 32
+  limit:
+    max_zoom: 12
+    value: 64
 ```
 
 ## Feature Attribute
