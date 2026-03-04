@@ -348,7 +348,7 @@ public class GeoUtils {
       for (int i = 0; i < coordinates.size(); i++) {
         double x = precisionModel.makePrecise(coordinates.getX(i));
         double y = precisionModel.makePrecise(coordinates.getY(i));
-        if (x != lastX && y != lastY) {
+        if (x != lastX || y != lastY) {
           result.forceAddPoint(x, y);
         }
         lastX = x;
