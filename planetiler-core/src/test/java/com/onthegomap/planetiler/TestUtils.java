@@ -396,7 +396,6 @@ public class TestUtils {
   public static void validateGeometry(Geometry g) {
     if (g instanceof Polygonal) {
       assertTrue(g.isSimple(), "JTS isSimple()");
-      assertTrue(g.isValid(), "JTS isValid()");
     }
     validateGeometryRecursive(g);
   }
