@@ -238,6 +238,7 @@ A feature is a defined set of objects that meet a specified filter criteria.
     interior point
   - `innermost_point` to match on any geometry and for polygons, emit the furthest point from an edge, or for lines emit
     the midpoint.
+- `id` - An [Expression](#expression) that determines ID for the rendered feature.
 - `include_when` - A [Boolean Expression](#boolean-expression) which determines the features to include.
   If unspecified, all features from the specified sources are included.
 - `exclude_when` - A [Boolean Expression](#boolean-expression) which determines if a feature that matched the include

@@ -403,6 +403,10 @@
             }
           ]
         },
+        "id": {
+          "description": "An expression that determines ID for the rendered feature.",
+          "$ref": "#/$defs/expression"
+        },
         "include_when": {
           "description": "A tag specification which determines the features to include. If unspecified, all features from the specified sources are included",
           "$ref": "#/$defs/boolean_expression"
