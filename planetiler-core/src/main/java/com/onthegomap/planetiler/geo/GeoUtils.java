@@ -328,6 +328,37 @@ public class GeoUtils {
     }
   }
 
+  // Use this instead of GeometryPrecisionReducer.reducePointwise since it doesn't remove duplicate points
+  private static class PointwiseRounder extends GeometryTransformer {
+
+    private final PrecisionModel precisionModel;
+
+    PointwiseRounder(PrecisionModel precisionModel) {
+      this.precisionModel = precisionModel;
+    }
+
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coordinates, Geometry parent) {
+      if (coordinates.size() == 0) {
+        return null;
+      }
+
+      MutableCoordinateSequence result = new MutableCoordinateSequence(coordinates.size());
+      double lastX = Double.MIN_VALUE;
+      double lastY = Double.MIN_VALUE;
+      for (int i = 0; i < coordinates.size(); i++) {
+        double x = precisionModel.makePrecise(coordinates.getX(i));
+        double y = precisionModel.makePrecise(coordinates.getY(i));
+        if (x != lastX || y != lastY) {
+          result.forceAddPoint(x, y);
+        }
+        lastX = x;
+        lastY = y;
+      }
+      return result;
+    }
+  }
+
+
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
@@ -337,7 +368,7 @@ public class GeoUtils {
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
     throws GeometryException {
     try {
-      Geometry naiveSnap = GeometryPrecisionReducer.reducePointwise(geom, tilePrecision);
+      Geometry naiveSnap = new PointwiseRounder(tilePrecision).transform(geom);
       if (naiveSnap.isValid()) {
         return new OrientationFixer().transform(naiveSnap);
       }
