@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.collection;
 import static com.onthegomap.planetiler.util.MutableCollections.makeMutable;
 
 import com.carrotsearch.hppc.LongLongHashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -17,14 +18,9 @@ import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.worker.Worker;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,6 +58,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   public static final int SORT_KEY_MIN = -(1 << (SORT_KEY_BITS - 1));
   private static final int SORT_KEY_MASK = (1 << SORT_KEY_BITS) - 1;
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
   private final FeatureSort sorter;
   private final Profile profile;
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
@@ -82,6 +79,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       CURRENT_TILE = ThreadLocal.withInitial(() -> null);
     }
   }
+
+  record StringEncoders(List<String> layerStrings, List<String> valueStrings) {}
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
   public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, PlanetilerConfig config,
@@ -113,25 +112,13 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   /**
    * Saves the string encoder tables to {@code path} so they can be restored via {@link #loadStringEncoders(Path)}.
-   * <p>
-   * Format: layerString count (int) + each layer string (UTF), then valueString count (int) + each value string (UTF).
-   * Strings are written in the order they were assigned IDs so that loading them back in the same order recreates the
-   * same ID mapping.
    */
   public void saveStringEncoders(Path path) {
-    try (var out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
-      var layerStrings = commonLayerStrings.getStringsInOrder();
-      out.writeInt(layerStrings.size());
-      for (var s : layerStrings) {
-        out.writeUTF(s);
-      }
-      var valueStrings = commonValueStrings.getStringsInOrder();
-      out.writeInt(valueStrings.size());
-      for (var s : valueStrings) {
-        out.writeUTF(s);
-      }
+    var payload = new StringEncoders(commonLayerStrings.getStringsInOrder(), commonValueStrings.getStringsInOrder());
+    try {
+      OBJECT_MAPPER.writeValue(path.toFile(), payload);
     } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      throw new UncheckedIOException("Unable to save string encoders to " + path, e);
     }
   }
 
@@ -139,17 +126,17 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    * Restores string encoder tables from a file written by {@link #saveStringEncoders(Path)}.
    */
   public void loadStringEncoders(Path path) {
-    try (var in = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
-      int layerCount = in.readInt();
-      for (int i = 0; i < layerCount; i++) {
-        commonLayerStrings.encode(in.readUTF());
-      }
-      int valueCount = in.readInt();
-      for (int i = 0; i < valueCount; i++) {
-        commonValueStrings.encode(in.readUTF());
-      }
+    StringEncoders payload;
+    try {
+      payload = OBJECT_MAPPER.readValue(path.toFile(), StringEncoders.class);
     } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      throw new UncheckedIOException("Unable to load string encoders from " + path, e);
+    }
+    for (var layerString : payload.layerStrings()) {
+      commonLayerStrings.encode(layerString);
+    }
+    for (var valueString : payload.valueStrings()) {
+      commonValueStrings.encode(valueString);
     }
   }
 
@@ -159,6 +146,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   public void saveChunkManifest(Path path) {
     if (sorter instanceof ExternalMergeSort ems) {
       ems.saveManifest(path);
+    } else {
+      LOGGER.error("Can't save chunk manifest: sorter is not ExternalMergeSort");
     }
   }
 
@@ -169,6 +158,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     if (sorter instanceof ExternalMergeSort ems) {
       ems.initFromManifest(path);
       prepared = true;
+    } else {
+      LOGGER.error("Can't initialize chunk manifest: sorter is not ExternalMergeSort");
     }
   }
 

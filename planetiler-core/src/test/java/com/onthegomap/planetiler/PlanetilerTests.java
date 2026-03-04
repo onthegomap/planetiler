@@ -3337,6 +3337,7 @@ class PlanetilerTests {
       Mbtiles db2 = Mbtiles.newReadOnlyDatabase(mbtiles2)) {
       assertEquals(TestUtils.getTileMap(db1), TestUtils.getTileMap(db2));
     }
+    assertArrayEquals(Files.readAllBytes(mbtiles), Files.readAllBytes(mbtiles2));
   }
 
   @FunctionalInterface
