@@ -487,7 +487,6 @@ public class FeatureMerge {
       merged = GeometryFixer.fix(merged);
       merged = union(merged);
     }
-    var beforeMerge = merged;
     merged = unbuffer(buffer, merged);
     // in extremely rare cases this can make output too small (see https://github.com/locationtech/jts/issues/1183).
     // Until that issue is fixed, try un-buffering the output of the buffer step before unioning
