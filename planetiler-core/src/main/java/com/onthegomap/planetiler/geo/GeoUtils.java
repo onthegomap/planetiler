@@ -343,11 +343,16 @@ public class GeoUtils {
       }
 
       MutableCoordinateSequence result = new MutableCoordinateSequence(coordinates.size());
+      double lastX = Double.MIN_VALUE;
+      double lastY = Double.MIN_VALUE;
       for (int i = 0; i < coordinates.size(); i++) {
-        result.addPoint(
-          precisionModel.makePrecise(coordinates.getX(i)),
-          precisionModel.makePrecise(coordinates.getY(i))
-        );
+        double x = precisionModel.makePrecise(coordinates.getX(i));
+        double y = precisionModel.makePrecise(coordinates.getY(i));
+        if (x != lastX && y != lastY) {
+          result.forceAddPoint(x, y);
+        }
+        lastX = x;
+        lastY = y;
       }
       return result;
     }
