@@ -494,15 +494,15 @@ public class FeatureMerge {
     if (maxAreaBefore > 100) {
       double areaAfter = merged.getArea();
       if (areaAfter < maxAreaBefore * 0.95) {
-        stats.dataError("unbuffer_too_small", "unbuffer(" + buffer + ")", beforeMerge);
         var merged2 = unbuffer(buffer, beforeUnion);
         double areaAfter2 = merged2.getArea();
         if (areaAfter2 < maxAreaBefore * 0.95) {
-          stats.dataError("unbuffer_still_too_small", "unbuffer(" + buffer + ")", beforeUnion);
-          stats.dataError("buffer_union_unbuffer_broken", "bufferUnionUnbuffer(" + buffer + ")",
+          stats.dataError("buffer_union_unbuffer_still_too_small", "bufferUnionUnbuffer(" + buffer + ")",
             GeoUtils.createGeometryCollection(polygonGroup));
+          // and if that still fails, just union all of the input polygons without buffer/unbuffering
+          return GeoUtils.createGeometryCollection(polygonGroup).union();
         } else {
-          stats.dataError("buffer_union_unbuffer_resolved", "bufferUnionUnbuffer(" + buffer + ")",
+          stats.dataError("buffer_union_unbuffer_too_small", "bufferUnionUnbuffer(" + buffer + ")",
             GeoUtils.createGeometryCollection(polygonGroup));
         }
         if (areaAfter2 > areaAfter) {
