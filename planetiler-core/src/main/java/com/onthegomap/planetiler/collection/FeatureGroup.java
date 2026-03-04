@@ -64,7 +64,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final PlanetilerConfig config;
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
-
+  private static ThreadLocal<TileCoord> CURRENT_TILE;
 
   FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, PlanetilerConfig config, Stats stats) {
     this.sorter = sorter;
@@ -72,6 +72,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     this.profile = profile;
     this.config = config;
     this.stats = stats;
+    if (config.logJtsExceptions() && CURRENT_TILE == null) {
+      CURRENT_TILE = ThreadLocal.withInitial(() -> null);
+    }
   }
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
@@ -321,6 +324,10 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     return sorter.chunksToRead();
   }
 
+  public static TileCoord getCurrentTileForDebugging() {
+    return CURRENT_TILE != null ? CURRENT_TILE.get() : null;
+  }
+
   public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
   public record Reader(Worker readWorker, Iterable<TileFeatures> result) {}
@@ -448,44 +455,53 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     public VectorTile getVectorTile(LayerAttrStats.Updater layerStats) {
-      VectorTile tile = new VectorTile();
-      if (layerStats != null) {
-        tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
-      }
-      List<VectorTile.Feature> items = new ArrayList<>();
-      String currentLayer = null;
-      Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
-      for (SortableFeature entry : entries) {
-        var feature = decodeVectorTileFeature(entry);
-        String layer = feature.layer();
-
-        if (currentLayer == null) {
-          currentLayer = layer;
-          layerFeatures.put(currentLayer, items);
-        } else if (!currentLayer.equals(layer)) {
-          currentLayer = layer;
-          items = new ArrayList<>();
-          layerFeatures.put(layer, items);
-        }
-
-        items.add(feature);
-      }
-      // first post-process entire tile by invoking postProcessTileFeatures to allow for post-processing that combines
-      // features across different layers, infers new layers, or removes layers
       try {
-        var initialFeatures = layerFeatures;
-        layerFeatures = profile.postProcessTileFeatures(tileCoord, layerFeatures);
-        if (layerFeatures == null) {
-          layerFeatures = initialFeatures;
+        if (CURRENT_TILE != null) {
+          CURRENT_TILE.set(tileCoord);
         }
-      } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
-        handlePostProcessFailure(e, "entire tile");
+        VectorTile tile = new VectorTile();
+        if (layerStats != null) {
+          tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
+        }
+        List<VectorTile.Feature> items = new ArrayList<>();
+        String currentLayer = null;
+        Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
+        for (SortableFeature entry : entries) {
+          var feature = decodeVectorTileFeature(entry);
+          String layer = feature.layer();
+
+          if (currentLayer == null) {
+            currentLayer = layer;
+            layerFeatures.put(currentLayer, items);
+          } else if (!currentLayer.equals(layer)) {
+            currentLayer = layer;
+            items = new ArrayList<>();
+            layerFeatures.put(layer, items);
+          }
+
+          items.add(feature);
+        }
+        // first post-process entire tile by invoking postProcessTileFeatures to allow for post-processing that combines
+        // features across different layers, infers new layers, or removes layers
+        try {
+          var initialFeatures = layerFeatures;
+          layerFeatures = profile.postProcessTileFeatures(tileCoord, layerFeatures);
+          if (layerFeatures == null) {
+            layerFeatures = initialFeatures;
+          }
+        } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
+          handlePostProcessFailure(e, "entire tile");
+        }
+        // then let profiles post-process each layer in isolation with postProcessLayerFeatures
+        for (var entry : layerFeatures.entrySet()) {
+          postProcessAndAddLayerFeatures(tile, entry.getKey(), entry.getValue());
+        }
+        return tile;
+      } finally {
+        if (CURRENT_TILE != null) {
+          CURRENT_TILE.remove();
+        }
       }
-      // then let profiles post-process each layer in isolation with postProcessLayerFeatures
-      for (var entry : layerFeatures.entrySet()) {
-        postProcessAndAddLayerFeatures(tile, entry.getKey(), entry.getValue());
-      }
-      return tile;
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
