@@ -5,7 +5,6 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.geotools.api.referencing.FactoryException;
@@ -359,15 +358,6 @@ public class GeoUtils {
       return result.size() < 4 ? null : result;
     }
   }
-
-  static AtomicLong useNaive = new AtomicLong(0);
-  static AtomicLong allSnap = new AtomicLong(0);
-
-  static {
-    Runtime.getRuntime()
-      .addShutdownHook(new Thread(() -> System.out.println("Total: " + allSnap + " use_naive: " + useNaive)));
-  }
-
 
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
