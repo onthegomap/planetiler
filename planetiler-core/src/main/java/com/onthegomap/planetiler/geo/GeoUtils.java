@@ -339,7 +339,7 @@ public class GeoUtils {
 
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coordinates, Geometry parent) {
-      if (coordinates.size() == 0) {
+      if (coordinates.size() < 4) {
         return null;
       }
 
@@ -355,7 +355,7 @@ public class GeoUtils {
         lastX = x;
         lastY = y;
       }
-      return result;
+      return result.size() < 4 ? null : result;
     }
   }
   /**
