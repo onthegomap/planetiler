@@ -62,7 +62,7 @@ public class Geofabrik {
           lastException = e;
           if (attempt < 3) {
             try {
-              Thread.sleep(1_000L * attempt);
+              Geofabrik.class.wait(1_000L * attempt);
             } catch (InterruptedException interruptedException) {
               Thread.currentThread().interrupt();
               throw new IllegalStateException("Interrupted while downloading Geofabrik index", interruptedException);

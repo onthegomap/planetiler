@@ -23,15 +23,27 @@ jobs:
         submodules: true
     - name: 'Download branch build info'
       uses: dawidd6/action-download-artifact@v16
+      continue-on-error: true
       with:
         workflow: ${{ github.event.workflow_run.workflow_id }}
         run_id: ${{ github.event.workflow_run.id }}
         name: build-info
         path: build-info
+    - name: 'Check build info availability'
+      id: has_build_info
+      run: |
+        if [[ -f build-info/pull_request_number ]]; then
+          echo "available=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "available=false" >> "$GITHUB_OUTPUT"
+          echo "No build-info artifact found for run ${{ github.event.workflow_run.id }}, skipping PR comment."
+        fi
     - name: 'Get build info'
       id: build_info
-      run: echo "::set-output name=pr_number::$(cat build-info/pull_request_number)"
+      if: steps.has_build_info.outputs.available == 'true'
+      run: echo "pr_number=$(cat build-info/pull_request_number)" >> "$GITHUB_OUTPUT"
     - name: 'Build comment-body'
+      if: steps.has_build_info.outputs.available == 'true'
       run: |
         cat build-info/branchlogs.txt | sed -n '/^.*Tile stats/,/\tfeatures\t/p' > branchsummary.txt
         cat build-info/branchlogs.txt | sed -n '/^.*Exception in thread/,$p' >> branchsummary.txt
@@ -68,9 +80,11 @@ jobs:
         EOF
 
     - name: 'Dump comment body'
+      if: steps.has_build_info.outputs.available == 'true'
       run: cat comment-body.txt
 
     - uses: marocchino/sticky-pull-request-comment@v2
+      if: steps.has_build_info.outputs.available == 'true'
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         path: comment-body.txt
