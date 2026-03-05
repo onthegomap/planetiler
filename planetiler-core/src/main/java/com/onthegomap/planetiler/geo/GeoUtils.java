@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.geotools.api.referencing.FactoryException;
@@ -337,8 +338,9 @@ public class GeoUtils {
       this.precisionModel = precisionModel;
     }
 
+    @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coordinates, Geometry parent) {
-      if (coordinates.size() == 0) {
+      if (coordinates.size() < 4) {
         return null;
       }
 
@@ -354,8 +356,16 @@ public class GeoUtils {
         lastX = x;
         lastY = y;
       }
-      return result;
+      return result.size() < 4 ? null : result;
     }
+  }
+
+  static AtomicLong useNaive = new AtomicLong(0);
+  static AtomicLong allSnap = new AtomicLong(0);
+
+  static {
+    Runtime.getRuntime()
+      .addShutdownHook(new Thread(() -> System.out.println("Total: " + allSnap + " use_naive: " + useNaive)));
   }
 
 
