@@ -3,6 +3,7 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -32,6 +33,7 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.slf4j.Logger;
@@ -820,6 +822,7 @@ class FeatureMergeTest {
       }
       Geometry merged = FeatureMerge.bufferUnionUnbuffer(buffer, geoms, Stats.inMemory());
       merged = GeoUtils.snapAndFixPolygon(merged, Stats.inMemory(), "merge").reverse();
+      assertInstanceOf(Polygonal.class, merged);
       double areaAfter = merged.getArea();
       TestUtils.validateGeometry(merged);
       double ratio = areaAfter / areaBefore;
