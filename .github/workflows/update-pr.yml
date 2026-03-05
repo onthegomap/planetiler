@@ -29,6 +29,7 @@ jobs:
         run_id: ${{ github.event.workflow_run.id }}
         name: build-info
         path: build-info
+        if_no_artifact_found: warn
     - name: 'Check build info availability'
       id: has_build_info
       run: |
