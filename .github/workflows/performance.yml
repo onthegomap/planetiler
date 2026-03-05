@@ -60,35 +60,15 @@ jobs:
       working-directory: base
 
     - name: 'Download data'
-      run: |
-        set -euo pipefail
-
-        retry_download() {
-          local jar="$1"
-          local attempt=1
-          local max_attempts=5
-          local backoff_seconds=5
-
-          while [ "$attempt" -le "$max_attempts" ]; do
-            cp "$jar" run.jar
-            if java -jar run.jar --only-download --area="${{ env.AREA }}"; then
-              return 0
-            fi
-
-            if [ "$attempt" -eq "$max_attempts" ]; then
-              echo "Download failed after ${attempt} attempts for ${jar}"
-              return 1
-            fi
-
-            echo "Download attempt ${attempt}/${max_attempts} failed for ${jar}; retrying in ${backoff_seconds}s..."
-            sleep "$backoff_seconds"
-            attempt=$((attempt + 1))
-            backoff_seconds=$((backoff_seconds * 2))
-          done
-        }
-
-        retry_download base/planetiler-dist/target/*with-deps.jar
-        retry_download branch/planetiler-dist/target/*with-deps.jar
+      uses: nick-fields/retry@v3
+      with:
+        max_attempts: 5
+        command: |
+          set -eo pipefail
+          cp base/planetiler-dist/target/*with-deps.jar run.jar
+          java -jar run.jar --only-download --area="${{ env.AREA }}"
+          cp branch/planetiler-dist/target/*with-deps.jar run.jar
+          java -jar run.jar --only-download --area="${{ env.AREA }}"
 
     - name: 'Store build info'
       run: |

@@ -30,7 +30,6 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
@@ -359,6 +358,7 @@ public class GeoUtils {
       return result.size() < 4 ? null : result;
     }
   }
+
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
@@ -370,61 +370,30 @@ public class GeoUtils {
     try {
       Geometry naiveSnap = new PointwiseRounder(tilePrecision).transform(geom);
       if (naiveSnap.isValid()) {
-        return polygonalOnly(new OrientationFixer().transform(naiveSnap));
+        return new OrientationFixer().transform(naiveSnap);
       }
       if (!geom.isValid()) {
         geom = fixPolygon(geom);
         stats.dataError(stage + "_snap_fix_input");
       }
-      return polygonalOnly(new OrientationFixer().transform(GeometryPrecisionReducer.reduce(geom, tilePrecision)));
+      return GeometryPrecisionReducer.reduce(geom, tilePrecision);
     } catch (TopologyException | IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
       geom = GeometryFixer.fix(geom);
       stats.dataError(stage + "_snap_fix_input2");
       try {
-        return polygonalOnly(new OrientationFixer().transform(GeometryPrecisionReducer.reduce(geom, tilePrecision)));
+        return GeometryPrecisionReducer.reduce(geom, tilePrecision);
       } catch (TopologyException | IllegalArgumentException e2) {
         // give it one last try but with more aggressive fixing, just in case (see issue #511)
         geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
         stats.dataError(stage + "_snap_fix_input3");
         try {
-          return polygonalOnly(new OrientationFixer().transform(GeometryPrecisionReducer.reduce(geom, tilePrecision)));
+          return GeometryPrecisionReducer.reduce(geom, tilePrecision);
         } catch (TopologyException | IllegalArgumentException e3) {
           stats.dataError(stage + "_snap_fix_input3_failed");
           throw new GeometryException("snap_third_time_failed", "Error reducing precision");
         }
-      }
-    }
-  }
-
-  private static Geometry polygonalOnly(Geometry geometry) {
-    if (geometry == null || geometry.isEmpty()) {
-      return EMPTY_POLYGON;
-    }
-    if (geometry instanceof Polygonal) {
-      return geometry;
-    }
-    List<Polygon> polygons = new ArrayList<>();
-    collectPolygons(geometry, polygons);
-    return polygons.isEmpty() ? EMPTY_POLYGON : combinePolygons(polygons);
-  }
-
-  private static void collectPolygons(Geometry geometry, List<Polygon> polygons) {
-    switch (geometry) {
-      case Polygon polygon -> polygons.add(polygon);
-      case MultiPolygon multiPolygon -> {
-        for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
-          polygons.add((Polygon) multiPolygon.getGeometryN(i));
-        }
-      }
-      case GeometryCollection collection -> {
-        for (int i = 0; i < collection.getNumGeometries(); i++) {
-          collectPolygons(collection.getGeometryN(i), polygons);
-        }
-      }
-      case null, default -> {
-        // ignore non-polygonal geometry components
       }
     }
   }

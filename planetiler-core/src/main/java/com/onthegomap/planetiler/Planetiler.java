@@ -836,20 +836,16 @@ public class Planetiler {
       LOGGER.info("  archive: Encode each tile and write to {}", output);
     }
 
-    if (config.reuseFeatureDb()) {
-      if (hasReusableFeatureDb) {
-        LOGGER.info("Reusing existing feature DB state at {}", featureDbPath);
-      } else {
-        if (hasFeatureDb || hasStringEncoders || hasChunkManifest) {
-          LOGGER.info("Clearing partial reusable feature DB state at {}", featureDbPath);
-          FileUtils.delete(featureDbPath);
-        }
+    if (config.reuseFeatureDb() && hasReusableFeatureDb) {
+      LOGGER.info("Reusing existing feature DB state at {}", featureDbPath);
+    } else {
+      if (config.reuseFeatureDb()) {
         LOGGER.info("--reuse_featuredb enabled with no previous reusable state; building feature DB for reuse");
       }
-    } else {
-      // in case any temp files are left from a previous run...
-      FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
+      FileUtils.delete(featureDbPath);
     }
+    // in case any temp files are left from a previous run...
+    FileUtils.delete(tmpDir, nodeDbPath, multipolygonPath);
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
