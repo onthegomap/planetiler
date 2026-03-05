@@ -50,13 +50,28 @@ public class Geofabrik {
 
   private static synchronized IndexJson getAndCacheIndex(PlanetilerConfig config) {
     if (index == null) {
-      try (
-        InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
-          config)
-      ) {
-        index = parseIndexJson(inputStream);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
+      IOException lastException = null;
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        try (
+          InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
+            config)
+        ) {
+          index = parseIndexJson(inputStream);
+          break;
+        } catch (IOException e) {
+          lastException = e;
+          if (attempt < 3) {
+            try {
+              Thread.sleep(1_000L * attempt);
+            } catch (InterruptedException interruptedException) {
+              Thread.currentThread().interrupt();
+              throw new IllegalStateException("Interrupted while downloading Geofabrik index", interruptedException);
+            }
+          }
+        }
+      }
+      if (index == null) {
+        throw new IllegalStateException(lastException);
       }
     }
     return index;
