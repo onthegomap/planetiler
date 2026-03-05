@@ -47,7 +47,7 @@ public class CommonStringEncoder {
    */
   /** Returns all strings in the order they were first encoded, for serialization purposes. */
   public List<String> getStringsInOrder() {
-    return Arrays.asList(idToString).subList(0, stringId.get());
+    return List.of(Arrays.copyOf(idToString, stringId.get()));
   }
 
   public int encode(String string) {

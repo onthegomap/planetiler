@@ -809,8 +809,8 @@ public class Planetiler {
         });
     }
 
-    var stringEncoderPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".strings");
-    var chunkManifestPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".manifest");
+    var stringEncoderPath = featureDbPath.resolve("featuredb.strings");
+    var chunkManifestPath = featureDbPath.resolve("featuredb.manifest");
     boolean hasFeatureDb = Files.exists(featureDbPath);
     boolean hasStringEncoders = Files.exists(stringEncoderPath);
     boolean hasChunkManifest = Files.exists(chunkManifestPath);
@@ -838,12 +838,11 @@ public class Planetiler {
 
     if (config.reuseFeatureDb()) {
       if (hasReusableFeatureDb) {
-        LOGGER.info("Clearing existing reusable feature DB state at {} before rebuilding", featureDbPath);
-        FileUtils.delete(featureDbPath, stringEncoderPath, chunkManifestPath);
+        LOGGER.info("Reusing existing feature DB state at {}", featureDbPath);
       } else {
         if (hasFeatureDb || hasStringEncoders || hasChunkManifest) {
           LOGGER.info("Clearing partial reusable feature DB state at {}", featureDbPath);
-          FileUtils.delete(featureDbPath, stringEncoderPath, chunkManifestPath);
+          FileUtils.delete(featureDbPath);
         }
         LOGGER.info("--reuse_featuredb enabled with no previous reusable state; building feature DB for reuse");
       }

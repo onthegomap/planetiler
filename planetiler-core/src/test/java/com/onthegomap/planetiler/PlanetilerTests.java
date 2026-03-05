@@ -3319,7 +3319,7 @@ class PlanetilerTests {
     };
 
     // first run: build feature DB and tiles
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData))
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData, "--reuse_featuredb=true"))
       .setProfile(profile)
       .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
       .setOutput(mbtiles)
