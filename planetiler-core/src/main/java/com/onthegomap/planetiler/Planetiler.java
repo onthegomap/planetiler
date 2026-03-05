@@ -809,12 +809,14 @@ public class Planetiler {
         });
     }
 
-    var stringEncoderPath = featureDbPath.resolve("featuredb.strings");
-    var chunkManifestPath = featureDbPath.resolve("featuredb.manifest");
+    // Keep reuse metadata next to feature.db so it survives directory cleanup and is easy to atomically manage.
+    var stringEncoderPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".strings");
+    var chunkManifestPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".manifest");
     boolean hasFeatureDb = Files.exists(featureDbPath);
     boolean hasStringEncoders = Files.exists(stringEncoderPath);
     boolean hasChunkManifest = Files.exists(chunkManifestPath);
     boolean hasReusableFeatureDb = hasFeatureDb && hasStringEncoders && hasChunkManifest;
+    boolean reuseExistingFeatureDb = config.reuseFeatureDb() && hasReusableFeatureDb;
 
     LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
 
@@ -827,16 +829,20 @@ public class Planetiler {
     }
 
     if (!onlyDownloadSources && !onlyFetchWikidata) {
-      for (Stage stage : stages) {
-        for (String details : stage.details) {
-          LOGGER.info("  {}", details);
+      if (reuseExistingFeatureDb) {
+        LOGGER.info("  reuse: Reusing existing feature DB at {} (skipping source reading stages)", featureDbPath);
+      } else {
+        for (Stage stage : stages) {
+          for (String details : stage.details) {
+            LOGGER.info("  {}", details);
+          }
         }
+        LOGGER.info("  sort: Sort rendered features by tile ID");
       }
-      LOGGER.info("  sort: Sort rendered features by tile ID");
       LOGGER.info("  archive: Encode each tile and write to {}", output);
     }
 
-    if (config.reuseFeatureDb() && hasReusableFeatureDb) {
+    if (reuseExistingFeatureDb) {
       LOGGER.info("Reusing existing feature DB state at {}", featureDbPath);
     } else {
       if (config.reuseFeatureDb()) {
@@ -845,7 +851,12 @@ public class Planetiler {
       FileUtils.delete(featureDbPath);
     }
     // in case any temp files are left from a previous run...
-    FileUtils.delete(tmpDir, nodeDbPath, multipolygonPath);
+    if (reuseExistingFeatureDb) {
+      // Preserve tmpDir because it contains feature.db + reuse metadata we need to load.
+      FileUtils.delete(nodeDbPath, multipolygonPath);
+    } else {
+      FileUtils.delete(tmpDir, nodeDbPath, multipolygonPath);
+    }
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
@@ -855,7 +866,9 @@ public class Planetiler {
     if (fetchOsmTileStats) {
       TopOsmTiles.downloadPrecomputed(config);
     }
-    ensureInputFilesExist();
+    if (!reuseExistingFeatureDb) {
+      ensureInputFilesExist();
+    }
 
     if (fetchWikidata) {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats(), wikidataMaxAge,
@@ -868,7 +881,7 @@ public class Planetiler {
       return; // exit only if just fetching wikidata or downloading sources
     }
 
-    if (osmInputFile != null) {
+    if (osmInputFile != null && !reuseExistingFeatureDb) {
       checkDiskSpace();
       checkMemory();
       var bounds = config.bounds();
@@ -883,33 +896,38 @@ public class Planetiler {
     try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
       featureGroup =
         FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats,
-          config.reuseFeatureDb());
+          reuseExistingFeatureDb);
       stats.monitorFile("nodes", nodeDbPath);
       stats.monitorFile("features", featureDbPath);
       stats.monitorFile("multipolygons", multipolygonPath);
       stats.monitorFile("archive", output.getLocalPath(), archive::bytesWritten);
 
-      for (Stage stage : stages) {
-        try {
-          stage.task.run();
-        } catch (Exception e) {
-          throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+      if (reuseExistingFeatureDb) {
+        featureGroup.loadStringEncoders(stringEncoderPath);
+        featureGroup.initFromManifest(chunkManifestPath);
+      } else {
+        for (Stage stage : stages) {
+          try {
+            stage.task.run();
+          } catch (Exception e) {
+            throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+          }
         }
-      }
 
-      LOGGER.info("Deleting node.db to make room for output file");
-      profile.release();
-      for (var inputPath : inputPaths) {
-        if (inputPath.freeAfterReading()) {
-          LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
-          FileUtils.delete(inputPath.path());
+        LOGGER.info("Deleting node.db to make room for output file");
+        profile.release();
+        for (var inputPath : inputPaths) {
+          if (inputPath.freeAfterReading()) {
+            LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
+            FileUtils.delete(inputPath.path());
+          }
         }
-      }
 
-      featureGroup.prepare();
-      if (config.reuseFeatureDb()) {
-        featureGroup.saveStringEncoders(stringEncoderPath);
-        featureGroup.saveChunkManifest(chunkManifestPath);
+        featureGroup.prepare();
+        if (config.reuseFeatureDb()) {
+          featureGroup.saveStringEncoders(stringEncoderPath);
+          featureGroup.saveChunkManifest(chunkManifestPath);
+        }
       }
 
       TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,

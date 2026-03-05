@@ -3326,9 +3326,10 @@ class PlanetilerTests {
       .run();
 
     // second run: reuse feature DB, write to a different output
+    Path missingSource = tmpData.resolve("missing.geojson");
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData, "--reuse_featuredb=true", "--force=true"))
       .setProfile(profile)
-      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
+      .addGeoJsonSource("geojson", missingSource, null)
       .setOutput(mbtiles2)
       .run();
 
