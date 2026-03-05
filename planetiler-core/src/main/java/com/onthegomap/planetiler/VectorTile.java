@@ -1229,7 +1229,7 @@ public class VectorTile {
         case Puntal ignored -> encode(new CoordinateArraySequence(geometry.getCoordinates()), shouldClosePath(geometry),
           geometry instanceof MultiPoint, GeometryType.POINT);
         case null -> LOGGER.warn("Null geometry type");
-        default -> LOGGER.warn("Unrecognized geometry type: " + geometry.getGeometryType());
+        default -> LOGGER.warn("Unrecognized geometry type: {}", geometry.getGeometryType());
       }
     }
 

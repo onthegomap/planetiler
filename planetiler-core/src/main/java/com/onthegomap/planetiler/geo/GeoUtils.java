@@ -337,6 +337,7 @@ public class GeoUtils {
       this.precisionModel = precisionModel;
     }
 
+    @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coordinates, Geometry parent) {
       if (coordinates.size() == 0) {
         return null;
@@ -357,8 +358,6 @@ public class GeoUtils {
       return result;
     }
   }
-
-
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
