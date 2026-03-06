@@ -65,7 +65,7 @@ docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegom
 
 :warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles
 profile
-including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/water-polygons.html) and ~240MB
+including ~750MB for ocean polygons and ~240MB
 for [Natural Earth Data](https://www.naturalearthdata.com/).
 
 <details>
@@ -454,4 +454,3 @@ must [visibly credit OpenStreetMap contributors](https://www.openstreetmap.org/c
 profile based on OpenMapTiles or a derivative
 must [visibly credit OpenMapTiles](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md#design-license-cc-by-40)
 as well.
-
