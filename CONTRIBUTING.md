@@ -95,3 +95,11 @@ requests to catch common bugs and security vulnerabilities. To preview Sonar war
   enable connected mode for your IDE using "SonarCloud"
   connection type and the shared read-only API token used in GitHub CI: `c2cfe8bd7368ced07e84a620b7c2487846e220eb`
 
+## AI-Assisted Contributions
+
+Generally it's fine to use AI tools to help create pull requests as long as you adhere to the following guidelines:
+
+- State in your PR description what AI tool(s) you used to create the PR.
+- Make sure you have reviewed and fully understand all the code changes being submitted.
+- Make sure the PR does not contain any unrelated changes.
+- Make sure that the PR adheres to the project's coding standards and licensing guidelines.
