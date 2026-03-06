@@ -28,7 +28,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,7 +78,6 @@ class ExternalMergeSort implements FeatureSort {
   private final boolean mmapIO;
   private final boolean parallelSort;
   private final boolean madvise;
-  private final boolean reuseExisting;
   private final AtomicBoolean madviseFailed = new AtomicBoolean(false);
   private volatile boolean sorted = false;
 
@@ -128,7 +126,6 @@ class ExternalMergeSort implements FeatureSort {
     boolean madvise, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
     this.config = config;
     this.madvise = madvise;
-    this.reuseExisting = reuseExisting;
     this.dir = dir;
     this.stats = stats;
     this.parallelSort = parallelSort;
@@ -150,13 +147,12 @@ class ExternalMergeSort implements FeatureSort {
     try {
       if (reuseExisting) {
         LOGGER.info("Reusing merge sort feature map directory at {}", dir);
-        Files.createDirectories(dir);
       } else {
         LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000,
           workers);
         FileUtils.deleteDirectory(dir);
-        Files.createDirectories(dir);
       }
+      Files.createDirectories(dir);
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to initialize feature DB directory " + dir, e);
     }
@@ -454,7 +450,7 @@ class ExternalMergeSort implements FeatureSort {
 
     private void newChunk() throws IOException {
       Path chunkPath = dir.resolve("chunk" + chunkNum.incrementAndGet());
-      if (!reuseExisting) {
+      if (!config.reuseFeatureDb()) {
         FileUtils.deleteOnExit(chunkPath);
       }
       if (currentChunk != null) {

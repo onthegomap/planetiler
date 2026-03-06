@@ -810,8 +810,8 @@ public class Planetiler {
     }
 
     // Keep reuse metadata next to feature.db so it survives directory cleanup and is easy to atomically manage.
-    var stringEncoderPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".strings");
-    var chunkManifestPath = featureDbPath.resolveSibling(featureDbPath.getFileName() + ".manifest");
+    var stringEncoderPath = featureDbPath.resolve(featureDbPath.getFileName() + ".strings");
+    var chunkManifestPath = featureDbPath.resolve(featureDbPath.getFileName() + ".manifest");
     boolean hasFeatureDb = Files.exists(featureDbPath);
     boolean hasStringEncoders = Files.exists(stringEncoderPath);
     boolean hasChunkManifest = Files.exists(chunkManifestPath);
@@ -851,11 +851,9 @@ public class Planetiler {
       FileUtils.delete(featureDbPath);
     }
     // in case any temp files are left from a previous run...
-    if (reuseExistingFeatureDb) {
-      // Preserve tmpDir because it contains feature.db + reuse metadata we need to load.
-      FileUtils.delete(nodeDbPath, multipolygonPath);
-    } else {
-      FileUtils.delete(tmpDir, nodeDbPath, multipolygonPath);
+    FileUtils.delete(nodeDbPath, multipolygonPath);
+    if (!reuseExistingFeatureDb) {
+      FileUtils.delete(tmpDir);
     }
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());

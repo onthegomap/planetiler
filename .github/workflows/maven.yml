@@ -110,44 +110,16 @@ jobs:
         path: planetiler-dist/target/*with-deps.jar
 
     - name: Download data (java)
-      run: |
-        set -euo pipefail
-        attempt=1
-        max_attempts=5
-        backoff_seconds=5
-        while [ "$attempt" -le "$max_attempts" ]; do
-          if java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco; then
-            exit 0
-          fi
-          if [ "$attempt" -eq "$max_attempts" ]; then
-            echo "Download failed after ${attempt} attempts"
-            exit 1
-          fi
-          echo "Download attempt ${attempt}/${max_attempts} failed; retrying in ${backoff_seconds}s..."
-          sleep "$backoff_seconds"
-          attempt=$((attempt + 1))
-          backoff_seconds=$((backoff_seconds * 2))
-        done
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      with:
+        max_attempts: 5
+        run: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
 
     - name: Download wikidata (java)
-      run: |
-        set -euo pipefail
-        attempt=1
-        max_attempts=3
-        backoff_seconds=5
-        while [ "$attempt" -le "$max_attempts" ]; do
-          if java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco; then
-            exit 0
-          fi
-          if [ "$attempt" -eq "$max_attempts" ]; then
-            echo "Wikidata fetch failed after ${attempt} attempts"
-            exit 1
-          fi
-          echo "Wikidata fetch attempt ${attempt}/${max_attempts} failed; retrying in ${backoff_seconds}s..."
-          sleep "$backoff_seconds"
-          attempt=$((attempt + 1))
-          backoff_seconds=$((backoff_seconds * 2))
-        done
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      with:
+        max_attempts: 5
+        run: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
 
     - name: Verify build
       run: ./scripts/test-release.sh CI_ONLY

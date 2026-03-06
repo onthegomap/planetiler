@@ -66,10 +66,8 @@ jobs:
         timeout_minutes: 30
         command: |
           set -eo pipefail
-          cp base/planetiler-dist/target/*with-deps.jar run.jar
-          java -jar run.jar --only-download --area="${{ env.AREA }}"
-          cp branch/planetiler-dist/target/*with-deps.jar run.jar
-          java -jar run.jar --only-download --area="${{ env.AREA }}"
+          cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
+          cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
 
     - name: 'Store build info'
       run: |
