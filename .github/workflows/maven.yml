@@ -113,13 +113,13 @@ jobs:
       uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
       with:
         max_attempts: 5
-        run: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
+        command: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
 
     - name: Download wikidata (java)
       uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
       with:
         max_attempts: 5
-        run: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
+        command: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
 
     - name: Verify build
       run: ./scripts/test-release.sh CI_ONLY
