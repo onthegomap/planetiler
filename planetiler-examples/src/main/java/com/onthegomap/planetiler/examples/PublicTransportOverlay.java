@@ -13,7 +13,7 @@ public class PublicTransportOverlay implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
-      features.point("tram stops")
+      features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"));
     }
   }
