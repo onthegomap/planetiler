@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.examples;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
@@ -62,6 +64,11 @@ public class PublicTransportOverlay implements Profile {
           .setAttr("name", relation.name);
       }
     }
+  }
+
+  // Merge lines at their endpoints for improved rendering
+  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
+    return FeatureMerge.mergeLineStrings(items, 0.5, 0.1, 4);
   }
 
   @Override
