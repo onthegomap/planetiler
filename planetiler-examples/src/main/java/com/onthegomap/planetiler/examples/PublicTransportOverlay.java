@@ -65,7 +65,11 @@ public class PublicTransportOverlay implements Profile {
 
   // Merge lines at their endpoints for improved rendering
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
-    return FeatureMerge.mergeLineStrings(items, 0.5, 0.1, 4);
+    return FeatureMerge.mergeLineStrings(items,
+      0.5, // remove lines that are less than 0.5px long
+      0.1, // simplify linestring output using a 0.1px tolerance
+      4 // remove detail more than 4px outside the tile boundary
+    );
   }
 
   @Override
