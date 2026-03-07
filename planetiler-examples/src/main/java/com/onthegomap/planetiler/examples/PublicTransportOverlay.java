@@ -40,13 +40,13 @@ public class PublicTransportOverlay implements Profile {
     return null;
   }
 
-  // For now, create an overlay that displays tram lines and their stops
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // Collect tram stop features
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
       features.point("Tram stop")
-        .setAttr("name", sourceFeature.getTag("name"));
+        .setAttr("name", sourceFeature.getTag("name"))
+        .setMinZoom(11); // Prevent tram stops from cluttering routes when zoomed far out
     }
     // Collect tram route relations
     if (sourceFeature.canBeLine()) {
@@ -56,9 +56,9 @@ public class PublicTransportOverlay implements Profile {
         features.line(layerName)
           .setAttr("ref", relation.ref)
           .setAttr("network", relation.network)
-          .setAttr("name", relation.name);
-        //.setZoomRange(0, 14)
-        //.setMinPixelSize(0);
+          .setAttr("name", relation.name)
+          .setZoomRange(0, 20)
+          .setMinPixelSize(0); // Prevents visual gaps in tram routes
       }
     }
   }
