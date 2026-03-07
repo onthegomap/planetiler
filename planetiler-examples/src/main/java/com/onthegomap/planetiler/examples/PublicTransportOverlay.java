@@ -19,10 +19,7 @@ public class PublicTransportOverlay implements Profile {
     @Override long id,
     String ref,
     String name,
-    String network,
-    String colour,
-    String to,
-    String from
+    String network
   ) implements OsmRelationInfo {}
 
   @Override
@@ -35,10 +32,7 @@ public class PublicTransportOverlay implements Profile {
           relation.id(),
           relation.getString("ref"),
           relation.getString("name"),
-          relation.getString("network"),
-          relation.getString("colour"),
-          relation.getString("to"),
-          relation.getString("from")
+          relation.getString("network")
         ));
       }
     }
@@ -50,17 +44,15 @@ public class PublicTransportOverlay implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // Collect tram stop features
-    /*
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
       features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"));
     }
-     */
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         RouteRelationInfo relation = routeInfo.relation();
         // Name each layer as {network}:{name}-from-{start station}-to-{destination station}
-        String layerName = relation.network + ":" + relation.name + "-from-" + relation.from + "-to-" + relation.to;
+        String layerName = relation.name;
         features.line(layerName)
           .setAttr("ref", relation.ref)
           .setAttr("network", relation.network)
