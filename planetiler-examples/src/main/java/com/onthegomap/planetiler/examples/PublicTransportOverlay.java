@@ -17,12 +17,12 @@ public class PublicTransportOverlay implements Profile {
     return "Public Transport Overlay";
   }
 
-  public static void main(String... args) throws Exception {
+  public static void main(String[] args) throws Exception {
     /*
     Planetiler.create(args)
       .setProfile(new MyProfile())
-      // if input.pbf not found, download Monaco from Geofabrik
-      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"), "geofabrik:monaco")
+      // if input.pbf not found, download Berlin from Geofabrik
+      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"), "geofabrik:Berlin")
       .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
       .run();
      */
