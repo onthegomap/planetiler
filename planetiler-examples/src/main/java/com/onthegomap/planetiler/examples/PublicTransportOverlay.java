@@ -25,7 +25,8 @@ public class PublicTransportOverlay implements Profile {
     String from
   ) implements OsmRelationInfo {}
 
-  public List<OsmRelationInfo> preProcessOsmRelation(OsmElement.Relation relation) {
+  @Override
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     // For routes of type tram
     if (relation.hasTag("type", "route")) {
       if (relation.hasTag("route", "tram")) {
@@ -49,10 +50,12 @@ public class PublicTransportOverlay implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // Collect tram stop features
+    /*
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
       features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"));
     }
+     */
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         RouteRelationInfo relation = routeInfo.relation();
@@ -62,6 +65,8 @@ public class PublicTransportOverlay implements Profile {
           .setAttr("ref", relation.ref)
           .setAttr("network", relation.network)
           .setAttr("name", relation.name);
+        //.setZoomRange(0, 14)
+        //.setMinPixelSize(0);
       }
     }
   }
