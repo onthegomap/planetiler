@@ -27,7 +27,7 @@ public class PublicTransportOverlay implements Profile {
     // For routes of type tram
     if (relation.hasTag("type", "route")) {
       if (relation.hasTag("route", "tram")) {
-        // Form the route as record and add it to the relation list
+        // Form the route as a record and add it to the relation list
         return List.of(new RouteRelationInfo(
           relation.id(),
           relation.getString("ref"),
@@ -48,10 +48,10 @@ public class PublicTransportOverlay implements Profile {
       features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"));
     }
+    // Collect tram route relations
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         RouteRelationInfo relation = routeInfo.relation();
-        // Name each layer as {network}:{name}-from-{start station}-to-{destination station}
         String layerName = relation.name;
         features.line(layerName)
           .setAttr("ref", relation.ref)
