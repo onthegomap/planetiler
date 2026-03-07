@@ -1,15 +1,20 @@
 package com.onthegomap.planetiler.examples;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.nio.file.Path;
 
 public class PublicTransportOverlay implements Profile {
 
+  // For now, create an overlay that displays tram lines and their stops
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    if (sourceFeature.canBeLine()) {
-      //
+    if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
+      features.point("tram stops")
+        .setAttr("name", sourceFeature.getTag("name"));
     }
   }
 
@@ -41,13 +46,16 @@ public class PublicTransportOverlay implements Profile {
   }
 
   public static void main(String[] args) throws Exception {
-    /*
+    run(Arguments.fromArgsOrConfigFile(args));
+  }
+
+  static void run(Arguments args) throws Exception {
+    String area = args.getString("area", "geofabrik area to download", "Berlin");
     Planetiler.create(args)
-      .setProfile(new MyProfile())
+      .setProfile(new PublicTransportOverlay())
       // if input.pbf not found, download Berlin from Geofabrik
-      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"), "geofabrik:Berlin")
-      .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
+      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .overwriteOutput(Path.of("data", "publictransport.mbtiles"))
       .run();
-     */
   }
 }
