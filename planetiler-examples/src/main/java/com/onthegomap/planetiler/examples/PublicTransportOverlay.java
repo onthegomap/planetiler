@@ -5,16 +5,52 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.nio.file.Path;
+import java.util.List;
 
 public class PublicTransportOverlay implements Profile {
+
+  // This record stores a tram route's tags
+  private record RouteRelationInfo(
+    @Override long id,
+    String ref,
+    String name,
+    String colour,
+    String to,
+    String from
+  ) implements OsmRelationInfo {}
+
+  public List<OsmRelationInfo> preProcessOsmRelation(OsmElement.Relation relation) {
+    // For routes of type tram
+    if (relation.hasTag("type", "route")) {
+      if (relation.hasTag("route", "tram")) {
+        // Form the route as record and add it to the relation list
+        return List.of(new RouteRelationInfo(
+          relation.id(),
+          relation.getString("ref"),
+          relation.getString("name"),
+          relation.getString("colour"),
+          relation.getString("to"),
+          relation.getString("from")
+        ));
+      }
+    }
+    // Return null for any relation that isn't of a tram route
+    return null;
+  }
 
   // For now, create an overlay that displays tram lines and their stops
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+    // Collect tram stop features
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
       features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"));
+    }
+    if (sourceFeature.canBeLine()) {
+      //
     }
   }
 
