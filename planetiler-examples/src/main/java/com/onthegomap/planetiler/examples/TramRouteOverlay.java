@@ -12,7 +12,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.nio.file.Path;
 import java.util.List;
 
-public class PublicTransportOverlay implements Profile {
+public class TramRouteOverlay implements Profile {
 
   // This record stores a tram route's tags
   private record RouteRelationInfo(
@@ -79,8 +79,8 @@ public class PublicTransportOverlay implements Profile {
 
   @Override
   public String name() {
-    // name that shows up in the MBTiles metadata table
-    return "Public Transport Overlay";
+    // Name that appears in the MBTiles metadata table
+    return "Tram Routes and Stops Overlay";
   }
 
   @Override
@@ -106,10 +106,10 @@ public class PublicTransportOverlay implements Profile {
   static void run(Arguments args) throws Exception {
     String area = args.getString("area", "geofabrik area to download", "Berlin");
     Planetiler.create(args)
-      .setProfile(new PublicTransportOverlay())
+      .setProfile(new TramRouteOverlay())
       // if input.pbf not found, download Berlin from Geofabrik
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
-      .overwriteOutput(Path.of("data", "publictransport.mbtiles"))
+      .overwriteOutput(Path.of("data", "tramroutes.mbtiles"))
       .run();
   }
 }
