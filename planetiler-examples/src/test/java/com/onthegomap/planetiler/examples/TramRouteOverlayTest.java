@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
 public class TramRouteOverlayTest {
@@ -95,7 +96,20 @@ public class TramRouteOverlayTest {
         Map.of(),
         GeoUtils.WORLD_LAT_LON_BOUNDS,
         352,
-        Point.class);
+        Point.class
+      );
+
+      TestUtils.assertNumFeatures(
+        mbtiles,
+        "Tram 2: Gröpelingen => Sebaldsbrück",
+        12,
+        Map.of(),
+        GeoUtils.WORLD_LAT_LON_BOUNDS,
+        39,
+        LineString.class
+      );
+
+      TestUtils.assertTileDuplicates(mbtiles, 0);
     }
   }
 }
