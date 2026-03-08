@@ -1,9 +1,12 @@
 package com.onthegomap.planetiler.examples;
 
+import static com.onthegomap.planetiler.TestUtils.assertContains;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -70,10 +73,18 @@ public class TramRouteOverlayTest {
     assertEquals(14, routeFeature.getMaxZoom());
   }
 
-
   @Test
-  void integrationTest(@TempDir Path tempDir) throws Exception {
-    var profile = new TramRouteOverlay();
-    //
+  void integrationTest(@TempDir Path tmpDir) throws Exception {
+    Path dbPath = tmpDir.resolve("output.mbtiles");
+    TramRouteOverlay.run(Arguments.of(
+      "osm_path", TestUtils.pathToResource("bremen.osm.pbf"),
+      "tmpDir", tmpDir.toString(),
+      "output", dbPath.toString()
+    ));
+    try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
+      Map<String, String> metadata = mbtiles.metadata().toMap();
+      assertEquals("Tram Routes and Stops Overlay", metadata.get("name"));
+      assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
+    }
   }
 }
