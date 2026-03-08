@@ -14,7 +14,7 @@ import java.util.List;
 
 public class TramRouteOverlay implements Profile {
 
-  // This record stores a tram route's tags
+  // Data carrier to store a tram route's tags
   private record RouteRelationInfo(
     @Override long id,
     String ref,
@@ -42,13 +42,13 @@ public class TramRouteOverlay implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    // Collect tram stop features
+    // Process tram stop nodes
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
       features.point("Tram stop")
         .setAttr("name", sourceFeature.getTag("name"))
         .setMinZoom(11); // Prevent tram stops from cluttering routes when zoomed far out
     }
-    // Collect tram route relations
+    // Process tram route relations
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         RouteRelationInfo relation = routeInfo.relation();
@@ -85,7 +85,7 @@ public class TramRouteOverlay implements Profile {
 
   @Override
   public String description() {
-    return "An example overlay that shows tram routes and stops";
+    return "This example overlay shows tram routes with their stops";
   }
 
   /*
