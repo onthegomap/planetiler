@@ -43,11 +43,15 @@ public class TramRouteOverlayTest {
       new OsmElement.Relation.Member(OsmElement.Type.WAY, 2, "role")
     )));
     // Process a way element in the tram route relation
-    var way = SimpleFeature.createFakeOsmFeature(TestUtils.newLineString(
-        10, 20, // point 1: 10 east 20 north
-        30, 40 // point 2: 30 east 40 north
-      ), Map.of(), null, null, 3,
-      relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList());
+    // test points: (1 west 2 south), (3 east 5 north)
+    var way = SimpleFeature.createFakeOsmFeature(
+      TestUtils.newLineString(-1, -2, 3, 5),
+      Map.of(),
+      null,
+      null,
+      3,
+      relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList()
+    );
     mapFeatures.clear();
     mapFeatures = TestUtils.processSourceFeature(way, profileRoutes);
 
@@ -61,7 +65,7 @@ public class TramRouteOverlayTest {
       "name", "Tram 17"
     ), routeFeature.getAttrsAtZoom(10));
     // output geometry is in world coordinates where 0,0 is top left and 1,1 is bottom right
-    //assertEquals(0.085, feature.getGeometry().getLength(), 1e-2);
+    assertEquals(0.022, routeFeature.getGeometry().getLength(), 1e-2);
     assertEquals(0, routeFeature.getMinZoom());
     assertEquals(14, routeFeature.getMaxZoom());
   }
