@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.locationtech.jts.geom.Point;
 
 public class TramRouteOverlayTest {
 
@@ -85,6 +87,15 @@ public class TramRouteOverlayTest {
       Map<String, String> metadata = mbtiles.metadata().toMap();
       assertEquals("Tram Routes and Stops Overlay", metadata.get("name"));
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
+
+      TestUtils.assertNumFeatures(
+        mbtiles,
+        "tram_stop",
+        12,
+        Map.of(),
+        GeoUtils.WORLD_LAT_LON_BOUNDS,
+        352,
+        Point.class);
     }
   }
 }
