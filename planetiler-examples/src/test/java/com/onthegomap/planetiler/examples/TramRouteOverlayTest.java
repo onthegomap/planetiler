@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class TramRouteOverlayTest {
 
@@ -31,7 +33,7 @@ public class TramRouteOverlayTest {
 
 
   @Test
-  public void unitTest() {
+  void integrationTest(@TempDir Path tempDir) throws Exception {
     var profile = new TramRouteOverlay();
     //
   }
