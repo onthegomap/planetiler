@@ -104,7 +104,7 @@ public class TramRouteOverlay implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
-    String area = args.getString("area", "geofabrik area to download", "Berlin");
+    String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
       // if input.pbf not found, download Berlin from Geofabrik
