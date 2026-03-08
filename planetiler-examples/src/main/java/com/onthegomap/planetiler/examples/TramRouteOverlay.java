@@ -44,7 +44,7 @@ public class TramRouteOverlay implements Profile {
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // Process tram stop nodes
     if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
-      features.point("Tram stop")
+      features.point("tram_stop")
         .setAttr("name", sourceFeature.getTag("name"))
         .setMinZoom(11); // Prevent tram stops from cluttering routes when zoomed far out
     }
