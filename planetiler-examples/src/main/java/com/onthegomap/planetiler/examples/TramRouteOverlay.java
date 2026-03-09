@@ -71,6 +71,7 @@ public class TramRouteOverlay implements Profile {
           .setMinPixelSize(0); // Prevents visual gaps in tram routes
       }
     }
+    // Process tram ways that are not included in their respective tram route relation
     if (sourceFeature.canBeLine() && sourceFeature.hasTag("railway", "tram")) {
       features.line("tram")
         .setAttr("ref", sourceFeature.getTag("ref"))
@@ -85,7 +86,7 @@ public class TramRouteOverlay implements Profile {
     }
   }
 
-  // Merge lines at their endpoints for improved rendering
+  // Merge lines at their endpoints for improved rendering. Tram routes will otherwise appear less accurately
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
     return FeatureMerge.mergeLineStrings(items,
       0.5, // remove lines that are less than 0.5px long
@@ -129,7 +130,7 @@ public class TramRouteOverlay implements Profile {
     String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
-      // if the argument osm_path="path/to/data.osm.pbf" is not given, download Bremen from Geofabrik (approx. 20MB in size)
+      // if the argument osm_path="path/to/data.osm.pbf" is not given, download Bremen from Geofabrik
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       .overwriteOutput(Path.of("data", "output.mbtiles"))
       .run();
