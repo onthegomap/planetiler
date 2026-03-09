@@ -22,6 +22,7 @@ public class TramRouteOverlay implements Profile {
     String network
   ) implements OsmRelationInfo {}
 
+  // pack a route relation as a list object
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     // For routes of type tram
@@ -107,7 +108,7 @@ public class TramRouteOverlay implements Profile {
     String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
-      // if input.pbf not found, download Berlin from Geofabrik
+      // if input.pbf not found, download Bremen from Geofabrik (approx. 20MB in size)
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       .overwriteOutput(Path.of("data", "tramroutes.mbtiles"))
       .run();
