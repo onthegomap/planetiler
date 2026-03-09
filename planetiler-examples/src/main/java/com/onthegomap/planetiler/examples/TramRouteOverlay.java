@@ -38,13 +38,12 @@ public class TramRouteOverlay implements Profile {
     String network
   ) implements OsmRelationInfo {}
 
-  // pack a route relation as a list object
+  // Pack a route relation into a list object
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-    // For routes of type tram
     if (relation.hasTag("type", "route")) {
       if (relation.hasTag("route", "tram")) {
-        // Form the route as a record and add it to the relation list
+        // Form the route as a record, then return it as a relation list
         return List.of(new RouteRelationInfo(
           relation.id(),
           relation.getString("ref"),
@@ -53,18 +52,12 @@ public class TramRouteOverlay implements Profile {
         ));
       }
     }
-    // Return null for any relation that isn't of a tram route
+    // Return null for any relation that is not a tram route
     return null;
   }
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    // Process tram stop nodes
-    if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
-      features.point("tram_stop")
-        .setAttr("name", sourceFeature.getTag("name"))
-        .setMinZoom(11); // Prevent tram stops from cluttering routes when zoomed far out
-    }
     // Process tram route relations
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
@@ -77,6 +70,12 @@ public class TramRouteOverlay implements Profile {
           .setZoomRange(0, 20)
           .setMinPixelSize(0); // Prevents visual gaps in tram routes
       }
+    }
+    // Process tram stop nodes
+    if (sourceFeature.isPoint() && sourceFeature.hasTag("railway", "tram_stop")) {
+      features.point("tram_stop")
+        .setAttr("name", sourceFeature.getTag("name"))
+        .setMinZoom(11); // Prevent tram stops from cluttering routes when zoomed far out
     }
   }
 
