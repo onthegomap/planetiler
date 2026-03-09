@@ -1,9 +1,12 @@
 package com.onthegomap.planetiler.collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -130,5 +133,31 @@ class FeatureSortTest {
     shuffled.forEach(writer);
     sorter.sort();
     assertEquals(sorted, sorter.toList());
+  }
+
+  @Test
+  void testReuseAfterManifest() {
+    var manifestPath = tmpDir.resolve("test.manifest");
+    var sorter = (ExternalMergeSort) newSorter(1, 100, false, false);
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(3));
+    writer.accept(newEntry(1));
+    writer.accept(newEntry(2));
+    sorter.sort();
+    var expected = sorter.toList();
+    sorter.saveManifest(manifestPath);
+
+    assertTrue(Files.exists(manifestPath));
+
+    // create a new instance in reuse mode - it must NOT delete the chunk directory
+    var reused = new ExternalMergeSort(tmpDir, true, config, Stats.inMemory());
+    reused.initFromManifest(manifestPath);
+    assertEquals(expected, reused.toList());
+  }
+
+  @Test
+  void testReuseManifestMissingThrows() {
+    var reused = new ExternalMergeSort(tmpDir, true, config, Stats.inMemory());
+    assertThrows(Exception.class, () -> reused.initFromManifest(tmpDir.resolve("nonexistent.manifest")));
   }
 }

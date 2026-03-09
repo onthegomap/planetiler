@@ -243,17 +243,20 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     long threadLocalMaxWayId = Long.MIN_VALUE;
     try (
       var nodeWriter = nodeLocationDb.newWriter();
-      var phases = pass1Phaser.forWorker()
-        .whenWorkerFinishes(OsmPhaser.Phase.NODES, nodeWriter::close);
       var waySplitWriter = waySplitter.writerForThread();
     ) {
+      // closing can block waiting for other threads to catch up, so only close
+      // phaser after finishing successfully so if an error gets thrown we
+      // won't block waiting for it to print and kill the process.
+      var phases = pass1Phaser.forWorker()
+        .whenWorkerFinishes(OsmPhaser.Phase.NODES, nodeWriter::close);
       for (var block : blocks) {
         for (OsmElement element : block) {
           if (element.id() < 0) {
             throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
           }
           if (element instanceof OsmElement.Node node) {
-            phases.arrive(OsmPhaser.Phase.NODES);
+            phases.arriveAndWaitForOthers(OsmPhaser.Phase.NODES);
             try {
               profile.preprocessOsmNode(node);
             } catch (Exception e) {
@@ -311,6 +314,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
         PASS1_BLOCKS.inc();
       }
+      phases.close();
     }
     maxWayId.accumulateAndGet(threadLocalMaxWayId, Long::max);
   }

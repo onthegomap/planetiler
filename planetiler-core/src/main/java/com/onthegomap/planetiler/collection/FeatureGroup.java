@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.collection;
 import static com.onthegomap.planetiler.util.MutableCollections.makeMutable;
 
 import com.carrotsearch.hppc.LongLongHashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -19,6 +20,7 @@ import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +58,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   public static final int SORT_KEY_MIN = -(1 << (SORT_KEY_BITS - 1));
   private static final int SORT_KEY_MASK = (1 << SORT_KEY_BITS) - 1;
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
   private final FeatureSort sorter;
   private final Profile profile;
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
@@ -64,7 +67,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final PlanetilerConfig config;
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
-
+  private static ThreadLocal<TileCoord> CURRENT_TILE;
 
   FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, PlanetilerConfig config, Stats stats) {
     this.sorter = sorter;
@@ -72,7 +75,12 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     this.profile = profile;
     this.config = config;
     this.stats = stats;
+    if (config.logJtsExceptions() && CURRENT_TILE == null) {
+      CURRENT_TILE = ThreadLocal.withInitial(() -> null);
+    }
   }
+
+  record StringEncoders(List<String> layerStrings, List<String> valueStrings) {}
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
   public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, PlanetilerConfig config,
@@ -87,10 +95,72 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    */
   public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
     PlanetilerConfig config, Stats stats) {
+    return newDiskBackedFeatureGroup(tileOrder, tempDir, profile, config, stats, false);
+  }
+
+  /**
+   * Returns a feature grouper backed by disk storage. When {@code reuseExisting} is true, skips clearing the temp
+   * directory so that a previously-sorted feature DB can be restored via {@link #initFromManifest(Path)}.
+   */
+  public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
+    PlanetilerConfig config, Stats stats, boolean reuseExisting) {
     return new FeatureGroup(
-      new ExternalMergeSort(tempDir, config, stats),
+      new ExternalMergeSort(tempDir, reuseExisting, config, stats),
       tileOrder, profile, config, stats
     );
+  }
+
+  /**
+   * Saves the string encoder tables to {@code path} so they can be restored via {@link #loadStringEncoders(Path)}.
+   */
+  public void saveStringEncoders(Path path) {
+    var payload = new StringEncoders(commonLayerStrings.getStringsInOrder(), commonValueStrings.getStringsInOrder());
+    try {
+      OBJECT_MAPPER.writeValue(path.toFile(), payload);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to save string encoders to " + path, e);
+    }
+  }
+
+  /**
+   * Restores string encoder tables from a file written by {@link #saveStringEncoders(Path)}.
+   */
+  public void loadStringEncoders(Path path) {
+    StringEncoders payload;
+    try {
+      payload = OBJECT_MAPPER.readValue(path.toFile(), StringEncoders.class);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to load string encoders from " + path, e);
+    }
+    for (var layerString : payload.layerStrings()) {
+      commonLayerStrings.encode(layerString);
+    }
+    for (var valueString : payload.valueStrings()) {
+      commonValueStrings.encode(valueString);
+    }
+  }
+
+  /**
+   * Saves the sorted chunk manifest to {@code path} via the underlying {@link ExternalMergeSort}.
+   */
+  public void saveChunkManifest(Path path) {
+    if (sorter instanceof ExternalMergeSort ems) {
+      ems.saveManifest(path);
+    } else {
+      LOGGER.error("Can't save chunk manifest: sorter is not ExternalMergeSort");
+    }
+  }
+
+  /**
+   * Restores sorted chunks from a manifest written by {@link #saveChunkManifest(Path)}.
+   */
+  public void initFromManifest(Path path) {
+    if (sorter instanceof ExternalMergeSort ems) {
+      ems.initFromManifest(path);
+      prepared = true;
+    } else {
+      LOGGER.error("Can't initialize chunk manifest: sorter is not ExternalMergeSort");
+    }
   }
 
   /**
@@ -321,6 +391,10 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     return sorter.chunksToRead();
   }
 
+  public static TileCoord getCurrentTileForDebugging() {
+    return CURRENT_TILE != null ? CURRENT_TILE.get() : null;
+  }
+
   public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
   public record Reader(Worker readWorker, Iterable<TileFeatures> result) {}
@@ -448,44 +522,53 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     public VectorTile getVectorTile(LayerAttrStats.Updater layerStats) {
-      VectorTile tile = new VectorTile();
-      if (layerStats != null) {
-        tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
-      }
-      List<VectorTile.Feature> items = new ArrayList<>();
-      String currentLayer = null;
-      Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
-      for (SortableFeature entry : entries) {
-        var feature = decodeVectorTileFeature(entry);
-        String layer = feature.layer();
-
-        if (currentLayer == null) {
-          currentLayer = layer;
-          layerFeatures.put(currentLayer, items);
-        } else if (!currentLayer.equals(layer)) {
-          currentLayer = layer;
-          items = new ArrayList<>();
-          layerFeatures.put(layer, items);
-        }
-
-        items.add(feature);
-      }
-      // first post-process entire tile by invoking postProcessTileFeatures to allow for post-processing that combines
-      // features across different layers, infers new layers, or removes layers
       try {
-        var initialFeatures = layerFeatures;
-        layerFeatures = profile.postProcessTileFeatures(tileCoord, layerFeatures);
-        if (layerFeatures == null) {
-          layerFeatures = initialFeatures;
+        if (CURRENT_TILE != null) {
+          CURRENT_TILE.set(tileCoord);
         }
-      } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
-        handlePostProcessFailure(e, "entire tile");
+        VectorTile tile = new VectorTile();
+        if (layerStats != null) {
+          tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
+        }
+        List<VectorTile.Feature> items = new ArrayList<>();
+        String currentLayer = null;
+        Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
+        for (SortableFeature entry : entries) {
+          var feature = decodeVectorTileFeature(entry);
+          String layer = feature.layer();
+
+          if (currentLayer == null) {
+            currentLayer = layer;
+            layerFeatures.put(currentLayer, items);
+          } else if (!currentLayer.equals(layer)) {
+            currentLayer = layer;
+            items = new ArrayList<>();
+            layerFeatures.put(layer, items);
+          }
+
+          items.add(feature);
+        }
+        // first post-process entire tile by invoking postProcessTileFeatures to allow for post-processing that combines
+        // features across different layers, infers new layers, or removes layers
+        try {
+          var initialFeatures = layerFeatures;
+          layerFeatures = profile.postProcessTileFeatures(tileCoord, layerFeatures);
+          if (layerFeatures == null) {
+            layerFeatures = initialFeatures;
+          }
+        } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
+          handlePostProcessFailure(e, "entire tile");
+        }
+        // then let profiles post-process each layer in isolation with postProcessLayerFeatures
+        for (var entry : layerFeatures.entrySet()) {
+          postProcessAndAddLayerFeatures(tile, entry.getKey(), entry.getValue());
+        }
+        return tile;
+      } finally {
+        if (CURRENT_TILE != null) {
+          CURRENT_TILE.remove();
+        }
       }
-      // then let profiles post-process each layer in isolation with postProcessLayerFeatures
-      for (var entry : layerFeatures.entrySet()) {
-        postProcessAndAddLayerFeatures(tile, entry.getKey(), entry.getValue());
-      }
-      return tile;
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
