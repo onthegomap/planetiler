@@ -13,24 +13,24 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * This profile builds a map of tram routes stored in OpenStreetMap relations tagged with
+ * This example profile builds a map of tram routes from OpenStreetMap relations tagged with
  * <a href="https://wiki.openstreetmap.org/wiki/Tag:route%3Dtram">route=tram</a>
  * as well as tram stop nodes tagged with
  * <a href="https://wiki.openstreetmap.org/wiki/Tag:railway%3Dtram_stop">railway=tram_stop</a>.
  * <p>
  * To run this example:
  * <ol>
- * <li>Download an .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
- * <li>then build the examples: {@code mvn clean package --file standalone.pom.xml}</li>
- * <li>then run this example:
+ * <li>Download an .osm.pbf extract (see the <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
+ * <li>build the examples: {@code mvn clean package --file standalone.pom.xml}</li>
+ * <li>run this example:
  * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.TramRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl data/tramroutes.mbtiles}</li>
- * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
+ * <li>then run the demo tileserver: {@code tileserver-gl data/output.mbtiles}</li>
+ * <li>view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
 public class TramRouteOverlay implements Profile {
 
-  // Data carrier to store a tram route's tags
+  // Data carrier to store a tram route's attributes
   private record RouteRelationInfo(
     @Override long id,
     String ref,
@@ -129,9 +129,9 @@ public class TramRouteOverlay implements Profile {
     String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
-      // if input.pbf not found, download Bremen from Geofabrik (approx. 20MB in size)
+      // if the argument osm_path="path/to/data.osm.pbf" is not given, download Bremen from Geofabrik (approx. 20MB in size)
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
-      .overwriteOutput(Path.of("data", "tramroutes.mbtiles"))
+      .overwriteOutput(Path.of("data", "output.mbtiles"))
       .run();
   }
 }
