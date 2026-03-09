@@ -56,12 +56,11 @@ public class TramRouteOverlayTest {
       Map.of(),
       null,
       null,
-      3,
+      35,
       relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList()
     );
     mapFeatures.clear();
     mapFeatures = TestUtils.processSourceFeature(way, profileRoutes);
-
     // verify output geometry
     assertEquals(1, mapFeatures.size());
     var routeFeature = mapFeatures.getFirst();
@@ -78,7 +77,7 @@ public class TramRouteOverlayTest {
 
     // Third, test tram ways that are not in a tram route
     var tramWay = SimpleFeature.create(
-      TestUtils.newLineString(8, 9, 10, 11),
+      TestUtils.newLineString(5, 7, 4, 11),
       Map.of("railway", "tram")
     );
     // Produce a one-element list with a way containing the tag railway=tram
@@ -87,6 +86,7 @@ public class TramRouteOverlayTest {
     assertEquals(1, mapFeatures.size());
     var wayFeature = mapFeatures.getFirst();
     assertEquals("tram", wayFeature.getLayer());
+    assertEquals(0.011, wayFeature.getGeometry().getLength(), 1e-2);
   }
 
   @Test
@@ -125,6 +125,15 @@ public class TramRouteOverlayTest {
       TestUtils.assertTileDuplicates(mbtiles, 0);
 
       // Include a test section for tram ways
+      TestUtils.assertNumFeatures(
+        mbtiles,
+        "tram",
+        12,
+        Map.of(),
+        GeoUtils.WORLD_LAT_LON_BOUNDS,
+        386,
+        LineString.class
+      );
     }
   }
 }
