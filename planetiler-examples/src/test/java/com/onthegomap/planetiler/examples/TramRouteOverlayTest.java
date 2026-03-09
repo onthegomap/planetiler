@@ -77,6 +77,7 @@ public class TramRouteOverlayTest {
 
     // Third, test tram ways that are not in a tram route
     var tramWay = SimpleFeature.create(
+      // test points: (5 east 7 north), (4 east 11 north)
       TestUtils.newLineString(5, 7, 4, 11),
       Map.of("railway", "tram")
     );
@@ -122,9 +123,6 @@ public class TramRouteOverlayTest {
         LineString.class
       );
 
-      TestUtils.assertTileDuplicates(mbtiles, 0);
-
-      // Include a test section for tram ways
       TestUtils.assertNumFeatures(
         mbtiles,
         "tram",
@@ -134,6 +132,8 @@ public class TramRouteOverlayTest {
         386,
         LineString.class
       );
+
+      TestUtils.assertTileDuplicates(mbtiles, 0);
     }
   }
 }
