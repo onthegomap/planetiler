@@ -102,7 +102,6 @@ public class ParquetReader {
     int writeThreads = config.featureWriteThreads();
     var blocksRead = Counter.newMultiThreadCounter();
     var featuresRead = Counter.newMultiThreadCounter();
-    var featuresWritten = Counter.newMultiThreadCounter();
     Map<String, Integer> workingOn = new ConcurrentHashMap<>();
     var inputBlocks = inputFiles.stream().<ParquetInputFile.Block>mapMulti((file, next) -> {
       try (var blockReader = file.get()) {
@@ -117,7 +116,7 @@ public class ParquetReader {
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
       .readFromTiny("blocks", inputBlocks)
-      .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
+      .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var blocks = blocksRead.counterForThread();
         var elements = featuresRead.counterForThread();
         var featureCollectors = new FeatureCollector.Factory(config, stats);
@@ -145,22 +144,12 @@ public class ParquetReader {
           }
           consumer.close();
         }
-      })
-      .addBuffer("write_queue", 50_000, 1_000)
-      .sinkTo("write", writeThreads, prev -> {
-        var features = featuresWritten.counterForThread();
-        try (var threadLocalWriter = writer.writerForThread()) {
-          for (var item : prev) {
-            features.inc();
-            threadLocalWriter.accept(item);
-          }
-        }
       });
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("read", featureCount, featuresRead, true)
       .addRatePercentCounter("blocks", blockCount, blocksRead, false)
-      .addRateCounter("write", featuresWritten)
+      .addRateCounter("write", writer::numFeaturesWritten)
       .addFileSize(writer)
       .newLine()
       .add(() -> workingOn.entrySet().stream()

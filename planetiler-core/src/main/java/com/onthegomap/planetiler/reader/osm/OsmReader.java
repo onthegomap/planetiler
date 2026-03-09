@@ -353,7 +353,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("read", osmBlockSource::forEachBlock)
       .addBuffer("pbf_blocks", Math.max(10, processThreads / 2))
-      .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
+      .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
         Counter blocks = blocksProcessed.counterForThread();
         Counter rels = relationsProcessed.counterForThread();
@@ -393,14 +393,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
           // do work for other threads that are still processing blocks of relations
           relationHandler.close();
-        }
-      }).addBuffer("feature_queue", 50_000, 1_000)
-      // FeatureGroup writes need to be single-threaded
-      .sinkTo("write", writeThreads, prev -> {
-        try (var writerForThread = writer.writerForThread()) {
-          for (var item : prev) {
-            writerForThread.accept(item);
-          }
         }
       });
 

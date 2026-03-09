@@ -2642,6 +2642,7 @@ class PlanetilerTests {
     "--output-layerstats",
     "--max-point-buffer=1",
     "--osm-test-path=monaco-latest.lz4.osm.pbf",
+    "--parallel-tmp-io",
   })
   void testPlanetilerRunner(String args) throws Exception {
     var argParsed = Arguments.fromArgs(args.split(" "));
@@ -3334,8 +3335,10 @@ class PlanetilerTests {
       .run();
 
     // both outputs should contain the same tiles
-    try (Mbtiles db1 = Mbtiles.newReadOnlyDatabase(mbtiles);
-      Mbtiles db2 = Mbtiles.newReadOnlyDatabase(mbtiles2)) {
+    try (
+      Mbtiles db1 = Mbtiles.newReadOnlyDatabase(mbtiles);
+      Mbtiles db2 = Mbtiles.newReadOnlyDatabase(mbtiles2)
+    ) {
       assertEquals(TestUtils.getTileMap(db1), TestUtils.getTileMap(db2));
     }
     assertArrayEquals(Files.readAllBytes(mbtiles), Files.readAllBytes(mbtiles2));

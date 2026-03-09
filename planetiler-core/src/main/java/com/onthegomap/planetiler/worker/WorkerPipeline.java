@@ -3,7 +3,9 @@ package com.onthegomap.planetiler.worker;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.IterableOnce;
+import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import java.time.Duration;
@@ -284,6 +286,32 @@ public record WorkerPipeline<T>(
           consumer.accept(item);
         }
       });
+    }
+
+    /**
+     * Runs {@code handler} and when {@code inlineWrites} is true, writes features to temp storage directly from process
+     * threads, or when false collects writes to a smaller number of worker threads.
+     */
+    public WorkerPipeline<?> processAndWrite(boolean inlineWrites, int processThreads, int writeThreads,
+      FeatureGroup writer, WorkerStep<O, SortableFeature> handler) {
+
+      if (inlineWrites) {
+        return sinkTo("process", processThreads, prev -> {
+          try (var threadWriter = writer.writerForThread()) {
+            handler.run(prev, threadWriter);
+          }
+        });
+      } else {
+        return addWorker("process", processThreads, handler)
+          .addBuffer("write_queue", 50_000, 1_000)
+          .sinkTo("write", writeThreads, prev -> {
+            try (var threadLocalWriter = writer.writerForThread()) {
+              for (var item : prev) {
+                threadLocalWriter.accept(item);
+              }
+            }
+          });
+      }
     }
   }
 }

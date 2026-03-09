@@ -81,13 +81,12 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     int processThreads = config.featureProcessThreads();
     Envelope latLonBounds = config.bounds().latLon();
     AtomicLong featuresRead = new AtomicLong(0);
-    AtomicLong featuresWritten = new AtomicLong(0);
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
       .readFromTiny("source_paths", sourcePaths)
       .addWorker("read", readThreads, readPaths())
       .addBuffer("process_queue", 1000, 1)
-      .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
+      .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
           for (SourceFeature sourceFeature : prev) {
@@ -105,22 +104,11 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
             }
           }
         }
-      })
-      // output large batches since each input may map to many tiny output features (i.e. slicing ocean tiles)
-      // which turns enqueueing into the bottleneck
-      .addBuffer("write_queue", 50_000, 1_000)
-      .sinkTo("write", writeThreads, prev -> {
-        try (var threadLocalWriter = writer.writerForThread()) {
-          for (var item : prev) {
-            featuresWritten.incrementAndGet();
-            threadLocalWriter.accept(item);
-          }
-        }
       });
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("read", featureCount, featuresRead, true)
-      .addRateCounter("write", featuresWritten)
+      .addRateCounter("write", writer::numFeaturesWritten)
       .addFileSize(writer)
       .newLine()
       .addProcessStats()
