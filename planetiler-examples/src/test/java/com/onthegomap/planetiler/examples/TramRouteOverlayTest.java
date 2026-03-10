@@ -94,7 +94,7 @@ public class TramRouteOverlayTest {
   void integrationTest(@TempDir Path tmpDir) throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     TramRouteOverlay.run(Arguments.of(
-      "osm_path", TestUtils.pathToResource("bremen.osm.pbf"),
+      "osm_path", TestUtils.pathToResource("bremen-trams.osm.pbf"),
       "tmpDir", tmpDir.toString(),
       "output", dbPath.toString()
     ));
