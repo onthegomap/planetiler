@@ -81,24 +81,6 @@ class ExternalMergeSort implements FeatureSort {
   private final AtomicBoolean madviseFailed = new AtomicBoolean(false);
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, PlanetilerConfig config, Stats stats) {
-    this(
-      tempDir,
-      config.threads(),
-      (int) Math.min(
-        MAX_CHUNK_SIZE,
-        ProcessInfo.getMaxMemoryBytes() / 3
-      ),
-      config.compressTempStorage(),
-      config.mmapTempStorage(),
-      true,
-      true,
-      false,
-      config,
-      stats
-    );
-  }
-
   ExternalMergeSort(Path tempDir, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
     this(
       tempDir,
