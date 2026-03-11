@@ -71,7 +71,9 @@ public record PlanetilerConfig(
   double maxPointBuffer,
   boolean logJtsExceptions,
   int featureSourceIdMultiplier,
-  List<String> extraNameTags
+  List<String> extraNameTags,
+  boolean reuseFeatureDb,
+  boolean parallelTempIO
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -110,11 +112,14 @@ public record PlanetilerConfig(
       "default storage type for temporary data, one of " + Stream.of(Storage.values()).map(
         Storage::id).toList(),
       fallbackTempStorage);
+    boolean parallelTempIO = arguments.getBoolean("parallel_tmp_io",
+      "Use unlimited parallelism reading/writing temp files (ie. if using tmpfs or ramfs for temp storage)",
+      false);
     int threads = arguments.threads();
     int featureWriteThreads =
       arguments.getInteger("write_threads", "number of threads to use when writing temp features",
         // defaults: <48 cpus=1 writer, 48-80=2 writers, 80-112=3 writers, 112-144=4 writers, ...
-        Math.max(1, (threads - 16) / 32 + 1));
+        parallelTempIO ? 1 : Math.max(1, (threads - 16) / 32 + 1));
     int featureProcessThreads =
       arguments.getInteger("process_threads", "number of threads to use when processing input features",
         Math.max(threads < 8 ? threads : (threads - featureWriteThreads), 1));
@@ -166,9 +171,9 @@ public record PlanetilerConfig(
         "compress temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
-        6),
+        parallelTempIO ? featureProcessThreads : 6),
       arguments.getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks",
-        6),
+        parallelTempIO ? featureProcessThreads : 6),
       arguments
         .getString("nodemap_type", "type of node location map, one of " + Stream.of(LongLongMap.Type.values()).map(
           t -> t.id()).toList(), LongLongMap.Type.SPARSE_ARRAY.id()),
@@ -247,7 +252,11 @@ public record PlanetilerConfig(
         "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
         10),
-      extraNameTags
+      extraNameTags,
+      arguments.getBoolean("reuse_featuredb",
+        "Reuse existing feature DB on disk, skipping source reading stages (for iterating on post-processing logic)",
+        false),
+      parallelTempIO
     );
   }
 

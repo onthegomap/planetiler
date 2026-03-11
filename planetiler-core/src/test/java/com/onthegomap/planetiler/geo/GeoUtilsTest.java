@@ -13,12 +13,14 @@ import org.geotools.referencing.CRS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
@@ -377,6 +379,7 @@ class GeoUtilsTest {
         """),
       Stats.inMemory(), "test");
     assertTrue(result.isValid());
+    assertInstanceOf(Polygonal.class, result);
     assertEquals(3.083984375, result.getArea(), 1e-5);
   }
 
@@ -402,6 +405,7 @@ class GeoUtilsTest {
         )
         """);
     var result = GeoUtils.snapAndFixPolygon(orig, Stats.inMemory(), "test");
+    assertInstanceOf(Polygonal.class, result);
     var point = newPoint(1.14602002962965, 0.76978969252622);
     assertTrue(result.isValid());
     assertFalse(result.contains(point));
@@ -422,6 +426,7 @@ class GeoUtilsTest {
         )
         """);
     var result = GeoUtils.snapAndFixPolygon(orig, Stats.inMemory(), "test");
+    assertInstanceOf(Polygonal.class, result);
     assertTrue(result.isValid());
     assertFalse(Orientation.isCCWArea(result.getCoordinates()));
   }
@@ -583,5 +588,19 @@ class GeoUtilsTest {
       JTS.transform(point, CRS.findMathTransform(lonFirst, GeoUtils.decodeCRS("EPSG:4326", latFirst))));
     assertEquals(point,
       JTS.transform(point, CRS.findMathTransform(lonFirst, GeoUtils.decodeCRS("EPSG:4326:lon_first", latFirst))));
+  }
+
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "POLYGON ((178.80078125 -2.232421875, 177.3359375 -2.48828125, 177.474609375 -3.828125, 177.6048093077957 -4, 181.6829622310952 -4, 181.51171875 -3.9296875, 179.58984375 -3.44140625, 178.80078125 -2.232421875), (178.9876130756579 -4, 178.830078125 -3.990234375, 178.8322088068182 -4, 178.9876130756579 -4))",
+    "MULTIPOLYGON (((40.53515625 259.98046875, 40.55303296657843 260, 40.5148361773021 260, 40.53515625 259.98046875)), ((38.84765625 254.9375, 36.3359375 252.28125, 39.53515625 248.98046875, 43.9375 252.98046875, 41.546875 255.23046875, 40.11328125 256.28125, 38.84765625 254.9375)))",
+  })
+  void testSnapAndFixRemainsPolygon(String wkt) throws GeometryException, ParseException {
+    var orig = new WKTReader().read(wkt);
+    var result = GeoUtils.snapAndFixPolygon(orig, Stats.inMemory(), "test");
+    assertInstanceOf(Polygonal.class, result, result::toString);
+    assertTrue(result.isValid());
+    assertFalse(Orientation.isCCWArea(result.getCoordinates()));
   }
 }

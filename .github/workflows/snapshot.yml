@@ -38,11 +38,16 @@ jobs:
         gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
         gpg-passphrase: OSSRH_GPG_SECRET_KEY_PASSWORD
     - run: ./scripts/build-release.sh
-    - run: ./scripts/test-release.sh
+    - name: 'Test release'
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      with:
+        max_attempts: 5
+        timeout_minutes: 30
+        command: ./scripts/test-release.sh
     - run: sha256sum planetiler-dist/target/*with-deps.jar
     - run: md5sum planetiler-dist/target/*with-deps.jar
     - name: 'Upload artifact'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar

@@ -60,10 +60,14 @@ jobs:
       working-directory: base
 
     - name: 'Download data'
-      run: |
-        set -eo pipefail
-        cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
-        cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
+      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      with:
+        max_attempts: 5
+        timeout_minutes: 30
+        command: |
+          set -eo pipefail
+          cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
+          cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
 
     - name: 'Store build info'
       run: |
@@ -88,7 +92,7 @@ jobs:
         cat log | strip-ansi > build-info/baselogs.txt
 
     - name: 'Upload build-info'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: build-info
         path: ./build-info

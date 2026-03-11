@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.maplibre.mlt.converter.ConversionConfig;
@@ -15,6 +16,7 @@ import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.decoder.MltDecoder;
 
 class TileSizeStatsTest {
   @Test
@@ -158,6 +160,16 @@ class TileSizeStatsTest {
         """
         .trim(),
       (TileSizeStats.headerRow() + String.join("", formatted)).trim());
+  }
+
+  @Test
+  void issue1470_computeMltFastPforStats() throws IOException {
+    try (var is = Objects.requireNonNull(getClass().getResourceAsStream("/fastpfor.mlt"))) {
+      var bytes = is.readAllBytes();
+      var mlt = MltDecoder.decodeMlTile(bytes);
+      var mvt = new MapboxVectorTile(mlt.layers());
+      TileSizeStats.computeMltTileStats(null, mvt, bytes);
+    }
   }
 
   @Test

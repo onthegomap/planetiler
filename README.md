@@ -65,7 +65,7 @@ docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegom
 
 :warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles
 profile
-including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/water-polygons.html) and ~240MB
+including ~750MB for ocean polygons and ~240MB
 for [Natural Earth Data](https://www.naturalearthdata.com/).
 
 <details>
@@ -308,7 +308,7 @@ Some example runtimes for the OpenMapTiles profile (excluding downloading resour
 
 |                     Input                      | Version |             Machine             |           Time            | output size  |                                                      Logs                                                      |
 |------------------------------------------------|---------|---------------------------------|---------------------------|--------------|----------------------------------------------------------------------------------------------------------------|
-| s3://osm-pds/2024/planet-240115.osm.pbf (69GB) | 0.7.0   | c3d-standard-180 (180cpu/720GB) | 22m cpu:44h34m  avg:120   | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c3d-standard-180.txt)                                                         |
+| s3://osm-pds/2026/planet-260302.osm.pbf (92GB) | 0.10.1  | h4d-standard-192 (192cpu/720GB) | 19m cpu:37h59m avg:117    | 81GB pmtiles | [logs](planet-logs/v0.10.1-planet-h4d-standard-192-with-building-merge.txt)                                    |
 | s3://osm-pds/2024/planet-240108.osm.pbf (73GB) | 0.7.0   | c7gd.16xlarge (64cpu/128GB)     | 42m cpu:42m28s avg:52     | 69GB pmtiles | [logs](planet-logs/v0.7.0-planet-c7gd-128gb.txt)                                                               |
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 53m cpu:41h58m avg:47.1   | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-128gb.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb.nps) |
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.8xlarge (32cpu/64GB)       | 1h27m cpu:37h55m avg:26.1 | 79GB mbtiles | [logs](planet-logs/v0.5.0-planet-c6gd-64gb.txt)                                                                |
@@ -454,4 +454,3 @@ must [visibly credit OpenStreetMap contributors](https://www.openstreetmap.org/c
 profile based on OpenMapTiles or a derivative
 must [visibly credit OpenMapTiles](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md#design-license-cc-by-40)
 as well.
-

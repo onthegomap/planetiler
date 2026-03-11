@@ -14,6 +14,7 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.locationtech.jts.algorithm.Area;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -315,6 +316,49 @@ public class GeoUtils {
     return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
   }
 
+  private static class OrientationFixer extends GeometryTransformer {
+    Geometry lastPolygon = null;
+
+    @Override
+    protected Geometry transformLinearRing(LinearRing geom, Geometry parent) {
+      // GeometryTransformer processes a polygon's exterior then interior rings
+      boolean isOuter = lastPolygon != parent;
+      lastPolygon = parent;
+      return Orientation.isCCW(geom.getCoordinateSequence()) == isOuter ? geom.reverse() : geom;
+    }
+  }
+
+  // Use this instead of GeometryPrecisionReducer.reducePointwise since it doesn't remove duplicate points
+  private static class PointwiseRounder extends GeometryTransformer {
+
+    private final PrecisionModel precisionModel;
+
+    PointwiseRounder(PrecisionModel precisionModel) {
+      this.precisionModel = precisionModel;
+    }
+
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coordinates, Geometry parent) {
+      if (coordinates.size() < 4) {
+        return null;
+      }
+
+      MutableCoordinateSequence result = new MutableCoordinateSequence(coordinates.size());
+      double lastX = Double.MIN_VALUE;
+      double lastY = Double.MIN_VALUE;
+      for (int i = 0; i < coordinates.size(); i++) {
+        double x = precisionModel.makePrecise(coordinates.getX(i));
+        double y = precisionModel.makePrecise(coordinates.getY(i));
+        if (x != lastX || y != lastY) {
+          result.forceAddPoint(x, y);
+        }
+        lastX = x;
+        lastY = y;
+      }
+      return result.size() < 4 ? null : result;
+    }
+  }
+
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
    * self-intersections or overlaps that may have caused.
@@ -324,6 +368,10 @@ public class GeoUtils {
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
     throws GeometryException {
     try {
+      Geometry naiveSnap = new PointwiseRounder(tilePrecision).transform(geom);
+      if (naiveSnap.isValid()) {
+        return new OrientationFixer().transform(naiveSnap);
+      }
       if (!geom.isValid()) {
         geom = fixPolygon(geom);
         stats.dataError(stage + "_snap_fix_input");

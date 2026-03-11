@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.collection;
 
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
@@ -61,6 +62,7 @@ import org.xerial.snappy.SnappyOutputStream;
 class ExternalMergeSort implements FeatureSort {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExternalMergeSort.class);
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
   private static final long MAX_CHUNK_SIZE = 2_000_000_000; // 2GB
   private final Path dir;
   private final Stats stats;
@@ -79,7 +81,7 @@ class ExternalMergeSort implements FeatureSort {
   private final AtomicBoolean madviseFailed = new AtomicBoolean(false);
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, PlanetilerConfig config, Stats stats) {
+  ExternalMergeSort(Path tempDir, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
     this(
       tempDir,
       config.threads(),
@@ -91,6 +93,7 @@ class ExternalMergeSort implements FeatureSort {
       config.mmapTempStorage(),
       true,
       true,
+      reuseExisting,
       config,
       stats
     );
@@ -98,6 +101,11 @@ class ExternalMergeSort implements FeatureSort {
 
   ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean compress, boolean mmap, boolean parallelSort,
     boolean madvise, PlanetilerConfig config, Stats stats) {
+    this(dir, workers, chunkSizeLimit, compress, mmap, parallelSort, madvise, false, config, stats);
+  }
+
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean compress, boolean mmap, boolean parallelSort,
+    boolean madvise, boolean reuseExisting, PlanetilerConfig config, Stats stats) {
     this.config = config;
     this.madvise = madvise;
     this.dir = dir;
@@ -118,12 +126,17 @@ class ExternalMergeSort implements FeatureSort {
     this.workers = Math.min(workers, maxWorkersBasedOnMemory);
     this.readerLimit = Math.max(1, config.sortMaxReaders());
     this.writerLimit = Math.max(1, config.sortMaxWriters());
-    LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000, workers);
     try {
-      FileUtils.deleteDirectory(dir);
+      if (reuseExisting) {
+        LOGGER.info("Reusing merge sort feature map directory at {}", dir);
+      } else {
+        LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000,
+          workers);
+        FileUtils.deleteDirectory(dir);
+      }
       Files.createDirectories(dir);
     } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      throw new UncheckedIOException("Unable to initialize feature DB directory " + dir, e);
     }
   }
 
@@ -419,7 +432,9 @@ class ExternalMergeSort implements FeatureSort {
 
     private void newChunk() throws IOException {
       Path chunkPath = dir.resolve("chunk" + chunkNum.incrementAndGet());
-      FileUtils.deleteOnExit(chunkPath);
+      if (!config.reuseFeatureDb()) {
+        FileUtils.deleteOnExit(chunkPath);
+      }
       if (currentChunk != null) {
         currentChunk.close();
       }
@@ -470,6 +485,46 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  record ChunkInfo(String filename, int itemCount, int bytesInMemory) {}
+
+  record MergeManifest(List<ChunkInfo> chunks, long totalFeatures) {}
+
+  /**
+   * Saves the list of sorted chunks to {@code manifestPath} so they can be restored on the next run via
+   * {@link #initFromManifest(Path)}.
+   */
+  void saveManifest(Path manifestPath) {
+    var chunkInfos = chunks.stream()
+      .map(chunk -> new ChunkInfo(chunk.path.getFileName().toString(), chunk.itemCount, chunk.bytesInMemory))
+      .toList();
+    var manifest = new MergeManifest(chunkInfos, features.get());
+    try {
+      OBJECT_MAPPER.writeValue(manifestPath.toFile(), manifest);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to save chunk manifest to " + manifestPath, e);
+    }
+  }
+
+  /**
+   * Restores sorted chunks from a manifest written by {@link #saveManifest(Path)} so that {@link #iterator} can be
+   * called without running {@link #sort()} again.
+   */
+  void initFromManifest(Path manifestPath) {
+    MergeManifest manifest;
+    try {
+      manifest = OBJECT_MAPPER.readValue(manifestPath.toFile(), MergeManifest.class);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to load chunk manifest from " + manifestPath, e);
+    }
+    chunks.clear();
+    chunkNum.set(0);
+    features.set(manifest.totalFeatures());
+    for (var chunkInfo : manifest.chunks()) {
+      chunks.add(new Chunk(dir.resolve(chunkInfo.filename()), chunkInfo.itemCount(), chunkInfo.bytesInMemory()));
+    }
+    sorted = true;
+  }
+
   /**
    * An output segment that can be sorted with a fixed amount of RAM.
    */
@@ -484,6 +539,14 @@ class ExternalMergeSort implements FeatureSort {
     private Chunk(Path path) {
       this.path = path;
       this.writer = newWriter(path);
+    }
+
+    // Used when restoring chunks from a manifest - no writer needed since chunks are already sorted
+    private Chunk(Path path, int itemCount, int bytesInMemory) {
+      this.path = path;
+      this.writer = null;
+      this.itemCount = itemCount;
+      this.bytesInMemory = bytesInMemory;
     }
 
     public void add(SortableFeature entry) throws IOException {
@@ -542,7 +605,9 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     public void close() throws IOException {
-      writer.close();
+      if (writer != null) {
+        writer.close();
+      }
     }
 
     public void remove() {

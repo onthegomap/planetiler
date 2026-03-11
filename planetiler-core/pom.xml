@@ -16,11 +16,11 @@
   </parent>
 
   <properties>
-    <geotools.version>34.1</geotools.version>
+    <geotools.version>34.2</geotools.version>
     <log4j.version>2.25.3</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <!-- needs to match CEL -->
-    <protobuf.version>4.33.3</protobuf.version>
+    <protobuf.version>4.34.0</protobuf.version>
     <geopackage.version>6.6.5</geopackage.version>
   </properties>
 
@@ -33,7 +33,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>1.3.0</version>
+      <version>1.6.12</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -53,7 +53,7 @@
     <dependency>
       <groupId>org.tukaani</groupId>
       <artifactId>xz</artifactId>
-      <version>1.11</version>
+      <version>1.12</version>
     </dependency>
     <dependency>
       <groupId>org.geotools</groupId>
@@ -179,7 +179,7 @@
     <dependency>
       <groupId>blue.strategic.parquet</groupId>
       <artifactId>parquet-floor</artifactId>
-      <version>1.60</version>
+      <version>1.62</version>
     </dependency>
     <dependency>
       <groupId>org.lz4</groupId>

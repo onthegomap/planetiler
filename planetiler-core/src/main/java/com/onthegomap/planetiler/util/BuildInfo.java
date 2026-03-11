@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.util;
 
-import com.onthegomap.planetiler.Planetiler;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Properties;
@@ -16,7 +15,7 @@ public record BuildInfo(String githash, String version, Long buildTime) {
   private static final BuildInfo instance;
   static {
     BuildInfo result = null;
-    try (var properties = Planetiler.class.getResourceAsStream("/buildinfo.properties")) {
+    try (var properties = BuildInfo.class.getResourceAsStream("/buildinfo.properties")) {
       var parsed = new Properties();
       parsed.load(properties);
       String githash = parsed.getProperty("githash");

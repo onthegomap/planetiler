@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.util;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,6 +45,11 @@ public class CommonStringEncoder {
    * @return an int that can be converted back to a string by {@link #decode(int)}.
    * @throws IllegalArgumentException if called for too many values
    */
+  /** Returns all strings in the order they were first encoded, for serialization purposes. */
+  public List<String> getStringsInOrder() {
+    return List.of(Arrays.copyOf(idToString, stringId.get()));
+  }
+
   public int encode(String string) {
     // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
     // contains the value.
@@ -72,6 +79,11 @@ public class CommonStringEncoder {
 
     public byte encode(String string) {
       return (byte) encoder.encode(string);
+    }
+
+    /** Returns all strings in the order they were first encoded, for serialization purposes. */
+    public List<String> getStringsInOrder() {
+      return encoder.getStringsInOrder();
     }
   }
 }

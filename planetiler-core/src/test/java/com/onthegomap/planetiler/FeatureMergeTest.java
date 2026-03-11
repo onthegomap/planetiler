@@ -3,11 +3,14 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.onthegomap.planetiler.collection.Hppc;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.GeometryType;
@@ -30,6 +33,7 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.slf4j.Logger;
@@ -711,8 +715,8 @@ class FeatureMergeTest {
   @ParameterizedTest
   @CsvSource({
     "bostonbuildings.mbtiles, 2477, 3028, 13, 1141",
-    "bostonbuildings.mbtiles, 2481, 3026, 13, 949",
-    "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
+    "bostonbuildings.mbtiles, 2481, 3026, 13, 947",
+    "bostonbuildings.mbtiles, 2479, 3028, 13, 1073",
     "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
   void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
@@ -736,6 +740,93 @@ class FeatureMergeTest {
         TestUtils.validateGeometry(geometry);
       }
       assertEquals(expected, total);
+    }
+  }
+
+  @Test
+  void testProtomaps538LakeMerge() throws IOException, GeometryException {
+    // see https://github.com/protomaps/basemaps/issues/538
+    try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource("protomaps538lakemerge.mbtiles"))) {
+      byte[] tileData = db.getTile(35, 46, 7);
+      byte[] gunzipped = gunzip(tileData);
+      List<VectorTile.Feature> features = VectorTile.decode(gunzipped);
+      double areaBefore = features.stream().mapToDouble(f -> {
+        try {
+          return f.geometry().decode().getArea();
+        } catch (GeometryException e) {
+          throw new RuntimeException(e);
+        }
+      }).sum();
+      List<VectorTile.Feature> merged = FeatureMerge.mergeNearbyPolygons(features, 1.0, 1.0, 0.5, 0.0625,
+        Stats.inMemory(), null);
+      double areaAfter = 0;
+      for (var feature : merged) {
+        Geometry geometry = feature.geometry().decode();
+        areaAfter += geometry.getArea();
+        TestUtils.validateGeometry(geometry);
+      }
+      double ratio = areaAfter / areaBefore;
+      assertTrue(ratio > 0.99 && ratio < 1.01, "Area changed too much %f -> %f".formatted(areaBefore, areaAfter));
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "/protomaps538/buffer_union_unbuffer_05/13_2039_3211.wkb",
+    "/protomaps538/buffer_union_unbuffer_05/13_4732_2939.wkb",
+    "/protomaps538/buffer_union_unbuffer_05/13_6684_3565.wkb",
+    "/protomaps538/buffer_union_unbuffer_05/13_4255_2678.wkb",
+    "/protomaps538/buffer_union_unbuffer_05/13_4184_2768.wkb",
+    "/protomaps538/buffer_union_unbuffer_05/13_2922_4800.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2020_1982.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_3344_1642.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2029_1319.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1120_684.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_1088_1644.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1710_942.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1012_663.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2202_1589.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_1114_1690.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/10_507_374.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2039_1524.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1386_623.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_691_1453.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_362_747.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2048_1360.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2168_1987.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/9_284_180.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/10_567_334.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1444_935.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1102_961.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2049_1364.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/10_719_385.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2453_1390.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1129_604.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1016_666.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_343_700.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_3368_2429.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2536_1140.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_2322_1308.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/11_1117_700.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_995_1490.wkb",
+    "/protomaps538/buffer_union_unbuffer_01/12_662_1601.wkb",
+  })
+  void testProtomaps538LakeMerge(String file) throws Exception {
+    try (var is = getClass().getResource(file).openStream()) {
+      GeometryCollection collection = (GeometryCollection) new WKBReader().read(is.readAllBytes());
+      double areaBefore = Math.max(collection.buffer(0).getArea(), collection.union().getArea());
+      double buffer = file.contains("unbuffer_01") ? 0.1 : 0.5;
+      List<Geometry> geoms = new ArrayList<>();
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        geoms.add(collection.getGeometryN(i));
+      }
+      Geometry merged = FeatureMerge.bufferUnionUnbuffer(buffer, geoms, Stats.inMemory());
+      merged = GeoUtils.snapAndFixPolygon(merged, Stats.inMemory(), "merge").reverse();
+      assertInstanceOf(Polygonal.class, merged);
+      double areaAfter = merged.getArea();
+      TestUtils.validateGeometry(merged);
+      double ratio = areaAfter / areaBefore;
+      assertTrue(ratio > 0.99 && ratio < 1.01, "Area changed too much %f -> %f".formatted(areaBefore, areaAfter));
     }
   }
 
