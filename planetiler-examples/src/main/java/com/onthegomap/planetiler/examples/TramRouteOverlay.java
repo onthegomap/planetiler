@@ -21,7 +21,7 @@ import java.util.List;
  * To run this example:
  * <ol>
  * <li>Download an .osm.pbf extract (see the <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
- * <li>build the examples: {@code mvn clean package --file standalone.pom.xml}</li>
+ * <li>build the example: {@code mvn clean package --file standalone.pom.xml}</li>
  * <li>run this example:
  * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.TramRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/tramroutes.mbtiles"}</li>
  * <li>then run the demo tileserver: {@code tileserver-gl data/tramroutes.mbtiles}</li>
@@ -92,7 +92,7 @@ public class TramRouteOverlay implements Profile {
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
     return FeatureMerge.mergeLineStrings(items,
       0.5, // remove lines that are less than 0.5px long
-      0.1, // simplify linestring output using a 0.1px tolerance
+      0.1, // simplify linestring output with a 0.1px tolerance
       4 // remove detail more than 4px outside the tile boundary
     );
   }
@@ -104,7 +104,7 @@ public class TramRouteOverlay implements Profile {
 
   @Override
   public String name() {
-    // Name that appears in the MBTiles metadata table
+    // The name that appears in the MBTiles metadata table
     return "Tram Routes and Stops Overlay";
   }
 
