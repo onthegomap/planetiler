@@ -1952,8 +1952,8 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: polygon
-          id: <TEST INPUT>
-      """.replace("<TEST INPUT>", input);
+          id: %s
+      """.formatted(input);
     testPolygon(schema, Map.of(), feature -> {
       assertEquals(output, feature.getId());
     }, 1);
