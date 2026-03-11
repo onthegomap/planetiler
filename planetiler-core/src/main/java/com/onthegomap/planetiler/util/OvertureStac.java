@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.UnaryOperator;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,16 +33,19 @@ public class OvertureStac {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
+  // Swappable fetcher: tests replace this with a map lookup to avoid real HTTP calls.
+  static UnaryOperator<String> fetcher = null;
+
   private OvertureStac() {}
 
   /**
-   * Returns HTTPS URLs of parquet files for {@code theme}/{@code type} in the latest Overture release, keeping only files whose STAC item bbox intersects {@code bounds}.
+   * Returns HTTPS URLs of parquet files for {@code theme}/{@code type} in the latest Overture release, keeping only
+   * files whose STAC item bbox intersects {@code bounds}.
    */
   public static List<String> getParquetUrls(String theme, String type, Bounds bounds, PlanetilerConfig config) {
     return getParquetUrls(DEFAULT_CATALOG_URL, theme, type, bounds, config);
   }
 
-  
   static List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds,
     PlanetilerConfig config) {
     LOGGER.info("Fetching Overture STAC catalog from {}", catalogUrl);
@@ -51,7 +55,6 @@ public class OvertureStac {
     LOGGER.info("Using Overture release catalog: {}", latestCatalogUrl);
     JsonNode releaseCatalog = fetch(latestCatalogUrl, config);
 
-
     String themeCatalogUrl = resolveChildUrl(releaseCatalog, latestCatalogUrl, theme);
     if (themeCatalogUrl == null) {
       throw new IllegalArgumentException(
@@ -59,14 +62,12 @@ public class OvertureStac {
     }
     JsonNode themeCatalog = fetch(themeCatalogUrl, config);
 
-    
     String collectionUrl = resolveChildUrl(themeCatalog, themeCatalogUrl, type);
     if (collectionUrl == null) {
       throw new IllegalArgumentException(
         "Overture type '" + type + "' not found in theme '" + theme + "' catalog " + themeCatalogUrl);
     }
     JsonNode collection = fetch(collectionUrl, config);
-
 
     Envelope latLonBounds = bounds.isWorld() ? null : bounds.latLon();
     List<String> urls = new ArrayList<>();
@@ -114,7 +115,6 @@ public class OvertureStac {
       }
       String title = link.path("title").asText("");
       String href = link.path("href").asText("");
-
       String segment = hrefSegment(href);
       if (name.equalsIgnoreCase(title) || name.equalsIgnoreCase(segment)) {
         return resolveUrl(baseUrl, href);
@@ -162,6 +162,18 @@ public class OvertureStac {
   }
 
   static JsonNode fetch(String url, PlanetilerConfig config) {
+    // In tests, fetcher is set to a map lookup so no real HTTP is made.
+    if (fetcher != null) {
+      String json = fetcher.apply(url);
+      if (json == null) {
+        throw new IllegalStateException("No stub for URL: " + url);
+      }
+      try {
+        return MAPPER.readTree(json);
+      } catch (IOException e) {
+        throw new IllegalStateException("Bad stub JSON for URL: " + url, e);
+      }
+    }
     try (InputStream in = Downloader.openStream(url, config)) {
       return MAPPER.readTree(in);
     } catch (IOException e) {

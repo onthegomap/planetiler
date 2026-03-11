@@ -7,16 +7,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Envelope;
 
 /**
- * Tests for {@link OvertureStac} that run without any network access — all catalog JSON is provided inline.
+ * Tests for {@link OvertureStac} — all catalog JSON is provided inline; no real HTTP calls are made.
  */
 class OvertureStacTest {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final PlanetilerConfig CONFIG = PlanetilerConfig.defaults();
+
+  /** Reset the stub fetcher after every test so it doesn't leak between tests. */
+  @AfterEach
+  void resetFetcher() {
+    OvertureStac.fetcher = null;
+  }
 
   // ---- resolveLatestCatalogUrl -----------------------------------------------------------------
 
@@ -98,9 +110,8 @@ class OvertureStacTest {
     JsonNode catalog = MAPPER.readTree("""
       { "links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}] }
       """);
-    String result = OvertureStac.resolveChildUrl(catalog,
-      "https://stac.overturemaps.org/2026-02-18.0/catalog.json", "places");
-    assertEquals(null, result);
+    assertEquals(null, OvertureStac.resolveChildUrl(catalog,
+      "https://stac.overturemaps.org/2026-02-18.0/catalog.json", "places"));
   }
 
   // ---- itemBboxIntersects ----------------------------------------------------------------------
@@ -158,51 +169,175 @@ class OvertureStacTest {
     assertEquals("https://stac.overturemaps.org/2026-02-18.0/buildings/catalog.json", result);
   }
 
-  // ---- getParquetUrls (integration-style, all HTTP stubbed via overrideable fetch) -------------
+  // ---- getParquetUrls (stubbed HTTP) -----------------------------------------------------------
 
   /**
-   * Verifies bbox filtering: one item in the western hemisphere (excluded) and one covering Europe (included) when
-   * filtering to the Monaco area.
+   * Happy path: 2 items, one outside Monaco bbox (excluded), one inside (included). Uses aws asset URL.
    */
   @Test
-  void testGetParquetUrlsFiltersByBbox() throws IOException {
-    Envelope monacoFilter = new Envelope(7.3, 7.5, 43.7, 43.8);
+  void testGetParquetUrlsFiltersByBbox() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [
+          {"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/catalog.json", """
+        {"links": [
+          {"rel": "child", "href": "./building/collection.json", "title": "building"}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/collection.json", """
+        {"links": [
+          {"rel": "item", "href": "./item-west.json"},
+          {"rel": "item", "href": "./item-europe.json"}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-west.json", """
+        {"bbox": [-179.9, -84.3, -2.8, -22.5],
+         "assets": {"aws": {"href": "https://s3.example.com/part-west.parquet"}}}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-europe.json", """
+        {"bbox": [-10.0, 35.0, 30.0, 70.0],
+         "assets": {"aws": {"href": "https://s3.example.com/part-europe.parquet"}}}"""
+    );
+    OvertureStac.fetcher = stubs::get;
 
-    // item 00000: western hemisphere — outside Monaco bounds
-    JsonNode i0 = MAPPER.readTree("""
-      {
-        "bbox": [-179.9, -84.3, -2.8, -22.5],
-        "assets": {"aws": {"href": "https://s3.amazonaws.com/overture/part-00000.parquet"}}
-      }
-      """);
-    // item 00001: Europe — intersects Monaco bounds
-    JsonNode i1 = MAPPER.readTree("""
-      {
-        "bbox": [-10.0, 35.0, 30.0, 70.0],
-        "assets": {"aws": {"href": "https://s3.amazonaws.com/overture/part-00001.parquet"}}
-      }
-      """);
+    Bounds monaco = new Bounds(new Envelope(7.3, 7.5, 43.7, 43.8));
+    List<String> result = OvertureStac.getParquetUrls(
+      "https://stac.example.com/catalog.json", "buildings", "building", monaco, CONFIG);
 
-    assertFalse(OvertureStac.itemBboxIntersects(i0, monacoFilter), "western hemisphere item should be excluded");
-    assertTrue(OvertureStac.itemBboxIntersects(i1, monacoFilter), "Europe item should be included");
+    assertEquals(List.of("https://s3.example.com/part-europe.parquet"), result);
   }
 
   /**
-   * Verifies that resolveChildUrl returns null for a missing theme, and that the null is what getParquetUrls
-   * wraps into an IllegalArgumentException.
+   * World bounds (no bbox filter) — both items should be returned.
    */
   @Test
-  void testUnknownThemeReturnsNull() throws IOException {
-    JsonNode releaseCatalog = MAPPER.readTree("""
-      {
-        "links": [
-          {"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}
-        ]
-      }
-      """);
-    // resolveChildUrl itself returns null — getParquetUrls turns the null into an IAE
-    String result = OvertureStac.resolveChildUrl(releaseCatalog,
-      "https://stac.overturemaps.org/2026-02-18.0/catalog.json", "nonexistent");
-    assertEquals(null, result);
+  void testGetParquetUrlsWorldBoundsIncludesAll() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/catalog.json", """
+        {"links": [{"rel": "child", "href": "./building/collection.json", "title": "building"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/collection.json", """
+        {"links": [
+          {"rel": "item", "href": "./item-a.json"},
+          {"rel": "item", "href": "./item-b.json"}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-a.json", """
+        {"bbox": [-179.9, -84.3, -2.8, -22.5],
+         "assets": {"aws": {"href": "https://s3.example.com/part-a.parquet"}}}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-b.json", """
+        {"bbox": [-10.0, 35.0, 30.0, 70.0],
+         "assets": {"aws": {"href": "https://s3.example.com/part-b.parquet"}}}"""
+    );
+    OvertureStac.fetcher = stubs::get;
+
+    List<String> result = OvertureStac.getParquetUrls(
+      "https://stac.example.com/catalog.json", "buildings", "building", Bounds.WORLD, CONFIG);
+
+    assertEquals(List.of("https://s3.example.com/part-a.parquet", "https://s3.example.com/part-b.parquet"), result);
+  }
+
+  /**
+   * Falls back to azure asset URL when aws is absent.
+   */
+  @Test
+  void testGetParquetUrlsFallsBackToAzure() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/catalog.json", """
+        {"links": [{"rel": "child", "href": "./building/collection.json", "title": "building"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/collection.json", """
+        {"links": [{"rel": "item", "href": "./item-azure.json"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-azure.json", """
+        {"bbox": [-10.0, 35.0, 30.0, 70.0],
+         "assets": {"azure": {"href": "https://azure.example.com/part-a.parquet"}}}"""
+    );
+    OvertureStac.fetcher = stubs::get;
+
+    List<String> result = OvertureStac.getParquetUrls(
+      "https://stac.example.com/catalog.json", "buildings", "building", Bounds.WORLD, CONFIG);
+
+    assertEquals(List.of("https://azure.example.com/part-a.parquet"), result);
+  }
+
+  /**
+   * Item with no aws or azure asset is skipped with a warning (no exception thrown).
+   */
+  @Test
+  void testGetParquetUrlsSkipsItemWithNoAsset() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/catalog.json", """
+        {"links": [{"rel": "child", "href": "./building/collection.json", "title": "building"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/collection.json", """
+        {"links": [{"rel": "item", "href": "./item-no-asset.json"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/building/item-no-asset.json", """
+        {"bbox": [-10.0, 35.0, 30.0, 70.0], "assets": {}}"""
+    );
+    OvertureStac.fetcher = stubs::get;
+
+    List<String> result = OvertureStac.getParquetUrls(
+      "https://stac.example.com/catalog.json", "buildings", "building", Bounds.WORLD, CONFIG);
+
+    assertEquals(List.of(), result);
+  }
+
+  /**
+   * Unknown theme throws IllegalArgumentException.
+   */
+  @Test
+  void testUnknownThemeThrows() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}"""
+    );
+    OvertureStac.fetcher = stubs::get;
+
+    assertThrows(IllegalArgumentException.class, () ->
+      OvertureStac.getParquetUrls(
+        "https://stac.example.com/catalog.json", "nonexistent", "building", Bounds.WORLD, CONFIG));
+  }
+
+  /**
+   * Unknown type within a known theme throws IllegalArgumentException.
+   */
+  @Test
+  void testUnknownTypeThrows() {
+    var stubs = Map.of(
+      "https://stac.example.com/catalog.json", """
+        {"latest": "2026-02-18.0", "links": [
+          {"rel": "child", "href": "./2026-02-18.0/catalog.json", "latest": true}
+        ]}""",
+      "https://stac.example.com/2026-02-18.0/catalog.json", """
+        {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}""",
+      "https://stac.example.com/2026-02-18.0/buildings/catalog.json", """
+        {"links": [{"rel": "child", "href": "./building/collection.json", "title": "building"}]}"""
+    );
+    OvertureStac.fetcher = stubs::get;
+
+    assertThrows(IllegalArgumentException.class, () ->
+      OvertureStac.getParquetUrls(
+        "https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD, CONFIG));
   }
 }
