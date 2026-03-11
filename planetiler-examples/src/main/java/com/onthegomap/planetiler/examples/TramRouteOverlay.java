@@ -41,16 +41,14 @@ public class TramRouteOverlay implements Profile {
   // Pack a route relation into a list object
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-    if (relation.hasTag("type", "route")) {
-      if (relation.hasTag("route", "tram")) {
-        // Form the route as a record, then return it as a relation list
-        return List.of(new RouteRelationInfo(
-          relation.id(),
-          relation.getString("ref"),
-          relation.getString("name"),
-          relation.getString("network")
-        ));
-      }
+    if (relation.hasTag("type", "route") && relation.hasTag("route", "tram")) {
+      // Form the route as a record, then return it as a relation list
+      return List.of(new RouteRelationInfo(
+        relation.id(),
+        relation.getString("ref"),
+        relation.getString("name"),
+        relation.getString("network")
+      ));
     }
     // Return null for any relation that is not a tram route
     return null;
@@ -89,6 +87,7 @@ public class TramRouteOverlay implements Profile {
   }
 
   // Merge lines at their endpoints for improved rendering. Tram routes will otherwise appear less accurately
+  @Override
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
     return FeatureMerge.mergeLineStrings(items,
       0.5, // remove lines that are less than 0.5px long
