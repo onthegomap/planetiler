@@ -71,26 +71,21 @@ public class OvertureStac {
     Envelope latLonBounds = bounds.isWorld() ? null : bounds.latLon();
     List<String> urls = new ArrayList<>();
     for (JsonNode link : collection.path("links")) {
-      if (!"item".equals(link.path("rel").asText())) {
-        continue;
+      if ("item".equals(link.path("rel").asText())) {
+        String itemUrl = resolveUrl(collectionUrl, link.path("href").asText());
+        JsonNode item = fetch(itemUrl, config);
+        if (latLonBounds == null || itemBboxIntersects(item, latLonBounds)) {
+          String parquetUrl = getAssetHref(item, "aws");
+          if (parquetUrl == null) {
+            parquetUrl = getAssetHref(item, "azure");
+          }
+          if (parquetUrl == null) {
+            LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
+          } else {
+            urls.add(parquetUrl);
+          }
+        }
       }
-      String itemUrl = resolveUrl(collectionUrl, link.path("href").asText());
-      JsonNode item = fetch(itemUrl, config);
-
-      if (latLonBounds != null && !itemBboxIntersects(item, latLonBounds)) {
-        continue;
-      }
-
-
-      String parquetUrl = getAssetHref(item, "aws");
-      if (parquetUrl == null) {
-        parquetUrl = getAssetHref(item, "azure");
-      }
-      if (parquetUrl == null) {
-        LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
-        continue;
-      }
-      urls.add(parquetUrl);
     }
 
     LOGGER.info("Found {} parquet files for theme={} type={} within bounds", urls.size(), theme, type);
