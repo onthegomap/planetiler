@@ -17,7 +17,9 @@ import java.util.List;
  * This example profile builds a map of tram routes from OpenStreetMap relations tagged with
  * <a href="https://wiki.openstreetmap.org/wiki/Tag:route%3Dtram">route=tram</a>
  * as well as tram stop nodes tagged with
- * <a href="https://wiki.openstreetmap.org/wiki/Tag:railway%3Dtram_stop">railway=tram_stop</a>.
+ * <a href="https://wiki.openstreetmap.org/wiki/Tag:railway%3Dtram_stop">railway=tram_stop</a>
+ * and tram ways tagged with
+ * <a href="https://wiki.openstreetmap.org/wiki/Tag:railway%3Dtram">railway=tram</a>.
  * <p>
  * To run this example:
  * <ol>
@@ -39,7 +41,7 @@ public class TramRouteOverlay implements Profile {
     String network
   ) implements OsmRelationInfo {}
 
-  // Pack a route relation into a list object
+  // Pack a route relation into a list object before feature processing
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "route") && relation.hasTag("route", "tram")) {
@@ -90,7 +92,8 @@ public class TramRouteOverlay implements Profile {
   // Merge lines at their endpoints for improved rendering. Tram routes will otherwise appear less accurately
   @Override
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
-    return FeatureMerge.mergeLineStrings(items,
+    return FeatureMerge.mergeLineStrings(
+      items,
       0.5, // remove lines that are less than 0.5px long
       0.1, // simplify linestring output with a 0.1px tolerance
       4 // remove detail more than 4px outside the tile boundary
