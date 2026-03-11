@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,8 +51,8 @@ public class TramRouteOverlay implements Profile {
         relation.getString("network")
       ));
     }
-    // Return null for any relation that is not a tram route
-    return null;
+    // Return an empty list for any relation that is not a tram route
+    return Collections.emptyList();
   }
 
   @Override
