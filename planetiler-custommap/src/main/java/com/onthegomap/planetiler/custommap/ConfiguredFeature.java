@@ -110,10 +110,9 @@ public class ConfiguredFeature {
       .add(makeFeatureProcessor(feature.toleranceAtMaxZoom(), Double.class, Feature::setPixelToleranceAtMaxZoom));
 
     processors.add(makeFeatureProcessor(feature.pointLabelGrid(), PointLabelGrid.class,
-      (f, a) -> {
-        f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.pixelSize().maxZoom(), a.pixelSize().value()));
-        f.setPointLabelGridLimit(ZoomFunction.maxZoom(a.limit().maxZoom(), a.limit().value()));
-      }));
+      (f, a) -> f.setPointLabelGridPixelSize(ZoomFunction.maxZoom(a.pixelSize().maxZoom(), a.pixelSize().value()))));
+    processors.add(makeFeatureProcessor(feature.pointLabelGrid(), PointLabelGrid.class,
+      (f, a) -> f.setPointLabelGridLimit(ZoomFunction.maxZoom(a.limit().maxZoom(), a.limit().value()))));
     processors.add(makeFeatureProcessor(feature.sortKey(), Integer.class, Feature::setSortKey));
     processors.add(makeFeatureProcessor(feature.sortKeyDescending(), Integer.class, Feature::setSortKeyDescending));
 
