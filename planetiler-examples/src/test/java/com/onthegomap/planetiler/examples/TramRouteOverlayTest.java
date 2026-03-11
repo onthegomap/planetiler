@@ -19,7 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
-public class TramRouteOverlayTest {
+class TramRouteOverlayTest {
 
   private final TramRouteOverlay profileStops = new TramRouteOverlay();
   private final TramRouteOverlay profileRoutes = new TramRouteOverlay();
