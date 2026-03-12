@@ -38,7 +38,10 @@ class TramRouteOverlayTest {
     var pointFeature = mapFeatures.getFirst();
     assertEquals("tram_stop", pointFeature.getLayer());
     assertEquals(11, pointFeature.getMinZoom());
+  }
 
+  @Test
+  void testSourceProcessingFeatureForRoutes() {
     // Second, test tram routes
     var relationResult = profileRoutes.preprocessOsmRelation(new OsmElement.Relation(17, Map.of(
       "type", "route",
@@ -59,8 +62,7 @@ class TramRouteOverlayTest {
       35,
       relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList()
     );
-    mapFeatures.clear();
-    mapFeatures = TestUtils.processSourceFeature(way, profileRoutes);
+    List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(way, profileRoutes);
     // verify output geometry
     assertEquals(1, mapFeatures.size());
     var routeFeature = mapFeatures.getFirst();
