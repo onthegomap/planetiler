@@ -40,7 +40,7 @@ public class TramRouteOverlay implements Profile {
     String name,
     String network
   ) implements OsmRelationInfo {}
-  
+
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "route") && relation.hasTag("route", "tram")) {
@@ -124,11 +124,11 @@ public class TramRouteOverlay implements Profile {
       """.trim();
   }
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
-  static void run(Arguments args) throws Exception {
+  static void run(Arguments args) {
     String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
