@@ -76,6 +76,7 @@ class TramRouteOverlayTest {
     assertEquals(14, routeFeature.getMaxZoom());
   }
 
+  @Test
   void testSourceFeatureProcessingForWays() {
     // Third, test tram ways that are not in a tram route
     var tramWay = SimpleFeature.create(
