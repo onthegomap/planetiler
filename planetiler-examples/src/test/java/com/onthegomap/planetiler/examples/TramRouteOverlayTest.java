@@ -26,7 +26,7 @@ class TramRouteOverlayTest {
   private final TramRouteOverlay profileWays = new TramRouteOverlay();
 
   @Test
-  void testSourceFeatureProcessing() {
+  void testSourceFeatureProcessingForNodes() {
     // First, test tram stops
     var node = SimpleFeature.create(
       TestUtils.newPoint(5, 4),
@@ -74,7 +74,9 @@ class TramRouteOverlayTest {
     assertEquals(0.022, routeFeature.getGeometry().getLength(), 1e-2);
     assertEquals(0, routeFeature.getMinZoom());
     assertEquals(14, routeFeature.getMaxZoom());
+  }
 
+  void testSourceFeatureProcessingForWays() {
     // Third, test tram ways that are not in a tram route
     var tramWay = SimpleFeature.create(
       // test points: (5 east 7 north), (4 east 11 north)
@@ -82,8 +84,7 @@ class TramRouteOverlayTest {
       Map.of("railway", "tram")
     );
     // Produce a one-element list with a way containing the tag railway=tram
-    mapFeatures.clear();
-    mapFeatures = TestUtils.processSourceFeature(tramWay, profileWays);
+    List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(tramWay, profileWays);
     assertEquals(1, mapFeatures.size());
     var wayFeature = mapFeatures.getFirst();
     assertEquals("tram", wayFeature.getLayer());
