@@ -288,10 +288,10 @@ geometry: point
 min_zoom: 7
 point_label_grid:
   pixel_size:
-    max_zoom: 12
+    maxzoom: 12
     value: 32
   limit:
-    max_zoom: 12
+    maxzoom: 12
     value: 64
 ```
 
