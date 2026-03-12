@@ -68,7 +68,6 @@ public class TramRouteOverlay implements Profile {
           .setAttr("ref", relation.ref)
           .setAttr("network", relation.network)
           .setAttr("name", relation.name)
-          .setZoomRange(0, 20)
           .setMinPixelSize(0); // Prevents visual gaps in tram routes
       }
     }
@@ -77,7 +76,6 @@ public class TramRouteOverlay implements Profile {
     if (sourceFeature.canBeLine() && sourceFeature.hasTag("railway", "tram")) {
       features.line("tram")
         .setAttr("ref", sourceFeature.getTag("ref"))
-        .setZoomRange(0, 20)
         .setMinPixelSize(0);
     }
 
