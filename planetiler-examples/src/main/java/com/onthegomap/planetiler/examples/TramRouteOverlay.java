@@ -40,8 +40,7 @@ public class TramRouteOverlay implements Profile {
     String name,
     String network
   ) implements OsmRelationInfo {}
-
-  // Pack a route relation into a list object before feature processing
+  
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "route") && relation.hasTag("route", "tram")) {
