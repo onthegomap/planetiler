@@ -2008,8 +2008,8 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: polygon
-          <TEST INPUT>
-      """.replace("<TEST INPUT>", input);
+          %s
+      """.formatted(input);
     testPolygon(schema, Map.of(), feature -> {
       assertEquals(output, feature.getSortKey());
     }, 1);
