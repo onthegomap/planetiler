@@ -66,7 +66,7 @@ class TramRouteOverlayTest {
     // verify output geometry
     assertEquals(1, mapFeatures.size());
     var routeFeature = mapFeatures.getFirst();
-    assertEquals("Tram 17", routeFeature.getLayer());
+    assertEquals("tram_route", routeFeature.getLayer());
     assertEquals(Map.of(
       "ref", "17",
       "network", "BD BBÖ",
@@ -90,7 +90,7 @@ class TramRouteOverlayTest {
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(tramWay, profileWays);
     assertEquals(1, mapFeatures.size());
     var wayFeature = mapFeatures.getFirst();
-    assertEquals("tram", wayFeature.getLayer());
+    assertEquals("tram_way", wayFeature.getLayer());
     assertEquals(0.011, wayFeature.getGeometry().getLength(), 1e-2);
   }
 
@@ -117,19 +117,20 @@ class TramRouteOverlayTest {
         Point.class
       );
 
+      // For actual tram routes
       TestUtils.assertNumFeatures(
         mbtiles,
-        "Tram 2: Gröpelingen => Sebaldsbrück",
+        "tram_route",
         12,
         Map.of(),
         GeoUtils.WORLD_LAT_LON_BOUNDS,
-        39,
+        1333,
         LineString.class
       );
 
       TestUtils.assertNumFeatures(
         mbtiles,
-        "tram",
+        "tram_way",
         12,
         Map.of(),
         GeoUtils.WORLD_LAT_LON_BOUNDS,
