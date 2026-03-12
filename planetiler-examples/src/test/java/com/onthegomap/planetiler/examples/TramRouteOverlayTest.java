@@ -116,8 +116,7 @@ class TramRouteOverlayTest {
         352,
         Point.class
       );
-
-      // For actual tram routes
+      
       TestUtils.assertNumFeatures(
         mbtiles,
         "tram_route",
