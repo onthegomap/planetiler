@@ -62,8 +62,7 @@ public class TramRouteOverlay implements Profile {
     if (sourceFeature.canBeLine()) {
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class, true)) {
         RouteRelationInfo relation = routeInfo.relation();
-        String layerName = relation.name;
-        features.line(layerName)
+        features.line("tram_route")
           .setAttr("ref", relation.ref)
           .setAttr("network", relation.network)
           .setAttr("name", relation.name)
@@ -73,7 +72,7 @@ public class TramRouteOverlay implements Profile {
 
     // Process tram ways that are not included in their respective tram route relation
     if (sourceFeature.canBeLine() && sourceFeature.hasTag("railway", "tram")) {
-      features.line("tram")
+      features.line("tram_way")
         .setAttr("ref", sourceFeature.getTag("ref"))
         .setMinPixelSize(0);
     }
