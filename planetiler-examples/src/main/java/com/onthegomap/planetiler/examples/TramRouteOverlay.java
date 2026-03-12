@@ -26,7 +26,7 @@ import java.util.List;
  * <li>Download an .osm.pbf extract (see the <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
  * <li>build the example: {@code mvn clean package --file standalone.pom.xml}</li>
  * <li>run this example:
- * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.TramRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/tramroutes.mbtiles"}</li>
+ * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.TramRouteOverlay --osm_path="path/to/data.osm.pbf" --output="data/tramroutes.mbtiles"}</li>
  * <li>then run the demo tileserver: {@code tileserver-gl data/tramroutes.mbtiles}</li>
  * <li>view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
