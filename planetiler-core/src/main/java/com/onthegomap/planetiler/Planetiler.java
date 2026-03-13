@@ -29,7 +29,9 @@ import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
+import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.OvertureStac;
 import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
@@ -557,6 +559,34 @@ public class Planetiler {
    */
   public Planetiler addParquetSource(String name, List<Path> paths) {
     return addParquetSource(name, paths, false);
+  }
+
+  /**
+   * Adds a new <a href="https://overturemaps.org/">Overture Maps</a> source that downloads only the parquet files relevant to the requested {@code theme}/{@code type} and the configured bounding box (via {@code --bounds})
+   */
+  public Planetiler addOvertureSource(String name, String theme, String type) {
+    Path downloadDir = arguments.file(name + "_path", name + " overture download directory",
+      Path.of("data", "overture", theme, type));
+
+    if (downloadSources) {
+      List<String> urls = OvertureStac.getParquetUrls(theme, type, config.bounds(), config);
+      for (String url : urls) {
+        String filename = url.substring(url.lastIndexOf('/') + 1);
+        toDownload.add(new ToDownload(name, url, downloadDir.resolve(filename)));
+      }
+    }
+
+
+    inputPaths.add(new InputPath(name, downloadDir, false));
+
+    return addStage(name, "Process Overture " + theme + "/" + type + " features from " + downloadDir,
+      ifSourceUsed(name, () -> {
+        List<Path> paths = Glob.of(downloadDir).resolve("*.parquet").find();
+        // hivePartitioning=true so the layerGenerator lambda is invoked and returns the constant type name.
+        // The idGenerator reads the Overture "id" field just like the manual Glob-based approach did before.
+        new ParquetReader(name, profile, stats, f -> f.get("id"), f -> type, true)
+          .process(paths, featureGroup, config);
+      }));
   }
 
   /**
