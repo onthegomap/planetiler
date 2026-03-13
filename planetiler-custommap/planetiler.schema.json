@@ -386,7 +386,8 @@
             "polygon_centroid_if_convex",
             "polygon_point_on_surface",
             "point_on_line",
-            "innermost_point"
+            "innermost_point",
+            "relation_members"
           ]
         },
         "source": {
@@ -433,6 +434,40 @@
         },
         "attributes": {
           "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attribute"
+          }
+        },
+        "member_types": {
+          "description": "Only valid with geometry: relation_members. A list of OSM element types to include as members. Valid values are node, way, or relation. Nested relations are not supported. If unspecified, all member types are included.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "node",
+              "way",
+              "relation"
+            ]
+          }
+        },
+        "member_roles": {
+          "description": "Only valid with geometry: relation_members. A list of role values to filter relation members by. Only members with matching roles (or empty string for members with no role) will be processed. If unspecified, all roles are included.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "member_include_when": {
+          "description": "Only valid with geometry: relation_members. A boolean expression that filters which relation members to include. The expression is evaluated in a Member Context that provides access to member tags, role, type, and reference ID. If unspecified, all members matching member_types and member_roles are included.",
+          "$ref": "#/$defs/boolean_expression"
+        },
+        "member_exclude_when": {
+          "description": "Only valid with geometry: relation_members. A boolean expression that excludes relation members from processing. The expression is evaluated in a Member Context. This rule is applied after member_include_when. If unspecified, no exclusion filter is applied.",
+          "$ref": "#/$defs/boolean_expression"
+        },
+        "member_attributes": {
+          "description": "Only valid with geometry: relation_members. An array of attribute objects that specify attributes to be included on output features from member tags. These attributes are evaluated in a Member Context that provides access to member-specific variables. Relation-level attributes can be accessed via feature.tags in the parent context.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/attribute"
