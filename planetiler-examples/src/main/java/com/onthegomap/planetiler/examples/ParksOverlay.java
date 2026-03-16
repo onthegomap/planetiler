@@ -11,16 +11,6 @@ import java.nio.file.Path;
  * Builds a map of parks and gardens from OpenStreetMap ways and relations tagged with
  * <a href="https://wiki.openstreetmap.org/wiki/Tag:leisure%3Dpark">leisure=park</a> or
  * <a href="https://wiki.openstreetmap.org/wiki/Tag:leisure%3Dgarden">leisure=garden</a>.
- * <p>
- * To run this example:
- * <ol>
- * <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
- * <li>then build the examples: {@code mvn clean package}</li>
- * <li>then run this example:
- * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.ParksOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light data/parks.mbtiles}</li>
- * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
- * </ol>
  */
 public class ParksOverlay implements Profile {
 
