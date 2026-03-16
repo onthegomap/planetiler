@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -9,7 +9,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.UnaryOperator;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,64 +30,146 @@ public class OvertureStac {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OvertureStac.class);
 
-  // Base URL for the Overture STAC catalog. Exposed for testing so tests can point at a local server.
   static final String DEFAULT_CATALOG_URL = "https://stac.overturemaps.org/catalog.json";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  // Swappable fetcher: tests replace this with a map lookup to avoid real HTTP calls.
-  static UnaryOperator<String> fetcher = null;
+  private final PlanetilerConfig config;
 
-  private OvertureStac() {}
+  public OvertureStac(PlanetilerConfig config) {
+    this.config = config;
+  }
+
+  /** Creates an {@link OvertureStac} backed by real HTTP using the default Overture catalog URL. */
+  public static OvertureStac create(PlanetilerConfig config) {
+    return new OvertureStac(config);
+  }
+
+  
+  // Java records for STAC JSON deserialization
+  
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacLink(String rel, String href, String title, boolean latest) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacCatalog(String latest, List<StacLink> links) {
+    StacCatalog {
+      if (links == null) {
+        links = List.of();
+      }
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record SpatialExtent(List<List<Double>> bbox) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacExtent(SpatialExtent spatial) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacCollection(List<StacLink> links, StacExtent extent) {
+    StacCollection {
+      if (links == null) {
+        links = List.of();
+      }
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacAsset(String href) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record StacItem(List<Double> bbox, Map<String, StacAsset> assets) {
+    StacItem {
+      if (assets == null) {
+        assets = Map.of();
+      }
+    }
+  }
+
+  
+  // Public API
+  
 
   /**
    * Returns HTTPS URLs of parquet files for {@code theme}/{@code type} in the latest Overture release, keeping only
    * files whose STAC item bbox intersects {@code bounds}.
    */
-  public static List<String> getParquetUrls(String theme, String type, Bounds bounds, PlanetilerConfig config) {
-    return getParquetUrls(DEFAULT_CATALOG_URL, theme, type, bounds, config);
+  public List<String> getParquetUrls(String theme, String type, Bounds bounds) {
+    return getParquetUrls(DEFAULT_CATALOG_URL, theme, type, bounds);
   }
 
-  static List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds,
-    PlanetilerConfig config) {
+  List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
     LOGGER.info("Fetching Overture STAC catalog from {}", catalogUrl);
-    JsonNode catalog = fetch(catalogUrl, config);
+    StacCatalog catalog = fetch(catalogUrl, StacCatalog.class);
 
     String latestCatalogUrl = resolveLatestCatalogUrl(catalog, catalogUrl);
     LOGGER.info("Using Overture release catalog: {}", latestCatalogUrl);
-    JsonNode releaseCatalog = fetch(latestCatalogUrl, config);
+    StacCatalog releaseCatalog = fetch(latestCatalogUrl, StacCatalog.class);
 
     String themeCatalogUrl = resolveChildUrl(releaseCatalog, latestCatalogUrl, theme);
     if (themeCatalogUrl == null) {
       throw new IllegalArgumentException(
         "Overture theme '" + theme + "' not found in catalog " + latestCatalogUrl);
     }
-    JsonNode themeCatalog = fetch(themeCatalogUrl, config);
+    StacCatalog themeCatalog = fetch(themeCatalogUrl, StacCatalog.class);
 
     String collectionUrl = resolveChildUrl(themeCatalog, themeCatalogUrl, type);
     if (collectionUrl == null) {
       throw new IllegalArgumentException(
         "Overture type '" + type + "' not found in theme '" + theme + "' catalog " + themeCatalogUrl);
     }
-    JsonNode collection = fetch(collectionUrl, config);
+    StacCollection collection = fetch(collectionUrl, StacCollection.class);
 
     Envelope latLonBounds = bounds.isWorld() ? null : bounds.latLon();
-    List<String> urls = new ArrayList<>();
-    for (JsonNode link : collection.path("links")) {
-      if ("item".equals(link.path("rel").asText())) {
-        String itemUrl = resolveUrl(collectionUrl, link.path("href").asText());
-        JsonNode item = fetch(itemUrl, config);
-        if (latLonBounds == null || itemBboxIntersects(item, latLonBounds)) {
-          String parquetUrl = getAssetHref(item, "aws");
-          if (parquetUrl == null) {
-            parquetUrl = getAssetHref(item, "azure");
-          }
-          if (parquetUrl == null) {
-            LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
-          } else {
-            urls.add(parquetUrl);
-          }
+
+    // Skip the whole collection if its declared spatial extent doesn't intersect our bounds.
+    if (latLonBounds != null && !collectionExtentIntersects(collection, latLonBounds)) {
+      LOGGER.debug("Skipping collection {} — extent does not intersect bounds", collectionUrl);
+      return List.of();
+    }
+
+    // Gather item links; per-item bbox check happens after fetching each item below.
+    List<String> itemUrls = new ArrayList<>();
+    for (StacLink link : collection.links()) {
+      if ("item".equals(link.rel())) {
+        String itemUrl = resolveUrl(collectionUrl, link.href());
+        itemUrls.add(itemUrl);
+      }
+    }
+
+    // Fetch all items in parallel, then extract parquet URLs.
+    List<CompletableFuture<String>> futures = itemUrls.stream()
+      .map(itemUrl -> CompletableFuture.supplyAsync(() -> {
+        StacItem item = fetch(itemUrl, StacItem.class);
+        if (latLonBounds != null && !itemBboxIntersects(item, latLonBounds)) {
+          return null;
         }
+        // Prefer AWS, fall back to Azure.
+        String parquetUrl = getAssetHref(item, "aws");
+        if (parquetUrl == null) {
+          parquetUrl = getAssetHref(item, "azure");
+        }
+        if (parquetUrl == null) {
+          LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
+        }
+        return parquetUrl;
+      }))
+      .toList();
+
+    List<String> urls = new ArrayList<>();
+    for (CompletableFuture<String> future : futures) {
+      try {
+        String url = future.get();
+        if (url != null) {
+          urls.add(url);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Interrupted while fetching STAC items", e);
+      } catch (ExecutionException e) {
+        throw new IllegalStateException("Failed to fetch STAC item", e.getCause());
       }
     }
 
@@ -93,28 +177,30 @@ public class OvertureStac {
     return urls;
   }
 
+  
+  // Helpers
+  
 
-  static String resolveLatestCatalogUrl(JsonNode catalog, String baseUrl) {
-    for (JsonNode link : catalog.path("links")) {
-      if ("child".equals(link.path("rel").asText()) && link.path("latest").asBoolean(false)) {
-        return resolveUrl(baseUrl, link.path("href").asText());
+  String resolveLatestCatalogUrl(StacCatalog catalog, String baseUrl) {
+    for (StacLink link : catalog.links()) {
+      if ("child".equals(link.rel()) && link.latest()) {
+        return resolveUrl(baseUrl, link.href());
       }
     }
-    String latestVersion = catalog.path("latest").asText(null);
+    String latestVersion = catalog.latest();
     if (latestVersion != null) {
       return resolveUrl(baseUrl, "./" + latestVersion + "/catalog.json");
     }
     throw new IllegalArgumentException("Could not find latest Overture release in catalog " + baseUrl);
   }
 
-
-  static String resolveChildUrl(JsonNode catalog, String baseUrl, String name) {
-    for (JsonNode link : catalog.path("links")) {
-      if (!"child".equals(link.path("rel").asText())) {
+  String resolveChildUrl(StacCatalog catalog, String baseUrl, String name) {
+    for (StacLink link : catalog.links()) {
+      if (!"child".equals(link.rel())) {
         continue;
       }
-      String title = link.path("title").asText("");
-      String href = link.path("href").asText("");
+      String href = link.href() == null ? "" : link.href();
+      String title = link.title() == null ? "" : link.title();
       String segment = hrefSegment(href);
       if (name.equalsIgnoreCase(title) || name.equalsIgnoreCase(segment)) {
         return resolveUrl(baseUrl, href);
@@ -130,29 +216,48 @@ public class OvertureStac {
     return slash < 0 ? stripped : stripped.substring(0, slash);
   }
 
-  /** Returns true if the STAC item's bbox overlaps {@code filter}. */
-  static boolean itemBboxIntersects(JsonNode item, Envelope filter) {
-    JsonNode bbox = item.path("bbox");
-    if (!bbox.isArray() || bbox.size() < 4) {
+  /** Returns false only if the collection's declared extent bbox is known and does not overlap {@code filter}. */
+  private static boolean collectionExtentIntersects(StacCollection collection, Envelope filter) {
+    if (collection.extent() == null || collection.extent().spatial() == null) {
       return true;
     }
-    double minLon = bbox.get(0).asDouble();
-    double minLat = bbox.get(1).asDouble();
-    double maxLon = bbox.get(2).asDouble();
-    double maxLat = bbox.get(3).asDouble();
+    List<List<Double>> bboxes = collection.extent().spatial().bbox();
+    if (bboxes == null || bboxes.isEmpty()) {
+      return true;
+    }
+    // STAC extent.spatial.bbox is a list of bboxes; the first entry is the overall union.
+    List<Double> bbox = bboxes.get(0);
+    if (bbox == null || bbox.size() < 4) {
+      return true;
+    }
+    double minLon = bbox.get(0);
+    double minLat = bbox.get(1);
+    double maxLon = bbox.get(2);
+    double maxLat = bbox.get(3);
     return filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat));
   }
 
-
-  private static String getAssetHref(JsonNode item, String assetKey) {
-    JsonNode asset = item.path("assets").path(assetKey);
-    if (asset.isMissingNode()) {
-      return null;
+  /** Returns true if the STAC item's bbox overlaps {@code filter}. */
+  static boolean itemBboxIntersects(StacItem item, Envelope filter) {
+    List<Double> bbox = item.bbox();
+    if (bbox == null || bbox.size() < 4) {
+      return true; // no bbox → include conservatively
     }
-    String href = asset.path("href").asText(null);
-    return (href == null || href.isBlank()) ? null : href;
+    double minLon = bbox.get(0);
+    double minLat = bbox.get(1);
+    double maxLon = bbox.get(2);
+    double maxLat = bbox.get(3);
+    return filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat));
   }
 
+  private static String getAssetHref(StacItem item, String assetKey) {
+    StacAsset asset = item.assets().get(assetKey);
+    if (asset == null) {
+      return null;
+    }
+    String href = asset.href();
+    return (href == null || href.isBlank()) ? null : href;
+  }
 
   static String resolveUrl(String base, String href) {
     if (href.startsWith("http://") || href.startsWith("https://")) {
@@ -161,21 +266,13 @@ public class OvertureStac {
     return URI.create(base).resolve(href).toString();
   }
 
-  static JsonNode fetch(String url, PlanetilerConfig config) {
-    // In tests, fetcher is set to a map lookup so no real HTTP is made.
-    if (fetcher != null) {
-      String json = fetcher.apply(url);
-      if (json == null) {
-        throw new IllegalStateException("No stub for URL: " + url);
-      }
-      try {
-        return MAPPER.readTree(json);
-      } catch (IOException e) {
-        throw new IllegalStateException("Bad stub JSON for URL: " + url, e);
-      }
-    }
+  /**
+   * Fetches and deserializes a STAC JSON resource. Subclasses can override to provide stub responses in tests (see
+   * {@link Downloader} for the same pattern).
+   */
+  protected <T> T fetch(String url, Class<T> type) {
     try (InputStream in = Downloader.openStream(url, config)) {
-      return MAPPER.readTree(in);
+      return MAPPER.readValue(in, type);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to fetch STAC URL: " + url, e);
     }
