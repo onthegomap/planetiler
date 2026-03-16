@@ -48,6 +48,7 @@ import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
+import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.maplibre.mlt.data.Layer;
 import org.slf4j.Logger;
@@ -62,7 +63,8 @@ public class TileArchiveWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
-  public static final Pattern MATCH_ALL = Pattern.compile(".*");
+  private static final Pattern MATCH_ALL = Pattern.compile(".*");
+  private static final ColumnMappingConfig EMPTY_COLUMN_MAPPING = new ColumnMappingConfig();
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final WriteableTileArchive archive;
@@ -316,15 +318,15 @@ public class TileArchiveWriter {
                 if (config.mltSharedDictionaries()) {
                   findStringColumns(mltInput, stringColumns, stringColumnsByLayer);
                 }
-                Map<Pattern, List<ColumnMapping>> columnMappings = stringColumns.isEmpty() ? Map.of() :
-                  Map.of(MATCH_ALL, List.of(new ColumnMapping(stringColumns, true)));
+                ColumnMappingConfig columnMappings = stringColumns.isEmpty() ? EMPTY_COLUMN_MAPPING :
+                  ColumnMappingConfig.of(MATCH_ALL, List.of(new ColumnMapping(stringColumns, true)));
                 var tilesetMetadata =
                   MltConverter.createTilesetMetadata(mltInput, columnMappings, includeIds, true, false);
                 var conversionConfig = ConversionConfig.builder()
                   .includeIds(includeIds)
                   .useFastPFOR(config.mltFastPfor())
                   .useFSST(config.mltFsst())
-                  .coercePropertyValues(true)
+                  .mismatchPolicy(ConversionConfig.TypeMismatchPolicy.COERCE)
                   .optimizations(mltInput.layers().stream().collect(Collectors.toMap(
                     Layer::name,
                     layer -> {
