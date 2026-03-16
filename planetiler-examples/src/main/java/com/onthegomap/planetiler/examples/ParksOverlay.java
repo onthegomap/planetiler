@@ -73,11 +73,11 @@ public class ParksOverlay implements Profile {
   /*
    * Main entrypoint for the example program
    */
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
-  static void run(Arguments args) throws Exception {
+  static void run(Arguments args) {
     String area = args.getString("area", "geofabrik area to download", "monaco");
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler.create(args)
