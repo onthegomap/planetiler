@@ -84,7 +84,7 @@ jobs:
       if: steps.has_build_info.outputs.available == 'true'
       run: cat comment-body.txt
 
-    - uses: marocchino/sticky-pull-request-comment@v2
+    - uses: marocchino/sticky-pull-request-comment@v3
       if: steps.has_build_info.outputs.available == 'true'
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
