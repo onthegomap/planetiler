@@ -10,6 +10,9 @@ import java.nio.file.Path;
 
 /**
  * Example basemap using <a href="https://overturemaps.org/">Overture Maps</a> data.
+ *
+ * <p>To download only the data needed for a bounding box instead of the full dataset, use
+ * {@link Planetiler#addOvertureSource(String, String, String)} in place of the {@code addParquetSource} call below.
  */
 public class OvertureBasemap implements Profile {
 

@@ -29,7 +29,9 @@ import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
+import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.OvertureStac;
 import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
@@ -44,6 +46,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -83,6 +86,8 @@ public class Planetiler {
   private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
+  // Futures that resolve Overture STAC URLs lazily so catalog fetches don't block other downloads from starting.
+  private final List<CompletableFuture<List<ToDownload>>> pendingOvertureDownloads = new ArrayList<>();
   private final List<InputPath> inputPaths = new ArrayList<>();
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
@@ -557,6 +562,39 @@ public class Planetiler {
    */
   public Planetiler addParquetSource(String name, List<Path> paths) {
     return addParquetSource(name, paths, false);
+  }
+
+  /**
+   * Adds a new <a href="https://overturemaps.org/">Overture Maps</a> source that downloads only the parquet files
+   * relevant to the requested {@code theme}/{@code type} and the configured bounding box (via {@code --bounds}).
+   *
+   * <p>STAC catalog traversal runs asynchronously so it does not block other download registrations from starting.
+   */
+  public Planetiler addOvertureSource(String name, String theme, String type) {
+    Path downloadDir = arguments.file(name + "_path", name + " overture download directory",
+      Path.of("data", "overture", theme, type));
+
+    if (downloadSources) {
+      // Kick off catalog traversal in the background; download() will wait for all futures before running.
+      OvertureStac stac = OvertureStac.create(config);
+      pendingOvertureDownloads.add(CompletableFuture.supplyAsync(() -> {
+        List<String> urls = stac.getParquetUrls(theme, type, config.bounds());
+        return urls.stream()
+          .map(url -> new ToDownload(name, url, downloadDir.resolve(url.substring(url.lastIndexOf('/') + 1))))
+          .toList();
+      }));
+    }
+
+    inputPaths.add(new InputPath(name, downloadDir, false));
+
+    return addStage(name, "Process Overture " + theme + "/" + type + " features from " + downloadDir,
+      ifSourceUsed(name, () -> {
+        List<Path> paths = Glob.of(downloadDir).resolve("*.parquet").find();
+        // hivePartitioning=true so the layerGenerator lambda is invoked and returns the constant type name.
+        // The idGenerator reads the Overture "id" field just like the manual Glob-based approach did before.
+        new ParquetReader(name, profile, stats, f -> f.get("id"), f -> type, true)
+          .process(paths, featureGroup, config);
+      }));
   }
 
   /**
@@ -1066,6 +1104,10 @@ public class Planetiler {
 
   private void download() {
     var timer = stats.startStage("download");
+    // Resolve any async Overture STAC catalog fetches before starting downloads.
+    for (var future : pendingOvertureDownloads) {
+      toDownload.addAll(future.join());
+    }
     Downloader downloader = Downloader.create(config());
     for (ToDownload toDownload : toDownload) {
       if (profile.caresAboutSource(toDownload.id)) {
