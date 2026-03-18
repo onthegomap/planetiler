@@ -1,17 +1,18 @@
 package com.onthegomap.planetiler.util;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,8 @@ public class OvertureStac {
 
   static final String DEFAULT_CATALOG_URL = "https://stac.overturemaps.org/catalog.json";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER =
+    new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   private final PlanetilerConfig config;
 
@@ -49,10 +51,8 @@ public class OvertureStac {
   // Java records for STAC JSON deserialization
   
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacLink(String rel, String href, String title, boolean latest) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacCatalog(String latest, List<StacLink> links) {
     StacCatalog {
       if (links == null) {
@@ -61,13 +61,10 @@ public class OvertureStac {
     }
   }
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record SpatialExtent(List<List<Double>> bbox) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacExtent(SpatialExtent spatial) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacCollection(List<StacLink> links, StacExtent extent) {
     StacCollection {
       if (links == null) {
@@ -76,10 +73,8 @@ public class OvertureStac {
     }
   }
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacAsset(String href) {}
 
-  @JsonIgnoreProperties(ignoreUnknown = true)
   record StacItem(List<Double> bbox, Map<String, StacAsset> assets) {
     StacItem {
       if (assets == null) {
@@ -139,7 +134,8 @@ public class OvertureStac {
       }
     }
 
-    // Fetch all items in parallel, then extract parquet URLs.
+    // Fetch all items in parallel on virtual threads to avoid blocking the fork/join pool.
+    var executor = Executors.newVirtualThreadPerTaskExecutor();
     List<CompletableFuture<String>> futures = itemUrls.stream()
       .map(itemUrl -> CompletableFuture.supplyAsync(() -> {
         StacItem item = fetch(itemUrl, StacItem.class);
@@ -155,21 +151,14 @@ public class OvertureStac {
           LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
         }
         return parquetUrl;
-      }))
+      }, executor))
       .toList();
 
     List<String> urls = new ArrayList<>();
     for (CompletableFuture<String> future : futures) {
-      try {
-        String url = future.get();
-        if (url != null) {
-          urls.add(url);
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("Interrupted while fetching STAC items", e);
-      } catch (ExecutionException e) {
-        throw new IllegalStateException("Failed to fetch STAC item", e.getCause());
+      String url = future.join();
+      if (url != null) {
+        urls.add(url);
       }
     }
 
@@ -274,7 +263,7 @@ public class OvertureStac {
     try (InputStream in = Downloader.openStream(url, config)) {
       return MAPPER.readValue(in, type);
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to fetch STAC URL: " + url, e);
+      throw new UncheckedIOException("Failed to fetch STAC URL: " + url, e);
     }
   }
 }
