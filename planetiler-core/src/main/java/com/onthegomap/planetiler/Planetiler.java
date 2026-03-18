@@ -1106,14 +1106,7 @@ public class Planetiler {
     var timer = stats.startStage("download");
     // Resolve any async Overture STAC catalog fetches before starting downloads.
     for (var future : pendingOvertureDownloads) {
-      try {
-        toDownload.addAll(future.get());
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("Interrupted while resolving Overture STAC URLs", e);
-      } catch (java.util.concurrent.ExecutionException e) {
-        throw new IllegalStateException("Failed to resolve Overture STAC URLs", e.getCause());
-      }
+      toDownload.addAll(future.join());
     }
     Downloader downloader = Downloader.create(config());
     for (ToDownload toDownload : toDownload) {
