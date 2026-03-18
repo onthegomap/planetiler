@@ -82,9 +82,9 @@ class OvertureStacTest {
     var catalog = MAPPER.readValue("""
       { "links": [{"rel": "root", "href": "./catalog.json"}] }
       """, OvertureStac.StacCatalog.class);
+    var stac = stubStac(Map.of());
     assertThrows(IllegalArgumentException.class,
-      () -> stubStac(Map.of()).resolveLatestCatalogUrl(catalog,
-        "https://stac.overturemaps.org/catalog.json"));
+      () -> stac.resolveLatestCatalogUrl(catalog, "https://stac.overturemaps.org/catalog.json"));
   }
 
 
@@ -321,9 +321,9 @@ class OvertureStacTest {
         {"links": [{"rel": "child", "href": "./buildings/catalog.json", "title": "buildings"}]}"""
     );
 
+    var stac1 = stubStac(stubs);
     assertThrows(IllegalArgumentException.class, () ->
-      stubStac(stubs).getParquetUrls(
-        "https://stac.example.com/catalog.json", "nonexistent", "building", Bounds.WORLD));
+      stac1.getParquetUrls("https://stac.example.com/catalog.json", "nonexistent", "building", Bounds.WORLD));
   }
 
   /**
@@ -342,8 +342,8 @@ class OvertureStacTest {
         {"links": [{"rel": "child", "href": "./building/collection.json", "title": "building"}]}"""
     );
 
+    var stac2 = stubStac(stubs);
     assertThrows(IllegalArgumentException.class, () ->
-      stubStac(stubs).getParquetUrls(
-        "https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD));
+      stac2.getParquetUrls("https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD));
   }
 }

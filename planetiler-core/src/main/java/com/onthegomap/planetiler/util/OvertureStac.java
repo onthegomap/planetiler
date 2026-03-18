@@ -135,24 +135,26 @@ public class OvertureStac {
     }
 
     // Fetch all items in parallel on virtual threads to avoid blocking the fork/join pool.
-    var executor = Executors.newVirtualThreadPerTaskExecutor();
-    List<CompletableFuture<String>> futures = itemUrls.stream()
-      .map(itemUrl -> CompletableFuture.supplyAsync(() -> {
-        StacItem item = fetch(itemUrl, StacItem.class);
-        if (latLonBounds != null && !itemBboxIntersects(item, latLonBounds)) {
-          return null;
-        }
-        // Prefer AWS, fall back to Azure.
-        String parquetUrl = getAssetHref(item, "aws");
-        if (parquetUrl == null) {
-          parquetUrl = getAssetHref(item, "azure");
-        }
-        if (parquetUrl == null) {
-          LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
-        }
-        return parquetUrl;
-      }, executor))
-      .toList();
+    List<CompletableFuture<String>> futures;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      futures = itemUrls.stream()
+        .map(itemUrl -> CompletableFuture.supplyAsync(() -> {
+          StacItem item = fetch(itemUrl, StacItem.class);
+          if (latLonBounds != null && !itemBboxIntersects(item, latLonBounds)) {
+            return null;
+          }
+          // Prefer AWS, fall back to Azure.
+          String parquetUrl = getAssetHref(item, "aws");
+          if (parquetUrl == null) {
+            parquetUrl = getAssetHref(item, "azure");
+          }
+          if (parquetUrl == null) {
+            LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
+          }
+          return parquetUrl;
+        }, executor))
+        .toList();
+    }
 
     List<String> urls = new ArrayList<>();
     for (CompletableFuture<String> future : futures) {
