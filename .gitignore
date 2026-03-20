@@ -21,6 +21,9 @@ target/
 .settings
 bin/
 
+# cursor
+.cursor/
+
 TODO
 
 data/

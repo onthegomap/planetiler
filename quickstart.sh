@@ -134,7 +134,7 @@ function check_java_version() {
 # Run planetiler using docker, jar file, or build from source
 case $METHOD in
   docker)
-    run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
+    run docker run --rm -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
     ;;
   jar)
     echo "Downloading latest planetiler release..."

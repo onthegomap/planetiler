@@ -288,7 +288,7 @@ public class Contexts {
    * Makes nested contexts adhere to {@link WithTags} and {@link WithGeometryType} by recursively fetching source
    * feature from the root context.
    */
-  private interface FeatureContext extends ScriptContext, WithTags, WithGeometryType, NestedContext, WithSourceLayer,
+  private interface FeatureContext extends WithGeometryType, NestedContext, WithSourceLayer,
     WithSource {
 
     default FeatureContext parent() {
@@ -513,6 +513,79 @@ public class Contexts {
     @Override
     public Object apply(String key) {
       return VALUE.equals(key) ? wrapNullable(value) : parent.apply(key);
+    }
+  }
+
+  /**
+   * Context available when processing relation members.
+   * Extends FeaturePostMatch to provide access to member-specific variables.
+   *
+   * @param parent      The parent FeaturePostMatch context (for relation-level variables)
+   * @param memberTags  Tags from the member element (way/node)
+   * @param memberRole  Role of the member in the relation
+   * @param memberType  OSM element type: "node", "way", or "relation"
+   * @param memberRef   OSM ID of the member element
+   */
+  public record MemberContext(
+    @Override FeaturePostMatch parent,
+    Map<String, Object> memberTags,
+    String memberRole,
+    String memberType,
+    long memberRef
+  ) implements FeatureContext {
+
+    private static final String MEMBER_TAGS = "member.tags";
+    private static final String MEMBER_ROLE = "member.role";
+    private static final String MEMBER_TYPE = "member.type";
+    private static final String MEMBER_REF = "member.ref";
+    private static final String MEMBER_ID = "member.id";
+
+    public static ScriptEnvironment<MemberContext> description(Root root) {
+      return FeaturePostMatch.description(root)
+        .forInput(MemberContext.class)
+        .withDeclarations(
+          Decls.newVar(MEMBER_TAGS, Decls.newMapType(Decls.String, Decls.Any)),
+          Decls.newVar(MEMBER_ROLE, Decls.String),
+          Decls.newVar(MEMBER_TYPE, Decls.String),
+          Decls.newVar(MEMBER_REF, Decls.Int),
+          Decls.newVar(MEMBER_ID, Decls.Int)
+        );
+    }
+
+    @Override
+    public Map<String, Object> tags() {
+      // Override to return member tags instead of relation tags
+      // Return a mutable copy to avoid UnsupportedOperationException
+      return new HashMap<>(memberTags);
+    }
+
+    @Override
+    public Object apply(String key) {
+      if (key != null) {
+        return switch (key) {
+          case MEMBER_TAGS -> mapWithDefault(memberTags, NullValue.NULL_VALUE);
+          case MEMBER_ROLE -> wrapNullable(memberRole);
+          case MEMBER_TYPE -> wrapNullable(memberType);
+          case MEMBER_REF, MEMBER_ID -> memberRef;
+          default -> parent.apply(key);
+        };
+      } else {
+        return null;
+      }
+    }
+
+    private static <K, V> Map<K, V> mapWithDefault(Map<K, V> map, Object nullValue) {
+      return new ForwardingMap<>() {
+        @Override
+        protected Map<K, V> delegate() {
+          return map;
+        }
+
+        @Override
+        public V get(Object key) {
+          return map.getOrDefault(key, (V) nullValue);
+        }
+      };
     }
   }
 }
