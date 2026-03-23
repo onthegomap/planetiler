@@ -294,7 +294,7 @@ public class TiledGeometry {
   public CoveredTiles getCoveredTiles() {
     RoaringBitmap bitmap = new RoaringBitmap();
     for (TileCoord coord : tileContents.keySet()) {
-      bitmap.add(maxTilesAtThisZoom * coord.x() + coord.y());
+      bitmap.add((int) ((long) maxTilesAtThisZoom * coord.x() + coord.y()));
     }
     if (filledRanges != null) {
       for (var entry : filledRanges.entrySet()) {
@@ -747,12 +747,12 @@ public class TiledGeometry {
    */
   public static class CoveredTiles implements TilePredicate, Iterable<TileCoord> {
     private final RoaringBitmap bitmap;
-    private final int maxTilesAtZoom;
+    private final long maxTilesAtZoom;
     private final int z;
 
     private CoveredTiles(RoaringBitmap bitmap, int z) {
       this.bitmap = bitmap;
-      this.maxTilesAtZoom = 1 << z;
+      this.maxTilesAtZoom = 1L << z;
       this.z = z;
     }
 
@@ -770,7 +770,7 @@ public class TiledGeometry {
 
     @Override
     public boolean test(int x, int y) {
-      return bitmap.contains(x * maxTilesAtZoom + y);
+      return bitmap.contains((int) ((long) x * maxTilesAtZoom + y));
     }
 
     @Override
@@ -780,7 +780,10 @@ public class TiledGeometry {
     }
 
     public Stream<TileCoord> stream() {
-      return bitmap.stream().mapToObj(i -> TileCoord.ofXYZ(i / maxTilesAtZoom, i % maxTilesAtZoom, z));
+      return bitmap.stream().mapToObj(i -> {
+        long unsigned = Integer.toUnsignedLong(i);
+        return TileCoord.ofXYZ((int) (unsigned / maxTilesAtZoom), (int) (unsigned % maxTilesAtZoom), z);
+      });
     }
 
     @Override
