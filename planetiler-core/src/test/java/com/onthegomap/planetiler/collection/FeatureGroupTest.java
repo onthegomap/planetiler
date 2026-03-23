@@ -388,7 +388,7 @@ class FeatureGroupTest {
       TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7)
     );
     List<Byte> layers = List.of((byte) 0, (byte) 1, (byte) 255);
-    List<Integer> sortKeys = List.of(-(1 << 22), 0, (1 << 22) - 1);
+    List<Integer> sortKeys = List.of(FeatureGroup.SORT_KEY_MIN, 0, FeatureGroup.SORT_KEY_MAX);
     List<Boolean> hasGroups = List.of(false, true);
     List<DynamicTest> result = new ArrayList<>();
     for (TileCoord tile : tiles) {
