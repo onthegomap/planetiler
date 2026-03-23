@@ -91,8 +91,8 @@ class FeatureGroupTest {
       args.hasGroup(), args.group(), args.limit());
   }
 
-  private Map<Integer, Map<String, List<Feature>>> getFeatures() {
-    Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
+  private Map<Long, Map<String, List<Feature>>> getFeatures() {
+    Map<Long, Map<String, List<Feature>>> map = new TreeMap<>();
     for (FeatureGroup.TileFeatures tile : features) {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
@@ -104,8 +104,8 @@ class FeatureGroupTest {
   }
 
 
-  private Map<Integer, Map<String, List<Feature>>> getFeaturesParallel() {
-    Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
+  private Map<Long, Map<String, List<Feature>>> getFeaturesParallel() {
+    Map<Long, Map<String, List<Feature>>> map = new TreeMap<>();
     var reader = features.parallelIterator(2);
     for (FeatureGroup.TileFeatures tile : reader.result()) {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
@@ -128,18 +128,18 @@ class FeatureGroupTest {
     put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
         ),
         "layer2", List.of(
           new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
         )
-      )), 2, new TreeMap<>(Map.of(
+      )), 2L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         )
-      )), 3, new TreeMap<>(Map.of(
+      )), 3L, new TreeMap<>(Map.of(
         "layer3", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         ),
@@ -158,18 +158,18 @@ class FeatureGroupTest {
     put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
         ),
         "layer2", List.of(
           new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
         )
-      )), 2, new TreeMap<>(Map.of(
+      )), 2L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         )
-      )), 3, new TreeMap<>(Map.of(
+      )), 3L, new TreeMap<>(Map.of(
         "layer3", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         ),
@@ -189,7 +189,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // order reversed because of sort-key
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
@@ -212,7 +212,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // id=3 omitted because past limit
           // sorted by sortKey ascending
@@ -236,7 +236,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // ordered by sort key
           new Feature(Map.of("id", 3L), newPoint(x, y)),
@@ -260,7 +260,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // order reversed because of sort-key,
           new Feature(Map.of("id", 3L), newPoint(x, y)),
@@ -291,7 +291,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(Map.of(
-      1, Map.of(
+      1L, Map.of(
         "layer", List.of(
           // not sorted by sortKey asc because profile reversed it
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
@@ -421,8 +421,8 @@ class FeatureGroupTest {
     "1,0,1,false,   1,0,1,true"
   })
   void testEncodeLongKeyOrdering(
-    int tileA, byte layerA, int sortKeyA, boolean hasGroupA,
-    int tileB, byte layerB, int sortKeyB, boolean hasGroupB
+    long tileA, byte layerA, int sortKeyA, boolean hasGroupA,
+    long tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
     assertTrue(
       FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA) < FeatureGroup.encodeKey(tileB, layerB, sortKeyB,

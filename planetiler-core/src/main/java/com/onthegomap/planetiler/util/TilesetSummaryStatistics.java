@@ -234,7 +234,7 @@ public class TilesetSummaryStatistics {
     public int compareTo(TileSummary o) {
       int result = Integer.compare(archivedSize, o.archivedSize);
       if (result == 0) {
-        result = Integer.compare(coord.encoded(), o.coord.encoded());
+        result = Long.compare(coord.encoded(), o.coord.encoded());
       }
       return result;
     }

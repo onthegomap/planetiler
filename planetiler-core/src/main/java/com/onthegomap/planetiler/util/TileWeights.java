@@ -72,7 +72,7 @@ public class TileWeights {
       var writer = WRITER.writeValues(output)
     ) {
       var sorted = weights.entrySet().stream()
-        .sorted(Comparator.comparingInt(e -> e.getKey().encoded()))
+        .sorted(Comparator.comparingLong(e -> e.getKey().encoded()))
         .iterator();
       while (sorted.hasNext()) {
         var entry = sorted.next();

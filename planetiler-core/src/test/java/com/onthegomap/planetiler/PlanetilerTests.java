@@ -2785,7 +2785,7 @@ class PlanetilerTests {
           int z = Integer.parseInt(next.get("z"));
           int x = Integer.parseInt(next.get("x"));
           int y = Integer.parseInt(next.get("y"));
-          int hilbert = Integer.parseInt(next.get("hilbert"));
+          long hilbert = Long.parseLong(next.get("hilbert"));
           assertEquals(hilbert, TileCoord.ofXYZ(x, y, z).hilbertEncoded());
           assertTrue(Integer.parseInt(next.get("z")) <= 14, "bad z: " + next);
         }

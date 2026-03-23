@@ -82,7 +82,7 @@ public class TopOsmTiles {
     AtomicLong downloaded = new AtomicLong();
 
     var pipeline = WorkerPipeline.start("top-osm-tiles", stats)
-      .readFromTiny("urls", toDownload).<Map.Entry<Integer, Long>>addWorker("download", threads,
+      .readFromTiny("urls", toDownload).<Map.Entry<Long, Long>>addWorker("download", threads,
         (prev, next) -> {
           for (var date : prev) {
             for (var line : readFile(maxZoom, date)) {
@@ -93,7 +93,7 @@ public class TopOsmTiles {
         })
       .addBuffer("lines", 100_000, 1_000)
       .sinkTo("collect", 1, lines -> {
-        Map<Integer, Long> counts = new HashMap<>();
+        Map<Long, Long> counts = new HashMap<>();
         for (var line : lines) {
           counts.merge(line.getKey(), line.getValue(), Long::sum);
         }
@@ -123,10 +123,10 @@ public class TopOsmTiles {
     }
   }
 
-  private List<Map.Entry<Integer, Long>> readFile(int maxZoom, LocalDate date) {
+  private List<Map.Entry<Long, Long>> readFile(int maxZoom, LocalDate date) {
     var splitter = Pattern.compile("[/ ]");
     for (int i = 0; i <= config.httpRetries(); i++) {
-      List<Map.Entry<Integer, Long>> result = new ArrayList<>();
+      List<Map.Entry<Long, Long>> result = new ArrayList<>();
       try (var reader = fetch(date)) {
         LineReader lines = new LineReader(reader);
         String line;
