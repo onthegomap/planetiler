@@ -51,7 +51,7 @@ public class OvertureBasemap implements Profile {
   }
 
   static void run(Arguments args) {
-    Path base = args.inputFile("base", "overture base directory", Path.of("data", "overture"));
+    Path base = args.file("base", "overture base directory", Path.of("data", "overture"));
     Planetiler.create(args)
       .setProfile(new OvertureBasemap())
       .addOvertureSource("overture-buildings", "buildings", "building", base)
