@@ -36,8 +36,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.NoSuchElementException;
 import java.util.Spliterators;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import net.jcip.annotations.NotThreadSafe;
@@ -772,7 +773,7 @@ public class TiledGeometry {
 
     @Override
     public boolean test(int x, int y) {
-      return bitmap.contains((long) x * maxTilesAtZoom + y);
+      return bitmap.contains(x * maxTilesAtZoom + y);
     }
 
     @Override
@@ -784,7 +785,7 @@ public class TiledGeometry {
     public Stream<TileCoord> stream() {
       var iter = bitmap.getLongIterator();
       return StreamSupport.stream(
-        java.util.Spliterators.spliteratorUnknownSize(
+        Spliterators.spliteratorUnknownSize(
           new Iterator<TileCoord>() {
             @Override
             public boolean hasNext() {
@@ -793,6 +794,9 @@ public class TiledGeometry {
 
             @Override
             public TileCoord next() {
+              if (!iter.hasNext()) {
+                throw new NoSuchElementException();
+              }
               long val = iter.next();
               return TileCoord.ofXYZ((int) (val / maxTilesAtZoom), (int) (val % maxTilesAtZoom), z);
             }

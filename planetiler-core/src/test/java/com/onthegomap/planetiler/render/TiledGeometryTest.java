@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -180,6 +181,17 @@ class TiledGeometryTest {
     var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newGeometryCollection(), 14,
       new TileExtents.ForZoom(14, 0, 0, Z14_TILES, Z14_TILES, null));
     assertEquals(Set.of(), tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testCoveredTilesIteratorThrowsNoSuchElement() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(0.5, 0.5), 14,
+      new TileExtents.ForZoom(14, 0, 0, Z14_TILES, Z14_TILES, null));
+    var iter = tiledGeom.iterator();
+    assertTrue(iter.hasNext());
+    iter.next();
+    assertFalse(iter.hasNext());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
