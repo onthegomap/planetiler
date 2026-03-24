@@ -26,6 +26,50 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 
 class TiledGeometryTest {
   private static final int Z14_TILES = 1 << 14;
+  private static final int Z16_TILES = 1 << 16;
+
+  @Test
+  void testPointZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(0.5, 0.5), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertTrue(tiledGeom.test(0, 0));
+    assertFalse(tiledGeom.test(0, 1));
+    assertFalse(tiledGeom.test(1, 0));
+    assertEquals(Set.of(TileCoord.ofXYZ(0, 0, 16)), tiledGeom.stream().collect(Collectors.toSet()));
+
+    // Test high coordinate corner at z16 (65535, 65535)
+    tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(Z16_TILES - 0.5, Z16_TILES - 0.5), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertTrue(tiledGeom.test(Z16_TILES - 1, Z16_TILES - 1));
+    assertFalse(tiledGeom.test(Z16_TILES - 2, Z16_TILES - 1));
+    assertFalse(tiledGeom.test(Z16_TILES - 1, Z16_TILES - 2));
+    assertEquals(Set.of(TileCoord.ofXYZ(Z16_TILES - 1, Z16_TILES - 1, 16)),
+      tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testLineZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newLineString(
+      0.5, 0.5,
+      1.5, 0.5
+    ), 16, new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ(1, 0, 16)
+    ), tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testPolygonZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.rectangle(0.1, 1.9), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ(0, 1, 16),
+      TileCoord.ofXYZ(1, 0, 16),
+      TileCoord.ofXYZ(1, 1, 16)
+    ), tiledGeom.stream().collect(Collectors.toSet()));
+  }
 
   @Test
   void testPoint() throws GeometryException {

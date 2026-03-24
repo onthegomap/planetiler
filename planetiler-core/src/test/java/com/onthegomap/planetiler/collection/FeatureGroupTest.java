@@ -385,7 +385,10 @@ class FeatureGroupTest {
       TileCoord.ofXYZ((1 << 14) - 1, (1 << 14) - 1, 14),
       TileCoord.ofXYZ(0, 0, 0),
       TileCoord.ofXYZ(0, 0, 7),
-      TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7)
+      TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7),
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ((1 << 16) - 1, (1 << 16) - 1, 16),
+      TileCoord.ofXYZ(32768, 32768, 16)
     );
     List<Byte> layers = List.of((byte) 0, (byte) 1, (byte) 255);
     List<Integer> sortKeys = List.of(FeatureGroup.SORT_KEY_MIN, 0, FeatureGroup.SORT_KEY_MAX);

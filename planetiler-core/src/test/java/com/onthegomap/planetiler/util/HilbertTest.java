@@ -9,7 +9,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class HilbertTest {
   @ParameterizedTest
-  @ValueSource(ints = {0, 1, 2, 3, 4, 5, 15})
+  @ValueSource(ints = {0, 1, 2, 3, 4, 5, 15, 16})
   void testRoundTrip(int level) {
     long max = 1L << (2 * level);
     long step = Math.max(1, max / 100);
