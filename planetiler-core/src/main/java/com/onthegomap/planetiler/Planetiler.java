@@ -29,7 +29,9 @@ import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
+import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.OvertureStac;
 import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
@@ -46,8 +48,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
@@ -92,7 +99,7 @@ public class Planetiler {
   private final Path multipolygonPath;
   private final Path featureDbPath;
   private final Path onlyRunTests;
-  private boolean downloadSources;
+  private final boolean downloadSources;
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
@@ -118,6 +125,7 @@ public class Planetiler {
   private int wikidataUpdateLimit = 0;
   private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
+  private final ExecutorService virtualThreadPoolExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -531,16 +539,23 @@ public class Planetiler {
    */
   public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning,
     Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
-    // TODO handle auto-downloading
-    for (var path : paths) {
-      inputPaths.add(new InputPath(name, path, false));
-    }
-    var separator = Pattern.quote(paths.isEmpty() ? "/" : paths.getFirst().getFileSystem().getSeparator());
-    String prefix = StringUtils.getCommonPrefix(paths.stream().map(Path::toString).toArray(String[]::new))
+    return addParquetSource(name, paths, () -> paths, hivePartitioning, getId, getLayer);
+  }
+
+  private Planetiler addParquetSource(String name, List<Path> base, Supplier<List<Path>> paths,
+    boolean hivePartitioning,
+    Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
+    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
+      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
+    var separator = Pattern.quote(base.isEmpty() ? "/" : base.getFirst().getFileSystem().getSeparator());
+    String prefix = StringUtils.getCommonPrefix(base.stream().map(Path::toString).toArray(String[]::new))
       .replaceAll(separator + "[^" + separator + "]*$", "");
-    return addStage(name, "Process features in " + (prefix.isEmpty() ? (paths.size() + " files") : prefix),
+    for (var path : base) {
+      inputPaths.add(new InputPath(name, path, freeAfterReading));
+    }
+    return addStage(name, "Process features in " + prefix,
       ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
-        .process(paths, featureGroup, config)));
+        .process(paths.get(), featureGroup, config)));
   }
 
   /**
@@ -557,6 +572,37 @@ public class Planetiler {
    */
   public Planetiler addParquetSource(String name, List<Path> paths) {
     return addParquetSource(name, paths, false);
+  }
+
+  /**
+   * Adds a new <a href="https://overturemaps.org/">Overture Maps</a> source that reads from a mirror of overture data
+   * on disk, either fetched using an external tool or downloaded automatically using the stac catalog.
+   */
+  public Planetiler addOvertureSource(String name, String theme, String type, Path rootPath) {
+    Path downloadDir = arguments.file(name + "_path", name + " overture download directory", rootPath);
+    boolean refresh =
+      arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
+
+    if (downloadSources || refresh) {
+      // Kick off catalog traversal in the background; download() will wait for all futures before running.
+      OvertureStac stac = OvertureStac.create(config);
+      toDownload.add(new ToDownload(name, CompletableFuture.supplyAsync(() -> {
+        List<String> urls = stac.getParquetUrls(theme, type, config.bounds());
+        return urls.stream()
+          .map(url -> Map.entry(url, downloadDir
+            .resolve("theme=" + theme)
+            .resolve("type=" + type)
+            .resolve(url.substring(url.lastIndexOf('/') + 1))))
+          .filter(entry -> refresh || !Files.exists(entry.getValue()))
+          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      }, virtualThreadPoolExecutor)));
+    }
+
+    return addParquetSource(name, List.of(downloadDir),
+      () -> Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find(),
+      true,
+      fields -> fields.get("id"),
+      fields1 -> fields1.get("type"));
   }
 
   /**
@@ -939,6 +985,7 @@ public class Planetiler {
     stats.printSummary();
     try {
       stats.close();
+      virtualThreadPoolExecutor.close();
     } catch (Exception e) {
       throw new PlanetilerException(e);
     }
@@ -1069,7 +1116,7 @@ public class Planetiler {
     Downloader downloader = Downloader.create(config());
     for (ToDownload toDownload : toDownload) {
       if (profile.caresAboutSource(toDownload.id)) {
-        downloader.add(toDownload.id, toDownload.url, toDownload.path);
+        toDownload.urlToPath.join().forEach((url, path) -> downloader.add(toDownload.id, url, path));
       }
     }
     downloader.run();
@@ -1091,7 +1138,11 @@ public class Planetiler {
     }
   }
 
-  private record ToDownload(String id, String url, Path path) {}
+  private record ToDownload(String id, CompletableFuture<Map<String, Path>> urlToPath) {
+    ToDownload(String id, String url, Path path) {
+      this(id, CompletableFuture.completedFuture(Map.of(url, path)));
+    }
+  }
 
   private record InputPath(String id, Path path, boolean freeAfterReading) {}
 
