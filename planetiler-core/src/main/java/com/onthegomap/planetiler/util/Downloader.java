@@ -23,15 +23,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +73,7 @@ public class Downloader {
   private final long chunkSizeBytes;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
   private final RateLimiter rateLimiter;
+  private final Map<String, Semaphore> perFileLimiters = new ConcurrentHashMap<>();
 
   Downloader(PlanetilerConfig config, long chunkSizeBytes) {
     this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
@@ -164,16 +168,22 @@ public class Downloader {
 
     ProgressLoggers loggers = ProgressLoggers.create();
 
-    for (var toDownload : toDownloadList) {
-      try {
-        long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size.orElse(0);
-        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("Error getting size of " + toDownload.url, e);
-      } catch (ExecutionException | TimeoutException e) {
-        throw new IllegalStateException("Error getting size of " + toDownload.url, e);
+    var groupedById = toDownloadList.stream().collect(Collectors.groupingBy(ResourceToDownload::id));
+
+    for (var group : groupedById.entrySet()) {
+      long size = 0;
+      for (var item : group.getValue()) {
+        try {
+          size += item.metadata.get(10, TimeUnit.SECONDS).size.orElse(0);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException("Error getting size of " + item.url, e);
+        } catch (ExecutionException | TimeoutException e) {
+          throw new IllegalStateException("Error getting size of " + item.url, e);
+        }
       }
+      loggers.addStorageRatePercentCounter(group.getKey(), size,
+        () -> group.getValue().stream().mapToLong(ResourceToDownload::bytesDownloaded).sum(), true);
     }
     loggers.add(" ").addProcessStats()
       .awaitAndLog(downloads, config.logInterval());
@@ -265,7 +275,8 @@ public class Downloader {
       chunks.add(new Range(start, end));
     }
     FileUtils.setLength(tmpPath, metadata.size.orElse(1));
-    Semaphore perFileLimiter = new Semaphore(config.downloadThreads());
+    Semaphore perFileLimiter =
+      perFileLimiters.computeIfAbsent(resource.id(), id -> new Semaphore(config.downloadThreads()));
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       perFileLimiter.acquire();

@@ -35,6 +35,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -2936,7 +2937,48 @@ class PlanetilerTests {
     }
   }
 
-  private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
+  @Test
+  void testPlanetilerRunnerOvertureSource() throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    // Pre-populate the download directory with a real parquet file so we can test addOvertureSource
+    // without hitting the network. The boston.parquet file contains building polygons near Boston.
+    Path overtureDir = tempDir.resolve("overture-buildings");
+    var dest = overtureDir.resolve("theme=buildings").resolve("type=building").resolve("part-00000.parquet");
+    FileUtils.createParentDirectories(dest);
+    Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), dest);
+
+    Planetiler.create(Arguments.fromArgs(
+      "--tmpdir=" + tempDir.resolve("data"),
+      // Override the download directory so addOvertureSource picks up our pre-placed file.
+      // No --download flag here — we're verifying that existing files are processed correctly.
+      "overture-buildings_path=" + overtureDir
+    ))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.polygon("buildings")
+            .setZoomRange(0, 14)
+            .setMinPixelSize(0)
+            .setAttr("id", source.getString("id"));
+        }
+      })
+      .addOvertureSource("overture-buildings", "buildings", "building", overtureDir)
+      .setOutput(mbtiles)
+      .run();
+
+    try (var db = com.onthegomap.planetiler.mbtiles.Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      long featureCount = 0;
+      for (var tile : TestUtils.getTileMap(db).values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+          featureCount++;
+        }
+      }
+      assertTrue(featureCount > 0, "expected features from overture source");
+    }
+  }
+
+  private void runWithProfile(Path tempDir, Profile profile, boolean force) {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
