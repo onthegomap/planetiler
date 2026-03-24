@@ -5,14 +5,10 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.util.Glob;
 import java.nio.file.Path;
 
 /**
  * Example basemap using <a href="https://overturemaps.org/">Overture Maps</a> data.
- *
- * <p>To download only the data needed for a bounding box instead of the full dataset, use
- * {@link Planetiler#addOvertureSource(String, String, String)} in place of the {@code addParquetSource} call below.
  */
 public class OvertureBasemap implements Profile {
 
@@ -54,15 +50,11 @@ public class OvertureBasemap implements Profile {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
-  static void run(Arguments args) throws Exception {
+  static void run(Arguments args) {
     Path base = args.inputFile("base", "overture base directory", Path.of("data", "overture"));
     Planetiler.create(args)
       .setProfile(new OvertureBasemap())
-      .addParquetSource("overture-buildings",
-        Glob.of(base).resolve("*", "type=building", "*.parquet").find(),
-        true, // hive-partitioning
-        fields -> fields.get("id"), // hash the ID field to generate unique long IDs
-        fields -> fields.get("type")) // extract "type={}" from the filename to get layer
+      .addOvertureSource("overture-buildings", "buildings", "building", base)
       .overwriteOutput(Path.of("data", "overture.pmtiles"))
       .run();
   }

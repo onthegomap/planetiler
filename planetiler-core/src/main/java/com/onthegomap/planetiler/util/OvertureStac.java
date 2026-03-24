@@ -21,10 +21,12 @@ import org.slf4j.LoggerFactory;
  * Queries the <a href="https://stac.overturemaps.org/">Overture STAC catalog</a> to find the parquet file URLs for a
  * given theme/type, filtered to only files whose bbox intersects the requested bounds.
  *
- * <p>This avoids downloading the full Overture dataset when only a small geographic area is needed. The caller gets
- * back a list of HTTPS URLs that can be handed straight to {@link Downloader}.
+ * <p>
+ * This avoids downloading the full Overture dataset when only a small geographic area is needed. The caller gets back a
+ * list of HTTPS URLs that can be handed straight to {@link Downloader}.
  *
- * <p>Streaming (reading row groups over HTTP without saving to disk) would plug in here instead of returning URLs — see
+ * <p>
+ * Streaming (reading row groups over HTTP without saving to disk) would plug in here instead of returning URLs — see
  * the discussion in the feature issue for trade-offs.
  */
 public class OvertureStac {
@@ -47,9 +49,9 @@ public class OvertureStac {
     return new OvertureStac(config);
   }
 
-  
+
   // Java records for STAC JSON deserialization
-  
+
 
   record StacLink(String rel, String href, String title, boolean latest) {}
 
@@ -83,9 +85,9 @@ public class OvertureStac {
     }
   }
 
-  
+
   // Public API
-  
+
 
   /**
    * Returns HTTPS URLs of parquet files for {@code theme}/{@code type} in the latest Overture release, keeping only
@@ -168,9 +170,9 @@ public class OvertureStac {
     return urls;
   }
 
-  
+
   // Helpers
-  
+
 
   String resolveLatestCatalogUrl(StacCatalog catalog, String baseUrl) {
     for (StacLink link : catalog.links()) {
@@ -216,16 +218,18 @@ public class OvertureStac {
     if (bboxes == null || bboxes.isEmpty()) {
       return true;
     }
-    // STAC extent.spatial.bbox is a list of bboxes; the first entry is the overall union.
-    List<Double> bbox = bboxes.get(0);
-    if (bbox == null || bbox.size() < 4) {
-      return true;
+    for (var bbox : bboxes) {
+      if (bbox != null && bbox.size() >= 4) {
+        double minLon = bbox.get(0);
+        double minLat = bbox.get(1);
+        double maxLon = bbox.get(2);
+        double maxLat = bbox.get(3);
+        if (filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat))) {
+          return true;
+        }
+      }
     }
-    double minLon = bbox.get(0);
-    double minLat = bbox.get(1);
-    double maxLon = bbox.get(2);
-    double maxLat = bbox.get(3);
-    return filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat));
+    return false;
   }
 
   /** Returns true if the STAC item's bbox overlaps {@code filter}. */

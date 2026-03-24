@@ -35,6 +35,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -2942,11 +2943,9 @@ class PlanetilerTests {
     // Pre-populate the download directory with a real parquet file so we can test addOvertureSource
     // without hitting the network. The boston.parquet file contains building polygons near Boston.
     Path overtureDir = tempDir.resolve("overture-buildings");
-    java.nio.file.Files.createDirectories(overtureDir);
-    java.nio.file.Files.copy(
-      TestUtils.pathToResource("parquet").resolve("boston.parquet"),
-      overtureDir.resolve("part-00000.parquet")
-    );
+    var dest = overtureDir.resolve("theme=buildings").resolve("type=building").resolve("part-00000.parquet");
+    FileUtils.createParentDirectories(dest);
+    Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), dest);
 
     Planetiler.create(Arguments.fromArgs(
       "--tmpdir=" + tempDir.resolve("data"),
@@ -2963,7 +2962,7 @@ class PlanetilerTests {
             .setAttr("id", source.getString("id"));
         }
       })
-      .addOvertureSource("overture-buildings", "buildings", "building")
+      .addOvertureSource("overture-buildings", "buildings", "building", overtureDir)
       .setOutput(mbtiles)
       .run();
 
@@ -2979,7 +2978,7 @@ class PlanetilerTests {
     }
   }
 
-  private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
+  private void runWithProfile(Path tempDir, Profile profile, boolean force) {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
