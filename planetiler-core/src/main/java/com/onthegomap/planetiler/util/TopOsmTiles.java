@@ -163,7 +163,7 @@ public class TopOsmTiles {
     var config = PlanetilerConfig.from(arguments);
     var stats = arguments.getStats();
     var days = arguments.getInteger("days", "number of days into the past to look", 90);
-    var maxZoom = arguments.getInteger("maxzoom", "max zoom", 15);
+    var maxZoom = arguments.getInteger("maxzoom", "max zoom", 16);
     var topN = arguments.getInteger("top", "top n", 1_000_000);
     var output = arguments.file("output", "output", Path.of("top_osm_tiles.tsv.gz"));
     var threads = arguments.getInteger("download-threads", "number of threads to use for downloading/parsing",

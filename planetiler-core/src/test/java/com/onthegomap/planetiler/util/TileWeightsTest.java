@@ -43,7 +43,7 @@ class TileWeightsTest {
     new TileWeights().writeToFile(file);
     var read = TileWeights.readFromFile(file);
     // when read is empty, fall back to embedded
-    assertEquals(376201934, read.getWeight(TileCoord.ofXYZ(0, 0, 0)));
+    assertEquals(191148782, read.getWeight(TileCoord.ofXYZ(0, 0, 0)));
   }
 
   @Test
@@ -68,7 +68,7 @@ class TileWeightsTest {
   void testReadCorruptFile(@TempDir Path path) throws IOException {
     Path file = path.resolve("test.tsv.gz");
     var result = TileWeights.readFromFile(file);
-    int expected = 376201934;
+    int expected = 191148782;
     assertEquals(expected, result.getWeight(TileCoord.ofXYZ(0, 0, 0)));
 
     Files.write(file, Gzip.gzip("""

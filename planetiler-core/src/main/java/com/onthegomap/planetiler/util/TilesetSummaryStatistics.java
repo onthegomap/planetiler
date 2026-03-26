@@ -386,7 +386,7 @@ public class TilesetSummaryStatistics {
         .sorted(Comparator.comparingInt(this::minZoomWithData))
         .toList();
 
-      // header:   0 1 2 3 4 ... 15
+      // header:   0 1 2 3 4 ... 16
       builder.append(formatRow("", z -> "z" + z, "all")).append('\n');
 
       // each row: layer

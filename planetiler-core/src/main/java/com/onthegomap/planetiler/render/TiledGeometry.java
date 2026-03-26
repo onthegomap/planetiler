@@ -36,11 +36,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Spliterators;
 import java.util.TreeSet;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import net.jcip.annotations.NotThreadSafe;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -56,7 +53,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.roaringbitmap.longlong.Roaring64Bitmap;
+import org.roaringbitmap.RoaringBitmap;
 
 /**
  * Splits geometries represented by lists of {@link CoordinateSequence CoordinateSequences} into the geometries that
@@ -168,11 +165,11 @@ public class TiledGeometry {
   public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents)
     throws GeometryException {
     if (scaledGeom.isEmpty()) {
-      return new CoveredTiles(new Roaring64Bitmap(), zoom);
+      return new CoveredTiles(new RoaringBitmap(), zoom);
     } else if (scaledGeom instanceof Puntal || scaledGeom instanceof Polygonal || scaledGeom instanceof Lineal) {
       return sliceIntoTiles(scaledGeom, 0, 0, zoom, extents).getCoveredTiles();
     } else if (scaledGeom instanceof GeometryCollection gc) {
-      CoveredTiles result = new CoveredTiles(new Roaring64Bitmap(), zoom);
+      CoveredTiles result = new CoveredTiles(new RoaringBitmap(), zoom);
       for (int i = 0; i < gc.getNumGeometries(); i++) {
         result = CoveredTiles.merge(getCoveredTiles(gc.getGeometryN(i), zoom, extents), result);
       }
@@ -295,15 +292,15 @@ public class TiledGeometry {
 
   /** Returns the tiles touched by this geometry. */
   public CoveredTiles getCoveredTiles() {
-    Roaring64Bitmap bitmap = new Roaring64Bitmap();
+    RoaringBitmap bitmap = new RoaringBitmap();
     for (TileCoord coord : tileContents.keySet()) {
-      bitmap.addLong((long) maxTilesAtThisZoom * coord.x() + coord.y());
+      bitmap.add(encode(maxTilesAtThisZoom, coord.x(), coord.y()));
     }
     if (filledRanges != null) {
       for (var entry : filledRanges.entrySet()) {
-        long colStart = (long) entry.getKey() * maxTilesAtThisZoom;
+        long colStart = encode(maxTilesAtThisZoom, entry.getKey(), 0);
         var yRanges = entry.getValue();
-        yRanges.bitmap().forEach((int y) -> bitmap.addLong(colStart + Integer.toUnsignedLong(y)));
+        bitmap.or(RoaringBitmap.addOffset(yRanges.bitmap(), colStart));
       }
     }
     return new CoveredTiles(bitmap, z);
@@ -569,7 +566,6 @@ public class TiledGeometry {
               );
               skipped.add(skippedSegment);
 
-              //              System.err.println("    " + skippedSegment);
               if (rightFilled == null) {
                 rightFilled = new IntRangeSet();
                 leftFilled = new IntRangeSet();
@@ -749,11 +745,12 @@ public class TiledGeometry {
    * A set of tiles touched by a geometry.
    */
   public static class CoveredTiles implements TilePredicate, Iterable<TileCoord> {
-    private final Roaring64Bitmap bitmap;
+
+    private final RoaringBitmap bitmap;
     private final long maxTilesAtZoom;
     private final int z;
 
-    private CoveredTiles(Roaring64Bitmap bitmap, int z) {
+    private CoveredTiles(RoaringBitmap bitmap, int z) {
       this.bitmap = bitmap;
       this.maxTilesAtZoom = 1L << z;
       this.z = z;
@@ -768,45 +765,35 @@ public class TiledGeometry {
       if (a.z != b.z) {
         throw new IllegalArgumentException("Cannot combine CoveredTiles with different zoom levels ");
       }
-      return new CoveredTiles(Roaring64Bitmap.or(a.bitmap, b.bitmap), a.z);
+      return new CoveredTiles(RoaringBitmap.or(a.bitmap, b.bitmap), a.z);
     }
 
     @Override
     public boolean test(int x, int y) {
-      return bitmap.contains(x * maxTilesAtZoom + y);
+      return bitmap.contains(encode(maxTilesAtZoom, x, y));
     }
 
     @Override
     public String toString() {
-      return "CoveredTiles{z=" + z + ", tiles=" + FORMAT.integer(bitmap.getLongCardinality()) + ", storage=" +
-        FORMAT.storage(bitmap.getLongSizeInBytes()) + "B}";
+      return "CoveredTiles{z=" + z + ", tiles=" + FORMAT.integer(bitmap.getCardinality()) + ", storage=" +
+        FORMAT.storage(bitmap.getSizeInBytes()) + "B}";
     }
 
     public Stream<TileCoord> stream() {
-      var iter = bitmap.getLongIterator();
-      return StreamSupport.stream(
-        Spliterators.spliteratorUnknownSize(
-          new Iterator<TileCoord>() {
-            @Override
-            public boolean hasNext() {
-              return iter.hasNext();
-            }
-
-            @Override
-            public TileCoord next() {
-              if (!iter.hasNext()) {
-                throw new NoSuchElementException();
-              }
-              long val = iter.next();
-              return TileCoord.ofXYZ((int) (val / maxTilesAtZoom), (int) (val % maxTilesAtZoom), z);
-            }
-          }, 0),
-        false);
+      return bitmap.stream().mapToObj(i -> decode(maxTilesAtZoom, Integer.toUnsignedLong(i), z));
     }
 
     @Override
     public Iterator<TileCoord> iterator() {
       return stream().iterator();
     }
+  }
+
+  static int encode(long maxTilesAtThisZoom, long x, long y) {
+    return (int) (maxTilesAtThisZoom * x + y);
+  }
+
+  static TileCoord decode(long maxTilesAtZoom, long tileId, int z) {
+    return TileCoord.ofXYZ((int) (tileId / maxTilesAtZoom), (int) (tileId % maxTilesAtZoom), z);
   }
 }

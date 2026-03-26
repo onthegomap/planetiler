@@ -443,4 +443,27 @@ class TiledGeometryTest {
       new TileExtents.ForZoom(14, -10, -10, 1 << 14, 1 << 14, null)
     );
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 0, 0",
+    "2, 0, 0",
+    "2, 3, 3",
+    "3, 7, 6",
+    "3, 7, 7",
+    "15, 0, 0",
+    "15, 32767, 0",
+    "15, 0, 32767",
+    "15, 32767, 32767",
+    "16, 0, 0",
+    "16, 1, 2",
+    "16, 65535, 0",
+    "16, 65535, 65535",
+    "16, 0, 65535",
+  })
+  void testEncodeDecode(int z, int x, int y) {
+    long maxTilesAtZoom = 1L << z;
+    int encoded = TiledGeometry.encode(maxTilesAtZoom, x, y);
+    assertEquals(TileCoord.ofXYZ(x, y, z), TiledGeometry.decode(maxTilesAtZoom, Integer.toUnsignedLong(encoded), z));
+  }
 }

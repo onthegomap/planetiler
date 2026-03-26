@@ -35,12 +35,12 @@ public class Hilbert {
     return tx;
   }
 
-  /** Returns the x coordinate extracted from the result of {@link #hilbertPositionToXY(int, int)}. */
+  /** Returns the x coordinate extracted from the result of {@link #hilbertPositionToXY(int, long)}. */
   public static int extractX(long xy) {
     return (int) (xy >>> 32);
   }
 
-  /** Returns the y coordinate extracted from the result of {@link #hilbertPositionToXY(int, int)}. */
+  /** Returns the y coordinate extracted from the result of {@link #hilbertPositionToXY(int, long)}. */
   public static int extractY(long xy) {
     return (int) xy;
   }
