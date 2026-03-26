@@ -73,6 +73,38 @@ class TiledGeometryTest {
   }
 
   @Test
+  void testCoveredTilesEdgeCases() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newGeometryCollection(
+      TestUtils.rectangle(0, 10),
+      TestUtils.rectangle((1 << 16) - 10, 1 << 16)
+    ), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    boolean topLeft = false;
+    boolean bottomLeft = false;
+    boolean topRight = false;
+    boolean bottomRight = false;
+    for (var coord : tiledGeom) {
+      if (coord.x() == 0) {
+        if (coord.y() == 0) {
+          topLeft = true;
+        } else if (coord.y() == 65535) {
+          bottomLeft = true;
+        }
+      } else if (coord.x() == 65535) {
+        if (coord.y() == 0) {
+          topRight = true;
+        } else if (coord.y() == 65535) {
+          bottomRight = true;
+        }
+      }
+    }
+    assertTrue(topLeft);
+    assertFalse(topRight);
+    assertFalse(bottomLeft);
+    assertTrue(bottomRight);
+  }
+
+  @Test
   void testPoint() throws GeometryException {
     var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(0.5, 0.5), 14,
       new TileExtents.ForZoom(14, 0, 0, Z14_TILES, Z14_TILES, null));

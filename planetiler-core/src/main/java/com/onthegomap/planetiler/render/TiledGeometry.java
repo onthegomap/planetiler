@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 import net.jcip.annotations.NotThreadSafe;
@@ -785,7 +786,22 @@ public class TiledGeometry {
 
     @Override
     public Iterator<TileCoord> iterator() {
-      return stream().iterator();
+      var iter = bitmap.getIntIterator();
+      return new Iterator<>() {
+        @Override
+        public boolean hasNext() {
+          return iter.hasNext();
+        }
+
+        @Override
+        public TileCoord next() {
+          if (!hasNext()) {
+            throw new NoSuchElementException();
+          }
+          int i = iter.next();
+          return decode(maxTilesAtZoom, Integer.toUnsignedLong(i), z);
+        }
+      };
     }
   }
 
