@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -26,6 +27,82 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 
 class TiledGeometryTest {
   private static final int Z14_TILES = 1 << 14;
+  private static final int Z16_TILES = 1 << 16;
+
+  @Test
+  void testPointZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(0.5, 0.5), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertTrue(tiledGeom.test(0, 0));
+    assertFalse(tiledGeom.test(0, 1));
+    assertFalse(tiledGeom.test(1, 0));
+    assertEquals(Set.of(TileCoord.ofXYZ(0, 0, 16)), tiledGeom.stream().collect(Collectors.toSet()));
+
+    // Test high coordinate corner at z16 (65535, 65535)
+    tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(Z16_TILES - 0.5, Z16_TILES - 0.5), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertTrue(tiledGeom.test(Z16_TILES - 1, Z16_TILES - 1));
+    assertFalse(tiledGeom.test(Z16_TILES - 2, Z16_TILES - 1));
+    assertFalse(tiledGeom.test(Z16_TILES - 1, Z16_TILES - 2));
+    assertEquals(Set.of(TileCoord.ofXYZ(Z16_TILES - 1, Z16_TILES - 1, 16)),
+      tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testLineZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newLineString(
+      0.5, 0.5,
+      1.5, 0.5
+    ), 16, new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ(1, 0, 16)
+    ), tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testPolygonZoom16() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.rectangle(0.1, 1.9), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ(0, 1, 16),
+      TileCoord.ofXYZ(1, 0, 16),
+      TileCoord.ofXYZ(1, 1, 16)
+    ), tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testCoveredTilesEdgeCases() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newGeometryCollection(
+      TestUtils.rectangle(0, 10),
+      TestUtils.rectangle((1 << 16) - 10, 1 << 16)
+    ), 16,
+      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
+    boolean topLeft = false;
+    boolean bottomLeft = false;
+    boolean topRight = false;
+    boolean bottomRight = false;
+    for (var coord : tiledGeom) {
+      if (coord.x() == 0) {
+        if (coord.y() == 0) {
+          topLeft = true;
+        } else if (coord.y() == 65535) {
+          bottomLeft = true;
+        }
+      } else if (coord.x() == 65535) {
+        if (coord.y() == 0) {
+          topRight = true;
+        } else if (coord.y() == 65535) {
+          bottomRight = true;
+        }
+      }
+    }
+    assertTrue(topLeft);
+    assertFalse(topRight);
+    assertFalse(bottomLeft);
+    assertTrue(bottomRight);
+  }
 
   @Test
   void testPoint() throws GeometryException {
@@ -136,6 +213,17 @@ class TiledGeometryTest {
     var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newGeometryCollection(), 14,
       new TileExtents.ForZoom(14, 0, 0, Z14_TILES, Z14_TILES, null));
     assertEquals(Set.of(), tiledGeom.stream().collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testCoveredTilesIteratorThrowsNoSuchElement() throws GeometryException {
+    var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newPoint(0.5, 0.5), 14,
+      new TileExtents.ForZoom(14, 0, 0, Z14_TILES, Z14_TILES, null));
+    var iter = tiledGeom.iterator();
+    assertTrue(iter.hasNext());
+    iter.next();
+    assertFalse(iter.hasNext());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
@@ -386,5 +474,28 @@ class TiledGeometryTest {
       coordinateSequences, 0, true, 14,
       new TileExtents.ForZoom(14, -10, -10, 1 << 14, 1 << 14, null)
     );
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 0, 0",
+    "2, 0, 0",
+    "2, 3, 3",
+    "3, 7, 6",
+    "3, 7, 7",
+    "15, 0, 0",
+    "15, 32767, 0",
+    "15, 0, 32767",
+    "15, 32767, 32767",
+    "16, 0, 0",
+    "16, 1, 2",
+    "16, 65535, 0",
+    "16, 65535, 65535",
+    "16, 0, 65535",
+  })
+  void testEncodeDecode(int z, int x, int y) {
+    long maxTilesAtZoom = 1L << z;
+    int encoded = TiledGeometry.encode(maxTilesAtZoom, x, y);
+    assertEquals(TileCoord.ofXYZ(x, y, z), TiledGeometry.decode(maxTilesAtZoom, Integer.toUnsignedLong(encoded), z));
   }
 }

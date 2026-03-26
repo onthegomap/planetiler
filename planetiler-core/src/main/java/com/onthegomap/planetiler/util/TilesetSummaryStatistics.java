@@ -234,7 +234,7 @@ public class TilesetSummaryStatistics {
     public int compareTo(TileSummary o) {
       int result = Integer.compare(archivedSize, o.archivedSize);
       if (result == 0) {
-        result = Integer.compare(coord.encoded(), o.coord.encoded());
+        result = Long.compare(coord.encoded(), o.coord.encoded());
       }
       return result;
     }
@@ -386,7 +386,7 @@ public class TilesetSummaryStatistics {
         .sorted(Comparator.comparingInt(this::minZoomWithData))
         .toList();
 
-      // header:   0 1 2 3 4 ... 15
+      // header:   0 1 2 3 4 ... 16
       builder.append(formatRow("", z -> "z" + z, "all")).append('\n');
 
       // each row: layer

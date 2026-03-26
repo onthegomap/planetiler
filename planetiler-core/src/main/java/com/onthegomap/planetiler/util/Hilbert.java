@@ -35,12 +35,12 @@ public class Hilbert {
     return tx;
   }
 
-  /** Returns the x coordinate extracted from the result of {@link #hilbertPositionToXY(int, int)}. */
+  /** Returns the x coordinate extracted from the result of {@link #hilbertPositionToXY(int, long)}. */
   public static int extractX(long xy) {
     return (int) (xy >>> 32);
   }
 
-  /** Returns the y coordinate extracted from the result of {@link #hilbertPositionToXY(int, int)}. */
+  /** Returns the y coordinate extracted from the result of {@link #hilbertPositionToXY(int, long)}. */
   public static int extractY(long xy) {
     return (int) xy;
   }
@@ -50,11 +50,11 @@ public class Hilbert {
    *
    * Use {@link #extractX(long)} and {@link #extractY(long)} to extract x and y from the result.
    */
-  public static long hilbertPositionToXY(int level, int pos) {
-    pos = pos << (32 - 2 * level);
+  public static long hilbertPositionToXY(int level, long pos) {
+    int ipos = (int) (pos << (32 - 2 * level));
 
-    int i0 = deinterleave(pos);
-    int i1 = deinterleave(pos >>> 1);
+    int i0 = deinterleave(ipos);
+    int i1 = deinterleave(ipos >>> 1);
 
     int t0 = (i0 | i1) ^ 0xFFFF;
     int t1 = i0 & i1;
@@ -70,7 +70,7 @@ public class Hilbert {
   }
 
   /** Returns the hilbert index at {@code level} for an x/y coordinate. */
-  public static int hilbertXYToIndex(int level, int x, int y) {
+  public static long hilbertXYToIndex(int level, int x, int y) {
     x = x << (16 - level);
     y = y << (16 - level);
 
@@ -123,6 +123,6 @@ public class Hilbert {
     int i0 = x ^ y;
     int i1 = b | (0xFFFF ^ (i0 | a));
 
-    return ((interleave(i1) << 1) | interleave(i0)) >>> (32 - 2 * level);
+    return Integer.toUnsignedLong(((interleave(i1) << 1) | interleave(i0)) >>> (32 - 2 * level));
   }
 }

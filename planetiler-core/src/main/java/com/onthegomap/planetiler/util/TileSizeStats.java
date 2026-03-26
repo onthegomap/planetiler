@@ -185,7 +185,7 @@ public class TileSizeStats {
     // is called billions of times from multiple threads, so we generate a new instance per serializing thread
     ObjectWriter writer = new CsvMapper().writer(SCHEMA);
     return (tileCoord, archivedBytes, layerStats) -> {
-      int hilbert = tileCoord.hilbertEncoded();
+      long hilbert = tileCoord.hilbertEncoded();
       List<String> result = new ArrayList<>(layerStats.size());
       for (var layer : layerStats) {
         result.add(writer.writeValueAsString(new OutputRow(
@@ -392,7 +392,7 @@ public class TileSizeStats {
     int z,
     int x,
     int y,
-    int hilbert,
+    long hilbert,
     int archivedTileBytes,
     String layer,
     int layerBytes,

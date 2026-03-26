@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 import net.jcip.annotations.NotThreadSafe;
@@ -294,11 +295,11 @@ public class TiledGeometry {
   public CoveredTiles getCoveredTiles() {
     RoaringBitmap bitmap = new RoaringBitmap();
     for (TileCoord coord : tileContents.keySet()) {
-      bitmap.add(maxTilesAtThisZoom * coord.x() + coord.y());
+      bitmap.add(encode(maxTilesAtThisZoom, coord.x(), coord.y()));
     }
     if (filledRanges != null) {
       for (var entry : filledRanges.entrySet()) {
-        long colStart = (long) entry.getKey() * maxTilesAtThisZoom;
+        long colStart = encode(maxTilesAtThisZoom, entry.getKey(), 0);
         var yRanges = entry.getValue();
         bitmap.or(RoaringBitmap.addOffset(yRanges.bitmap(), colStart));
       }
@@ -566,7 +567,6 @@ public class TiledGeometry {
               );
               skipped.add(skippedSegment);
 
-              //              System.err.println("    " + skippedSegment);
               if (rightFilled == null) {
                 rightFilled = new IntRangeSet();
                 leftFilled = new IntRangeSet();
@@ -746,13 +746,14 @@ public class TiledGeometry {
    * A set of tiles touched by a geometry.
    */
   public static class CoveredTiles implements TilePredicate, Iterable<TileCoord> {
+
     private final RoaringBitmap bitmap;
-    private final int maxTilesAtZoom;
+    private final long maxTilesAtZoom;
     private final int z;
 
     private CoveredTiles(RoaringBitmap bitmap, int z) {
       this.bitmap = bitmap;
-      this.maxTilesAtZoom = 1 << z;
+      this.maxTilesAtZoom = 1L << z;
       this.z = z;
     }
 
@@ -770,7 +771,7 @@ public class TiledGeometry {
 
     @Override
     public boolean test(int x, int y) {
-      return bitmap.contains(x * maxTilesAtZoom + y);
+      return bitmap.contains(encode(maxTilesAtZoom, x, y));
     }
 
     @Override
@@ -780,12 +781,35 @@ public class TiledGeometry {
     }
 
     public Stream<TileCoord> stream() {
-      return bitmap.stream().mapToObj(i -> TileCoord.ofXYZ(i / maxTilesAtZoom, i % maxTilesAtZoom, z));
+      return bitmap.stream().mapToObj(i -> decode(maxTilesAtZoom, Integer.toUnsignedLong(i), z));
     }
 
     @Override
     public Iterator<TileCoord> iterator() {
-      return stream().iterator();
+      var iter = bitmap.getIntIterator();
+      return new Iterator<>() {
+        @Override
+        public boolean hasNext() {
+          return iter.hasNext();
+        }
+
+        @Override
+        public TileCoord next() {
+          if (!hasNext()) {
+            throw new NoSuchElementException();
+          }
+          int i = iter.next();
+          return decode(maxTilesAtZoom, Integer.toUnsignedLong(i), z);
+        }
+      };
     }
+  }
+
+  static int encode(long maxTilesAtThisZoom, long x, long y) {
+    return (int) (maxTilesAtThisZoom * x + y);
+  }
+
+  static TileCoord decode(long maxTilesAtZoom, long tileId, int z) {
+    return TileCoord.ofXYZ((int) (tileId / maxTilesAtZoom), (int) (tileId % maxTilesAtZoom), z);
   }
 }
