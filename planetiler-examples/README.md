@@ -31,6 +31,8 @@ First, make a copy of this example project. It contains:
     simple overlay with toilets locations from OpenStreetMap
   - [BikeRouteOverlay](src/main/java/com/onthegomap/planetiler/examples/BikeRouteOverlay.java) - demonstrates how to use
     OSM relations to build an overlay map of [bicycle routes](https://wiki.openstreetmap.org/wiki/Tag:route=bicycle)
+  - [AdminBordersOverlay](src/main/java/com/onthegomap/planetiler/examples/AdminBordersOverlay.java) - demonstrates how
+    to build an administrative boundary overlay with zoom-dependent detail for country, region, and city borders
   - [ToiletsOverlayLowLevelApi](src/main/java/com/onthegomap/planetiler/examples/ToiletsOverlayLowLevelApi.java)
     &nbsp;- alternate driver for the ToiletsOverlay using lower-level Planetiler APIs
 - [src/test/java/com/onthegomap/planetiler/examples](src/main/java/com/onthegomap/planetiler/examples)
