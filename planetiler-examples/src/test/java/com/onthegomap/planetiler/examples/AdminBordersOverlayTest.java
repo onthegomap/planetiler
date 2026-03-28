@@ -20,24 +20,24 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
 class AdminBordersOverlayTest {
 
-  private record ZoomCase(int adminLevel, String kind, int borderMinZoom, int labelMinZoom, int maxLabelZoom) {}
-
-  private static final List<ZoomCase> ZOOM_CASES = List.of(
-    new ZoomCase(2, "country", 0, 2, 5),
-    new ZoomCase(3, "region", 4, 6, 8),
-    new ZoomCase(4, "region", 4, 6, 8),
-    new ZoomCase(5, "county", 7, 9, 10),
-    new ZoomCase(6, "county", 7, 9, 10),
-    new ZoomCase(7, "city", 9, 11, 12),
-    new ZoomCase(8, "city", 11, 12, 13),
-    new ZoomCase(9, "local", 12, 12, 14),
-    new ZoomCase(10, "local", 12, 12, 14)
-  );
+  // CSV test data for parameterized tests
+  // Format: adminLevel, kind, borderMinZoom, labelMinZoom, labelMaxZoom
+  private static final String ADMIN_LEVEL_2_COUNTRY = "2, country, 0, 2, 5";
+  private static final String ADMIN_LEVEL_3_REGION = "3, region, 4, 6, 8";
+  private static final String ADMIN_LEVEL_4_REGION = "4, region, 4, 6, 8";
+  private static final String ADMIN_LEVEL_5_COUNTY = "5, county, 7, 9, 10";
+  private static final String ADMIN_LEVEL_6_COUNTY = "6, county, 7, 9, 10";
+  private static final String ADMIN_LEVEL_7_CITY = "7, city, 9, 11, 12";
+  private static final String ADMIN_LEVEL_8_CITY = "8, city, 11, 12, 13";
+  private static final String ADMIN_LEVEL_9_LOCAL = "9, local, 12, 12, 14";
+  private static final String ADMIN_LEVEL_10_LOCAL = "10, local, 12, 12, 14";
 
   private final AdminBordersOverlay profile = new AdminBordersOverlay();
 
@@ -88,78 +88,105 @@ class AdminBordersOverlayTest {
     ), label.getAttrsAtZoom(8), "country label attributes at zoom 8 should contain expected values");
   }
 
-  @Test
-  void testBorderZoomRangesForAllAdminLevels() {
-    for (ZoomCase zoomCase : ZOOM_CASES) {
-      var boundary = SimpleFeature.create(
-        newLineString(10, 20, 30, 40),
-        Map.of(
-          "boundary", "administrative",
-          "admin_level", Integer.toString(zoomCase.adminLevel),
-          "name", "L" + zoomCase.adminLevel
-        )
-      );
-      List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(boundary, profile);
+  @ParameterizedTest
+  @CsvSource({
+    ADMIN_LEVEL_2_COUNTRY, ADMIN_LEVEL_3_REGION, ADMIN_LEVEL_4_REGION, ADMIN_LEVEL_5_COUNTY,
+    ADMIN_LEVEL_6_COUNTY, ADMIN_LEVEL_7_CITY, ADMIN_LEVEL_8_CITY, ADMIN_LEVEL_9_LOCAL,
+    ADMIN_LEVEL_10_LOCAL
+  })
+  void testBorderZoomRangesForAllAdminLevels(
+    @SuppressWarnings("unused") int adminLevel,
+    @SuppressWarnings("unused") String kind,
+    @SuppressWarnings("unused") int borderMinZoom,
+    @SuppressWarnings("unused") int labelMinZoom,
+    @SuppressWarnings("unused") int maxLabelZoom
+  ) {
+    var boundary = SimpleFeature.create(
+      newLineString(10, 20, 30, 40),
+      Map.of(
+        "boundary", "administrative",
+        "admin_level", Integer.toString(adminLevel),
+        "name", "L" + adminLevel
+      )
+    );
+    List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(boundary, profile);
 
-      assertEquals(1, features.size(), "expected 1 border feature for admin_level=" + zoomCase.adminLevel);
-      FeatureCollector.Feature border = features.getFirst();
-      assertEquals("admin_borders-" + zoomCase.kind, border.getLayer(),
-        "border layer name mismatch for admin_level=" + zoomCase.adminLevel + " (expected kind=" + zoomCase.kind + ")");
-      assertEquals(zoomCase.borderMinZoom, border.getMinZoom(),
-        "min zoom mismatch for admin_level=" + zoomCase.adminLevel + " (expected=" + zoomCase.borderMinZoom + ", got=" +
-          border.getMinZoom() + ")");
-      assertEquals(14, border.getMaxZoom(),
-        "max zoom mismatch for admin_level=" + zoomCase.adminLevel + " (expected=14, got=" + border.getMaxZoom() + ")");
-    }
+    assertEquals(1, features.size(), "expected 1 border feature for admin_level=" + adminLevel);
+    FeatureCollector.Feature border = features.getFirst();
+    assertEquals("admin_borders-" + kind, border.getLayer(),
+      "border layer name mismatch for admin_level=" + adminLevel + " (expected kind=" + kind + ")");
+    assertEquals(borderMinZoom, border.getMinZoom(),
+      "min zoom mismatch for admin_level=" + adminLevel + " (expected=" + borderMinZoom + ", got=" +
+        border.getMinZoom() + ")");
+    assertEquals(14, border.getMaxZoom(),
+      "max zoom mismatch for admin_level=" + adminLevel + " (expected=14, got=" + border.getMaxZoom() + ")");
   }
 
-  @Test
-  void testLabelZoomRangesForAllAdminLevels() {
-    for (ZoomCase zoomCase : ZOOM_CASES) {
-      var polygon = SimpleFeature.create(
-        newPolygon(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
-        Map.of(
-          "boundary", "administrative",
-          "admin_level", Integer.toString(zoomCase.adminLevel),
-          "name", "A" + zoomCase.adminLevel
-        )
-      );
-      List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(polygon, profile);
+  @ParameterizedTest
+  @CsvSource({
+    ADMIN_LEVEL_2_COUNTRY, ADMIN_LEVEL_3_REGION, ADMIN_LEVEL_4_REGION, ADMIN_LEVEL_5_COUNTY,
+    ADMIN_LEVEL_6_COUNTY, ADMIN_LEVEL_7_CITY, ADMIN_LEVEL_8_CITY, ADMIN_LEVEL_9_LOCAL,
+    ADMIN_LEVEL_10_LOCAL
+  })
+  void testLabelZoomRangesForAllAdminLevels(
+    @SuppressWarnings("unused") int adminLevel,
+    @SuppressWarnings("unused") String kind,
+    @SuppressWarnings("unused") int borderMinZoom,
+    @SuppressWarnings("unused") int labelMinZoom,
+    @SuppressWarnings("unused") int maxLabelZoom
+  ) {
+    var polygon = SimpleFeature.create(
+      newPolygon(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
+      Map.of(
+        "boundary", "administrative",
+        "admin_level", Integer.toString(adminLevel),
+        "name", "A" + adminLevel
+      )
+    );
+    List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(polygon, profile);
 
-      assertEquals(1, features.size(), "expected 1 label feature for admin_level=" + zoomCase.adminLevel);
-      FeatureCollector.Feature label = features.getFirst();
-      assertEquals("polygon_area_labels-" + zoomCase.kind, label.getLayer(),
-        "label layer name mismatch for admin_level=" + zoomCase.adminLevel + " (expected kind=" + zoomCase.kind + ")");
-      assertEquals(zoomCase.labelMinZoom, label.getMinZoom(),
-        "label min zoom mismatch for admin_level=" + zoomCase.adminLevel + " (expected=" + zoomCase.labelMinZoom +
-          ", got=" + label.getMinZoom() + ")");
-      assertEquals(zoomCase.maxLabelZoom, label.getMaxZoom(),
-        "label max zoom mismatch for admin_level=" + zoomCase.adminLevel + " (expected=" + zoomCase.maxLabelZoom +
-          ", got=" + label.getMaxZoom() + ")");
-      assertEquals(zoomCase.kind, label.getAttrsAtZoom(zoomCase.labelMinZoom).get("kind"),
-        "kind attribute mismatch for admin_level=" + zoomCase.adminLevel + " at min zoom");
-    }
+    assertEquals(1, features.size(), "expected 1 label feature for admin_level=" + adminLevel);
+    FeatureCollector.Feature label = features.getFirst();
+    assertEquals("polygon_area_labels-" + kind, label.getLayer(),
+      "label layer name mismatch for admin_level=" + adminLevel + " (expected kind=" + kind + ")");
+    assertEquals(labelMinZoom, label.getMinZoom(),
+      "label min zoom mismatch for admin_level=" + adminLevel + " (expected=" + labelMinZoom +
+        ", got=" + label.getMinZoom() + ")");
+    assertEquals(maxLabelZoom, label.getMaxZoom(),
+      "label max zoom mismatch for admin_level=" + adminLevel + " (expected=" + maxLabelZoom +
+        ", got=" + label.getMaxZoom() + ")");
+    assertEquals(kind, label.getAttrsAtZoom(labelMinZoom).get("kind"),
+      "kind attribute mismatch for admin_level=" + adminLevel + " at min zoom");
   }
 
-  @Test
-  void testLabelForZoom11OnlyIncludesCityAndLocalKinds() {
-    for (ZoomCase zoomCase : ZOOM_CASES) {
-      var polygon = SimpleFeature.create(
-        newPolygon(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
-        Map.of(
-          "boundary", "administrative",
-          "admin_level", Integer.toString(zoomCase.adminLevel),
-          "name", "Z" + zoomCase.adminLevel
-        )
-      );
-      List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(polygon, profile);
-      FeatureCollector.Feature label = features.getFirst();
-      boolean visibleAtZ11 = 11 >= label.getMinZoom() && 11 <= label.getMaxZoom();
-      if (zoomCase.adminLevel == 7) {
-        assertTrue(visibleAtZ11, "admin_level=" + zoomCase.adminLevel + " should be visible at z11");
-      } else {
-        assertFalse(visibleAtZ11, "admin_level=" + zoomCase.adminLevel + " should be hidden at z11");
-      }
+  @ParameterizedTest
+  @CsvSource({
+    ADMIN_LEVEL_2_COUNTRY, ADMIN_LEVEL_3_REGION, ADMIN_LEVEL_4_REGION, ADMIN_LEVEL_5_COUNTY,
+    ADMIN_LEVEL_6_COUNTY, ADMIN_LEVEL_7_CITY, ADMIN_LEVEL_8_CITY, ADMIN_LEVEL_9_LOCAL,
+    ADMIN_LEVEL_10_LOCAL
+  })
+  void testLabelForZoom11OnlyIncludesCityAndLocalKinds(
+    @SuppressWarnings("unused") int adminLevel,
+    @SuppressWarnings("unused") String kind,
+    @SuppressWarnings("unused") int borderMinZoom,
+    @SuppressWarnings("unused") int labelMinZoom,
+    @SuppressWarnings("unused") int maxLabelZoom
+  ) {
+    var polygon = SimpleFeature.create(
+      newPolygon(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
+      Map.of(
+        "boundary", "administrative",
+        "admin_level", Integer.toString(adminLevel),
+        "name", "Z" + adminLevel
+      )
+    );
+    List<FeatureCollector.Feature> features = TestUtils.processSourceFeature(polygon, profile);
+    FeatureCollector.Feature label = features.getFirst();
+    boolean visibleAtZ11 = 11 >= label.getMinZoom() && 11 <= label.getMaxZoom();
+    if (adminLevel == 7) {
+      assertTrue(visibleAtZ11, "admin_level=" + adminLevel + " should be visible at z11");
+    } else {
+      assertFalse(visibleAtZ11, "admin_level=" + adminLevel + " should be hidden at z11");
     }
   }
 
