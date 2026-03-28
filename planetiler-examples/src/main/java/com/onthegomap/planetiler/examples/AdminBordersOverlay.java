@@ -26,7 +26,7 @@ import java.util.List;
  * <li>Move the file into {@code planetiler-examples/data/sources/}</li>
  * <li>Build the examples: {@code mvn clean package --file standalone.pom.xml }</li>
  * <li>Run this example:
- * {@code java -Xmx6g -Xms6g -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.AdminBordersOverlay --osm-path=./data/sources/central-america.osm.pbf"}</li>
+ * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.AdminBordersOverlay --osm-path=./data/sources/central-america.osm.pbf"}</li>
  * <li>Run the demo tileserver: {@code tileserver-gl-light data/admin-borders.mbtiles}</li>
  * <li>View the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
@@ -73,13 +73,18 @@ public class AdminBordersOverlay implements Profile {
 
       // Emit label point features for named polygon areas (e.g., country/region names)
       if (sourceFeature.canBePolygon() && !name.isBlank()) {
-        features.pointOnSurface(POLYGON_LABEL_LAYER_NAME_PREFIX + adminLevelConfig.kind)
+        features.innermostPoint(POLYGON_LABEL_LAYER_NAME_PREFIX + adminLevelConfig.kind)
           .setAttr("name", name)
           .setAttr("admin_level", adminLevel)
           .setAttr("kind", adminLevelConfig.kind)
           .setAttr("label_level", adminLevelConfig.labelLevel)
           .setAttr("label_text", adminLevelConfig.labelLevel + ": " + name)
           .setZoomRange(adminLevelConfig.labelMinZoom, adminLevelConfig.labelMaxZoom)
+
+          // A 64-pixel buffer ensures that label anchor points near the tile edge are included in adjacent tiles.
+          // While modern renderers (like Mapbox/MapLibre GL JS) are highly tolerant and can often resolve
+          // cross-tile text collisions dynamically, this buffer prevents text "pop-in" during network loading
+          // delays and guarantees seamless rendering across all MVT-compliant clients.
           .setBufferPixels(64);
       }
     }
@@ -134,7 +139,7 @@ public class AdminBordersOverlay implements Profile {
   private record AdminLevelConfig(String kind, String labelLevel, int borderMinZoom, int labelMinZoom,
     int labelMaxZoom) {}
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
