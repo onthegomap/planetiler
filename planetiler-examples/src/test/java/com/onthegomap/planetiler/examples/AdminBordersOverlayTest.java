@@ -95,9 +95,9 @@ class AdminBordersOverlayTest {
     ADMIN_LEVEL_10_LOCAL
   })
   void testBorderZoomRangesForAllAdminLevels(
-    @SuppressWarnings("unused") int adminLevel,
-    @SuppressWarnings("unused") String kind,
-    @SuppressWarnings("unused") int borderMinZoom,
+    int adminLevel,
+    String kind,
+    int borderMinZoom,
     @SuppressWarnings("unused") int labelMinZoom,
     @SuppressWarnings("unused") int maxLabelZoom
   ) {
@@ -129,11 +129,11 @@ class AdminBordersOverlayTest {
     ADMIN_LEVEL_10_LOCAL
   })
   void testLabelZoomRangesForAllAdminLevels(
-    @SuppressWarnings("unused") int adminLevel,
-    @SuppressWarnings("unused") String kind,
+    int adminLevel,
+    String kind,
     @SuppressWarnings("unused") int borderMinZoom,
-    @SuppressWarnings("unused") int labelMinZoom,
-    @SuppressWarnings("unused") int maxLabelZoom
+    int labelMinZoom,
+    int maxLabelZoom
   ) {
     var polygon = SimpleFeature.create(
       newPolygon(0, 0, 3, 0, 3, 3, 0, 3, 0, 0),
@@ -166,7 +166,7 @@ class AdminBordersOverlayTest {
     ADMIN_LEVEL_10_LOCAL
   })
   void testLabelForZoom11OnlyIncludesCityAndLocalKinds(
-    @SuppressWarnings("unused") int adminLevel,
+    int adminLevel,
     @SuppressWarnings("unused") String kind,
     @SuppressWarnings("unused") int borderMinZoom,
     @SuppressWarnings("unused") int labelMinZoom,
