@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * href="https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dfuel"
  */
 
-public class GasStationOverlay implements Profile {
+public class GasStationsOverlay implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
@@ -25,43 +25,32 @@ public class GasStationOverlay implements Profile {
     
     if (isGasStation) {
       // Get the brand name - use as name if name tag is missing
-      String brand =(String) sourceFeature.getTag("brand");
-      String name = (String) sourceFeature.getTag("name");
+      String brand = sourceFeature.getString("brand");
+      String name = sourceFeature.getString("name");
       
       // If name is missing but brand exists, use brand as the name
       String displayName = (name != null && !name.isEmpty()) ? name : brand;
       
       // Get opening hours and determine if currently open
-      String openingHours =(String) sourceFeature.getTag("opening_hours");
-      String openStatus = checkIfOpen(openingHours);
+      String openingHours = sourceFeature.getString("opening_hours");
       
-      // Handle nodes (point at center of gas station)
-      if (sourceFeature.isPoint()) {
-        features.point("gas_station")
+     
+        features.anyGeometry("gas_station")
           .setAttr("name", displayName)
           .setAttr("brand", brand)
           .setAttr("operator", sourceFeature.getTag("operator"))
           .setAttr("hgv", sourceFeature.getTag("hgv"))  // Large vehicle access
           .setAttr("opening_hours", openingHours)
-          .setAttr("open_status", openStatus)  // "open", "closed", or "unknown"
-          .setMinZoom(12);
-      } 
-      // Handle areas (polygon around fueling area)
-      else if (sourceFeature.canBePolygon()) {
-        features.polygon("gas_station")
-          .setAttr("name", displayName)
-          .setAttr("brand", brand)
-          .setAttr("operator", sourceFeature.getTag("operator"))
-          .setAttr("hgv", sourceFeature.getTag("hgv"))
-          .setAttr("opening_hours", openingHours)
-          .setAttr("open_status", openStatus)
-          .setMinZoom(12);
-      }
+          .setMinZoom(12); 
+     
     }
   }
   
   /**
    * Simple check if a gas station is currently open based on opening_hours tag.
+   *
+   *(tag has been removed), PROOF OF CONCEPT ONLY, Not used in production. For real maps, pass opening_hours
+   *as static tags so MapLibre can filter dynamically without regenerating tiles
    */
   private String checkIfOpen(String openingHours) {
     if (openingHours == null || openingHours.isEmpty()) {
@@ -140,7 +129,7 @@ public class GasStationOverlay implements Profile {
     String area = args.getString("area", "geofabrik area to download", "monaco");
     
     Planetiler.create(args)
-      .setProfile(new GasStationOverlay())
+      .setProfile(new GasStationsOverlay())
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       .overwriteOutput(Path.of("data", "gasstations.mbtiles"))
       .run();
