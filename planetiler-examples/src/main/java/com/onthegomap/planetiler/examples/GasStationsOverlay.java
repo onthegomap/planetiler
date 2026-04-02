@@ -126,7 +126,7 @@ public class GasStationsOverlay implements Profile {
   }
 
   static void run(Arguments args) {
-    String area = args.getString("area", "geofabrik area to download", "monaco");
+    String area = args.getString("area", "geofabrik area to download", "luxembourg");
     
     Planetiler.create(args)
       .setProfile(new GasStationsOverlay())
