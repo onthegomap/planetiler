@@ -30,6 +30,17 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-core</artifactId>
+      <version>0.8.1</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+
+
   </dependencies>
 
   <build>
