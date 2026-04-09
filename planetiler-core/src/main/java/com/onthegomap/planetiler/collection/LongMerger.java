@@ -63,7 +63,7 @@ public class LongMerger {
     @Override
     public T next() {
       T result;
-      if (lessThan(ak, bk, a, b)) {
+      if (lessThan(ak, bk, a, b, tieBreaker)) {
         result = a;
         if (inputA.hasNext()) {
           a = inputA.next();
@@ -87,9 +87,6 @@ public class LongMerger {
       return result;
     }
 
-    private boolean lessThan(long ak, long bk, T a, T b) {
-      return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
-    }
   }
 
   private static class ThreeWayMerge<T extends HasLongSortKey> implements Iterator<T> {
@@ -127,8 +124,8 @@ public class LongMerger {
     public T next() {
       T result;
       // use at most 2 comparisons to get the next item
-      if (lessThan(ak, bk, a, b)) {
-        if (lessThan(ak, ck, a, c)) {
+      if (lessThan(ak, bk, a, b, tieBreaker)) {
+        if (lessThan(ak, ck, a, c, tieBreaker)) {
           // ACB / ABC
           result = a;
           if (inputA.hasNext()) {
@@ -149,7 +146,7 @@ public class LongMerger {
             ck = -1L;
           }
         }
-      } else if (lessThan(ck, bk, c, b)) {
+      } else if (lessThan(ck, bk, c, b, tieBreaker)) {
         // CAB
         result = c;
         if (inputC.hasNext()) {
@@ -175,9 +172,10 @@ public class LongMerger {
       return result;
     }
 
-    private boolean lessThan(long ak, long bk, T a, T b) {
-      return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
-    }
+  }
+
+  private static <T> boolean lessThan(long ak, long bk, T a, T b, Comparator<T> tieBreaker) {
+    return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
   }
 
   private static <T> boolean lessThanCmp(T a, T b, Comparator<T> tieBreaker) {
