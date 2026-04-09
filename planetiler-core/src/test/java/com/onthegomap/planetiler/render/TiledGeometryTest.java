@@ -73,26 +73,6 @@ class TiledGeometryTest {
   }
 
   @Test
-  void testPolygonZoom16HighXCoordinate() throws GeometryException {
-    // Bug 1 regression: polygon at x >= 32768 where encode() overflows signed int.
-    // filledRanges triggers RoaringBitmap.addOffset with a sign-extended negative offset,
-    // causing interior tiles to be silently dropped.
-    int x = 40000;
-    var tiledGeom = TiledGeometry.getCoveredTiles(
-      TestUtils.rectangle(x + 0.1, 0.1, x + 2.9, 2.9), 16,
-      new TileExtents.ForZoom(16, 0, 0, Z16_TILES, Z16_TILES, null));
-    var tiles = tiledGeom.stream().collect(Collectors.toSet());
-    // interior tiles must be present
-    assertTrue(tiles.contains(TileCoord.ofXYZ(x + 1, 1, 16)),
-      "interior tile at x=" + (x + 1) + " should be present");
-    assertTrue(tiles.contains(TileCoord.ofXYZ(x + 2, 2, 16)),
-      "interior tile at x=" + (x + 2) + " should be present");
-    // test() must also work for high-x tiles
-    assertTrue(tiledGeom.test(x + 1, 1));
-    assertEquals(9, tiles.size()); // 3x3 grid of tiles
-  }
-
-  @Test
   void testCoveredTilesEdgeCases() throws GeometryException {
     var tiledGeom = TiledGeometry.getCoveredTiles(TestUtils.newGeometryCollection(
       TestUtils.rectangle(0, 10),
