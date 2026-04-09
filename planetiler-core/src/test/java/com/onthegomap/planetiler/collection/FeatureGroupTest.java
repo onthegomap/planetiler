@@ -438,9 +438,40 @@ class FeatureGroupTest {
     long tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
     assertTrue(
-      FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA) < FeatureGroup.encodeKey(tileB, layerB, sortKeyB,
-        hasGroupB)
+      Long.compareUnsigned(
+        FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA),
+        FeatureGroup.encodeKey(tileB, layerB, sortKeyB, hasGroupB)
+      ) < 0
     );
+  }
+
+  @Test
+  void testZ16HighTileIdsSortAfterLowerZooms() {
+    // Bug 2 regression: encodeKey sets the sign bit for high z16 tile IDs,
+    // which with signed comparison would sort before all z0-z15 tiles.
+    TileCoord z0 = TileCoord.ofXYZ(0, 0, 0);
+    TileCoord z14 = TileCoord.ofXYZ(8192, 8192, 14);
+    TileCoord z15 = TileCoord.ofXYZ(16384, 16384, 15);
+    // This z16 tile has an encoded ID > 2^32, which sets the sign bit in encodeKey
+    TileCoord z16high = TileCoord.ofXYZ(65535, 65535, 16);
+
+    long keyZ0 = FeatureGroup.encodeKey(z0.encoded(), (byte) 0, 0, false);
+    long keyZ14 = FeatureGroup.encodeKey(z14.encoded(), (byte) 0, 0, false);
+    long keyZ15 = FeatureGroup.encodeKey(z15.encoded(), (byte) 0, 0, false);
+    long keyZ16 = FeatureGroup.encodeKey(z16high.encoded(), (byte) 0, 0, false);
+
+    // z16 high tiles must sort after all lower zoom tiles (unsigned comparison)
+    assertTrue(Long.compareUnsigned(keyZ0, keyZ14) < 0, "z0 < z14");
+    assertTrue(Long.compareUnsigned(keyZ14, keyZ15) < 0, "z14 < z15");
+    assertTrue(Long.compareUnsigned(keyZ15, keyZ16) < 0, "z15 < z16");
+
+    // Verify SortableFeature.compareTo uses unsigned ordering
+    var featureZ0 = new SortableFeature(keyZ0, new byte[]{});
+    var featureZ16 = new SortableFeature(keyZ16, new byte[]{});
+    assertTrue(featureZ0.compareTo(featureZ16) < 0,
+      "z0 feature should sort before z16 high feature");
+    assertTrue(featureZ16.compareTo(featureZ0) > 0,
+      "z16 high feature should sort after z0 feature");
   }
 
   @ParameterizedTest(name = "{0}")

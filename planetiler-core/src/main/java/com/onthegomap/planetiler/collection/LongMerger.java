@@ -38,7 +38,7 @@ public class LongMerger {
 
     private final Comparator<T> tieBreaker;
     T a, b;
-    long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE;
+    long ak = -1L, bk = -1L;
     final Iterator<T> inputA, inputB;
 
     TwoWayMerge(Iterator<T> inputA, Iterator<T> inputB, Comparator<T> tieBreaker) {
@@ -70,9 +70,9 @@ public class LongMerger {
           ak = a.key();
         } else {
           a = null;
-          ak = Long.MAX_VALUE;
+          ak = -1L;
         }
-      } else if (bk == Long.MAX_VALUE) {
+      } else if (bk == -1L) {
         throw new NoSuchElementException();
       } else {
         result = b;
@@ -81,14 +81,14 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = Long.MAX_VALUE;
+          bk = -1L;
         }
       }
       return result;
     }
 
     private boolean lessThan(long ak, long bk, T a, T b) {
-      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
+      return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
     }
   }
 
@@ -96,7 +96,7 @@ public class LongMerger {
 
     private final Comparator<T> tieBreaker;
     T a, b, c;
-    long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE, ck = Long.MAX_VALUE;
+    long ak = -1L, bk = -1L, ck = -1L;
     final Iterator<T> inputA, inputB, inputC;
 
     ThreeWayMerge(Iterator<T> inputA, Iterator<T> inputB, Iterator<T> inputC, Comparator<T> tieBreaker) {
@@ -136,7 +136,7 @@ public class LongMerger {
             ak = a.key();
           } else {
             a = null;
-            ak = Long.MAX_VALUE;
+            ak = -1L;
           }
         } else {
           // CBA
@@ -146,7 +146,7 @@ public class LongMerger {
             ck = c.key();
           } else {
             c = null;
-            ck = Long.MAX_VALUE;
+            ck = -1L;
           }
         }
       } else if (lessThan(ck, bk, c, b)) {
@@ -157,9 +157,9 @@ public class LongMerger {
           ck = c.key();
         } else {
           c = null;
-          ck = Long.MAX_VALUE;
+          ck = -1L;
         }
-      } else if (bk == Long.MAX_VALUE) {
+      } else if (bk == -1L) {
         throw new NoSuchElementException();
       } else {
         // BAC / BCA
@@ -169,14 +169,14 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = Long.MAX_VALUE;
+          bk = -1L;
         }
       }
       return result;
     }
 
     private boolean lessThan(long ak, long bk, T a, T b) {
-      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
+      return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
     }
   }
 
@@ -200,7 +200,8 @@ public class LongMerger {
     KWayMerge(List<? extends Iterator<T>> inputIterators, Comparator<T> tieBreaker) {
       this.iterators = new Iterator[inputIterators.size()];
       this.items = (T[]) new HasLongSortKey[inputIterators.size()];
-      this.heap = LongMinHeap.newArrayHeap(inputIterators.size(), (a, b) -> tieBreaker.compare(items[a], items[b]));
+      this.heap =
+        LongMinHeap.newUnsignedArrayHeap(inputIterators.size(), (a, b) -> tieBreaker.compare(items[a], items[b]));
       int outIdx = 0;
       for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {

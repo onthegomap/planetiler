@@ -299,7 +299,7 @@ public class TiledGeometry {
     }
     if (filledRanges != null) {
       for (var entry : filledRanges.entrySet()) {
-        long colStart = encode(maxTilesAtThisZoom, entry.getKey(), 0);
+        long colStart = Integer.toUnsignedLong(encode(maxTilesAtThisZoom, entry.getKey(), 0));
         var yRanges = entry.getValue();
         bitmap.or(RoaringBitmap.addOffset(yRanges.bitmap(), colStart));
       }
