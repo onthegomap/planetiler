@@ -586,6 +586,10 @@ public class Planetiler {
     if (downloadSources || refresh) {
       // Kick off catalog traversal in the background; download() will wait for all futures before running.
       OvertureStac stac = OvertureStac.create(config);
+      // ensure parent directory exists
+      FileUtils.createDirectory(downloadDir
+        .resolve("theme=" + theme)
+        .resolve("type=" + type));
       toDownload.add(new ToDownload(name, CompletableFuture.supplyAsync(() -> {
         List<String> urls = stac.getParquetUrls(theme, type, config.bounds());
         return urls.stream()
@@ -598,7 +602,7 @@ public class Planetiler {
       }, virtualThreadPoolExecutor)));
     }
 
-    return addParquetSource(name, List.of(downloadDir),
+    return addParquetSource(name, List.of(downloadDir.resolve("theme=" + theme).resolve("type=" + type)),
       () -> Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find(),
       true,
       fields -> fields.get("id"),
