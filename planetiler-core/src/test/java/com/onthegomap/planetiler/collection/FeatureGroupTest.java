@@ -474,6 +474,35 @@ class FeatureGroupTest {
       "z16 high feature should sort after z0 feature");
   }
 
+  @Test
+  void testZ16HighTileIteratesAfterLowerZoomTiles() {
+    // Verify that FeatureGroup iterates z16 high tiles after lower zoom tiles end-to-end.
+    TileCoord z0 = TileCoord.ofXYZ(0, 0, 0);
+    TileCoord z16high = TileCoord.ofXYZ(50_000, 500, 16);
+
+    // Put z16 first, then z0 — after sorting, z0 should come out first
+    putTile(z16high, "layer", Map.of(), newPoint(1, 2));
+    putTile(z0, "layer", Map.of(), newPoint(3, 4));
+    sorter.sort();
+
+    List<TileCoord> tileOrder = new ArrayList<>();
+    for (var tile : features) {
+      tileOrder.add(tile.tileCoord());
+    }
+    assertEquals(List.of(z0, z16high), tileOrder,
+      "z0 tile must appear before z16 high tile in FeatureGroup iteration order");
+  }
+
+  private void putTile(TileCoord tile, String layer, Map<String, Object> attrs, Geometry geom) {
+    RenderedFeature feature = new RenderedFeature(
+      tile,
+      new VectorTile.Feature(layer, id++, VectorTile.encodeGeometry(geom), attrs),
+      0,
+      Optional.empty()
+    );
+    featureWriter.accept(features.newRenderedFeatureEncoder().apply(feature));
+  }
+
   @ParameterizedTest(name = "{0}")
   @ArgumentsSource(SameFeatureGroupTestArgs.class)
   void testHasSameContents(String testName, boolean expectSame, PuTileArgs args0, PuTileArgs args1) {
