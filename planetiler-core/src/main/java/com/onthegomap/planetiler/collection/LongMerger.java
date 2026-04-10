@@ -14,6 +14,9 @@ public class LongMerger {
   // Has a general-purpose KWayMerge implementation using a min heap and specialized (faster)
   // TwoWayMerge/ThreeWayMerge implementations when a small number of lists are being merged.
 
+  /** Unsigned max: used as sentinel for exhausted iterators so they sort last in unsigned comparison. */
+  private static final long MAX_UNSIGNED_LONG = -1L;
+
   private LongMerger() {}
 
   /** Merges sorted items from {@link Supplier Suppliers} that return {@code null} when there are no items left. */
@@ -38,7 +41,7 @@ public class LongMerger {
 
     private final Comparator<T> tieBreaker;
     T a, b;
-    long ak = -1L, bk = -1L;
+    long ak = MAX_UNSIGNED_LONG, bk = MAX_UNSIGNED_LONG;
     final Iterator<T> inputA, inputB;
 
     TwoWayMerge(Iterator<T> inputA, Iterator<T> inputB, Comparator<T> tieBreaker) {
@@ -70,7 +73,7 @@ public class LongMerger {
           ak = a.key();
         } else {
           a = null;
-          ak = -1L;
+          ak = MAX_UNSIGNED_LONG;
         }
       } else if (b == null) {
         throw new NoSuchElementException();
@@ -81,7 +84,7 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = -1L;
+          bk = MAX_UNSIGNED_LONG;
         }
       }
       return result;
@@ -93,7 +96,7 @@ public class LongMerger {
 
     private final Comparator<T> tieBreaker;
     T a, b, c;
-    long ak = -1L, bk = -1L, ck = -1L;
+    long ak = MAX_UNSIGNED_LONG, bk = MAX_UNSIGNED_LONG, ck = MAX_UNSIGNED_LONG;
     final Iterator<T> inputA, inputB, inputC;
 
     ThreeWayMerge(Iterator<T> inputA, Iterator<T> inputB, Iterator<T> inputC, Comparator<T> tieBreaker) {
@@ -133,7 +136,7 @@ public class LongMerger {
             ak = a.key();
           } else {
             a = null;
-            ak = -1L;
+            ak = MAX_UNSIGNED_LONG;
           }
         } else {
           // CBA
@@ -143,7 +146,7 @@ public class LongMerger {
             ck = c.key();
           } else {
             c = null;
-            ck = -1L;
+            ck = MAX_UNSIGNED_LONG;
           }
         }
       } else if (lessThan(ck, bk, c, b, tieBreaker)) {
@@ -154,7 +157,7 @@ public class LongMerger {
           ck = c.key();
         } else {
           c = null;
-          ck = -1L;
+          ck = MAX_UNSIGNED_LONG;
         }
       } else if (b == null) {
         throw new NoSuchElementException();
@@ -166,7 +169,7 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = -1L;
+          bk = MAX_UNSIGNED_LONG;
         }
       }
       return result;
