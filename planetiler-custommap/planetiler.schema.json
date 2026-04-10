@@ -202,6 +202,39 @@
             }
           ]
         },
+        "point_label_grid": {
+          "type": "object",
+          "properties": {
+            "pixel_size": {
+              "description": "Sets the size of a grid in tile pixels that will be used to compute a \"location hash\" of points rendered in each zoom-level at and below `maxzoom`",
+              "type": "object",
+              "properties": {
+                "maxzoom": {
+                  "description": "Apply label grid pixel size at and below this zoom-level",
+                  "type": "number"
+                },
+                "value": {
+                  "description": "The size of the label grid",
+                  "type": "number"
+                }
+              }
+            },
+            "limit": {
+              "description": "Limits the density of points on an output tile at and below `maxzoom` by only emitting the `limit` features with lowest sort-key in each square of a `size x size` pixel grid",
+              "type": "object",
+              "properties": {
+                "maxzoom": {
+                  "description": "Apply label grid limit at and below this zoom-level",
+                  "type": "number"
+                },
+                "value": {
+                  "description": "The number of lowest-sort-key points to include in each square of the grid",
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
         "sort_max_readers": {
           "description": "Maximum number of concurrent read threads to use when sorting chunks"
         },
@@ -403,6 +436,10 @@
             }
           ]
         },
+        "id": {
+          "description": "An expression that determines ID for the rendered feature.",
+          "$ref": "#/$defs/expression"
+        },
         "include_when": {
           "description": "A tag specification which determines the features to include. If unspecified, all features from the specified sources are included",
           "$ref": "#/$defs/boolean_expression"
@@ -421,6 +458,14 @@
         },
         "min_size_at_max_zoom": {
           "description": "Minimum length of line features or square root of the minimum area of polygon features to emit at the maximum zoom-level of the map. This value is ignored if the layer Tile Post Process is defined.",
+          "$ref": "#/$defs/expression"
+        },
+        "sort_key": {
+          "description": "An expression that determines the value by which features are sorted within a layer in the output vector tile.",
+          "$ref": "#/$defs/expression"
+        },
+        "sort_key_descending": {
+          "description": "An expression that determines the value by which features are sorted (descending, e.g. from high to low sort key) within a layer in the output vector tile.",
           "$ref": "#/$defs/expression"
         },
         "tolerance": {
