@@ -72,7 +72,7 @@ public class LongMerger {
           a = null;
           ak = -1L;
         }
-      } else if (bk == -1L) {
+      } else if (b == null) {
         throw new NoSuchElementException();
       } else {
         result = b;
@@ -156,7 +156,7 @@ public class LongMerger {
           c = null;
           ck = -1L;
         }
-      } else if (bk == -1L) {
+      } else if (b == null) {
         throw new NoSuchElementException();
       } else {
         // BAC / BCA

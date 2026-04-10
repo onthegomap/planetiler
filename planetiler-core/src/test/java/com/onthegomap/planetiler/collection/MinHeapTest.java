@@ -59,6 +59,54 @@ abstract class MinHeapTest {
     }
   }
 
+  static class UnsignedLongMinHeapTest {
+
+    @Test
+    void unsignedOrderingTreatsNegativeLongsAsLargest() {
+      var heap = LongMinHeap.newUnsignedArrayHeap(5, Integer::compare);
+      // In unsigned comparison, -1L = 0xFFFFFFFFFFFFFFFF is the largest value
+      heap.push(0, -1L);
+      heap.push(1, 1L);
+      heap.push(2, Long.MAX_VALUE);
+      heap.push(3, Long.MIN_VALUE); // 0x8000000000000000 = 2^63 unsigned
+      // unsigned order: 1, Long.MAX_VALUE (2^63-1), Long.MIN_VALUE (2^63), -1 (2^64-1)
+      assertEquals(1, heap.poll());
+      assertEquals(2, heap.poll());
+      assertEquals(3, heap.poll());
+      assertEquals(0, heap.poll());
+    }
+
+    @Test
+    void unsignedUpdateHead() {
+      var heap = LongMinHeap.newUnsignedArrayHeap(4, Integer::compare);
+      heap.push(0, 1L);
+      heap.push(1, 2L);
+      heap.push(2, 3L);
+      assertEquals(0, heap.peekId());
+      // update head to unsigned-large value (negative in signed)
+      heap.updateHead(Long.MIN_VALUE);
+      // now id=1 (value=2) should be the min
+      assertEquals(1, heap.peekId());
+      assertEquals(2L, heap.peekValue());
+    }
+
+    @Test
+    void unsignedPollSorted() {
+      var heap = LongMinHeap.newUnsignedArrayHeap(10, Integer::compare);
+      heap.push(0, -100L);
+      heap.push(1, 100L);
+      heap.push(2, -1L);
+      heap.push(3, 0L);
+      heap.push(4, Long.MIN_VALUE);
+      IntArrayList polled = new IntArrayList();
+      while (!heap.isEmpty()) {
+        polled.add(heap.poll());
+      }
+      // unsigned order: 0, 100, MIN_VALUE(2^63), -100(near max), -1(max)
+      assertEquals(IntArrayList.from(3, 1, 4, 0, 2), polled);
+    }
+  }
+
   static class DoubleMinHeapTest extends MinHeapTest {
 
     private DoubleMinHeap doubleHeap;

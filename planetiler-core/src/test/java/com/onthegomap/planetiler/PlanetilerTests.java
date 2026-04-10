@@ -1067,6 +1067,32 @@ class PlanetilerTests {
   }
 
   @Test
+  void testZ16HighTileIdSortOrder() throws Exception {
+    // Verify that z16 tiles with high IDs (where FeatureGroup.encodeKey sets bit 63) sort correctly.
+    // A point at z16 tile x=50000 produces an encoded tile ID > 2^32, so tile << 31 sets bit 63.
+    double x = (50_000 + 0.5) * Z16_WIDTH;
+    double y = (500 + 0.5) * Z16_WIDTH;
+    double lat = GeoUtils.getWorldLat(y);
+    double lng = GeoUtils.getWorldLon(x);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "16"),
+      List.of(
+        newReaderFeature(newPoint(lng, lat), Map.of("attr", "value"))
+      ),
+      (in, features) -> features.point("layer")
+        .setZoomRange(16, 16)
+        .inheritAttrFromSource("attr")
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(50_000, 500, 16), List.of(
+        feature(newPoint(128, 128), Map.of("attr", "value"))
+      )
+    ), results.tiles);
+  }
+
+  @Test
   void testEmptyTileAfterPostProcessingOmittedFromArchive() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1", "maxzoom", "6"),
