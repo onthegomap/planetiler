@@ -59,7 +59,48 @@ abstract class MinHeapTest {
     }
   }
 
-  static class UnsignedLongMinHeapTest {
+  static class UnsignedLongMinHeapTest extends MinHeapTest {
+
+    @Override
+    void create(int capacity, IntBinaryOperator tieBreaker) {
+      heap = LongMinHeap.newUnsignedArrayHeap(capacity, tieBreaker);
+    }
+
+    @Override
+    @Test
+    void testPeek() {
+      // In unsigned comparison, -16L and -51L are larger than 4L and 13L
+      create(5);
+      heap.push(4, -16L);
+      heap.push(2, 13L);
+      heap.push(1, -51L);
+      heap.push(3, 4L);
+      assertEquals(3, heap.peekId());
+      assertEquals(4L, heap.peekValue());
+    }
+
+    @Override
+    @Test
+    void update() {
+      // In unsigned comparison, -13L is near max, not the minimum
+      create(10);
+      heap.push(9, 36L);
+      heap.push(5, 21L);
+      heap.push(3, 23L);
+      heap.update(3, 1L);
+      assertEquals(3, heap.peekId());
+      heap.update(3, 100L);
+      assertEquals(5, heap.peekId());
+      heap.update(9, -13L);
+      // -13L is unsigned-large, so id=5 (21L) remains the min
+      assertEquals(5, heap.peekId());
+      assertEquals(21L, heap.peekValue());
+      IntArrayList polled = new IntArrayList();
+      while (!heap.isEmpty()) {
+        polled.add(heap.poll());
+      }
+      assertEquals(IntArrayList.from(5, 3, 9), polled);
+    }
 
     @Test
     void unsignedOrderingTreatsNegativeLongsAsLargest() {
