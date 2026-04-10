@@ -8,13 +8,11 @@ public record SortableFeature(@Override long key, byte[] value) implements Compa
 
   @Override
   public int compareTo(SortableFeature o) {
-    if (key < o.key) {
-      return -1;
-    } else if (key == o.key) {
-      return Arrays.compareUnsigned(value, o.value);
-    } else {
-      return 1;
+    int cmp = Long.compareUnsigned(key, o.key);
+    if (cmp != 0) {
+      return cmp;
     }
+    return Arrays.compareUnsigned(value, o.value);
   }
 
   @Override

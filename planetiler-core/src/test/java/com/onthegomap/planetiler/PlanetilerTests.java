@@ -1067,6 +1067,40 @@ class PlanetilerTests {
   }
 
   @Test
+  void testZ16HighTileIdSortOrder() throws Exception {
+    // Verify that z16 tiles with high IDs (where FeatureGroup.encodeKey sets bit 63) sort correctly.
+    // A point at z16 tile x=50000 produces an encoded tile ID > 2^32, so tile << 31 sets bit 63.
+    double x16 = (50_000 + 0.5) * Z16_WIDTH;
+    double y16 = (500 + 0.5) * Z16_WIDTH;
+    double lat16 = GeoUtils.getWorldLat(y16);
+    double lng16 = GeoUtils.getWorldLon(x16);
+    // A point near the center for z0
+    double lat0 = GeoUtils.getWorldLat(0.5);
+    double lng0 = GeoUtils.getWorldLon(0.5);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "16"),
+      List.of(
+        newReaderFeature(newPoint(lng16, lat16), Map.of("name", "z16point")),
+        newReaderFeature(newPoint(lng0, lat0), Map.of("name", "z0point"))
+      ),
+      (in, features) -> features.point("layer")
+        .setZoomRange(0, 16)
+        .inheritAttrFromSource("name")
+    );
+
+    var z0Tile = TileCoord.ofXYZ(0, 0, 0);
+    var z16Tile = TileCoord.ofXYZ(50_000, 500, 16);
+    assertTrue(results.tiles.containsKey(z0Tile), "z0 tile should be in output");
+    assertTrue(results.tiles.containsKey(z16Tile), "z16 tile should be in output");
+
+    // results.tiles is a TreeMap ordered by TileCoord.encoded(), verify z16 comes after z0
+    var tileCoords = new ArrayList<>(results.tiles.keySet());
+    assertTrue(tileCoords.indexOf(z0Tile) < tileCoords.indexOf(z16Tile),
+      "z0 tile must appear before z16 high tile in output order");
+  }
+
+  @Test
   void testEmptyTileAfterPostProcessingOmittedFromArchive() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1", "maxzoom", "6"),
