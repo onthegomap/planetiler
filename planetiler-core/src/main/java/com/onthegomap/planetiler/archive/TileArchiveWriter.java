@@ -176,7 +176,8 @@ public class TileArchiveWriter {
 
     if (config.outputLayerStats()) {
       layerStatsBranch = pipeline.readFromQueue(layerStatsQueue)
-        .sinkTo("stats", 1, tileStatsWriter(layerStatsPath));
+        // instance method: needs config to resolve layerstats format
+        .sinkTo("stats", 1, writer.tileStatsWriter(layerStatsPath));
     }
 
     var loggers = ProgressLoggers.create()
@@ -210,14 +211,17 @@ public class TileArchiveWriter {
     timer.stop();
   }
 
-  private static WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
+  private WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
     return prev -> {
-      try (var statsWriter = TileSizeStats.newWriter(layerStatsPath)) {
-        statsWriter.write(TileSizeStats.headerRow());
+      try (var statsWriter = TileSizeStats.createWriter(config.layerstatsFormat(), layerStatsPath)) {
         for (var batch : prev) {
           for (var encodedTile : batch.out().get()) {
-            for (var line : encodedTile.layerStats()) {
-              statsWriter.write(line);
+            if (encodedTile.layerStatsData() != null) {
+              statsWriter.write(
+                encodedTile.layerStatsData().coord(),
+                encodedTile.layerStatsData().archivedBytes(),
+                encodedTile.layerStatsData().layerStats()
+              );
             }
           }
         }
@@ -280,7 +284,6 @@ public class TileArchiveWriter {
     boolean lastIsFill = false;
     List<TileSizeStats.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
-    var layerStatsSerializer = TileSizeStats.newThreadLocalSerializer();
     boolean includeIds = !config.excludeIds();
 
     var tileStatsUpdater = tileStats.threadLocalUpdater();
@@ -373,16 +376,17 @@ public class TileArchiveWriter {
         }
         if (!(skipFilled && lastIsFill) && bytes != null) {
           tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
-          List<String> layerStatsRows = config.outputLayerStats() ?
-            layerStatsSerializer.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
-            List.of();
+          // store raw stats; writer decides format (tsv or parquet)
+          LayerStatsData layerStatsData = config.outputLayerStats() ?
+            new LayerStatsData(tileFeatures.tileCoord(), bytes.length, layerStats) :
+            null;
           result.add(
             new TileEncodingResult(
               tileFeatures.tileCoord(),
               bytes,
               encoded.length,
               tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
-              layerStatsRows
+              layerStatsData
             )
           );
         }

@@ -39,6 +39,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import me.lemire.integercompression.IntWrapper;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Types;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.maplibre.mlt.converter.encodings.MltTypeMap;
@@ -82,6 +90,21 @@ public class TileSizeStats {
     return archive.resolveSibling(archive.getFileName() + ".layerstats.tsv.gz");
   }
 
+  /** Returns the default path for layerstats based on the archive and output format. */
+  public static Path getDefaultLayerstatsPath(Path archive, String format) {
+    String extension = "parquet".equalsIgnoreCase(format) ? ".layerstats.parquet" : ".layerstats.tsv.gz";
+    return archive.resolveSibling(archive.getFileName() + extension);
+  }
+
+  /** Creates a layerstats writer based on the output format. */
+  public static LayerStatsWriter createWriter(String format, Path output) throws IOException {
+    if ("parquet".equalsIgnoreCase(format)) {
+      return new ParquetLayerStatsWriter(output);
+    } else {
+      return new TsvLayerStatsWriter(output);
+    }
+  }
+
   public static void main(String... args) {
     var arguments = Arguments.fromArgsOrConfigFile(args);
     var config = PlanetilerConfig.from(arguments);
@@ -94,12 +117,14 @@ public class TileSizeStats {
     var inputString = arguments.getString("input", "input file");
     var input = TileArchiveConfig.from(inputString);
     var localPath = input.getLocalPath();
+    String format = config.layerstatsFormat();
     var output = localPath == null ?
       arguments.file("output", "output file") :
-      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath));
+      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath, format));
     var counter = new AtomicLong(0);
     var timer = stats.startStage("tilestats");
-    record Batch(List<Tile> tiles, CompletableFuture<List<String>> stats) {}
+    record BatchData(TileCoord coord, int archivedBytes, List<LayerStats> layerStats) {}
+    record Batch(List<Tile> tiles, CompletableFuture<List<BatchData>> stats) {}
     WorkQueue<Batch> writerQueue = new WorkQueue<>("tilestats_write_queue", 1_000, 1, stats);
     var pipeline = WorkerPipeline.start("tilestats", stats);
     var readBranch = pipeline
@@ -137,9 +162,9 @@ public class TileSizeStats {
         List<LayerStats> layerStats = null;
 
         var updater = tileStats.threadLocalUpdater();
-        var layerStatsSerializer = TileSizeStats.newThreadLocalSerializer();
         for (var batch : prev) {
-          List<String> lines = new ArrayList<>(batch.tiles.size());
+          // collect raw stats per tile; serialization happens in write stage
+          List<BatchData> batchData = new ArrayList<>(batch.tiles.size());
           for (var tile : batch.tiles) {
             if (!Arrays.equals(zipped, tile.bytes())) {
               zipped = tile.bytes();
@@ -148,19 +173,18 @@ public class TileSizeStats {
               layerStats = computeTileStats(decoded);
             }
             updater.recordTile(tile.coord(), zipped.length, layerStats);
-            lines.addAll(layerStatsSerializer.formatOutputRows(tile.coord(), zipped.length, layerStats));
+            batchData.add(new BatchData(tile.coord(), zipped.length, layerStats));
           }
-          batch.stats.complete(lines);
+          batch.stats.complete(batchData);
         }
       });
 
     var writeBranch = pipeline.readFromQueue(writerQueue)
       .sinkTo("write", 1, prev -> {
-        try (var writer = newWriter(output)) {
-          writer.write(headerRow());
+        try (var writer = createWriter(format, output)) {
           for (var batch : prev) {
-            for (var line : batch.stats.get()) {
-              writer.write(line);
+            for (var data : batch.stats.get()) {
+              writer.write(data.coord, data.archivedBytes, data.layerStats);
             }
           }
         }
@@ -417,6 +441,105 @@ public class TileSizeStats {
     @Override
     public int compareTo(LayerStats o) {
       return layer.compareTo(o.layer);
+    }
+  }
+
+  /**
+   * Writer abstraction for layerstats output.
+   */
+  public interface LayerStatsWriter extends AutoCloseable {
+
+    /** Write layerstats for a tile. */
+    void write(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats) throws IOException;
+
+    @Override
+    void close() throws IOException;
+  }
+
+  /**
+   * TSV writer for layerstats.
+   */
+  private static class TsvLayerStatsWriter implements LayerStatsWriter {
+
+    private final Writer writer;
+    private final TsvSerializer serializer;
+
+    TsvLayerStatsWriter(Path output) throws IOException {
+      this.writer = newWriter(output);
+      this.serializer = newThreadLocalSerializer();
+      writer.write(headerRow());
+    }
+
+    @Override
+    public void write(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats) throws IOException {
+      for (var line : serializer.formatOutputRows(tileCoord, archivedBytes, layerStats)) {
+        writer.write(line);
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      writer.close();
+    }
+  }
+
+  /**
+   * Parquet writer for layerstats.
+   */
+  private static class ParquetLayerStatsWriter implements LayerStatsWriter {
+
+    private static final MessageType SCHEMA = Types.buildMessage()
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("z")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("x")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("y")
+      .required(PrimitiveType.PrimitiveTypeName.INT64).named("hilbert")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("archived_tile_bytes")
+      .required(PrimitiveType.PrimitiveTypeName.BINARY).as(org.apache.parquet.schema.LogicalTypeAnnotation.stringType())
+      .named("layer")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_bytes")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_features")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_geometries")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_attr_bytes")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_attr_keys")
+      .required(PrimitiveType.PrimitiveTypeName.INT32).named("layer_attr_values")
+      .named("layerstats");
+
+    private final ParquetWriter<Group> writer;
+    private final SimpleGroupFactory groupFactory;
+
+    ParquetLayerStatsWriter(Path output) throws IOException {
+      this.groupFactory = new SimpleGroupFactory(SCHEMA);
+      org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(output.toString());
+      this.writer = ExampleParquetWriter.builder(hadoopPath)
+        .withType(SCHEMA)
+        .withCompressionCodec(CompressionCodecName.SNAPPY)
+        .build();
+    }
+
+    @Override
+    public void write(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats) throws IOException {
+      long hilbert = tileCoord.hilbertEncoded();
+      for (var layer : layerStats) {
+        Group group = groupFactory.newGroup()
+          .append("z", tileCoord.z())
+          .append("x", tileCoord.x())
+          .append("y", tileCoord.y())
+          .append("hilbert", hilbert)
+          .append("archived_tile_bytes", archivedBytes)
+          .append("layer", layer.layer)
+          .append("layer_bytes", layer.layerBytes)
+          .append("layer_features", layer.layerFeatures)
+          .append("layer_geometries", layer.layerGeometries)
+          .append("layer_attr_bytes", layer.layerAttrBytes)
+          .append("layer_attr_keys", layer.layerAttrKeys)
+          .append("layer_attr_values", layer.layerAttrValues);
+        writer.write(group);
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      writer.close();
     }
   }
 }

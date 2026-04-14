@@ -2,15 +2,19 @@ package com.onthegomap.planetiler.util;
 
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
@@ -220,5 +224,40 @@ class TileSizeStatsTest {
         """
         .trim(),
       (TileSizeStats.headerRow() + String.join("", formatted)).trim());
+  }
+
+  @Test
+  void testParquetOutput(@TempDir Path tempDir) throws IOException {
+    Path parquetFile = tempDir.resolve("layerstats.parquet");
+    var stats = List.of(
+      new TileSizeStats.LayerStats("layer1", 100, 5, 5, 20, 2, 3),
+      new TileSizeStats.LayerStats("layer2", 150, 10, 10, 30, 3, 4)
+    );
+
+    // Write Parquet file
+    try (var writer = TileSizeStats.createWriter("parquet", parquetFile)) {
+      writer.write(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    }
+
+    // Verify file exists and has content
+    assertTrue(Files.exists(parquetFile));
+    assertTrue(Files.size(parquetFile) > 0);
+  }
+
+  @Test
+  void testTsvOutput(@TempDir Path tempDir) throws IOException {
+    Path tsvFile = tempDir.resolve("layerstats.tsv.gz");
+    var stats = List.of(
+      new TileSizeStats.LayerStats("layer1", 100, 5, 5, 20, 2, 3)
+    );
+
+    // Write TSV file
+    try (var writer = TileSizeStats.createWriter("tsv", tsvFile)) {
+      writer.write(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    }
+
+    // Verify file exists and has content
+    assertTrue(Files.exists(tsvFile));
+    assertTrue(Files.size(tsvFile) > 0);
   }
 }
