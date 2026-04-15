@@ -65,10 +65,10 @@ import vector_tile.VectorTileProto;
  * Utilities for extracting tile and layer size summaries from encoded vector tiles.
  * <p>
  * {@link #computeTileStats(VectorTileProto.Tile)} extracts statistics about each layer in a tile and
- * {@link TsvSerializer} formats them as row of a TSV file to write.
+ * writes them to a Parquet file.
  * <p>
- * To generate a tsv.gz file with stats for each tile, you can add {@code --output-layerstats} option when generating an
- * archive, or run the following an existing archive:
+ * To generate a Parquet file with stats for each tile, you can add {@code --output-layerstats} option when generating an
+ * archive, or run the following on an existing archive:
  *
  * <pre>
  * {@code
