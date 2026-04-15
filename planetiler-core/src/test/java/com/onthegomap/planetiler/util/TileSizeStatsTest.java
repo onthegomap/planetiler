@@ -242,22 +242,29 @@ class TileSizeStatsTest {
     // Verify file exists and has content
     assertTrue(Files.exists(parquetFile));
     assertTrue(Files.size(parquetFile) > 0);
-  }
 
-  @Test
-  void testTsvOutput(@TempDir Path tempDir) throws IOException {
-    Path tsvFile = tempDir.resolve("layerstats.tsv.gz");
-    var stats = List.of(
-      new TileSizeStats.LayerStats("layer1", 100, 5, 5, 20, 2, 3)
-    );
+    // read back and verify data
+    var inputFile = blue.strategic.parquet.ParquetReader.makeInputFile(parquetFile.toFile());
+    try (var fileReader = org.apache.parquet.hadoop.ParquetFileReader.open(inputFile)) {
+      var schema = fileReader.getFooter().getFileMetaData().getSchema();
+      var recordCount = fileReader.getRecordCount();
 
-    // Write TSV file
-    try (var writer = TileSizeStats.createWriter("tsv", tsvFile)) {
-      writer.write(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+      // verify schema has expected columns
+      assertEquals(12, schema.getFieldCount());
+      assertTrue(schema.containsField("z"));
+      assertTrue(schema.containsField("x"));
+      assertTrue(schema.containsField("y"));
+      assertTrue(schema.containsField("hilbert"));
+      assertTrue(schema.containsField("archived_tile_bytes"));
+      assertTrue(schema.containsField("layer"));
+      assertTrue(schema.containsField("layer_bytes"));
+      assertTrue(schema.containsField("layer_features"));
+      assertTrue(schema.containsField("layer_geometries"));
+      assertTrue(schema.containsField("layer_attr_bytes"));
+      assertTrue(schema.containsField("layer_attr_keys"));
+      assertTrue(schema.containsField("layer_attr_values"));
+      assertEquals(2, recordCount);
     }
-
-    // Verify file exists and has content
-    assertTrue(Files.exists(tsvFile));
-    assertTrue(Files.size(tsvFile) > 0);
   }
+
 }

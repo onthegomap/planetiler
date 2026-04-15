@@ -72,7 +72,7 @@ import vector_tile.VectorTileProto;
  *
  * <pre>
  * {@code
- * java -jar planetiler.jar stats --input=<path to pmtiles or mbtiles> --output=layerstats.tsv.gz
+ * java -jar planetiler.jar stats --input=<path to pmtiles or mbtiles> --output=layerstats.parquet
  * }
  * </pre>
  */
@@ -87,22 +87,17 @@ public class TileSizeStats {
 
   /** Returns the default path that a layerstats file should go relative to an existing archive. */
   public static Path getDefaultLayerstatsPath(Path archive) {
-    return archive.resolveSibling(archive.getFileName() + ".layerstats.tsv.gz");
+    return archive.resolveSibling(archive.getFileName() + ".layerstats.parquet");
   }
 
   /** Returns the default path for layerstats based on the archive and output format. */
   public static Path getDefaultLayerstatsPath(Path archive, String format) {
-    String extension = "parquet".equalsIgnoreCase(format) ? ".layerstats.parquet" : ".layerstats.tsv.gz";
-    return archive.resolveSibling(archive.getFileName() + extension);
+    return archive.resolveSibling(archive.getFileName() + ".layerstats.parquet");
   }
 
-  /** Creates a layerstats writer based on the output format. */
+  /** Creates a Parquet layerstats writer. */
   public static LayerStatsWriter createWriter(String format, Path output) throws IOException {
-    if ("parquet".equalsIgnoreCase(format)) {
-      return new ParquetLayerStatsWriter(output);
-    } else {
-      return new TsvLayerStatsWriter(output);
-    }
+    return new ParquetLayerStatsWriter(output);
   }
 
   public static void main(String... args) {
@@ -454,33 +449,6 @@ public class TileSizeStats {
 
     @Override
     void close() throws IOException;
-  }
-
-  /**
-   * TSV writer for layerstats.
-   */
-  private static class TsvLayerStatsWriter implements LayerStatsWriter {
-
-    private final Writer writer;
-    private final TsvSerializer serializer;
-
-    TsvLayerStatsWriter(Path output) throws IOException {
-      this.writer = newWriter(output);
-      this.serializer = newThreadLocalSerializer();
-      writer.write(headerRow());
-    }
-
-    @Override
-    public void write(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats) throws IOException {
-      for (var line : serializer.formatOutputRows(tileCoord, archivedBytes, layerStats)) {
-        writer.write(line);
-      }
-    }
-
-    @Override
-    public void close() throws IOException {
-      writer.close();
-    }
   }
 
   /**
