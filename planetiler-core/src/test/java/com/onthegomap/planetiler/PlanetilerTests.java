@@ -2763,7 +2763,7 @@ class PlanetilerTests {
         }
       })
       .addOsmSource("osm", tempOsm)
-      .addGeoPackageSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"), null)
+      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
       .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
@@ -3053,7 +3053,7 @@ class PlanetilerTests {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
-      .addGeoPackageSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"), null)
+      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
       .setOutput(tempDir.resolve("output.mbtiles"))
