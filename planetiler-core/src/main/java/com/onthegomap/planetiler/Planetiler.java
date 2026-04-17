@@ -836,8 +836,7 @@ public class Planetiler {
 
     Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
       // default to <output file>.layerstats.parquet
-      TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output")),
-        config.layerstatsFormat()));
+      TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
 
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");
