@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -229,42 +230,65 @@ class TileSizeStatsTest {
   @Test
   void testParquetOutput(@TempDir Path tempDir) throws IOException {
     Path parquetFile = tempDir.resolve("layerstats.parquet");
+    var tileCoord = TileCoord.ofXYZ(1, 2, 3);
     var stats = List.of(
       new TileSizeStats.LayerStats("layer1", 100, 5, 5, 20, 2, 3),
       new TileSizeStats.LayerStats("layer2", 150, 10, 10, 30, 3, 4)
     );
 
-    // Write Parquet file
-    try (var writer = TileSizeStats.createWriter("parquet", parquetFile)) {
-      writer.write(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    try (var writer = TileSizeStats.createWriter(parquetFile)) {
+      writer.write(tileCoord, 999, stats);
     }
 
-    // Verify file exists and has content
     assertTrue(Files.exists(parquetFile));
     assertTrue(Files.size(parquetFile) > 0);
 
-    // read back and verify data
-    var inputFile = blue.strategic.parquet.ParquetReader.makeInputFile(parquetFile.toFile());
-    try (var fileReader = org.apache.parquet.hadoop.ParquetFileReader.open(inputFile)) {
-      var schema = fileReader.getFooter().getFileMetaData().getSchema();
-      var recordCount = fileReader.getRecordCount();
+    blue.strategic.parquet.Hydrator<Map<String, Object>, Map<String, Object>> hydrator =
+      new blue.strategic.parquet.Hydrator<>() {
+        @Override
+        public Map<String, Object> start() {
+          return new HashMap<>();
+        }
 
-      // verify schema has expected columns
-      assertEquals(12, schema.getFieldCount());
-      assertTrue(schema.containsField("z"));
-      assertTrue(schema.containsField("x"));
-      assertTrue(schema.containsField("y"));
-      assertTrue(schema.containsField("hilbert"));
-      assertTrue(schema.containsField("archived_tile_bytes"));
-      assertTrue(schema.containsField("layer"));
-      assertTrue(schema.containsField("layer_bytes"));
-      assertTrue(schema.containsField("layer_features"));
-      assertTrue(schema.containsField("layer_geometries"));
-      assertTrue(schema.containsField("layer_attr_bytes"));
-      assertTrue(schema.containsField("layer_attr_keys"));
-      assertTrue(schema.containsField("layer_attr_values"));
-      assertEquals(2, recordCount);
+        @Override
+        public Map<String, Object> add(Map<String, Object> target, String heading, Object value) {
+          target.put(heading, value);
+          return target;
+        }
+
+        @Override
+        public Map<String, Object> finish(Map<String, Object> target) {
+          return target;
+        }
+      };
+
+    List<Map<String, Object>> rows;
+    try (var stream = blue.strategic.parquet.ParquetReader.streamContent(
+      parquetFile.toFile(), blue.strategic.parquet.HydratorSupplier.constantly(hydrator))) {
+      rows = stream.toList();
     }
+
+    assertEquals(2, rows.size());
+
+    var row0 = rows.get(0);
+    assertEquals(tileCoord.z(), ((Number) row0.get("z")).intValue());
+    assertEquals(tileCoord.x(), ((Number) row0.get("x")).intValue());
+    assertEquals(tileCoord.y(), ((Number) row0.get("y")).intValue());
+    assertEquals(tileCoord.hilbertEncoded(), ((Number) row0.get("hilbert")).longValue());
+    assertEquals(999, ((Number) row0.get("archived_tile_bytes")).intValue());
+    assertEquals("layer1", row0.get("layer"));
+    assertEquals(100, ((Number) row0.get("layer_bytes")).intValue());
+    assertEquals(5, ((Number) row0.get("layer_features")).intValue());
+    assertEquals(5, ((Number) row0.get("layer_geometries")).intValue());
+    assertEquals(20, ((Number) row0.get("layer_attr_bytes")).intValue());
+    assertEquals(2, ((Number) row0.get("layer_attr_keys")).intValue());
+    assertEquals(3, ((Number) row0.get("layer_attr_values")).intValue());
+
+    var row1 = rows.get(1);
+    assertEquals("layer2", row1.get("layer"));
+    assertEquals(150, ((Number) row1.get("layer_bytes")).intValue());
+    assertEquals(10, ((Number) row1.get("layer_features")).intValue());
+    assertEquals(30, ((Number) row1.get("layer_attr_bytes")).intValue());
   }
 
 }

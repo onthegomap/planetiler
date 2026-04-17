@@ -65,7 +65,6 @@ public record PlanetilerConfig(
   boolean mltReorderFeature,
   boolean mltSharedDictionaries,
   boolean outputLayerStats,
-  String layerstatsFormat,
   String debugUrlPattern,
   Path tmpDir,
   Path tileWeights,

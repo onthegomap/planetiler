@@ -3,8 +3,6 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.dataformat.csv.CsvMapper;
-import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -37,10 +35,8 @@ import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
-import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -2767,7 +2763,7 @@ class PlanetilerTests {
         }
       })
       .addOsmSource("osm", tempOsm)
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+      .addGeoPackageSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"), null)
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
       .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
@@ -2831,37 +2827,51 @@ class PlanetilerTests {
     if (args.contains("--output-layerstats")) {
       assertTrue(Files.exists(layerstats));
 
-      // Read and verify Parquet file
-      var inputFile = blue.strategic.parquet.ParquetReader.makeInputFile(layerstats.toFile());
-      try (var fileReader = org.apache.parquet.hadoop.ParquetFileReader.open(inputFile)) {
-        var schema = fileReader.getFooter().getFileMetaData().getSchema();
-        var recordCount = fileReader.getRecordCount();
+      blue.strategic.parquet.Hydrator<Map<String, Object>, Map<String, Object>> hydrator =
+        new blue.strategic.parquet.Hydrator<>() {
+          @Override
+          public Map<String, Object> start() {
+            return new HashMap<>();
+          }
 
-        // Verify schema has expected columns
-        assertEquals(12, schema.getFieldCount());
-        assertTrue(schema.containsField("z"));
-        assertTrue(schema.containsField("x"));
-        assertTrue(schema.containsField("y"));
-        assertTrue(schema.containsField("hilbert"));
-        assertTrue(schema.containsField("archived_tile_bytes"));
-        assertTrue(schema.containsField("layer"));
-        assertTrue(schema.containsField("layer_bytes"));
-        assertTrue(schema.containsField("layer_features"));
-        assertTrue(schema.containsField("layer_geometries"));
-        assertTrue(schema.containsField("layer_attr_bytes"));
-        assertTrue(schema.containsField("layer_attr_keys"));
-        assertTrue(schema.containsField("layer_attr_values"));
+          @Override
+          public Map<String, Object> add(Map<String, Object> target, String heading, Object value) {
+            target.put(heading, value);
+            return target;
+          }
 
-        // Verify we have records (32 layers from the test)
-        assertEquals(32, recordCount);
+          @Override
+          public Map<String, Object> finish(Map<String, Object> target) {
+            return target;
+          }
+        };
+
+      List<Map<String, Object>> rows;
+      try (var stream = blue.strategic.parquet.ParquetReader.streamContent(
+        layerstats.toFile(), blue.strategic.parquet.HydratorSupplier.constantly(hydrator))) {
+        rows = stream.toList();
       }
 
+      assertEquals(32, rows.size());
+      for (var row : rows) {
+        int z = ((Number) row.get("z")).intValue();
+        int x = ((Number) row.get("x")).intValue();
+        int y = ((Number) row.get("y")).intValue();
+        long hilbert = ((Number) row.get("hilbert")).longValue();
+        assertEquals(hilbert, TileCoord.ofXYZ(x, y, z).hilbertEncoded(), "bad hilbert: " + row);
+        assertTrue(z <= 14, "bad z: " + row);
+      }
 
       // ensure tilestats standalone executable produces same output
       var standaloneLayerstatsOutput = tempDir.resolve("layerstats2.parquet");
       TileSizeStats.main("--input=" + outputPath, "--output=" + standaloneLayerstatsOutput);
-      assertTrue(Files.exists(standaloneLayerstatsOutput));
-      assertTrue(Files.size(standaloneLayerstatsOutput) > 0);
+      List<Map<String, Object>> standaloneRows;
+      try (var stream = blue.strategic.parquet.ParquetReader.streamContent(
+        standaloneLayerstatsOutput.toFile(), blue.strategic.parquet.HydratorSupplier.constantly(hydrator))) {
+        standaloneRows = stream.toList();
+      }
+      assertEquals(rows.size(), standaloneRows.size());
+      assertEquals(rows, standaloneRows);
     } else {
       assertFalse(Files.exists(layerstats));
     }
@@ -3043,7 +3053,7 @@ class PlanetilerTests {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+      .addGeoPackageSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"), null)
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
       .setOutput(tempDir.resolve("output.mbtiles"))

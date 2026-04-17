@@ -90,13 +90,8 @@ public class TileSizeStats {
     return archive.resolveSibling(archive.getFileName() + ".layerstats.parquet");
   }
 
-  /** Returns the default path for layerstats based on the archive and output format. */
-  public static Path getDefaultLayerstatsPath(Path archive, String format) {
-    return archive.resolveSibling(archive.getFileName() + ".layerstats.parquet");
-  }
-
   /** Creates a Parquet layerstats writer. */
-  public static LayerStatsWriter createWriter(String format, Path output) throws IOException {
+  public static LayerStatsWriter createWriter(Path output) throws IOException {
     return new ParquetLayerStatsWriter(output);
   }
 
@@ -112,10 +107,9 @@ public class TileSizeStats {
     var inputString = arguments.getString("input", "input file");
     var input = TileArchiveConfig.from(inputString);
     var localPath = input.getLocalPath();
-    String format = config.layerstatsFormat();
     var output = localPath == null ?
       arguments.file("output", "output file") :
-      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath, format));
+      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath));
     var counter = new AtomicLong(0);
     var timer = stats.startStage("tilestats");
     record BatchData(TileCoord coord, int archivedBytes, List<LayerStats> layerStats) {}
@@ -176,7 +170,7 @@ public class TileSizeStats {
 
     var writeBranch = pipeline.readFromQueue(writerQueue)
       .sinkTo("write", 1, prev -> {
-        try (var writer = createWriter(format, output)) {
+        try (var writer = createWriter(output)) {
           for (var batch : prev) {
             for (var data : batch.stats.get()) {
               writer.write(data.coord, data.archivedBytes, data.layerStats);

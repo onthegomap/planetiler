@@ -213,7 +213,7 @@ public class TileArchiveWriter {
 
   private WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
     return prev -> {
-      try (var statsWriter = TileSizeStats.createWriter(config.layerstatsFormat(), layerStatsPath)) {
+      try (var statsWriter = TileSizeStats.createWriter(layerStatsPath)) {
         for (var batch : prev) {
           for (var encodedTile : batch.out().get()) {
             if (encodedTile.layerStatsData() != null) {
@@ -531,10 +531,6 @@ public class TileArchiveWriter {
 
     public int size() {
       return in.size();
-    }
-
-    public boolean isEmpty() {
-      return in.isEmpty();
     }
   }
 }
