@@ -238,8 +238,6 @@ public record PlanetilerConfig(
         "Allow re-ordering output features within each layer when tile format=MLT to reduce tile sizes", false),
       arguments.getBoolean("mlt_shared_dict", "Share dictionaries between string fields when tile format=MLT", false),
       arguments.getBoolean("output_layerstats", "output a parquet file for each tile/layer size", false),
-      arguments.getString("layerstats_format|layerstats-format",
-        "layerstats output format (parquet)", "parquet"),
       arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
         "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
       tmpDir,
