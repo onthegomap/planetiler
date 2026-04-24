@@ -19,7 +19,7 @@ jobs:
       packages: write
     steps:
     - name: Ensure version does not start with 'v'
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         github-token: ${{ github.token }}
         script: |
@@ -53,7 +53,7 @@ jobs:
         timeout_minutes: 30
         command: ./scripts/test-release.sh "${{ github.event.inputs.version }}"
     - name: Create tag
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         github-token: ${{ github.token }}
         script: |
