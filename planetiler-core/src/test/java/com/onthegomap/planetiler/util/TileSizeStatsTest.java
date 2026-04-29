@@ -14,9 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
-import org.maplibre.mlt.converter.mvt.ColumnMapping;
-import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.converter.ColumnMapping;
+import org.maplibre.mlt.converter.ColumnMappingConfig;
+import org.maplibre.mlt.data.MapboxVectorTile;
 import org.maplibre.mlt.decoder.MltDecoder;
 
 class TileSizeStatsTest {
@@ -131,13 +131,13 @@ class TileSizeStatsTest {
           Map.of("key1", "value1", "key2", 3)
         )
       ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
+    final var mltInput = vectorTile.toMltInput();
     ColumnMappingConfig columnMappings = new ColumnMappingConfig();
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     Map<String, FeatureTableOptimizations> optimizations = Map.of();
     var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(false).useFastPFOR(false)
       .optimizations(optimizations).build();
-    var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
+    var mlt = MltConverter.encode(mltInput, tilesetMetadata, conversionConfig, null);
     var stats = TileSizeStats.computeMltTileStats(vectorTile, mltInput, mlt);
     assertEquals(2, stats.size());
     var entry1 = stats.getFirst();
@@ -168,7 +168,7 @@ class TileSizeStatsTest {
     try (var is = Objects.requireNonNull(getClass().getResourceAsStream("/fastpfor.mlt"))) {
       var bytes = is.readAllBytes();
       var mlt = MltDecoder.decodeMlTile(bytes);
-      var mvt = new MapboxVectorTile(mlt.layers());
+      var mvt = new MapboxVectorTile(mlt.getLayerStream().toList());
       TileSizeStats.computeMltTileStats(null, mvt, bytes);
     }
   }
@@ -190,7 +190,7 @@ class TileSizeStatsTest {
           Map.of("key:1", "value2", "key:2", "value1")
         )
       ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
+    final var mltInput = vectorTile.toMltInput();
     ColumnMappingConfig columnMappings =
       ColumnMappingConfig.of(Pattern.compile(".*"), List.of(new ColumnMapping("key", ":", true)));
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
@@ -200,7 +200,7 @@ class TileSizeStatsTest {
           new FeatureTableOptimizations(false, false,
             List.of(new ColumnMapping("key", ":", true)))))
       .build();
-    var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
+    var mlt = MltConverter.encode(mltInput, tilesetMetadata, conversionConfig, null);
     var stats = TileSizeStats.computeMltTileStats(vectorTile, mltInput, mlt);
     assertEquals(1, stats.size());
     var entry1 = stats.getFirst();
