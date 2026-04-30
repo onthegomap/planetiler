@@ -835,7 +835,7 @@ public class Planetiler {
     }
 
     Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
-      // default to <output file>.layerstats.tsv.gz
+      // default to <output file>.layerstats.parquet
       TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
 
     if (config.tileWriteThreads() < 1) {
