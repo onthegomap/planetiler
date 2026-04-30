@@ -44,13 +44,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.maplibre.mlt.converter.ColumnMapping;
+import org.maplibre.mlt.converter.ColumnMappingConfig;
 import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
-import org.maplibre.mlt.converter.mvt.ColumnMapping;
-import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.maplibre.mlt.data.Layer;
+import org.maplibre.mlt.data.LayerSource;
+import org.maplibre.mlt.metadata.tileset.MltMetadata.ScalarType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -312,25 +313,26 @@ public class TileArchiveWriter {
           } else {
             encoded = switch (config.tileFormat()) {
               case MLT -> {
-                MapboxVectorTile mltInput = tile.toMltInput(stats);
-                Set<String> stringColumns = new HashSet<>();
-                Map<String, Set<String>> stringColumnsByLayer = new HashMap<>();
+                final LayerSource mltInput = tile.toMltInput(stats);
+                final Set<String> stringColumns = new HashSet<>();
+                final Map<String, Set<String>> stringColumnsByLayer = new HashMap<>();
                 if (config.mltSharedDictionaries()) {
                   findStringColumns(mltInput, stringColumns, stringColumnsByLayer);
                 }
-                ColumnMappingConfig columnMappings = stringColumns.isEmpty() ? EMPTY_COLUMN_MAPPING :
+                final var columnMappings = stringColumns.isEmpty() ? EMPTY_COLUMN_MAPPING :
                   ColumnMappingConfig.of(MATCH_ALL, List.of(new ColumnMapping(stringColumns, true)));
-                var tilesetMetadata =
-                  MltConverter.createTilesetMetadata(mltInput, columnMappings, includeIds, true, false);
+                final var typeMismatchPolicy = ConversionConfig.TypeMismatchPolicy.COERCE;
+                final var tilesetMetadata =
+                  MltConverter.createTilesetMetadata(mltInput, typeMismatchPolicy, columnMappings, includeIds);
                 var conversionConfig = ConversionConfig.builder()
                   .includeIds(includeIds)
                   .useFastPFOR(config.mltFastPfor())
                   .useFSST(config.mltFsst())
-                  .mismatchPolicy(ConversionConfig.TypeMismatchPolicy.COERCE)
-                  .optimizations(mltInput.layers().stream().collect(Collectors.toMap(
+                  .typeMismatchPolicy(typeMismatchPolicy)
+                  .optimizations(mltInput.getLayerStream().collect(Collectors.toMap(
                     Layer::name,
                     layer -> {
-                      Set<String> layerStringColumns = stringColumnsByLayer.get(layer.name());
+                      final Set<String> layerStringColumns = stringColumnsByLayer.get(layer.name());
                       return new FeatureTableOptimizations(config.mltReorderFeature(), !includeIds,
                         layerStringColumns == null || layerStringColumns.isEmpty() ? null :
                           List.of(new ColumnMapping(layerStringColumns, true)));
@@ -339,7 +341,7 @@ public class TileArchiveWriter {
                   .preTessellatePolygons(config.mltTessellatePolygons())
                   .useMortonEncoding(true)
                   .build();
-                var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
+                final var mlt = MltConverter.encode(mltInput, tilesetMetadata, conversionConfig, null);
                 layerStats = TileSizeStats.computeMltTileStats(tile, mltInput, mlt);
                 yield mlt;
               }
@@ -392,35 +394,39 @@ public class TileArchiveWriter {
     }
   }
 
-  private static void findStringColumns(MapboxVectorTile mltInput, Set<String> stringColumns,
-    Map<String, Set<String>> stringColumnsByLayer) {
-    Map<String, Integer> valueCounts = new HashMap<>();
-    Set<String> notStringColumns = new HashSet<>();
+  private static void findStringColumns(LayerSource mltInput, Set<String> stringColumns,
+    final Map<String, Set<String>> stringColumnsByLayer) {
+    final Map<String, Integer> valueCounts = new HashMap<>();
+    final Set<String> notStringColumns = new HashSet<>();
+    final int sufficientRepeats = 50;
     int numRepeats = 0;
     boolean haveEnoughRepeatedValues = false;
-    for (var layer : mltInput.layers()) {
-      for (var feature : layer.features()) {
-        for (var entry : feature.properties().entrySet()) {
-          if (entry.getValue() instanceof String value) {
+    for (final var layer : mltInput.getLayers()) {
+      for (final var feature : layer.features()) {
+        for (final var property : feature.getProperties()) {
+          final var propertyName = property.getName();
+          if (property.getType().is(ScalarType.STRING)) {
             if (!haveEnoughRepeatedValues) {
-              int count = valueCounts.merge(value, 1, Integer::sum);
+              final var value = property.getValue(feature.getIndex());
+              final var valueStr = (value != null) ? value.toString() : null;
+              final int count = (valueStr != null) ? valueCounts.merge(valueStr, 1, Integer::sum) : 0;
               if (count > 1) {
-                numRepeats += count == 2 ? 2 : 1;
-                if (numRepeats >= 50) {
+                numRepeats += (count == 2) ? 2 : 1;
+                if (numRepeats >= sufficientRepeats) {
                   haveEnoughRepeatedValues = true;
                 }
               }
+              stringColumns.add(propertyName);
+              stringColumnsByLayer.computeIfAbsent(layer.name(), layerName -> new HashSet<>()).add(propertyName);
+            } else {
+              notStringColumns.add(propertyName);
             }
-            stringColumns.add(entry.getKey());
-            stringColumnsByLayer.computeIfAbsent(layer.name(), name -> new HashSet<>()).add(entry.getKey());
-          } else {
-            notStringColumns.add(entry.getKey());
           }
         }
       }
     }
-    // you need enough repeated values for the overhead of the offsets and indices to be worth it
-    // testing showed that you need >~50 shared strings for deduplication benefit to outweigh shared dictionary cost
+    // You need enough repeated values for the overhead of the offsets and indices to be worth it.
+    // Yesting showed that you need >~50 shared strings for deduplication benefit to outweigh shared dictionary cost
     if (!haveEnoughRepeatedValues) {
       stringColumns.clear();
       stringColumnsByLayer.clear();
