@@ -48,9 +48,18 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
  */
 public class GeoUtils {
 
-  /** Rounding precision for 256x256px tiles encoded using 4096 values. */
-  public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
+  /**
+   * Rounding precision for 256x256px tiles encoded using {@code tile_extent} values (default 4096).
+   */
+  public static volatile PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+
+  public static void setTileExtent(int tileExtent) {
+    if (tileExtent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, got " + tileExtent);
+    }
+    TILE_PRECISION = new PrecisionModel(tileExtent / 256d);
+  }
 
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
   public static final CoordinateSequence EMPTY_COORDINATE_SEQUENCE = new PackedCoordinateSequence.Double(0, 2, 0);

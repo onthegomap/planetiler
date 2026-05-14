@@ -93,8 +93,9 @@ public class VectorTile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
-  // TODO make these configurable
-  private static final int EXTENT = 4096;
+  public static final int DEFAULT_EXTENT = 4096;
+  // Global vector tile extent configured at runtime through PlanetilerConfig.
+  private static volatile int EXTENT = DEFAULT_EXTENT;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -104,6 +105,17 @@ public class VectorTile {
     var encoder = new CommandEncoder(scale);
     encoder.accept(input);
     return encoder.result.toArray();
+  }
+
+  public static int extent() {
+    return EXTENT;
+  }
+
+  public static void setExtent(int extent) {
+    if (extent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, got " + extent);
+    }
+    EXTENT = extent;
   }
 
   /**
@@ -368,7 +380,11 @@ public class VectorTile {
       List<Feature> features = new ArrayList<>();
       for (VectorTileProto.Tile.Layer layer : tile.getLayersList()) {
         String layerName = layer.getName();
-        assert layer.getExtent() == 4096;
+        if (layer.getExtent() != EXTENT) {
+          throw new IllegalStateException(
+            "Unsupported vector tile extent: " + layer.getExtent() + " (expected " + EXTENT + ")"
+          );
+        }
         List<String> keys = layer.getKeysList();
         List<Object> values = new ArrayList<>();
 
@@ -447,8 +463,8 @@ public class VectorTile {
    */
   public static int hilbertIndex(Geometry geometry) {
     Coordinate coord = geometry.getCoordinate();
-    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
-    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
+    int x = zigZagEncode((int) Math.round(coord.x * EXTENT / SIZE));
+    int y = zigZagEncode((int) Math.round(coord.y * EXTENT / SIZE));
     return (int) Hilbert.hilbertXYToIndex(15, x, y);
   }
 

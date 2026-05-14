@@ -29,6 +29,7 @@ public record PlanetilerConfig(
   int minzoom,
   int maxzoom,
   int maxzoomForRendering,
+  int tileExtent,
   boolean force,
   boolean append,
   boolean compressTempStorage,
@@ -90,6 +91,9 @@ public record PlanetilerConfig(
     if (maxzoom > MAX_MAXZOOM) {
       throw new IllegalArgumentException("Max zoom must be <= " + MAX_MAXZOOM + ", was " + maxzoom);
     }
+    if (tileExtent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, was " + tileExtent);
+    }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
     }
@@ -139,6 +143,8 @@ public record PlanetilerConfig(
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
+    int tileExtent = arguments.getInteger("tile_extent",
+      "vector tile extent (default 4096)", 4096);
     Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
     List<String> extraNameTags = arguments.getList("extra_name_tags", "Extra name tags to copy from OSM to output",
       List.of());
@@ -162,6 +168,7 @@ public record PlanetilerConfig(
       minzoom,
       maxzoom,
       renderMaxzoom,
+      tileExtent,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("append",
         "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
@@ -196,13 +203,13 @@ public record PlanetilerConfig(
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
       arguments.getDouble("min_feature_size_at_max_zoom",
         "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
-        256d / 4096),
+        256d / tileExtent),
       arguments.getDouble("min_feature_size",
         "Default value for the minimum size in tile pixels of features to emit below the maximum zoom level",
         1),
       arguments.getDouble("simplify_tolerance_at_max_zoom",
         "Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming",
-        256d / 4096),
+        256d / tileExtent),
       arguments.getDouble("simplify_tolerance",
         "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
         0.1d),

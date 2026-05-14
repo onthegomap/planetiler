@@ -49,6 +49,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   /** Constructs a new feature render that will send rendered features to {@code consumer}. */
   public FeatureRenderer(PlanetilerConfig config, Consumer<RenderedFeature> consumer, Stats stats,
     Closeable closeable) {
+    VectorTile.setExtent(config.tileExtent());
+    GeoUtils.setTileExtent(config.tileExtent());
     this.config = config;
     this.consumer = consumer;
     this.stats = stats;
@@ -141,7 +143,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     RenderedFeature.Group groupInfo = null;
     if (hasLabelGrid && coords.length == 1) {
       double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
-      groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
+      groupInfo = labelGridTileSize < 1d / config.tileExtent() ? null : new RenderedFeature.Group(
         GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coords[0]),
         feature.getPointLabelGridLimitAtZoom(zoom)
       );
@@ -264,9 +266,11 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           // post-processing.  Features need to be "unscaled" in FeatureGroup after line merging,
           // and before emitting to the output archive.
           scale = Math.max(config.maxzoom(), 14) - zoom;
-          // need 14 bits to represent tile coordinates (4096 * 2 for buffer * 2 for zigzag encoding)
+          // need enough bits to represent tile coordinates (extent * 2 for buffer * 2 for zigzag encoding)
           // so cap the scale factor to avoid overflowing 32-bit integer space
-          scale = Math.min(31 - 14, scale);
+          long maxCoordinate = (long) config.tileExtent() * 4L;
+          int bits = 64 - Long.numberOfLeadingZeros(maxCoordinate - 1);
+          scale = Math.max(0, Math.min(31 - bits, scale));
         }
 
         if (!geom.isEmpty()) {

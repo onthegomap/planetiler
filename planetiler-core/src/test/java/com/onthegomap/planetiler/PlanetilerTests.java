@@ -2088,7 +2088,7 @@ class PlanetilerTests {
         feature(newMultiLineString(
           newLineString(32, 64.3125, 37, 64.0625, 42, 64.3125),
           newLineString(32, 64, 37, 64.0625, 42, 64)
-        ), Map.of())
+        ), "layer", Map.of(), 0)
       )
     )), sortListValues(results.tiles));
   }
