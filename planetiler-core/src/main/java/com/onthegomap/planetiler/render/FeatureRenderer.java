@@ -268,9 +268,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           scale = Math.max(config.maxzoom(), 14) - zoom;
           // need enough bits to represent tile coordinates (extent * 2 for buffer * 2 for zigzag encoding)
           // so cap the scale factor to avoid overflowing 32-bit integer space
-          long maxCoordinate = (long) config.tileExtent() * 4L;
+          long maxCoordinate = config.tileExtent() * 4L;
           int bits = 64 - Long.numberOfLeadingZeros(maxCoordinate - 1);
-          scale = Math.max(0, Math.min(31 - bits, scale));
+          scale = Math.clamp(scale, 0, Math.max(0, 31 - bits));
         }
 
         if (!geom.isEmpty()) {
