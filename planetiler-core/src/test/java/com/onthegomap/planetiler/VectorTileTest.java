@@ -257,6 +257,24 @@ class VectorTileTest {
   }
 
   @Test
+  void testHilbertIndexLargeTileExtent() {
+    int originalExtent = VectorTile.extent();
+    try {
+      VectorTile.setExtent(16384);
+      var point = newPoint(513, 513);
+
+      int fromGeometry = VectorTile.hilbertIndex(point);
+      int fromEncodedGeometry = VectorTile.encodeGeometry(point).hilbertIndex();
+      int fromScaledEncodedGeometry = VectorTile.encodeGeometry(point, 2).hilbertIndex();
+
+      assertEquals(fromGeometry, fromEncodedGeometry);
+      assertEquals(fromGeometry, fromScaledEncodedGeometry);
+    } finally {
+      VectorTile.setExtent(originalExtent);
+    }
+  }
+
+  @Test
   void testRoundTripLineString() {
     testRoundTripGeometry(JTS_FACTORY.createLineString(new Coordinate[]{
       new CoordinateXY(1, 2),

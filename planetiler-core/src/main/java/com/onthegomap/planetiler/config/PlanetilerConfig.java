@@ -91,8 +91,8 @@ public record PlanetilerConfig(
     if (maxzoom > MAX_MAXZOOM) {
       throw new IllegalArgumentException("Max zoom must be <= " + MAX_MAXZOOM + ", was " + maxzoom);
     }
-    if (tileExtent <= 0) {
-      throw new IllegalArgumentException("tile_extent must be > 0, was " + tileExtent);
+    if (tileExtent <= 0 || (tileExtent & (tileExtent - 1)) != 0) {
+      throw new IllegalArgumentException("tile_extent must be a power of 2, was " + tileExtent);
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);

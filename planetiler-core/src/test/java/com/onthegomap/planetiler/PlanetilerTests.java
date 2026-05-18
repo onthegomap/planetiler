@@ -2093,6 +2093,86 @@ class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
+  @Test
+  void testTileExtentWorstCasePointLinePolygon() throws Exception {
+    var baseline = runTileExtentWorstCasePointLinePolygon(4096);
+
+    // Include both high and low extents to stress clipping/rounding behavior.
+    for (int tileExtent : List.of(512, 1024, 8192, 16384)) {
+      var result = runTileExtentWorstCasePointLinePolygon(tileExtent);
+      assertEquals(sortListValues(baseline.tiles), sortListValues(result.tiles), "tile_extent=" + tileExtent);
+    }
+  }
+
+  private PlanetilerResults runTileExtentWorstCasePointLinePolygon(int tileExtent) throws Exception {
+    var points = newMultiPoint(
+      z14Point(-255, -255),
+      z14Point(513, -255),
+      z14Point(513, 513),
+      z14Point(-255, 513),
+      z14Point(0, 0),
+      z14Point(128, 128),
+      z14Point(256, 256)
+    );
+
+    var lines = newMultiLineString(
+      newLineString(z14CoordinatePixelList(
+        -255, -255,
+        513, -255,
+        513, 513,
+        -255, 513,
+        -255, -255
+      )),
+      newLineString(z14CoordinatePixelList(
+        0, 0,
+        128, 128,
+        256, 256
+      ))
+    );
+
+    var polygon = newPolygon(z14CoordinatePixelList(
+      -255, -255,
+      513, -255,
+      513, 513,
+      -255, 513,
+      -255, -255
+    ));
+
+    return runWithReaderFeatures(
+      Map.of(
+        "threads", "1",
+        "maxzoom", "14",
+        "tile_extent", Integer.toString(tileExtent)
+      ),
+      List.of(
+        newReaderFeature(points, Map.of()),
+        newReaderFeature(lines, Map.of()),
+        newReaderFeature(polygon, Map.of())
+      ),
+      (in, features) -> {
+        if (in.isPoint()) {
+          features.point("points")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257);
+        }
+        if (in.canBeLine()) {
+          features.line("lines")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257)
+            .setMinPixelSize(0)
+            .setPixelTolerance(0);
+        }
+        if (in.canBePolygon()) {
+          features.polygon("polygons")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257)
+            .setMinPixelSize(0)
+            .setPixelTolerance(0);
+        }
+      }
+    );
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testMergePolygons(boolean unionOverlapping) throws Exception {

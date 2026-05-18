@@ -96,6 +96,8 @@ public class VectorTile {
   public static final int DEFAULT_EXTENT = 4096;
   // Global vector tile extent configured at runtime through PlanetilerConfig.
   private static volatile int tileExtent = DEFAULT_EXTENT;
+  private static final int HILBERT_LEVEL = 16;
+  private static final long HILBERT_MAX_COORD = (1L << HILBERT_LEVEL) - 1;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -465,7 +467,20 @@ public class VectorTile {
     Coordinate coord = geometry.getCoordinate();
     int x = zigZagEncode((int) Math.round(coord.x * tileExtent / SIZE));
     int y = zigZagEncode((int) Math.round(coord.y * tileExtent / SIZE));
-    return (int) Hilbert.hilbertXYToIndex(15, x, y);
+    return hilbertIndexForEncodedCoords(x, y);
+  }
+
+  private static int hilbertIndexForEncodedCoords(int x, int y) {
+    int shift = Math.max(hilbertShiftToFitLevel(x), hilbertShiftToFitLevel(y));
+    return (int) Hilbert.hilbertXYToIndex(HILBERT_LEVEL, x >>> shift, y >>> shift);
+  }
+
+  private static int hilbertShiftToFitLevel(int coord) {
+    long unsignedCoord = Integer.toUnsignedLong(coord);
+    if (unsignedCoord <= HILBERT_MAX_COORD) {
+      return 0;
+    }
+    return Long.SIZE - Long.numberOfLeadingZeros(unsignedCoord) - HILBERT_LEVEL;
   }
 
   /**
@@ -1087,9 +1102,9 @@ public class VectorTile {
       if (commands.length < 3) {
         return 0;
       }
-      int x = commands[1];
-      int y = commands[2];
-      return (int) Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
+      int x = commands[1] >>> scale;
+      int y = commands[2] >>> scale;
+      return hilbertIndexForEncodedCoords(x, y);
     }
 
 
