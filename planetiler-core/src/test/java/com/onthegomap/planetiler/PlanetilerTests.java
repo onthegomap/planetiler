@@ -2880,12 +2880,17 @@ class PlanetilerTests {
     }
   }
 
-  @Test
-  void testPlanetilerRunnerShapefile() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "--source_parallelism=2",
+    "--source_parallelism=4"
+  })
+  void testPlanetilerRunnerShapefile(String args) throws Exception {
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path resourceDir = TestUtils.pathToResource("");
 
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=" + tempDir.resolve("data")).split("\\s+")))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {

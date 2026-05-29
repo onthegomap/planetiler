@@ -73,7 +73,8 @@ public record PlanetilerConfig(
   int featureSourceIdMultiplier,
   List<String> extraNameTags,
   boolean reuseFeatureDb,
-  boolean parallelTempIO
+  boolean parallelTempIO,
+  int sourceParallelism
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -256,7 +257,11 @@ public record PlanetilerConfig(
       arguments.getBoolean("reuse_featuredb",
         "Reuse existing feature DB on disk, skipping source reading stages (for iterating on post-processing logic)",
         false),
-      parallelTempIO
+      parallelTempIO,
+      Math.max(1, arguments.getInteger("source_parallelism",
+        "number of input source stages to run in parallel (1 = sequential, current behavior). " +
+          "Useful for schemas with many small sources (e.g. shapefiles)",
+        1))
     );
   }
 

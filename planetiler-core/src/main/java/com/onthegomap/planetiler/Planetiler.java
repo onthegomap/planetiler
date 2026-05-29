@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.worker.Worker.joinFutures;
+
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
@@ -39,6 +41,7 @@ import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import com.onthegomap.planetiler.worker.Worker.NamedThreadFactory;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -49,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -954,12 +958,17 @@ public class Planetiler {
         featureGroup.loadStringEncoders(stringEncoderPath);
         featureGroup.initFromManifest(chunkManifestPath);
       } else {
-        for (Stage stage : stages) {
-          try {
-            stage.task.run();
-          } catch (Exception e) {
-            throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+        int parallelism = Math.max(1, Math.min(config.sourceParallelism(), stages.size()));
+        if (parallelism <= 1) {
+          for (Stage stage : stages) {
+            try {
+              stage.task.run();
+            } catch (Exception e) {
+              throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+            }
           }
+        } else {
+          runStagesInParallel(stages, parallelism);
         }
 
         LOGGER.info("Deleting node.db to make room for output file");
@@ -1132,6 +1141,30 @@ public class Planetiler {
       if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
         throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
       }
+    }
+  }
+
+  private void runStagesInParallel(List<Stage> stages, int parallelism) {
+    LOGGER.info("Running {} source stages with parallelism={}", stages.size(), parallelism);
+    var es = Executors.newFixedThreadPool(parallelism, new NamedThreadFactory("stage-runner"));
+    try {
+      joinFutures(stages.stream()
+        .<CompletableFuture<?>>map(stage -> CompletableFuture.runAsync(() -> {
+          try {
+            stage.task.run();
+          } catch (Exception e) {
+            throw new PlanetilerException("Error occurred during stage " + stage.id, e);
+          }
+        }, es))
+        .toList()
+      ).join();
+    } catch (CompletionException ce) {
+      if (ce.getCause() instanceof PlanetilerException pe) {
+        throw pe;
+      }
+      throw ce;
+    } finally {
+      es.shutdown();
     }
   }
 
