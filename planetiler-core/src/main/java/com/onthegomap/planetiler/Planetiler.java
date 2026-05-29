@@ -958,8 +958,10 @@ public class Planetiler {
         featureGroup.loadStringEncoders(stringEncoderPath);
         featureGroup.initFromManifest(chunkManifestPath);
       } else {
-        int parallelism = Math.max(1, Math.min(config.sourceParallelism(), stages.size()));
-        if (parallelism <= 1) {
+        int requestedParallelism = config.sourceParallelism();
+        if (requestedParallelism > 1 && stages.size() > 1) {
+          runStagesInParallel(stages, Math.min(requestedParallelism, stages.size()));
+        } else {
           for (Stage stage : stages) {
             try {
               stage.task.run();
@@ -967,8 +969,6 @@ public class Planetiler {
               throw new PlanetilerException("Error occurred during stage " + stage.id, e);
             }
           }
-        } else {
-          runStagesInParallel(stages, parallelism);
         }
 
         LOGGER.info("Deleting node.db to make room for output file");
@@ -1146,8 +1146,7 @@ public class Planetiler {
 
   private void runStagesInParallel(List<Stage> stages, int parallelism) {
     LOGGER.info("Running {} source stages with parallelism={}", stages.size(), parallelism);
-    var es = Executors.newFixedThreadPool(parallelism, new NamedThreadFactory("stage-runner"));
-    try {
+    try (var es = Executors.newFixedThreadPool(parallelism, new NamedThreadFactory("stage-runner"))) {
       joinFutures(stages.stream()
         .<CompletableFuture<?>>map(stage -> CompletableFuture.runAsync(() -> {
           try {
@@ -1163,8 +1162,6 @@ public class Planetiler {
         throw pe;
       }
       throw ce;
-    } finally {
-      es.shutdown();
     }
   }
 
