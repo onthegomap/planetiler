@@ -178,10 +178,11 @@ class WikidataTest {
 
   @Test
   void testLegacyWikidataNamesJson() throws IOException {
-    var reader = new BufferedReader(new StringReader(wikidataNamesLegacyJson));
-    // no timestamp + age limit set => all old => all should be dropped
-    var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0, clock);
-    assertEquals(0, translationsProvider.getAll().size());
+    try (var reader = new BufferedReader(new StringReader(wikidataNamesLegacyJson))) {
+        // no timestamp + age limit set => all old => all should be dropped
+        var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0, clock);
+        assertEquals(0, translationsProvider.getAll().size());
+    }
   }
 
   @Test
