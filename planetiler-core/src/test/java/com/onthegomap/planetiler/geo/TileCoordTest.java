@@ -37,10 +37,14 @@ class TileCoordTest {
     "0,0,15,357946708",
     "0,32767,15,357913941",
     "32767,0,15,1431655764",
-    "32767,32767,15,1431622997"
+    "32767,32767,15,1431622997",
+    "0,0,16,1431721300",
+    "0,65535,16,1431655765",
+    "65535,0,16,5726623060",
+    "65535,65535,16,5726557525"
   })
-  void testTileCoordEncode(int x, int y, int z, int i) {
-    int encoded = TileCoord.ofXYZ(x, y, z).encoded();
+  void testTileCoordEncode(int x, int y, int z, long i) {
+    long encoded = TileCoord.ofXYZ(x, y, z).encoded();
     assertEquals(i, encoded);
     TileCoord decoded = TileCoord.decode(i);
     assertEquals(decoded.x(), x, "x");
@@ -50,9 +54,9 @@ class TileCoordTest {
 
   @Test
   void testTileSortOrderRespectZ() {
-    int last = Integer.MIN_VALUE;
-    for (int z = 0; z <= 15; z++) {
-      int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
+    long last = Long.MIN_VALUE;
+    for (int z = 0; z <= 16; z++) {
+      long encoded = TileCoord.ofXYZ(0, 0, z).encoded();
       if (encoded < last) {
         fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
       }
@@ -82,10 +86,13 @@ class TileCoordTest {
     "3,1,2,17",
     "2,1,2,18",
     "2,0,2,19",
-    "3,0,2,20"
+    "3,0,2,20",
+    "0,0,16,1431655765",
+    "65535,0,16,5726623060",
+    "65535,65535,16,4294967295"
   })
-  void testTileCoordHilbert(int x, int y, int z, int i) {
-    int encoded = TileCoord.ofXYZ(x, y, z).hilbertEncoded();
+  void testTileCoordHilbert(int x, int y, int z, long i) {
+    long encoded = TileCoord.ofXYZ(x, y, z).hilbertEncoded();
     assertEquals(i, encoded);
     TileCoord decoded = TileCoord.hilbertDecode(i);
     assertEquals(decoded.x(), x, "x");

@@ -17,7 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
 
@@ -170,11 +170,10 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
   }
 
-  // Warning: this will only work on z15 or less pmtiles which planetiler creates
   private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
     return dir.stream().flatMap(entry -> entry.runLength() == 0 ?
-      getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
-        .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
+      getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : LongStream
+        .range(entry.tileId(), entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
   }
 
   private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
@@ -185,7 +184,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
         } else {
           var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
           for (int i = 0; i < entry.runLength(); i++) {
-            next.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
+            next.accept(new Tile(TileCoord.hilbertDecode(entry.tileId() + i), data));
           }
         }
       } catch (IOException e) {

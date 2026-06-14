@@ -232,6 +232,42 @@ class LongMergerTest {
     }
   }
 
+  @Test
+  void testMergeUnsignedKeyOrder() {
+    // Keys with bit 63 set (negative as signed long) should sort AFTER positive keys in unsigned order
+    var lowItems = new ItemList(List.of(new Item(1L, 0), new Item(100L, 0)));
+    var highItems = new ItemList(List.of(new Item(Long.MAX_VALUE, 0), new Item(-2L, 0), new Item(-1L, 0)));
+    // unsigned order: 1, 100, Long.MAX_VALUE(2^63-1), -2(2^64-2), -1(2^64-1)
+    var result = new ArrayList<Long>();
+    var iter = LongMerger.mergeIterators(
+      List.of(lowItems.items.iterator(), highItems.items.iterator()), Comparator.naturalOrder());
+    iter.forEachRemaining(item -> result.add(item.key()));
+    assertEquals(List.of(1L, 100L, Long.MAX_VALUE, -2L, -1L), result);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {2, 3, 4, 5})
+  void testMergeUnsignedKeyOrderNWay(int n) {
+    // Verify unsigned ordering works for 2-way, 3-way, and k-way merges
+    var lists = new ArrayList<ItemList>();
+    lists.add(new ItemList(List.of(new Item(1L, 0), new Item(-1L, 0))));
+    lists.add(new ItemList(List.of(new Item(2L, 0), new Item(-2L, 0))));
+    for (int i = 2; i < n; i++) {
+      lists.add(new ItemList(List.of(new Item(i + 1L, 0))));
+    }
+    var result = new ArrayList<Long>();
+    var iter = LongMerger.mergeIterators(
+      lists.stream().map(l -> l.items.iterator()).toList(), Comparator.naturalOrder());
+    iter.forEachRemaining(item -> result.add(item.key()));
+    // all positive keys first (unsigned-ascending), then negative keys (unsigned-ascending)
+    long prev = 0;
+    for (long key : result) {
+      assertTrue(Long.compareUnsigned(prev, key) <= 0,
+        "keys out of unsigned order: " + prev + " > " + key + " (unsigned) in " + result);
+      prev = key;
+    }
+  }
+
   private static long[] parse(String in) {
     return in == null ? new long[0] : Stream.of(in.split("\\s+"))
       .map(String::strip)

@@ -14,6 +14,9 @@ public class LongMerger {
   // Has a general-purpose KWayMerge implementation using a min heap and specialized (faster)
   // TwoWayMerge/ThreeWayMerge implementations when a small number of lists are being merged.
 
+  /** Unsigned max: used as sentinel for exhausted iterators so they sort last in unsigned comparison. */
+  private static final long MAX_UNSIGNED_LONG = -1L;
+
   private LongMerger() {}
 
   /** Merges sorted items from {@link Supplier Suppliers} that return {@code null} when there are no items left. */
@@ -38,7 +41,7 @@ public class LongMerger {
 
     private final Comparator<T> tieBreaker;
     T a, b;
-    long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE;
+    long ak = MAX_UNSIGNED_LONG, bk = MAX_UNSIGNED_LONG;
     final Iterator<T> inputA, inputB;
 
     TwoWayMerge(Iterator<T> inputA, Iterator<T> inputB, Comparator<T> tieBreaker) {
@@ -63,16 +66,16 @@ public class LongMerger {
     @Override
     public T next() {
       T result;
-      if (lessThan(ak, bk, a, b)) {
+      if (lessThan(ak, bk, a, b, tieBreaker)) {
         result = a;
         if (inputA.hasNext()) {
           a = inputA.next();
           ak = a.key();
         } else {
           a = null;
-          ak = Long.MAX_VALUE;
+          ak = MAX_UNSIGNED_LONG;
         }
-      } else if (bk == Long.MAX_VALUE) {
+      } else if (b == null) {
         throw new NoSuchElementException();
       } else {
         result = b;
@@ -81,22 +84,19 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = Long.MAX_VALUE;
+          bk = MAX_UNSIGNED_LONG;
         }
       }
       return result;
     }
 
-    private boolean lessThan(long ak, long bk, T a, T b) {
-      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
-    }
   }
 
   private static class ThreeWayMerge<T extends HasLongSortKey> implements Iterator<T> {
 
     private final Comparator<T> tieBreaker;
     T a, b, c;
-    long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE, ck = Long.MAX_VALUE;
+    long ak = MAX_UNSIGNED_LONG, bk = MAX_UNSIGNED_LONG, ck = MAX_UNSIGNED_LONG;
     final Iterator<T> inputA, inputB, inputC;
 
     ThreeWayMerge(Iterator<T> inputA, Iterator<T> inputB, Iterator<T> inputC, Comparator<T> tieBreaker) {
@@ -127,8 +127,8 @@ public class LongMerger {
     public T next() {
       T result;
       // use at most 2 comparisons to get the next item
-      if (lessThan(ak, bk, a, b)) {
-        if (lessThan(ak, ck, a, c)) {
+      if (lessThan(ak, bk, a, b, tieBreaker)) {
+        if (lessThan(ak, ck, a, c, tieBreaker)) {
           // ACB / ABC
           result = a;
           if (inputA.hasNext()) {
@@ -136,7 +136,7 @@ public class LongMerger {
             ak = a.key();
           } else {
             a = null;
-            ak = Long.MAX_VALUE;
+            ak = MAX_UNSIGNED_LONG;
           }
         } else {
           // CBA
@@ -146,10 +146,10 @@ public class LongMerger {
             ck = c.key();
           } else {
             c = null;
-            ck = Long.MAX_VALUE;
+            ck = MAX_UNSIGNED_LONG;
           }
         }
-      } else if (lessThan(ck, bk, c, b)) {
+      } else if (lessThan(ck, bk, c, b, tieBreaker)) {
         // CAB
         result = c;
         if (inputC.hasNext()) {
@@ -157,9 +157,9 @@ public class LongMerger {
           ck = c.key();
         } else {
           c = null;
-          ck = Long.MAX_VALUE;
+          ck = MAX_UNSIGNED_LONG;
         }
-      } else if (bk == Long.MAX_VALUE) {
+      } else if (b == null) {
         throw new NoSuchElementException();
       } else {
         // BAC / BCA
@@ -169,15 +169,16 @@ public class LongMerger {
           bk = b.key();
         } else {
           b = null;
-          bk = Long.MAX_VALUE;
+          bk = MAX_UNSIGNED_LONG;
         }
       }
       return result;
     }
 
-    private boolean lessThan(long ak, long bk, T a, T b) {
-      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
-    }
+  }
+
+  private static <T> boolean lessThan(long ak, long bk, T a, T b, Comparator<T> tieBreaker) {
+    return Long.compareUnsigned(ak, bk) < 0 || (ak == bk && lessThanCmp(a, b, tieBreaker));
   }
 
   private static <T> boolean lessThanCmp(T a, T b, Comparator<T> tieBreaker) {
@@ -200,7 +201,8 @@ public class LongMerger {
     KWayMerge(List<? extends Iterator<T>> inputIterators, Comparator<T> tieBreaker) {
       this.iterators = new Iterator[inputIterators.size()];
       this.items = (T[]) new HasLongSortKey[inputIterators.size()];
-      this.heap = LongMinHeap.newArrayHeap(inputIterators.size(), (a, b) -> tieBreaker.compare(items[a], items[b]));
+      this.heap =
+        LongMinHeap.newUnsignedArrayHeap(inputIterators.size(), (a, b) -> tieBreaker.compare(items[a], items[b]));
       int outIdx = 0;
       for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {

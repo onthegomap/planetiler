@@ -45,12 +45,17 @@ class ArrayLongMinHeap implements LongMinHeap {
   protected final int max;
   protected int size;
   private final IntBinaryOperator tieBreaker;
+  private final boolean unsigned;
 
   /**
    * @param elements the number of elements that can be stored in this heap. Currently the heap cannot be resized or
    *                 shrunk/trimmed after initial creation. elements-1 is the maximum id that can be stored in this heap
    */
   ArrayLongMinHeap(int elements, IntBinaryOperator tieBreaker) {
+    this(elements, tieBreaker, false);
+  }
+
+  ArrayLongMinHeap(int elements, IntBinaryOperator tieBreaker, boolean unsigned) {
     // we use an offset of one to make the arithmetic a bit simpler/more efficient, the 0th elements are not used!
     posToId = new int[elements + 1];
     idToPos = new int[elements + 1];
@@ -59,6 +64,7 @@ class ArrayLongMinHeap implements LongMinHeap {
     posToValue[0] = Long.MIN_VALUE;
     this.max = elements;
     this.tieBreaker = tieBreaker;
+    this.unsigned = unsigned;
   }
 
   private static int firstChild(int index) {
@@ -163,10 +169,9 @@ class ArrayLongMinHeap implements LongMinHeap {
     }
     final int id = posToId[pos];
     final long val = posToValue[pos];
-    // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
     int parent;
     long parentValue;
-    while (compareIdPos(val, parentValue = posToValue[parent = parent(pos)], id, parent) < 0) {
+    while (pos > 1 && compareIdPos(val, parentValue = posToValue[parent = parent(pos)], id, parent) < 0) {
       posToValue[pos] = parentValue;
       idToPos[posToId[pos] = posToId[parent]] = pos;
       pos = parent;
@@ -226,21 +231,19 @@ class ArrayLongMinHeap implements LongMinHeap {
   }
 
   private int comparePosPos(long val1, long val2, int pos1, int pos2) {
-    if (val1 < val2) {
-      return -1;
-    } else if (val1 == val2 && val1 != Long.MIN_VALUE) {
-      return tieBreaker.applyAsInt(posToId[pos1], posToId[pos2]);
+    int cmp = unsigned ? Long.compareUnsigned(val1, val2) : Long.compare(val1, val2);
+    if (cmp != 0) {
+      return cmp;
     }
-    return 1;
+    return tieBreaker.applyAsInt(posToId[pos1], posToId[pos2]);
   }
 
   private int compareIdPos(long val1, long val2, int id1, int pos2) {
-    if (val1 < val2) {
-      return -1;
-    } else if (val1 == val2 && val1 != Long.MIN_VALUE) {
-      return tieBreaker.applyAsInt(id1, posToId[pos2]);
+    int cmp = unsigned ? Long.compareUnsigned(val1, val2) : Long.compare(val1, val2);
+    if (cmp != 0) {
+      return cmp;
     }
-    return 1;
+    return tieBreaker.applyAsInt(id1, posToId[pos2]);
   }
 
 }

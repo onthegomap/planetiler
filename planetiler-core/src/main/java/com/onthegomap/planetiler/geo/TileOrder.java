@@ -1,9 +1,9 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import java.util.function.IntFunction;
+import java.util.function.LongFunction;
 import java.util.function.ToDoubleBiFunction;
-import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 
 /**
  * Controls the sort order of {@link com.onthegomap.planetiler.collection.FeatureGroup}, which determines the ordering
@@ -14,22 +14,22 @@ public enum TileOrder {
   TMS(TileCoord::encoded, TileCoord::decode, TileCoord::progressOnLevel),
   HILBERT(TileCoord::hilbertEncoded, TileCoord::hilbertDecode, TileCoord::hilbertProgressOnLevel);
 
-  private final ToIntFunction<TileCoord> encode;
-  private final IntFunction<TileCoord> decode;
+  private final ToLongFunction<TileCoord> encode;
+  private final LongFunction<TileCoord> decode;
   private final ToDoubleBiFunction<TileCoord, TileExtents> progressOnLevel;
 
-  private TileOrder(ToIntFunction<TileCoord> encode, IntFunction<TileCoord> decode,
+  private TileOrder(ToLongFunction<TileCoord> encode, LongFunction<TileCoord> decode,
     ToDoubleBiFunction<TileCoord, TileExtents> progressOnLevel) {
     this.encode = encode;
     this.decode = decode;
     this.progressOnLevel = progressOnLevel;
   }
 
-  public int encode(TileCoord coord) {
-    return encode.applyAsInt(coord);
+  public long encode(TileCoord coord) {
+    return encode.applyAsLong(coord);
   }
 
-  public TileCoord decode(int encoded) {
+  public TileCoord decode(long encoded) {
     return decode.apply(encoded);
   }
 

@@ -35,6 +35,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -86,6 +87,8 @@ class PlanetilerTests {
   private static final String TEST_PROFILE_DESCRIPTION = "test description";
   private static final String TEST_PROFILE_ATTRIBUTION = "test attribution";
   private static final String TEST_PROFILE_VERSION = "test version";
+  private static final int Z16_TILES = 1 << 16;
+  private static final double Z16_WIDTH = 1d / Z16_TILES;
   private static final int Z15_TILES = 1 << 15;
   private static final double Z15_WIDTH = 1d / Z15_TILES;
   private static final int Z14_TILES = 1 << 14;
@@ -303,39 +306,45 @@ class PlanetilerTests {
     "true, mlt",
   })
   void testSinglePoint(boolean anyGeom, String tileType) throws Exception {
-    double x = 0.5 + Z14_WIDTH / 4;
-    double y = 0.5 + Z14_WIDTH / 4;
+    double x = 0.5 + Z15_WIDTH / 4;
+    double y = 0.5 + Z15_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "15", "tile-format", tileType),
+      Map.of("threads", "1", "maxzoom", "16", "tile-format", tileType),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "value"
         ))
       ),
       (in, features) -> (anyGeom ? features.anyGeometry("layer") : features.point("layer"))
-        .setZoomRange(13, 15)
+        .setZoomRange(13, 16)
         .setAttr("name", "name value")
         .inheritAttrFromSource("attr")
     );
 
     assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
+      TileCoord.ofXYZ(Z16_TILES / 2, Z16_TILES / 2, 16), List.of(
         feature(newPoint(128, 128), Map.of(
           "attr", "value",
           "name", "name value"
         ))
       ),
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newPoint(64, 64), Map.of(
           "attr", "value",
           "name", "name value"
         ))
       ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(newPoint(32, 32), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newPoint(16, 16), Map.of(
           "attr", "value",
           "name", "name value"
         ))
@@ -344,7 +353,7 @@ class PlanetilerTests {
     assertSameJson(
       """
         [
-          {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 15}
+          {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 16}
         ]
         """,
       results.metadata.get("vector_layers")
@@ -1028,6 +1037,67 @@ class PlanetilerTests {
     assertEquals(List.of(
       feature(newPolygon(tileFill(4)), Map.of())
     ), results.tiles.get(TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15)));
+  }
+
+  @Test
+  void testZ16Fill() throws Exception {
+    List<Coordinate> outerPoints = z14CoordinateList(
+      -2, -2,
+      2, -2,
+      2, 2,
+      -2, 2,
+      -2, -2
+    );
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "16"),
+      List.of(
+        newReaderFeature(newPolygon(
+          outerPoints
+        ), Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(16, 16)
+        .setBufferPixels(4)
+    );
+
+    assertEquals(List.of(
+      feature(newPolygon(tileFill(4)), Map.of())
+    ), results.tiles.get(TileCoord.ofXYZ(Z16_TILES / 2, Z16_TILES / 2, 16)));
+  }
+
+  @Test
+  void testZ16HighTileIdSortOrder() throws Exception {
+    // Verify that z16 tiles with high IDs (where FeatureGroup.encodeKey sets bit 63) sort correctly.
+    // A point at z16 tile x=50000 produces an encoded tile ID > 2^32, so tile << 31 sets bit 63.
+    double x16 = (50_000 + 0.5) * Z16_WIDTH;
+    double y16 = (500 + 0.5) * Z16_WIDTH;
+    double lat16 = GeoUtils.getWorldLat(y16);
+    double lng16 = GeoUtils.getWorldLon(x16);
+    // A point near the center for z0
+    double lat0 = GeoUtils.getWorldLat(0.5);
+    double lng0 = GeoUtils.getWorldLon(0.5);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "16"),
+      List.of(
+        newReaderFeature(newPoint(lng16, lat16), Map.of("name", "z16point")),
+        newReaderFeature(newPoint(lng0, lat0), Map.of("name", "z0point"))
+      ),
+      (in, features) -> features.point("layer")
+        .setZoomRange(0, 16)
+        .inheritAttrFromSource("name")
+    );
+
+    var z0Tile = TileCoord.ofXYZ(0, 0, 0);
+    var z16Tile = TileCoord.ofXYZ(50_000, 500, 16);
+    assertTrue(results.tiles.containsKey(z0Tile), "z0 tile should be in output");
+    assertTrue(results.tiles.containsKey(z16Tile), "z16 tile should be in output");
+
+    // results.tiles is a TreeMap ordered by TileCoord.encoded(), verify z16 comes after z0
+    var tileCoords = new ArrayList<>(results.tiles.keySet());
+    assertTrue(tileCoords.indexOf(z0Tile) < tileCoords.indexOf(z16Tile),
+      "z0 tile must appear before z16 high tile in output order");
   }
 
   @Test
@@ -1857,17 +1927,17 @@ class PlanetilerTests {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testMergeLineStrings(boolean connectEndpoints) throws Exception {
-    double y = 0.5 + Z15_WIDTH / 2;
+    double y = 0.5 + Z16_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
-    double x1 = 0.5 + Z15_WIDTH / 4;
+    double x1 = 0.5 + Z16_WIDTH / 4;
     double lng1 = GeoUtils.getWorldLon(x1);
-    double lng2 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 10d / 256);
-    double lng3 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 20d / 256);
-    double lng4 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 30d / 256);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z16_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z16_WIDTH * 20d / 256);
+    double lng4 = GeoUtils.getWorldLon(x1 + Z16_WIDTH * 30d / 256);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "15"),
+      Map.of("threads", "1", "maxzoom", "16"),
       List.of(
         // merge at z13 (same "group"):
         newReaderFeature(newLineString(
@@ -1894,26 +1964,31 @@ class PlanetilerTests {
     );
 
     assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
+      TileCoord.ofXYZ(Z16_TILES / 2, Z16_TILES / 2, 16), List.of(
         feature(newLineString(64, 128, 74, 128), Map.of("group", "1", "z14attr", "1")),
         feature(newLineString(74, 128, 84, 128), Map.of("group", "1", "z14attr", "2")),
         feature(newLineString(84, 128, 94, 128), Map.of("group", "2", "z14attr", "3"))
       ),
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newLineString(32, 64, 37, 64), Map.of("group", "1", "z14attr", "1")),
         feature(newLineString(37, 64, 42, 64), Map.of("group", "1", "z14attr", "2")),
         feature(newLineString(42, 64, 47, 64), Map.of("group", "2", "z14attr", "3"))
       ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(16, 32, 18.5, 32), Map.of("group", "1", "z14attr", "1")),
+        feature(newLineString(18.5, 32, 21, 32), Map.of("group", "1", "z14attr", "2")),
+        feature(newLineString(21, 32, 23.5, 32), Map.of("group", "2", "z14attr", "3"))
+      ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), connectEndpoints ? List.of(
-        // merge 32->37 and 37->42 since they have same attrs
-        feature(newLineString(16, 32, 21, 32), Map.of("group", "1")),
-        feature(newLineString(21, 32, 23.5, 32), Map.of("group", "2"))
+        // merge since they have same attrs
+        feature(newLineString(8, 16, 10.5, 16), Map.of("group", "1")),
+        feature(newLineString(10.5, 16, 11.75, 16), Map.of("group", "2"))
       ) : List.of(
         feature(newMultiLineString(
-          newLineString(16, 32, 18.5, 32),
-          newLineString(18.5, 32, 21, 32)
+          newLineString(8, 16, 9.25, 16),
+          newLineString(9.25, 16, 10.5, 16)
         ), Map.of("group", "1")),
-        feature(newLineString(21, 32, 23.5, 32), Map.of("group", "2"))
+        feature(newLineString(10.5, 16, 11.75, 16), Map.of("group", "2"))
       )
     )), sortListValues(results.tiles));
   }
@@ -2785,7 +2860,7 @@ class PlanetilerTests {
           int z = Integer.parseInt(next.get("z"));
           int x = Integer.parseInt(next.get("x"));
           int y = Integer.parseInt(next.get("y"));
-          int hilbert = Integer.parseInt(next.get("hilbert"));
+          long hilbert = Long.parseLong(next.get("hilbert"));
           assertEquals(hilbert, TileCoord.ofXYZ(x, y, z).hilbertEncoded());
           assertTrue(Integer.parseInt(next.get("z")) <= 14, "bad z: " + next);
         }
@@ -2936,7 +3011,48 @@ class PlanetilerTests {
     }
   }
 
-  private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
+  @Test
+  void testPlanetilerRunnerOvertureSource() throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    // Pre-populate the download directory with a real parquet file so we can test addOvertureSource
+    // without hitting the network. The boston.parquet file contains building polygons near Boston.
+    Path overtureDir = tempDir.resolve("overture-buildings");
+    var dest = overtureDir.resolve("theme=buildings").resolve("type=building").resolve("part-00000.parquet");
+    FileUtils.createParentDirectories(dest);
+    Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), dest);
+
+    Planetiler.create(Arguments.fromArgs(
+      "--tmpdir=" + tempDir.resolve("data"),
+      // Override the download directory so addOvertureSource picks up our pre-placed file.
+      // No --download flag here — we're verifying that existing files are processed correctly.
+      "overture-buildings_path=" + overtureDir
+    ))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.polygon("buildings")
+            .setZoomRange(0, 14)
+            .setMinPixelSize(0)
+            .setAttr("id", source.getString("id"));
+        }
+      })
+      .addOvertureSource("overture-buildings", "buildings", "building", overtureDir)
+      .setOutput(mbtiles)
+      .run();
+
+    try (var db = com.onthegomap.planetiler.mbtiles.Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      long featureCount = 0;
+      for (var tile : TestUtils.getTileMap(db).values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+          featureCount++;
+        }
+      }
+      assertTrue(featureCount > 0, "expected features from overture source");
+    }
+  }
+
+  private void runWithProfile(Path tempDir, Profile profile, boolean force) {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))

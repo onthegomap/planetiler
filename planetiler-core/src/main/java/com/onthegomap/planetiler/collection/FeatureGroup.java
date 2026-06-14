@@ -53,10 +53,11 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, DiskBacked {
 
-  public static final int SORT_KEY_BITS = 23;
+  public static final int SORT_KEY_BITS = 22;
   public static final int SORT_KEY_MAX = (1 << (SORT_KEY_BITS - 1)) - 1;
   public static final int SORT_KEY_MIN = -(1 << (SORT_KEY_BITS - 1));
   private static final int SORT_KEY_MASK = (1 << SORT_KEY_BITS) - 1;
+  private static final int TILE_ID_BITS = 33;
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
   private final FeatureSort sorter;
@@ -166,9 +167,15 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   /**
    * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to indicate whether the
    * value contains grouping information.
+   *
+   * <p>Bit layout (64 bits total):
+   * <pre>
+   * [tile: 33 bits (63-31)][layer: 8 bits (30-23)][sortKey: 22 bits (22-1)][hasGroup: 1 bit (0)]
+   * </pre>
    */
-  static long encodeKey(int tile, byte layer, int sortKey, boolean hasGroup) {
-    return ((long) tile << 32L) | ((long) (layer & 0xff) << 24L) | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L) |
+  static long encodeKey(long tile, byte layer, int sortKey, boolean hasGroup) {
+    return (tile << (64 - TILE_ID_BITS)) | ((long) (layer & 0xff) << SORT_KEY_BITS << 1) |
+      (((long) (sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L) |
       (hasGroup ? 1 : 0);
   }
 
@@ -176,12 +183,12 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     return (key & 1) == 1;
   }
 
-  static int extractTileFromKey(long key) {
-    return (int) (key >> 32L);
+  static long extractTileFromKey(long key) {
+    return key >>> (64 - TILE_ID_BITS);
   }
 
   static byte extractLayerIdFromKey(long key) {
-    return (byte) (key >> 24);
+    return (byte) (key >>> (SORT_KEY_BITS + 1));
   }
 
   static int extractSortKeyFromKey(long key) {
@@ -342,7 +349,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     SortableFeature firstFeature = entries.next();
     return new Iterator<>() {
       private SortableFeature lastFeature = firstFeature;
-      private int lastTileId = extractTileFromKey(firstFeature.key());
+      private long lastTileId = extractTileFromKey(firstFeature.key());
 
       @Override
       public boolean hasNext() {
@@ -353,7 +360,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       public TileFeatures next() {
         TileFeatures result = new TileFeatures(lastTileId);
         result.add(lastFeature);
-        int lastTile = lastTileId;
+        long lastTile = lastTileId;
 
         while (entries.hasNext()) {
           SortableFeature next = entries.next();
@@ -408,7 +415,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     private LongLongHashMap counts = null;
     private byte lastLayer = Byte.MAX_VALUE;
 
-    private TileFeatures(int lastTileId) {
+    private TileFeatures(long lastTileId) {
       this.tileCoord = tileOrder.decode(lastTileId);
     }
 

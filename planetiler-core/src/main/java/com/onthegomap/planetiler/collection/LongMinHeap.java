@@ -37,6 +37,15 @@ public interface LongMinHeap {
     return new ArrayLongMinHeap(elements, tieBreaker);
   }
 
+  /**
+   * Returns a new min-heap that compares values as unsigned longs, backed by elements in an array.
+   * <p>
+   * Use this when heap values represent unsigned long sort keys (e.g. tile IDs that may set bit 63).
+   */
+  static LongMinHeap newUnsignedArrayHeap(int elements, IntBinaryOperator tieBreaker) {
+    return new ArrayLongMinHeap(elements, tieBreaker, true);
+  }
+
   int size();
 
   boolean isEmpty();

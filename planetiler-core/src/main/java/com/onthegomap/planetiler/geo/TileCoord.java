@@ -19,34 +19,31 @@ import org.locationtech.jts.geom.Envelope;
  * index.
  * <p>
  *
- * @param encoded the tile ID encoded as a 32-bit integer
+ * @param encoded the tile ID encoded as a 64-bit integer
  * @param x       x coordinate of the tile where 0 is the western-most tile just to the east the international date line
  *                and 2^z-1 is the eastern-most tile
  * @param y       y coordinate of the tile where 0 is the northern-most tile and 2^z-1 is the southern-most tile
- * @param z       zoom level ({@code <= 15})
+ * @param z       zoom level ({@code <= 16})
  */
 @Immutable
-public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
+public record TileCoord(long encoded, int x, int y, int z) implements Comparable<TileCoord> {
 
-  private static final int[] ZOOM_START_INDEX = new int[MAX_MAXZOOM + 1];
+  private static final long[] ZOOM_START_INDEX = new long[MAX_MAXZOOM + 1];
 
   static {
-    int idx = 0;
+    long idx = 0;
     for (int z = 0; z <= MAX_MAXZOOM; z++) {
       ZOOM_START_INDEX[z] = idx;
-      int count = (1 << z) * (1 << z);
-      if (Integer.MAX_VALUE - idx < count) {
-        throw new IllegalStateException("Too many zoom levels " + MAX_MAXZOOM);
-      }
+      long count = 1L << (2 * z);
       idx += count;
     }
   }
 
-  private static int startIndexForZoom(int z) {
+  private static long startIndexForZoom(int z) {
     return ZOOM_START_INDEX[z];
   }
 
-  private static int zoomForIndex(int idx) {
+  private static int zoomForIndex(long idx) {
     for (int z = MAX_MAXZOOM; z >= 0; z--) {
       if (ZOOM_START_INDEX[z] <= idx) {
         return z;
@@ -63,14 +60,14 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encode(x, y, z), x, y, z);
   }
 
-  public static TileCoord decode(int encoded) {
+  public static TileCoord decode(long encoded) {
     int z = zoomForIndex(encoded);
     long xy = tmsPositionToXY(z, encoded - startIndexForZoom(z));
     return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), z);
   }
 
-  /** Decode an integer using Hilbert ordering on a zoom level back to TMS ordering. */
-  public static TileCoord hilbertDecode(int encoded) {
+  /** Decode a long using Hilbert ordering on a zoom level back to TMS ordering. */
+  public static TileCoord hilbertDecode(long encoded) {
     int z = TileCoord.zoomForIndex(encoded);
     long xy = Hilbert.hilbertPositionToXY(z, encoded - TileCoord.startIndexForZoom(z));
     return TileCoord.ofXYZ(Hilbert.extractX(xy), Hilbert.extractY(xy), z);
@@ -84,7 +81,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
   }
 
-  public static int encode(int x, int y, int z) {
+  public static long encode(int x, int y, int z) {
     return startIndexForZoom(z) + tmsXYToPosition(z, x, y);
   }
 
@@ -104,7 +101,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   @Override
   public int hashCode() {
-    return encoded;
+    return Long.hashCode(encoded);
   }
 
   @Override
@@ -119,7 +116,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   public double hilbertProgressOnLevel(TileExtents extents) {
-    return 1d * Hilbert.hilbertXYToIndex(this.z, this.x, this.y) / (1 << 2 * this.z);
+    return 1d * Hilbert.hilbertXYToIndex(this.z, this.x, this.y) / (1L << 2 * this.z);
   }
 
   @Override
@@ -158,22 +155,22 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   /** Return the equivalent tile index using Hilbert ordering on a single level instead of TMS. */
-  public int hilbertEncoded() {
+  public long hilbertEncoded() {
     return startIndexForZoom(this.z) +
       Hilbert.hilbertXYToIndex(this.z, this.x, this.y);
   }
 
-  public static long tmsPositionToXY(int z, int pos) {
+  public static long tmsPositionToXY(int z, long pos) {
     if (z == 0)
       return 0;
-    int dim = 1 << z;
-    int x = pos / dim;
-    int y = dim - 1 - (pos % dim);
-    return ((long) x << 32) | y;
+    long dim = 1L << z;
+    long x = pos / dim;
+    long y = dim - 1 - (pos % dim);
+    return (x << 32) | y;
   }
 
-  public static int tmsXYToPosition(int z, int x, int y) {
-    int dim = 1 << z;
+  public static long tmsXYToPosition(int z, int x, int y) {
+    long dim = 1L << z;
     return x * dim + (dim - 1 - y);
   }
 

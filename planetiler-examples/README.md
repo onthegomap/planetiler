@@ -31,6 +31,8 @@ First, make a copy of this example project. It contains:
     simple overlay with toilets locations from OpenStreetMap
   - [BikeRouteOverlay](src/main/java/com/onthegomap/planetiler/examples/BikeRouteOverlay.java) - demonstrates how to use
     OSM relations to build an overlay map of [bicycle routes](https://wiki.openstreetmap.org/wiki/Tag:route=bicycle)
+  - [AdminBordersOverlay](src/main/java/com/onthegomap/planetiler/examples/AdminBordersOverlay.java) - demonstrates how
+    to build an administrative boundary overlay with zoom-dependent detail for country, region, and city borders
   - [ToiletsOverlayLowLevelApi](src/main/java/com/onthegomap/planetiler/examples/ToiletsOverlayLowLevelApi.java)
     &nbsp;- alternate driver for the ToiletsOverlay using lower-level Planetiler APIs
 - [src/test/java/com/onthegomap/planetiler/examples](src/main/java/com/onthegomap/planetiler/examples)
@@ -48,6 +50,7 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import java.nio.file.Path;
 
 public class MyProfile implements Profile {
+
   @Override
   public String name() {
     // name that shows up in the MBTiles metadata table
@@ -62,6 +65,7 @@ For example, to include a map of [toilets from OpenStreetMap](https://wiki.opens
 at zoom level 12 and above:
 
 ```java
+
 @Override
 public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
   if (sourceFeature.isPoint() && sourceFeature.hasTag("amenity", "toilets")) {
@@ -120,6 +124,7 @@ unit and integration testing.
 A basic unit test:
 
 ```java
+
 @Test
 public void unitTest() {
   var profile = new MyProfile();
@@ -128,7 +133,7 @@ public void unitTest() {
     Map.of("amenity", "toilets")
   );
   List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(node, profile);
-  // Then inspect attributes of each of vector tile fetures emitted...
+  // Then inspect attributes of each of vector tile features emitted...
   assertEquals(1, mapFeatures.length);
   assertEquals(12, mapFeatures.get(0).getMinZoom());
 }
@@ -137,6 +142,7 @@ public void unitTest() {
 A basic integration test:
 
 ```java
+
 @Test
 public void integrationTest(@TempDir Path tmpDir) throws Exception {
   Path mbtilesPath = tmpDir.resolve("output.mbtiles");
@@ -144,7 +150,7 @@ public void integrationTest(@TempDir Path tmpDir) throws Exception {
     "--osm_path=" + TestUtils.pathToResource("monaco-latest.osm.pbf"),
     "--tmp=" + tmpDir,
     "--output=" + mbtilesPath,
-  ));
+    ));
   try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(mbtilesPath)) {
     Map<String, String> metadata = mbtiles.metadata().getAll();
     assertEquals("My Profile", metadata.get("name"));

@@ -243,7 +243,7 @@ class PmtilesTest {
         new Envelope(-180, 180, -85.0511287, 85.0511287),
         new Coordinate(0, 0, 0d),
         0,
-        15,
+        16,
         null,
         Map.of(),
         tileCompression

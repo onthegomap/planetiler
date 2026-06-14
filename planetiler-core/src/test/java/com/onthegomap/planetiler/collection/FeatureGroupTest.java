@@ -91,8 +91,8 @@ class FeatureGroupTest {
       args.hasGroup(), args.group(), args.limit());
   }
 
-  private Map<Integer, Map<String, List<Feature>>> getFeatures() {
-    Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
+  private Map<Long, Map<String, List<Feature>>> getFeatures() {
+    Map<Long, Map<String, List<Feature>>> map = new TreeMap<>();
     for (FeatureGroup.TileFeatures tile : features) {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
@@ -104,8 +104,8 @@ class FeatureGroupTest {
   }
 
 
-  private Map<Integer, Map<String, List<Feature>>> getFeaturesParallel() {
-    Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
+  private Map<Long, Map<String, List<Feature>>> getFeaturesParallel() {
+    Map<Long, Map<String, List<Feature>>> map = new TreeMap<>();
     var reader = features.parallelIterator(2);
     for (FeatureGroup.TileFeatures tile : reader.result()) {
       for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
@@ -128,18 +128,18 @@ class FeatureGroupTest {
     put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
         ),
         "layer2", List.of(
           new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
         )
-      )), 2, new TreeMap<>(Map.of(
+      )), 2L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         )
-      )), 3, new TreeMap<>(Map.of(
+      )), 3L, new TreeMap<>(Map.of(
         "layer3", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         ),
@@ -158,18 +158,18 @@ class FeatureGroupTest {
     put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
         ),
         "layer2", List.of(
           new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
         )
-      )), 2, new TreeMap<>(Map.of(
+      )), 2L, new TreeMap<>(Map.of(
         "layer", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         )
-      )), 3, new TreeMap<>(Map.of(
+      )), 3L, new TreeMap<>(Map.of(
         "layer3", List.of(
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         ),
@@ -189,7 +189,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // order reversed because of sort-key
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
@@ -212,7 +212,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // id=3 omitted because past limit
           // sorted by sortKey ascending
@@ -236,7 +236,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // ordered by sort key
           new Feature(Map.of("id", 3L), newPoint(x, y)),
@@ -260,7 +260,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+      1L, new TreeMap<>(Map.of(
         "layer", List.of(
           // order reversed because of sort-key,
           new Feature(Map.of("id", 3L), newPoint(x, y)),
@@ -291,7 +291,7 @@ class FeatureGroupTest {
     );
     sorter.sort();
     assertEquals(Map.of(
-      1, Map.of(
+      1L, Map.of(
         "layer", List.of(
           // not sorted by sortKey asc because profile reversed it
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
@@ -381,14 +381,27 @@ class FeatureGroupTest {
   @TestFactory
   List<DynamicTest> testEncodeLongKey() {
     List<TileCoord> tiles = List.of(
-      TileCoord.ofXYZ(0, 0, 14),
-      TileCoord.ofXYZ((1 << 14) - 1, (1 << 14) - 1, 14),
       TileCoord.ofXYZ(0, 0, 0),
       TileCoord.ofXYZ(0, 0, 7),
-      TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7)
+      TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7),
+      TileCoord.ofXYZ(0, 0, 14),
+      TileCoord.ofXYZ((1 << 14) - 1, (1 << 14) - 1, 14),
+      // z15 edge cases
+      TileCoord.ofXYZ(0, 0, 15),
+      TileCoord.ofXYZ((1 << 15) - 1, (1 << 15) - 1, 15),
+      TileCoord.ofXYZ(1, 0, 15),
+      TileCoord.ofXYZ(0, 1, 15),
+      // z16 edge cases
+      TileCoord.ofXYZ(0, 0, 16),
+      TileCoord.ofXYZ((1 << 16) - 1, (1 << 16) - 1, 16),
+      TileCoord.ofXYZ(32768, 32768, 16),
+      TileCoord.ofXYZ(1, 0, 16),
+      TileCoord.ofXYZ(0, 1, 16),
+      TileCoord.ofXYZ((1 << 16) - 1, 0, 16),
+      TileCoord.ofXYZ(0, (1 << 16) - 1, 16)
     );
     List<Byte> layers = List.of((byte) 0, (byte) 1, (byte) 255);
-    List<Integer> sortKeys = List.of(-(1 << 22), 0, (1 << 22) - 1);
+    List<Integer> sortKeys = List.of(FeatureGroup.SORT_KEY_MIN, 0, FeatureGroup.SORT_KEY_MAX);
     List<Boolean> hasGroups = List.of(false, true);
     List<DynamicTest> result = new ArrayList<>();
     for (TileCoord tile : tiles) {
@@ -421,13 +434,73 @@ class FeatureGroupTest {
     "1,0,1,false,   1,0,1,true"
   })
   void testEncodeLongKeyOrdering(
-    int tileA, byte layerA, int sortKeyA, boolean hasGroupA,
-    int tileB, byte layerB, int sortKeyB, boolean hasGroupB
+    long tileA, byte layerA, int sortKeyA, boolean hasGroupA,
+    long tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
     assertTrue(
-      FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA) < FeatureGroup.encodeKey(tileB, layerB, sortKeyB,
-        hasGroupB)
+      Long.compareUnsigned(
+        FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA),
+        FeatureGroup.encodeKey(tileB, layerB, sortKeyB, hasGroupB)
+      ) < 0
     );
+  }
+
+  @Test
+  void testZ16HighTileIdsSortAfterLowerZooms() {
+    // Bug 2 regression: encodeKey sets the sign bit for high z16 tile IDs,
+    // which with signed comparison would sort before all z0-z15 tiles.
+    TileCoord z0 = TileCoord.ofXYZ(0, 0, 0);
+    TileCoord z14 = TileCoord.ofXYZ(8192, 8192, 14);
+    TileCoord z15 = TileCoord.ofXYZ(16384, 16384, 15);
+    // This z16 tile has an encoded ID > 2^32, which sets the sign bit in encodeKey
+    TileCoord z16high = TileCoord.ofXYZ(65535, 65535, 16);
+
+    long keyZ0 = FeatureGroup.encodeKey(z0.encoded(), (byte) 0, 0, false);
+    long keyZ14 = FeatureGroup.encodeKey(z14.encoded(), (byte) 0, 0, false);
+    long keyZ15 = FeatureGroup.encodeKey(z15.encoded(), (byte) 0, 0, false);
+    long keyZ16 = FeatureGroup.encodeKey(z16high.encoded(), (byte) 0, 0, false);
+
+    // z16 high tiles must sort after all lower zoom tiles (unsigned comparison)
+    assertTrue(Long.compareUnsigned(keyZ0, keyZ14) < 0, "z0 < z14");
+    assertTrue(Long.compareUnsigned(keyZ14, keyZ15) < 0, "z14 < z15");
+    assertTrue(Long.compareUnsigned(keyZ15, keyZ16) < 0, "z15 < z16");
+
+    // Verify SortableFeature.compareTo uses unsigned ordering
+    var featureZ0 = new SortableFeature(keyZ0, new byte[]{});
+    var featureZ16 = new SortableFeature(keyZ16, new byte[]{});
+    assertTrue(featureZ0.compareTo(featureZ16) < 0,
+      "z0 feature should sort before z16 high feature");
+    assertTrue(featureZ16.compareTo(featureZ0) > 0,
+      "z16 high feature should sort after z0 feature");
+  }
+
+  @Test
+  void testZ16HighTileIteratesAfterLowerZoomTiles() {
+    // Verify that FeatureGroup iterates z16 high tiles after lower zoom tiles end-to-end.
+    TileCoord z0 = TileCoord.ofXYZ(0, 0, 0);
+    TileCoord z16high = TileCoord.ofXYZ(50_000, 500, 16);
+
+    // Put z16 first, then z0 — after sorting, z0 should come out first
+    putTile(z16high, "layer", Map.of(), newPoint(1, 2));
+    putTile(z0, "layer", Map.of(), newPoint(3, 4));
+    sorter.sort();
+
+    List<TileCoord> tileOrder = new ArrayList<>();
+    for (var tile : features) {
+      tileOrder.add(tile.tileCoord());
+    }
+    assertEquals(List.of(z0, z16high), tileOrder,
+      "z0 tile must appear before z16 high tile in FeatureGroup iteration order");
+  }
+
+  private void putTile(TileCoord tile, String layer, Map<String, Object> attrs, Geometry geom) {
+    RenderedFeature feature = new RenderedFeature(
+      tile,
+      new VectorTile.Feature(layer, id++, VectorTile.encodeGeometry(geom), attrs),
+      0,
+      Optional.empty()
+    );
+    featureWriter.accept(features.newRenderedFeatureEncoder().apply(feature));
   }
 
   @ParameterizedTest(name = "{0}")

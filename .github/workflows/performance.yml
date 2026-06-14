@@ -23,7 +23,7 @@ jobs:
     continue-on-error: true
     steps:
     - name: 'Cancel previous runs'
-      uses: styfle/cancel-workflow-action@0.13.0
+      uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
     - name: 'Checkout branch'
@@ -60,7 +60,7 @@ jobs:
       working-directory: base
 
     - name: 'Download data'
-      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
       with:
         max_attempts: 5
         timeout_minutes: 30

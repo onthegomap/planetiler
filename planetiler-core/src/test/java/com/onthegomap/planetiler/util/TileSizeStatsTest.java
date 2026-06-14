@@ -15,6 +15,7 @@ import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
 import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
+import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.maplibre.mlt.decoder.MltDecoder;
 
@@ -131,7 +132,7 @@ class TileSizeStatsTest {
         )
       ));
     MapboxVectorTile mltInput = vectorTile.toMltInput();
-    Map<Pattern, List<ColumnMapping>> columnMappings = Map.of();
+    ColumnMappingConfig columnMappings = new ColumnMappingConfig();
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     Map<String, FeatureTableOptimizations> optimizations = Map.of();
     var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(false).useFastPFOR(false)
@@ -190,8 +191,8 @@ class TileSizeStatsTest {
         )
       ));
     MapboxVectorTile mltInput = vectorTile.toMltInput();
-    Map<Pattern, List<ColumnMapping>> columnMappings =
-      Map.of(Pattern.compile(".*"), List.of(new ColumnMapping("key", ":", true)));
+    ColumnMappingConfig columnMappings =
+      ColumnMappingConfig.of(Pattern.compile(".*"), List.of(new ColumnMapping("key", ":", true)));
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(true).useFastPFOR(false)
       .optimizations(

@@ -108,11 +108,11 @@ class TilesetSummaryStatisticsTest {
       (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.archivedSize(), summary.layers());
     }
     assertEquals(
-      summaries.stream().map(d -> d.withSize(d.coord().encoded() * 2)).limit(10).toList(),
+      summaries.stream().map(d -> d.withSize((int) d.coord().encoded() * 2)).limit(10).toList(),
       tileStats.summary().get("a").biggestTiles()
     );
     assertEquals(
-      summaries.stream().map(d -> d.withSize(d.coord().encoded() * 3)).limit(10).toList(),
+      summaries.stream().map(d -> d.withSize((int) d.coord().encoded() * 3)).limit(10).toList(),
       tileStats.summary().get("b").biggestTiles()
     );
     assertEquals("""
