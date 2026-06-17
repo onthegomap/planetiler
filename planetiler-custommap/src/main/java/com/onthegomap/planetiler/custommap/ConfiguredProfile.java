@@ -7,7 +7,9 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
+import com.onthegomap.planetiler.custommap.configschema.RelationMembersInfo;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
@@ -16,6 +18,8 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.reader.osm.RelationSourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import java.nio.file.Path;
@@ -37,6 +41,7 @@ public class ConfiguredProfile implements Profile {
   private final Index<ConfiguredFeature> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
+  private final Index<ConfiguredFeature> relationMembersMatcher;
   private final Expression splitFeaturesAtWays;
 
   public ConfiguredProfile(SchemaConfig schema, Contexts.Root rootContext) {
@@ -51,6 +56,7 @@ public class ConfiguredProfile implements Profile {
     tagValueProducer = new TagValueProducer(schema.inputMappings());
 
     List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
+    List<MultiExpression.Entry<ConfiguredFeature>> relationMembersEntries = new ArrayList<>();
 
     List<Expression> splitAtIntersectionTests = new ArrayList<>();
 
@@ -61,7 +67,11 @@ public class ConfiguredProfile implements Profile {
         var configuredFeature = new ConfiguredFeature(layer, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
         configuredFeatureEntries.add(entry);
-
+        
+        // Track features with relation_members geometry for preprocessOsmRelation
+        if (feature.geometry() == FeatureGeometry.RELATION_MEMBERS) {
+          relationMembersEntries.add(entry);
+        }
         if (configuredFeature.splitAtIntersections()) {
           splitAtIntersectionTests.add(configuredFeature.matchExpression());
         }
@@ -69,6 +79,8 @@ public class ConfiguredProfile implements Profile {
     }
 
     featureLayerMatcher = MultiExpression.of(configuredFeatureEntries).index();
+    relationMembersMatcher = relationMembersEntries.isEmpty() ? null :
+      MultiExpression.of(relationMembersEntries).index();
 
     splitFeaturesAtWays =
       splitAtIntersectionTests.isEmpty() ? null :
@@ -188,6 +200,26 @@ public class ConfiguredProfile implements Profile {
   }
 
   @Override
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    // Check if this relation matches any relation_members features
+    if (relationMembersMatcher == null) {
+      return List.of();
+    }
+
+    // Create a RelationSourceFeature to test if this relation matches
+    SourceFeature fakeFeature = new RelationSourceFeature(relation, List.of());
+    
+    var context = rootContext.createProcessFeatureContext(fakeFeature, tagValueProducer);
+    var matches = relationMembersMatcher.getMatchesWithTriggers(context);
+    
+    if (!matches.isEmpty()) {
+      // This relation matches a relation_members feature, return RelationMembersInfo
+      return List.of(new RelationMembersInfo(relation.id()));
+    }
+    
+    return List.of();
+  }
+  
   public boolean splitOsmWayAtIntersections(OsmElement.Way way) {
 
     return splitFeaturesAtWays != null &&

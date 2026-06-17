@@ -2,4 +2,4 @@
 
 set -eu
 
-mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Pcoverage
+./mvnw verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Pcoverage

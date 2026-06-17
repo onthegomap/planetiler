@@ -1,0 +1,20 @@
+schema_name: Test Case Schema
+schema_description: Test case tile schema
+attribution: Test attribution
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+layers:
+- id: route_segments
+  features:
+  - source:
+    - osm
+    geometry: relation_members
+    include_when:
+      type: route
+    member_types: [way]
+    attributes:
+    - key: route_name
+      tag_value: name
+
