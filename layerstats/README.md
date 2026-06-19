@@ -5,14 +5,14 @@ This page describes how to generate and analyze layer stats data to find ways to
 
 ### Generating Layer Stats
 
-Run planetiler with `--output-layerstats` to generate an extra `<output>.layerstats.tsv.gz` file with a row for each
+Run planetiler with `--output-layerstats` to generate an extra `<output>.layerstats.parquet` file with a row for each
 layer in each tile that can be used to analyze tile sizes. You can also get stats for an existing archive by running:
 
 ```bash
-java -jar planetiler.jar stats --input=<path to mbtiles or pmtiles file> --output=layerstats.tsv.gz
+java -jar planetiler.jar stats --input=<path to mbtiles or pmtiles file> --output=layerstats.parquet
 ```
 
-The output is a gzipped tsv with a row per layer on each tile and the following columns:
+The output is a Parquet file with a row per layer on each tile and the following columns:
 
 |       column        |                                                                   description                                                                   |
 |---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -34,7 +34,7 @@ The output is a gzipped tsv with a row per layer on each tile and the following 
 Load a layer stats file in [duckdb](https://duckdb.org/):
 
 ```sql
-CREATE TABLE layerstats AS SELECT * FROM 'output.pmtiles.layerstats.tsv.gz';
+CREATE TABLE layerstats AS SELECT * FROM 'output.pmtiles.layerstats.parquet';
 ```
 
 Then get the biggest layers:
