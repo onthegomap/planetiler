@@ -2700,7 +2700,7 @@ class PlanetilerTests {
     "--compress-temp",
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
-    "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids",
+    "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
     "--exclude-ids",
     "--output-format=pmtiles",
     "--output-format=pmtiles --tile-format=mlt",
