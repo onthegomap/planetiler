@@ -63,6 +63,73 @@
           <skipPublishing>true</skipPublishing>
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>com.dataliquid</groupId>
+        <artifactId>json-yaml-validator-maven-plugin</artifactId>
+        <version>1.0.0</version>
+        <executions>
+
+          <execution>
+            <id>validate-positive-yaml</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>.</sourceDirectory>
+              <includes>
+                <include>src/test/resources/validSchema/*.yml</include>
+                <include>src/main/resources/samples/*.yml</include>
+              </includes>
+              <excludes>
+                <exclude>src/main/resources/samples/*.spec.yml</exclude>
+                <!-- shortbread.yml uses aliases which are not supported yet.
+                     See https://github.com/dataliquid/json-yaml-validator-maven-plugin/issues/52
+                -->
+                <exclude>src/main/resources/samples/shortbread.yml</exclude>
+              </excludes>
+              <schemaFile>planetiler.schema.json</schemaFile>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>validate-positive-spec-yaml</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>.</sourceDirectory>
+              <includes>
+                <include>src/main/resources/samples/*.spec.yml</include>
+              </includes>
+              <schemaFile>planetilerspec.schema.json</schemaFile>
+            </configuration>
+          </execution>
+
+<!-- There is no known way to use the plugin to verify that invalid examples violate the schema
+     See https://github.com/dataliquid/json-yaml-validator-maven-plugin/issues/51
+          <execution>
+            <id>validate-negative-yaml</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>.</sourceDirectory>
+              <includes>
+                <include>src/test/resources/invalidSchema/*.yml</include>
+              </includes>
+              <schemaFile>planetiler.schema.json</schemaFile>
+              <mustError>true</mustError>
+            </configuration>
+          </execution>
+-->    
+
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 </project>
