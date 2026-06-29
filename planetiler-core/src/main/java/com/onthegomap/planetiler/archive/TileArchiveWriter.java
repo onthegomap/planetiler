@@ -337,7 +337,7 @@ public class TileArchiveWriter {
                     }
                   )))
                   .preTessellatePolygons(config.mltTessellatePolygons())
-                  .outlineFeatureTableNames(config.mltPolygonOutline()?List.of("ALL"):null)
+                  .outlineFeatureTableNames(config.mltPolygonOutline() ? List.of("ALL") : null)
                   .useMortonEncoding(true)
                   .build();
                 var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
