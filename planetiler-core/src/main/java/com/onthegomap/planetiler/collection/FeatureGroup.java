@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -76,6 +77,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     this.profile = profile;
     this.config = config;
     this.stats = stats;
+    VectorTile.setExtent(config.tileExtent());
+    GeoUtils.setTileExtent(config.tileExtent());
     if (config.logJtsExceptions() && CURRENT_TILE == null) {
       CURRENT_TILE = ThreadLocal.withInitial(() -> null);
     }

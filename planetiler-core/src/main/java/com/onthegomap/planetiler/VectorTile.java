@@ -93,8 +93,11 @@ public class VectorTile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
-  // TODO make these configurable
-  private static final int EXTENT = 4096;
+  public static final int DEFAULT_EXTENT = 4096;
+  // Global vector tile extent configured at runtime through PlanetilerConfig.
+  private static volatile int tileExtent = DEFAULT_EXTENT;
+  private static final int HILBERT_LEVEL = 16;
+  private static final long HILBERT_MAX_COORD = (1L << HILBERT_LEVEL) - 1;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -104,6 +107,17 @@ public class VectorTile {
     var encoder = new CommandEncoder(scale);
     encoder.accept(input);
     return encoder.result.toArray();
+  }
+
+  public static int extent() {
+    return tileExtent;
+  }
+
+  public static void setExtent(int extent) {
+    if (extent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, got " + extent);
+    }
+    tileExtent = extent;
   }
 
   /**
@@ -368,7 +382,11 @@ public class VectorTile {
       List<Feature> features = new ArrayList<>();
       for (VectorTileProto.Tile.Layer layer : tile.getLayersList()) {
         String layerName = layer.getName();
-        assert layer.getExtent() == 4096;
+        if (layer.getExtent() != tileExtent) {
+          throw new IllegalStateException(
+            "Unsupported vector tile extent: " + layer.getExtent() + " (expected " + tileExtent + ")"
+          );
+        }
         List<String> keys = layer.getKeysList();
         List<Object> values = new ArrayList<>();
 
@@ -447,9 +465,22 @@ public class VectorTile {
    */
   public static int hilbertIndex(Geometry geometry) {
     Coordinate coord = geometry.getCoordinate();
-    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
-    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
-    return (int) Hilbert.hilbertXYToIndex(15, x, y);
+    int x = zigZagEncode((int) Math.round(coord.x * tileExtent / SIZE));
+    int y = zigZagEncode((int) Math.round(coord.y * tileExtent / SIZE));
+    return hilbertIndexForEncodedCoords(x, y);
+  }
+
+  private static int hilbertIndexForEncodedCoords(int x, int y) {
+    int shift = Math.max(hilbertShiftToFitLevel(x), hilbertShiftToFitLevel(y));
+    return (int) Hilbert.hilbertXYToIndex(HILBERT_LEVEL, x >>> shift, y >>> shift);
+  }
+
+  private static int hilbertShiftToFitLevel(int coord) {
+    long unsignedCoord = Integer.toUnsignedLong(coord);
+    if (unsignedCoord <= HILBERT_MAX_COORD) {
+      return 0;
+    }
+    return Long.SIZE - Long.numberOfLeadingZeros(unsignedCoord) - HILBERT_LEVEL;
   }
 
   /**
@@ -479,8 +510,8 @@ public class VectorTile {
    * avoid needing to create an extra JTS geometry for encoding.
    */
   public static VectorGeometry encodeFill(double buffer) {
-    int min = (int) Math.round(EXTENT * buffer / 256d);
-    int width = EXTENT + min + min;
+    int min = (int) Math.round(tileExtent * buffer / 256d);
+    int width = tileExtent + min + min;
     return new VectorGeometry(new int[]{
       CommandEncoder.commandAndLength(Command.MOVE_TO, 1),
       zigZagEncode(-min), zigZagEncode(-min),
@@ -556,7 +587,7 @@ public class VectorTile {
       VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
         .setVersion(2)
         .setName(layerName)
-        .setExtent(EXTENT)
+        .setExtent(tileExtent)
         .addAllKeys(layer.keys());
 
       for (Object value : layer.values()) {
@@ -682,7 +713,7 @@ public class VectorTile {
             return null;
           }
         }).filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
+        return new org.maplibre.mlt.data.Layer(name, features, tileExtent);
       }).toList());
   }
 
@@ -791,8 +822,9 @@ public class VectorTile {
    * specification</a>.
    * <p>
    * To encode extra precision in intermediate feature geometries, the geometry contained in {@code commands} is scaled
-   * to a tile extent of {@code EXTENT * 2^scale}, so when the {@code scale == 0} the extent is {@link #EXTENT} and when
-   * {@code scale == 2} the extent is 4x{@link #EXTENT}. Geometries must be scaled back to 0 using {@link #unscale()}
+  * to a tile extent of {@code tileExtent * 2^scale}, so when the {@code scale == 0} the extent is
+  * {@link #tileExtent} and when {@code scale == 2} the extent is 4x{@link #tileExtent}. Geometries must be scaled
+  * back to 0 using {@link #unscale()}
    * before outputting to the archive.
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
@@ -857,7 +889,7 @@ public class VectorTile {
 
     /** Converts an encoded geometry back to a JTS geometry. */
     public Geometry decode() throws GeometryException {
-      return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
+      return decodeCommands(geomType, commands, (tileExtent << scale) / SIZE);
     }
 
     /** Converts an encoded geometry back to a JTS geometry. */
@@ -926,7 +958,7 @@ public class VectorTile {
 
       boolean isLine = geomType == GeometryType.LINE;
 
-      int extent = EXTENT << scale;
+      int extent = tileExtent << scale;
       int visited = INSIDE;
       int firstX = 0;
       int firstY = 0;
@@ -1005,7 +1037,7 @@ public class VectorTile {
       }
       IntArrayList result = null;
 
-      int extent = (EXTENT << scale);
+      int extent = (tileExtent << scale);
       int bufferInt = (int) Math.ceil(buffer * extent / 256);
       int min = -bufferInt;
       int max = extent + bufferInt;
@@ -1070,9 +1102,9 @@ public class VectorTile {
       if (commands.length < 3) {
         return 0;
       }
-      int x = commands[1];
-      int y = commands[2];
-      return (int) Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
+      int x = commands[1] >>> scale;
+      int y = commands[2] >>> scale;
+      return hilbertIndexForEncodedCoords(x, y);
     }
 
 
@@ -1085,8 +1117,8 @@ public class VectorTile {
         return null;
       }
       double factor = 1 << scale;
-      double x = zigZagDecode(commands[1]) * SIZE / EXTENT / factor;
-      double y = zigZagDecode(commands[2]) * SIZE / EXTENT / factor;
+      double x = zigZagDecode(commands[1]) * SIZE / tileExtent / factor;
+      double y = zigZagDecode(commands[2]) * SIZE / tileExtent / factor;
       return new CoordinateXY(x, y);
     }
   }
@@ -1192,7 +1224,7 @@ public class VectorTile {
     int x = 0, y = 0;
 
     CommandEncoder(int scale) {
-      this.SCALE = (EXTENT << scale) / SIZE;
+      this.SCALE = (tileExtent << scale) / SIZE;
     }
 
     static boolean shouldClosePath(Geometry geometry) {
