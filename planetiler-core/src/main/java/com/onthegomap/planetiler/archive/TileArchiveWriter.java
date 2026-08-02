@@ -344,6 +344,8 @@ public class TileArchiveWriter {
                 yield mlt;
               }
               case UNKNOWN, MVT -> {
+                tile.enforceRendererPolygonLimit(tileFeatures.tileCoord(), config.maxRendererPolygonVertices(),
+                  config.maxRendererPolygonSimplificationTolerance());
                 var proto = tile.toProto(includeIds);
                 layerStats = TileSizeStats.computeTileStats(proto);
                 yield proto.toByteArray();

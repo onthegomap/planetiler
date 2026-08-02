@@ -55,6 +55,8 @@ public record PlanetilerConfig(
   boolean osmLazyReads,
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
+  int maxRendererPolygonVertices,
+  double maxRendererPolygonSimplificationTolerance,
   Boolean color,
   boolean keepUnzippedSources,
   TileCompression tileCompression,
@@ -96,6 +98,16 @@ public record PlanetilerConfig(
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (maxRendererPolygonVertices < 4 || maxRendererPolygonVertices > 65_535) {
+      throw new IllegalArgumentException(
+        "max_renderer_polygon_vertices must be between 4 and 65535, was " + maxRendererPolygonVertices);
+    }
+    if (!(maxRendererPolygonSimplificationTolerance > 0) ||
+      !Double.isFinite(maxRendererPolygonSimplificationTolerance)) {
+      throw new IllegalArgumentException(
+        "max_renderer_polygon_simplification_tolerance must be finite and > 0, was " +
+          maxRendererPolygonSimplificationTolerance);
     }
   }
 
@@ -222,6 +234,12 @@ public record PlanetilerConfig(
       (int) (arguments.getDouble("tile_warning_size_mb",
         "Maximum size in megabytes of a tile to emit a warning about",
         1d) * 1024 * 1024),
+      arguments.getInteger("max_renderer_polygon_vertices",
+        "Maximum vertices in a polygon component (outer ring plus the 500 largest holes) before final MVT encoding",
+        60_000),
+      arguments.getDouble("max_renderer_polygon_simplification_tolerance",
+        "Maximum tile-pixel tolerance used to repair polygons that exceed the renderer vertex limit",
+        256d),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
         "keep unzipped sources by default after reading", false),

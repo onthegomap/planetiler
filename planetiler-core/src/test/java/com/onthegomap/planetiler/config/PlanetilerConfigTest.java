@@ -19,4 +19,20 @@ class PlanetilerConfigTest {
   void testTileExtentPowerOf2Allowed() {
     assertEquals(8192, PlanetilerConfig.from(Arguments.of("tile_extent", "8192")).tileExtent());
   }
+
+  @Test
+  void testRendererPolygonLimitOptions() {
+    var config = PlanetilerConfig.from(Arguments.of(
+      "max-renderer-polygon-vertices", "50000",
+      "max-renderer-polygon-simplification-tolerance", "12.5"
+    ));
+    assertEquals(50_000, config.maxRendererPolygonVertices());
+    assertEquals(12.5, config.maxRendererPolygonSimplificationTolerance());
+  }
+
+  @Test
+  void testRendererPolygonLimitMustNotExceedMapLibreLimit() {
+    assertThrows(IllegalArgumentException.class,
+      () -> PlanetilerConfig.from(Arguments.of("max_renderer_polygon_vertices", "65536")));
+  }
 }
