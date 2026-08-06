@@ -1,10 +1,18 @@
 package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.util.TileSizeStats;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
+
+/** Layer statistics data for a tile. */
+record LayerStatsData(
+  TileCoord coord,
+  int archivedBytes,
+  List<TileSizeStats.LayerStats> layerStats
+) {}
 
 public record TileEncodingResult(
   TileCoord coord,
@@ -12,14 +20,14 @@ public record TileEncodingResult(
   int rawTileSize,
   /* will always be empty in non-compact mode and might also be empty in compact mode */
   OptionalLong tileDataHash,
-  List<String> layerStats
+  LayerStatsData layerStatsData
 ) {
   public TileEncodingResult(
     TileCoord coord,
     byte[] tileData,
     OptionalLong tileDataHash
   ) {
-    this(coord, tileData, tileData.length, tileDataHash, List.of());
+    this(coord, tileData, tileData.length, tileDataHash, null);
   }
 
   @Override
