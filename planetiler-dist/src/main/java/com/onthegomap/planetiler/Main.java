@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
 import org.openmaptiles.OpenMapTilesProfile;
 import org.openmaptiles.util.VerifyMonaco;
+import org.versatiles.shortbread.ShortbreadMain;
 
 /**
  * Main entry-point for executable jar and container distributions of Planetiler, which delegates to individual {@code
@@ -59,8 +60,11 @@ public class Main {
     entry("generate-custom", ConfiguredMapMain::main),
     entry("custom", ConfiguredMapMain::main),
 
-    entry("generate-shortbread", bundledSchema("shortbread.yml")),
-    entry("shortbread", bundledSchema("shortbread.yml")),
+    entry("generate-shortbread", ShortbreadMain::main),
+    entry("shortbread", ShortbreadMain::main),
+    entry("generate-shortbread-1.1", shortbreadVersion("1.1")),
+    entry("shortbread-1.1", shortbreadVersion("1.1")),
+    // the previous YAML implementation remains available via: custom --schema=shortbread.yml
 
     entry("verify", SchemaValidator::main),
     entry("verify-custom", SchemaValidator::main),
@@ -85,9 +89,9 @@ public class Main {
     entry("compare", CompareArchives::main)
   );
 
-  private static EntryPoint bundledSchema(String path) {
-    return args -> ConfiguredMapMain.main(Stream.concat(
-      Stream.of("--schema=" + path),
+  private static EntryPoint shortbreadVersion(String version) {
+    return args -> ShortbreadMain.main(Stream.concat(
+      Stream.of("--shortbread_version=" + version),
       Stream.of(args)
     ).toArray(String[]::new));
   }
