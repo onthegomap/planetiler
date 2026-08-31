@@ -19,6 +19,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
@@ -1010,6 +1011,45 @@ class PlanetilerTests {
         feature(tileTopLeft(4), Map.of())
       ))
     ), results.tiles);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mvt", "mlt"})
+  void rendererPolygonVertexLimitAppliesToAllTileFormats(String tileFormat) throws Exception {
+    int columns = 3_500;
+    int pointsPerColumn = 20;
+    List<Coordinate> coordinates = new ArrayList<>(columns * pointsPerColumn + 3);
+    for (int column = 0; column < columns; column++) {
+      double x = 0.05 + 0.9 * column / (columns - 1d);
+      for (int row = 0; row < pointsPerColumn; row++) {
+        int orderedRow = (column & 1) == 0 ? row : pointsPerColumn - 1 - row;
+        double y = 0.2 + 0.5 * orderedRow / (pointsPerColumn - 1d);
+        coordinates.add(new Coordinate(x, y));
+      }
+    }
+    coordinates.add(new Coordinate(0.95, 0.95));
+    coordinates.add(new Coordinate(0.05, 0.95));
+    coordinates.add(coordinates.getFirst().copy());
+    Polygon polygon = GeoUtils.JTS_FACTORY.createPolygon(coordinates.toArray(Coordinate[]::new));
+
+    var results = runWithReaderFeatures(
+      Map.of(
+        "threads", "1",
+        "maxzoom", "0",
+        "render_maxzoom", "0",
+        "tile-format", tileFormat,
+        "max-renderer-polygon-vertices", "60000"
+      ),
+      List.of(newReaderFeature(GeoUtils.worldToLatLonCoords(polygon), Map.of())),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 0)
+        .setMinPixelSize(0)
+        .transformScaledGeometry(GeometryPipeline.NOOP)
+    );
+
+    var output = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
+    assertEquals(1, output.size());
+    assertTrue(output.getFirst().geometry().geom().getNumPoints() - 1 <= 60_000);
   }
 
   @Test

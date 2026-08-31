@@ -310,6 +310,8 @@ public class TileArchiveWriter {
             layerStats = null;
             bytes = null;
           } else {
+            tile.enforceRendererPolygonLimit(tileFeatures.tileCoord(), config.maxRendererPolygonVertices(),
+              config.maxRendererPolygonSimplificationTolerance());
             encoded = switch (config.tileFormat()) {
               case MLT -> {
                 MapboxVectorTile mltInput = tile.toMltInput(stats);
@@ -344,8 +346,6 @@ public class TileArchiveWriter {
                 yield mlt;
               }
               case UNKNOWN, MVT -> {
-                tile.enforceRendererPolygonLimit(tileFeatures.tileCoord(), config.maxRendererPolygonVertices(),
-                  config.maxRendererPolygonSimplificationTolerance());
                 var proto = tile.toProto(includeIds);
                 layerStats = TileSizeStats.computeTileStats(proto);
                 yield proto.toByteArray();
