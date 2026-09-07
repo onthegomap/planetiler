@@ -344,6 +344,7 @@ public class TileArchiveWriter {
                 layerStats = TileSizeStats.computeMltTileStats(tile, mltInput, mlt);
                 yield mlt;
               }
+              case PNG -> throw new IllegalStateException();
               case UNKNOWN, MVT -> {
                 var proto = tile.toProto(includeIds);
                 layerStats = TileSizeStats.computeTileStats(proto);
@@ -451,7 +452,7 @@ public class TileArchiveWriter {
           TileCoord tileCoord = encodedTile.coord();
           assert lastTile == null ||
             order.encode(tileCoord) > order.encode(lastTile) : "Tiles out of order %s before %s"
-              .formatted(lastTile, tileCoord);
+            .formatted(lastTile, tileCoord);
           lastTile = encodedTile.coord();
           int z = tileCoord.z();
           if (z != currentZ) {

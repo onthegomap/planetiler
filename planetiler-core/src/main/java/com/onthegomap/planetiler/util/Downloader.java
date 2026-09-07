@@ -112,7 +112,7 @@ public class Downloader {
     return getUrlConnection(urlString, config).getInputStream();
   }
 
-  private static InputStream openStreamRange(String urlString, PlanetilerConfig config, long start, long end)
+  public static InputStream openStreamRange(String urlString, PlanetilerConfig config, long start, long end)
     throws IOException {
     URLConnection connection = getUrlConnection(urlString, config);
     connection.setRequestProperty(RANGE, "bytes=%d-%d".formatted(start, end));

@@ -55,6 +55,7 @@ public class Pmtiles {
   public enum TileType {
     UNKNOWN((byte) 0),
     MVT((byte) 1),
+    PNG((byte) 2),
     MLT((byte) 6);
 
     private final byte value;

@@ -167,6 +167,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       var outputFormat = switch (tileArchiveMetadata.format()) {
         case MLT -> Pmtiles.TileType.MLT;
         case MVT -> Pmtiles.TileType.MVT;
+        case PNG -> Pmtiles.TileType.PNG;
         case null, default -> Pmtiles.TileType.UNKNOWN;
       };
 
@@ -354,6 +355,28 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     @Override
     public void close() {
       // no cleanup needed.
+    }
+  }
+
+  public ManualTileWriter newManualWriter() {
+    return new ManualTileWriter();
+  }
+
+  public class ManualTileWriter {
+    public void writeEntry(long offset, long tileId, int length, int runLength) {
+      numAddressedTiles += runLength;
+      entries.add(new Pmtiles.Entry(tileId, offset, length, runLength));
+    }
+
+    public long writeData(byte[] data) {
+      long offset = currentOffset;
+      try {
+        out.write(ByteBuffer.wrap(data));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+      currentOffset += data.length;
+      return offset;
     }
   }
 }

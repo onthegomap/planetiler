@@ -20,6 +20,8 @@ public enum TileFormat {
   MVT("mvt", "pbf"),
   @JsonProperty("application/vnd.maplibre-vector-tile")
   MLT("mlt", "application/vnd.maplibre-vector-tile"),
+  @JsonProperty("png")
+  PNG("png", "png"),
   @JsonProperty("unknown")
   UNKNOWN("unknown", null);
 

@@ -152,7 +152,7 @@ public class TestUtils {
   }
 
   public static Polygon newPolygon(double... coords) {
-    return GeoUtils.JTS_FACTORY.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
+    return JTS_FACTORY.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
   }
 
   public static Polygon tileBottomRight(double buffer) {
@@ -218,9 +218,9 @@ public class TestUtils {
   }
 
   public static Polygon newPolygon(List<Coordinate> outer, List<List<Coordinate>> inner) {
-    return GeoUtils.JTS_FACTORY.createPolygon(
-      GeoUtils.JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
-      inner.stream().map(i -> GeoUtils.JTS_FACTORY.createLinearRing(i.toArray(new Coordinate[0])))
+    return JTS_FACTORY.createPolygon(
+      JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
+      inner.stream().map(i -> JTS_FACTORY.createLinearRing(i.toArray(new Coordinate[0])))
         .toArray(LinearRing[]::new)
     );
   }
@@ -230,27 +230,27 @@ public class TestUtils {
   }
 
   public static LineString newLineString(List<Coordinate> coords) {
-    return GeoUtils.JTS_FACTORY.createLineString(coords.toArray(new Coordinate[0]));
+    return JTS_FACTORY.createLineString(coords.toArray(new Coordinate[0]));
   }
 
   public static MultiLineString newMultiLineString(LineString... lineStrings) {
-    return GeoUtils.JTS_FACTORY.createMultiLineString(lineStrings);
+    return JTS_FACTORY.createMultiLineString(lineStrings);
   }
 
   public static Point newPoint(double x, double y) {
-    return GeoUtils.JTS_FACTORY.createPoint(new CoordinateXY(x, y));
+    return JTS_FACTORY.createPoint(new CoordinateXY(x, y));
   }
 
   public static MultiPoint newMultiPoint(Point... points) {
-    return GeoUtils.JTS_FACTORY.createMultiPoint(points);
+    return JTS_FACTORY.createMultiPoint(points);
   }
 
   public static MultiPolygon newMultiPolygon(Polygon... polys) {
-    return GeoUtils.JTS_FACTORY.createMultiPolygon(polys);
+    return JTS_FACTORY.createMultiPolygon(polys);
   }
 
   public static GeometryCollection newGeometryCollection(Geometry... geoms) {
-    return GeoUtils.JTS_FACTORY.createGeometryCollection(geoms);
+    return JTS_FACTORY.createGeometryCollection(geoms);
   }
 
   public static Geometry round(Geometry input, double delta) {
@@ -290,9 +290,10 @@ public class TestUtils {
       };
       List<ComparableFeature> decoded = switch (tileFormat) {
         case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
-          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
-            feature.properties(), feature.id())))
+            .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
+              feature.properties(), feature.id())))
           .toList();
+        case PNG -> throw new IllegalArgumentException();
         case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
           .map(
             feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
@@ -363,7 +364,7 @@ public class TestUtils {
   }
 
   public static Geometry emptyGeometry() {
-    return GeoUtils.JTS_FACTORY.createGeometryCollection();
+    return JTS_FACTORY.createGeometryCollection();
   }
 
   private static void validateGeometryRecursive(Geometry g) {
@@ -510,6 +511,7 @@ public class TestUtils {
     Map<String, Object> attrs,
     Long id
   ) implements WithTags {
+
     ComparableFeature(
       GeometryComparision geometry,
       String layer,
@@ -796,7 +798,8 @@ public class TestUtils {
     int minzoom, int maxzoom) {
     try {
       List<String> failures = new ArrayList<>();
-      outer: for (int zoom = 0; zoom <= 14; zoom++) {
+      outer:
+      for (int zoom = 0; zoom <= 14; zoom++) {
         boolean shouldFind = zoom >= minzoom && zoom <= maxzoom;
         var coord = TileCoord.aroundLngLat(lng, lat, zoom);
         Geometry tilePoint = GeoUtils.point(coord.lngLatToTileCoords(lng, lat));

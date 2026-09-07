@@ -170,9 +170,9 @@ class PlanetilerTests {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.arguments())) {
       TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config),
         null, config, stats);
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
-      int tileDataCount = db.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
+      int tileDataCount = db.compactDb() ? getTilesDataCount(db) : 0;
       return new PlanetilerResults(tileMap, db.metadata().toMap(), tileDataCount);
     }
   }
@@ -601,7 +601,7 @@ class PlanetilerTests {
       TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newPoint(128, 128), Map.of("type", "line")),
         feature(newPoint(128, 128), Map.of("type", "poly"))
-      // omit point when min size is set
+        // omit point when min size is set
       ),
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(newPoint(64, 64), Map.of("type", "line")),
@@ -1192,7 +1192,7 @@ class PlanetilerTests {
     throws Exception {
     LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
     Geometry geometry = new WKBReader()
-      .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
+      .read(new InputStreamInStream(Files.newInputStream(pathToResource(fileName))));
     assertNotNull(geometry);
 
     // automatically checks for self-intersections
@@ -1457,34 +1457,34 @@ class PlanetilerTests {
 
     assertSubmap(Map.of(
       TileCoord.ofXYZ(0, 0, 0), List.of(
-        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)), "any",
+        new ComparableFeature(new NormGeometry(newPolygon(120, 120, 140, 120, 140, 140, 120, 120)), "any",
           Map.of(
             "attr", "value1"
           ), 42L),
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "any", Map.of(
+        new ComparableFeature(new NormGeometry(newLineString(140, 120, 128, 128)), "any", Map.of(
           "attr", "value2"
         ), 52L),
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120, 140, 140, 120, 120)), "full",
+        new ComparableFeature(new NormGeometry(newLineString(120, 120, 140, 120, 140, 140, 120, 120)), "full",
           Map.of(
             "attr", "value1"
           ), 42L),
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "full", Map.of(
+        new ComparableFeature(new NormGeometry(newLineString(140, 120, 128, 128)), "full", Map.of(
           "attr", "value2"
         ), 52L),
 
-        new ComparableFeature(new NormGeometry(TestUtils.newPolygon(120, 120, 140, 120, 140, 140, 120, 120)),
+        new ComparableFeature(new NormGeometry(newPolygon(120, 120, 140, 120, 140, 140, 120, 120)),
           "full-polygon",
           Map.of(
             "attr", "value1"
           ), 42L),
 
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(120, 120, 140, 120)), "split", Map.of(
+        new ComparableFeature(new NormGeometry(newLineString(120, 120, 140, 120)), "split", Map.of(
           "attr", "value1"
         ), 42L),
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 128, 128)), "split", Map.of(
+        new ComparableFeature(new NormGeometry(newLineString(140, 120, 128, 128)), "split", Map.of(
           "attr", "value2"
         ), 52L),
-        new ComparableFeature(new NormGeometry(TestUtils.newLineString(140, 120, 140, 140, 120, 120)), "split", Map.of(
+        new ComparableFeature(new NormGeometry(newLineString(140, 120, 140, 140, 120, 120)), "split", Map.of(
           "attr", "value1"
         ), 142L)
       )
@@ -2391,8 +2391,8 @@ class PlanetilerTests {
     return result;
   }
 
-  private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
-    List<TestUtils.ComparableFeature> features) {
+  private Map.Entry<TileCoord, List<ComparableFeature>> newTileEntry(int x, int y, int z,
+    List<ComparableFeature> features) {
     return Map.entry(TileCoord.ofXYZ(x, y, z), features);
   }
 
@@ -2414,7 +2414,7 @@ class PlanetilerTests {
   }
 
   private record PlanetilerResults(
-    Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata, int tileDataCount
+    Map<TileCoord, List<ComparableFeature>> tiles, Map<String, String> metadata, int tileDataCount
   ) {}
 
   private record TestProfile(
@@ -2462,7 +2462,8 @@ class PlanetilerTests {
     }
 
     @Override
-    public void release() {}
+    public void release() {
+    }
 
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
@@ -2484,7 +2485,7 @@ class PlanetilerTests {
   @Test
   void testBadRelation() throws Exception {
     // this threw an exception in OsmMultipolygon.build
-    OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
+    OsmXml osmInfo = readOsmXml("bad_spain_relation.xml");
     List<OsmElement> elements = convertToOsmElements(osmInfo);
 
     var results = runWithOsmElements(
@@ -2542,7 +2543,7 @@ class PlanetilerTests {
   @Test
   void testIssue496BaseballMultipolygon() throws Exception {
     // this generated a polygon that covered an entire z11 tile where the buffer intersected the baseball field
-    OsmXml osmInfo = TestUtils.readOsmXml("issue_496_baseball_multipolygon.xml");
+    OsmXml osmInfo = readOsmXml("issue_496_baseball_multipolygon.xml");
     List<OsmElement> elements = convertToOsmElements(osmInfo);
 
     var results = runWithOsmElements(
@@ -2576,7 +2577,7 @@ class PlanetilerTests {
 
   @Test
   void testIssue509LenaDelta() throws Exception {
-    OsmXml osmInfo = TestUtils.readOsmXml("issue_509_lena_delta.xml");
+    OsmXml osmInfo = readOsmXml("issue_509_lena_delta.xml");
     List<OsmElement> elements = convertToOsmElements(osmInfo);
 
     var results = runWithOsmElements(
@@ -2607,7 +2608,7 @@ class PlanetilerTests {
   void testIssue546Terschelling() throws Exception {
     Geometry geometry = new WKBReader()
       .read(
-        new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource("issue_546_terschelling.wkb"))));
+        new InputStreamInStream(Files.newInputStream(pathToResource("issue_546_terschelling.wkb"))));
     geometry = GeoUtils.worldToLatLonCoords(geometry);
 
     assertNotNull(geometry);
@@ -2622,7 +2623,6 @@ class PlanetilerTests {
         .setBufferPixels(4.0)
         .setMinZoom(0)
     );
-
 
     // this lat/lon is in the middle of an island and should not be covered by
     for (int z = 4; z <= 14; z++) {
@@ -2722,7 +2722,7 @@ class PlanetilerTests {
   void testPlanetilerRunner(String args) throws Exception {
     var argParsed = Arguments.fromArgs(args.split(" "));
     Path originalOsm =
-      TestUtils.pathToResource(argParsed.getString("osm-test-path", "osm-test-path", "monaco-latest.osm.pbf"));
+      pathToResource(argParsed.getString("osm-test-path", "osm-test-path", "monaco-latest.osm.pbf"));
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     final TileCompression tileCompression = extractTileCompression(args);
 
@@ -2751,11 +2751,10 @@ class PlanetilerTests {
       case FILES -> p -> ReadableFilesArchive.newReader(p, Arguments.of());
     };
 
-
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-      ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
-    ))
+        ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
+      ))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -2767,10 +2766,10 @@ class PlanetilerTests {
         }
       })
       .addOsmSource("osm", tempOsm)
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
-      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
-      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
+      .addNaturalEarthSource("ne", pathToResource("natural_earth_vector.sqlite"))
+      .addShapefileSource("shapefile", pathToResource("shapefile.zip"))
+      .addGeoPackageSource("geopackage", pathToResource("geopackage.gpkg.zip"), null)
+      .addGeoJsonSource("geojson", pathToResource("featurecollection.geojson"), null)
       .setOutput(outputUri)
       .run();
 
@@ -2783,7 +2782,7 @@ class PlanetilerTests {
       int features = 0;
       int featuresWithIds = 0;
       int monacoPoints = 0;
-      var tileMap = TestUtils.getTileMap(db, tileCompression, tileFormat);
+      var tileMap = getTileMap(db, tileCompression, tileFormat);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
@@ -2817,6 +2816,7 @@ class PlanetilerTests {
         assertSubmap(Map.of(
           "format", switch (tileFormat) {
             case MLT -> "application/vnd.maplibre-vector-tile";
+            case PNG -> "png";
             case UNKNOWN, MVT -> "pbf";
           },
           "planetiler:version", BuildInfo.get().version(),
@@ -2883,7 +2883,7 @@ class PlanetilerTests {
   @Test
   void testPlanetilerRunnerShapefile() throws Exception {
     Path mbtiles = tempDir.resolve("output.mbtiles");
-    Path resourceDir = TestUtils.pathToResource("");
+    Path resourceDir = pathToResource("");
 
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
       .setProfile(new Profile.NullProfile() {
@@ -2906,7 +2906,7 @@ class PlanetilerTests {
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       long fileCount = 0, globCount = 0, globZipCount = 0;
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = getTileMap(db);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
@@ -2946,14 +2946,14 @@ class PlanetilerTests {
             .setAttr("name", source.getString("name"));
         }
       })
-      .addGeoPackageSource("geopackage", TestUtils.pathToResource(inputFile), null)
+      .addGeoPackageSource("geopackage", pathToResource(inputFile), null)
       .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       Set<String> uniqueNames = new HashSet<>();
       long featureCount = 0;
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = getTileMap(db);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
@@ -2986,14 +2986,14 @@ class PlanetilerTests {
             .setAttr("id", source.getString("id"));
         }
       })
-      .addParquetSource("parquet", List.of(TestUtils.pathToResource("parquet").resolve("boston.parquet")))
+      .addParquetSource("parquet", List.of(pathToResource("parquet").resolve("boston.parquet")))
       .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       Set<String> uniqueIds = new HashSet<>();
       long featureCount = 0;
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = getTileMap(db);
       for (int z = 14; z >= 11; z--) {
         var coord = TileCoord.aroundLngLat(-71.07448, 42.35626, z);
         assertTrue(tileMap.containsKey(coord), "contain " + coord);
@@ -3019,14 +3019,14 @@ class PlanetilerTests {
     Path overtureDir = tempDir.resolve("overture-buildings");
     var dest = overtureDir.resolve("theme=buildings").resolve("type=building").resolve("part-00000.parquet");
     FileUtils.createParentDirectories(dest);
-    Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), dest);
+    Files.copy(pathToResource("parquet").resolve("boston.parquet"), dest);
 
     Planetiler.create(Arguments.fromArgs(
-      "--tmpdir=" + tempDir.resolve("data"),
-      // Override the download directory so addOvertureSource picks up our pre-placed file.
-      // No --download flag here — we're verifying that existing files are processed correctly.
-      "overture-buildings_path=" + overtureDir
-    ))
+        "--tmpdir=" + tempDir.resolve("data"),
+        // Override the download directory so addOvertureSource picks up our pre-placed file.
+        // No --download flag here — we're verifying that existing files are processed correctly.
+        "overture-buildings_path=" + overtureDir
+      ))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -3040,9 +3040,9 @@ class PlanetilerTests {
       .setOutput(mbtiles)
       .run();
 
-    try (var db = com.onthegomap.planetiler.mbtiles.Mbtiles.newReadOnlyDatabase(mbtiles)) {
+    try (var db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       long featureCount = 0;
-      for (var tile : TestUtils.getTileMap(db).values()) {
+      for (var tile : getTileMap(db).values()) {
         for (var feature : tile) {
           feature.geometry().validate();
           featureCount++;
@@ -3055,10 +3055,10 @@ class PlanetilerTests {
   private void runWithProfile(Path tempDir, Profile profile, boolean force) {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
-      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
-      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
-      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
+      .addOsmSource("osm", pathToResource("monaco-latest.osm.pbf"))
+      .addNaturalEarthSource("ne", pathToResource("natural_earth_vector.sqlite"))
+      .addShapefileSource("shapefile", pathToResource("shapefile.zip"))
+      .addGeoPackageSource("geopackage", pathToResource("geopackage.gpkg.zip"), null)
       .setOutput(tempDir.resolve("output.mbtiles"))
       .run();
   }
@@ -3066,25 +3066,25 @@ class PlanetilerTests {
   @Test
   void testPlanetilerMemoryCheck() {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateIntermediateDiskBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateIntermediateDiskBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateOutputBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateOutputBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateRamRequired(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, false)
+        @Override
+        public long estimateRamRequired(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
     );
   }
 
@@ -3216,7 +3216,7 @@ class PlanetilerTests {
   void testBoundFilters() throws Exception {
     var origResult = runForBoundsTest(0, 2, "", "");
     var bboxResult = runForBoundsTest(0, 2, "bounds", "1,-85.05113,180,-1");
-    var polyResult = runForBoundsTest(0, 2, "polygon", TestUtils.pathToResource("bottomrightearth.poly").toString());
+    var polyResult = runForBoundsTest(0, 2, "polygon", pathToResource("bottomrightearth.poly").toString());
 
     assertEquals(1 + 4 + 16, origResult.tiles.size());
     assertEquals(Set.of(
@@ -3402,7 +3402,7 @@ class PlanetilerTests {
 
   @Test
   void testBoundFiltersFill() throws Exception {
-    var polyResultz8 = runForBoundsTest(8, 8, "polygon", TestUtils.pathToResource("bottomrightearth.poly").toString());
+    var polyResultz8 = runForBoundsTest(8, 8, "polygon", pathToResource("bottomrightearth.poly").toString());
 
     int z8tiles = 1 << 8;
     assertFalse(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 5 / 8, 8)));
@@ -3438,7 +3438,7 @@ class PlanetilerTests {
     // first run: build feature DB and tiles
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData, "--reuse_featuredb=true"))
       .setProfile(profile)
-      .addGeoJsonSource("geojson", TestUtils.pathToResource("featurecollection.geojson"), null)
+      .addGeoJsonSource("geojson", pathToResource("featurecollection.geojson"), null)
       .setOutput(mbtiles)
       .run();
 
@@ -3455,13 +3455,14 @@ class PlanetilerTests {
       Mbtiles db1 = Mbtiles.newReadOnlyDatabase(mbtiles);
       Mbtiles db2 = Mbtiles.newReadOnlyDatabase(mbtiles2)
     ) {
-      assertEquals(TestUtils.getTileMap(db1), TestUtils.getTileMap(db2));
+      assertEquals(getTileMap(db1), getTileMap(db2));
     }
     assertArrayEquals(Files.readAllBytes(mbtiles), Files.readAllBytes(mbtiles2));
   }
 
   @FunctionalInterface
   private interface ReadableTileArchiveFactory {
+
     ReadableTileArchive create(Path p) throws IOException;
   }
 }

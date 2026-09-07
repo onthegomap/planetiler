@@ -10,7 +10,6 @@ import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Path;
@@ -22,24 +21,25 @@ import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
 
 public class ReadablePmtiles implements ReadableTileArchive {
-  private final SeekableByteChannel channel;
+  private final RangeReader channel;
   private final Pmtiles.Header header;
 
   public ReadablePmtiles(SeekableByteChannel channel) throws IOException {
-    this.channel = channel;
-
+    this.channel = new RangeReader.FromSeekableByteChannel(channel);
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
   }
 
-  public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
+  public ReadablePmtiles(RangeReader channel) throws IOException {
+    this.channel = channel;
+    this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
+  }
+
+  public static ReadablePmtiles newReadFromFile(Path path) throws IOException {
     return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
   }
 
   private synchronized byte[] getBytes(long start, int length) throws IOException {
-    channel.position(start);
-    var buf = ByteBuffer.allocate(length);
-    channel.read(buf);
-    return buf.array();
+    return channel.read(start, length);
   }
 
   /**
@@ -158,7 +158,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
   }
 
-  private List<Pmtiles.Entry> readDir(long offset, int length) {
+  public List<Pmtiles.Entry> readDir(long offset, int length) {
     try {
       var buf = getBytes(offset, length);
       if (header.internalCompression() == Pmtiles.Compression.GZIP) {
@@ -170,10 +170,38 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
   }
 
-  private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
+  public Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
     return dir.stream().flatMap(entry -> entry.runLength() == 0 ?
       getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : LongStream
         .range(entry.tileId(), entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
+  }
+
+  public Stream<Pmtiles.Entry> getTileLocations(List<Pmtiles.Entry> dir, int maxZoom) {
+    //    Map<Long, CompletableFuture<List<Pmtiles.Entry>>> fetched = new HashMap<>();
+    //    Semaphore semaphore = new Semaphore(10);
+    //    for (var entry : dir) {
+    //      if (entry.runLength == 0) {
+    //        var future = new CompletableFuture<List<Pmtiles.Entry>>();
+    //        fetched.put(entry.tileId(), future);
+    //        Thread.ofVirtual().start(() -> {
+    //          semaphore.acquireUninterruptibly();
+    //          try {
+    //            future.complete(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()));
+    //          } catch (Exception e) {
+    //            future.completeExceptionally(e);
+    //          } finally {
+    //            semaphore.release();
+    //          }
+    //        });
+    //      }
+    //    }
+    //    for (var entry : fetched.values()) {
+    //      entry.join();
+    //    }
+    return dir.stream().filter(it -> TileCoord.hilbertDecode(it.tileId()).z() <= maxZoom)
+      .flatMap(entry -> entry.runLength() == 0 ?
+        getTileLocations(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()), maxZoom) :
+        Stream.of(entry));
   }
 
   private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
