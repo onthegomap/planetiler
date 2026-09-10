@@ -5,6 +5,9 @@
     },
     {
       "pattern": "^.*medium.com.*$"
+    },
+    {
+      "pattern": "^.*slack.com.*$"
     }
   ],
   "retryCount": 5,
