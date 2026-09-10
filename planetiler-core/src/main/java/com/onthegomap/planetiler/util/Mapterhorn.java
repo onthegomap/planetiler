@@ -2,11 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
-import ar.com.hjg.pngj.ImageInfo;
-import ar.com.hjg.pngj.ImageLineInt;
-import ar.com.hjg.pngj.PngWriter;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
-import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.pmtiles.Pmtiles;
@@ -17,21 +13,19 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
-import java.awt.image.Raster;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import dev.matrixlab.webp4j.WebPCodec;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +33,7 @@ public class Mapterhorn {
   private static final Logger LOGGER = LoggerFactory.getLogger(Mapterhorn.class);
 
   public static void main(String[] args) throws Exception {
-    var arguments = Arguments.fromArgs(args).withDefault("maxzoom", "5");
+    var arguments = Arguments.fromArgs(args).withDefault("maxzoom", "3");
     var config = PlanetilerConfig.from(arguments);
     var input =
       arguments.getString("input", "url of the input archive", "https://download.mapterhorn.com/planet.pmtiles");
@@ -94,7 +88,7 @@ public class Mapterhorn {
     // convert output tiles and write to output file
     // then finalize the archive
 
-    AtomicLong read = new AtomicLong();
+    AtomicLong written = new AtomicLong();
     AtomicLong bytesRead = new AtomicLong();
     record PendingTile(long offset, byte[] bytes, CompletableFuture<byte[]> result) {}
     WorkQueue<PendingTile> writerQueue = new WorkQueue<>("write_queue", 10_000, 1, arguments.getStats());
@@ -109,28 +103,36 @@ public class Mapterhorn {
         for (var group : prev) {
           long start = group.getFirst().offset;
           int length = (int) (group.getLast().offset + group.getLast().length() - start);
-          try (var stream = reader.startReading(header.tileDataOffset() + start, length)) {
-            for (var item : group) {
-              byte[] bytes = stream.readNBytes(item.length);
-              if (bytes.length != item.length) {
-                throw new IllegalStateException("Read " + bytes.length + " wanted " + item.length);
-              }
-              bytesRead.addAndGet(item.length);
-              read.incrementAndGet();
-              var result = new PendingTile(item.offset, bytes, new CompletableFuture<>());
-              next.accept(result);
-              writerEnqueuer.accept(result);
+          byte[] segmentBytes = new byte[length];
+          for (int i = 1; i <= config.httpRetries(); i++) {
+            try (var stream = reader.startReading(header.tileDataOffset() + start, length)) {
+              IOUtils.readFully(stream, segmentBytes);
+              bytesRead.addAndGet(length);
+              break;
+            } catch (IOException e) {
+              LOGGER.error("Error reading, retry {} {}", i, e);
+              Thread.sleep(config.httpRetryWait());
             }
+          }
+          for (var item : group) {
+            int from = Math.toIntExact(item.offset - start);
+            int to = from + item.length;
+            byte[] bytes = Arrays.copyOfRange(segmentBytes, from, to);
+            if (bytes.length != item.length) {
+              throw new IllegalStateException("Read " + bytes.length + " wanted " + item.length);
+            }
+            var result = new PendingTile(item.offset, bytes, new CompletableFuture<>());
+            next.accept(result);
+            writerEnqueuer.accept(result);
           }
         }
         if (remaining.decrementAndGet() <= 0) {
           writerQueue.close();
         }
       }).addBuffer("to_convert", 1000, 1)
-      .sinkTo("convert", config.featureProcessThreads(), (prev) -> {
-        var webpReader = newWebpReader();
+      .sinkTo("convert", arguments.threads(), (prev) -> {
         for (var item : prev) {
-          item.result().complete(convertWebpToPng(webpReader, item.bytes));
+          item.result().complete(convertWebpToPng(item.bytes, 1));
         }
       });
     var writerBranch = pipeline.readFromQueue(writerQueue)
@@ -144,6 +146,7 @@ public class Mapterhorn {
             var outBytes = tile.result.get();
             long newOffset = writer.writeData(outBytes);
             oldOffsetToNew.put(tile.offset, new OffsetAndLength(newOffset, outBytes.length));
+            written.incrementAndGet();
           }
           for (var tile : tileCoords) {
             var newLoc = oldOffsetToNew.get(tile.offset());
@@ -156,7 +159,7 @@ public class Mapterhorn {
             oldMetadata.attribution(),
             oldMetadata.version(),
             oldMetadata.type(),
-            TileFormat.PNG,
+            oldMetadata.format(),
             oldMetadata.bounds(),
             oldMetadata.center(),
             oldMetadata.minzoom(),
@@ -169,7 +172,7 @@ public class Mapterhorn {
       });
 
     ProgressLoggers loggers = ProgressLoggers.create()
-      .addRatePercentCounter("tiles", tiles.size(), read, true)
+      .addRatePercentCounter("tiles", tiles.size(), written, true)
       .addStorageRatePercentCounter("bytes", totalBytes, bytesRead::longValue, true)
       .add(" pmtiles")
       .addFileSize(output)
@@ -185,51 +188,57 @@ public class Mapterhorn {
     LOGGER.info("Finished in {} {}", timer.stop(), Files.size(output));
   }
 
-  private static ImageReader newWebpReader() {
-    return ImageIO.getImageReadersByMIMEType("image/webp").next();
-  }
-
-  public static byte[] convertWebpToPng(ImageReader webpReader, byte[] webpBytes) throws IOException {
-    webpReader.setInput(ImageIO.createImageInputStream(new ByteArrayInputStream(webpBytes)));
-    var image = webpReader.read(0);
-    if (image == null) {
-      throw new IOException("Could not decode WebP image (no suitable ImageIO reader found)");
+  public static byte[] convertWebpToPng(byte[] webpBytes, int resolution) throws IOException {
+    if (!WebPCodec.isAvailable()) {
+      throw new RuntimeException("Not available");
     }
-
-    int width = image.getWidth();
-    int height = image.getHeight();
-    Raster raster = image.getRaster();
-    int numBands = raster.getNumBands();
-
-    if (numBands < 3) {
-      throw new IOException("Expected at least 3 bands (RGB) for Terrarium encoding, got " + numBands);
-    }
-
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ImageInfo imgInfo = new ImageInfo(width, height, 8, false); // RGB, no alpha
-    PngWriter pngWriter = new PngWriter(baos, imgInfo);
-    pngWriter.setCompLevel(6);
-
-    int channels = 3;
-    int[] samples = new int[numBands];
-
-    for (int y = 0; y < height; y++) {
-      ImageLineInt line = new ImageLineInt(imgInfo);
-      int[] scanline = line.getScanline();
-
-      for (int x = 0; x < width; x++) {
-        raster.getPixel(x, y, samples); // raw samples, no color conversion
-
-        int base = x * channels;
-        scanline[base] = samples[0]; // R
-        scanline[base + 1] = samples[1]; // G
-        //        scanline[base + 2] = samples[2]; // B
+    var image = WebPCodec.decodeImage(webpBytes);
+    var raster = image.getRaster();
+    int halfRes = resolution / 2;
+    for (int y = 0; y < raster.getHeight(); y++) {
+      for (int x = 0; x < raster.getWidth(); x++) {
+        if (resolution > 1) {
+          int green = raster.getSample(x, y, 1);
+          raster.setSample(x, y, 1, (green + halfRes) / resolution * resolution);
+        }
+        raster.setSample(x, y, 2, 0);
       }
-
-      pngWriter.writeRow(line, y);
     }
 
-    pngWriter.end();
-    return baos.toByteArray();
+    return WebPCodec.encodeImage(image, 0f, true, false);
+
+    //    WebPImage image = WebPImage.read(new ByteArrayInputStream(webpBytes));
+    //
+    //    int width = image.getWidth();
+    //    int height = image.getHeight();
+    //    WebPFrame raster = image.getFirstFrame();
+    //    var pixels = raster.getArgbArray();
+    //
+    //    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    //    ImageInfo imgInfo = new ImageInfo(width, height, 8, false); // RGB, no alpha
+    //    PngWriter pngWriter = new PngWriter(baos, imgInfo);
+    //    pngWriter.setCompLevel(6);
+    //
+    //    int offset = 0;
+    //
+    //    for (int y = 0; y < height; y++) {
+    //      ImageLineInt line = new ImageLineInt(imgInfo);
+    //      int[] scanline = line.getScanline();
+    //      int base = 0;
+    //
+    //      for (int x = 0; x < width; x++) {
+    //        int argb = pixels[offset];
+    //        scanline[base] = (argb >>> 16) & 0xFF;
+    //        scanline[base + 1] = (argb >>> 8) & 0xFF;
+    //        //        scanline[base + 2] = samples[2]; // B
+    //        offset += 1;
+    //        base += 3;
+    //      }
+    //
+    //      pngWriter.writeRow(line, y);
+    //    }
+    //
+    //    pngWriter.end();
+    //    return baos.toByteArray();
   }
 }

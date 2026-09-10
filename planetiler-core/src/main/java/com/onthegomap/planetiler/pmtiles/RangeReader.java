@@ -5,7 +5,6 @@ import com.onthegomap.planetiler.util.Downloader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 
@@ -39,7 +38,7 @@ public interface RangeReader extends Closeable {
     private final String url;
     private final PlanetilerConfig config;
 
-    public FromUrl(String url, PlanetilerConfig config) throws MalformedURLException {
+    public FromUrl(String url, PlanetilerConfig config) {
       this.url = url;
       this.config = config;
     }
