@@ -44,11 +44,11 @@ public record SchemaSpecification(List<Example> examples) {
   public record InputFeature(
     String source,
     String geometry,
-    Map<String, Object> tags
+    Map<String, String> tags
   ) {
 
     @Override
-    public Map<String, Object> tags() {
+    public Map<String, String> tags() {
       return tags == null ? Map.of() : tags;
     }
   }

@@ -145,7 +145,7 @@ examples:
       man_made: dyke
       embankment: dyke
       geological: dyke
-  output: []
+  output: [ ]
 
 - name: man_made=pier polygon
   input:
@@ -252,13 +252,13 @@ examples:
     source: osm
     geometry: polygon
     tags:
-      addr:housenumber: 123
+      addr:housenumber: '123'
   output:
   - layer: addresses
     geometry: point
     min_zoom: 14
     tags:
-      housenumber: 123
+      housenumber: '123'
 
 - name: address point with house name
   input:
@@ -558,28 +558,28 @@ examples:
       aeroway: taxiway
       ref: N
   output:
-    - layer: streets
-      geometry: line
-      allow_extra_tags: false
-      min_zoom: 13
-      tags:
-        kind: taxiway
-        bridge: false
-        tunnel: false
-        link: false
-        rail: false
-        oneway: false
-        oneway_reverse: false
-    - layer: street_labels
-      geometry: line
-      allow_extra_tags: false
-      min_zoom: 13
-      tags:
-        kind: taxiway
-        ref: N
-        ref_rows: 1
-        ref_cols: 1
-        tunnel: false
+  - layer: streets
+    geometry: line
+    allow_extra_tags: false
+    min_zoom: 13
+    tags:
+      kind: taxiway
+      bridge: false
+      tunnel: false
+      link: false
+      rail: false
+      oneway: false
+      oneway_reverse: false
+  - layer: street_labels
+    geometry: line
+    allow_extra_tags: false
+    min_zoom: 13
+    tags:
+      kind: taxiway
+      ref: N
+      ref_rows: 1
+      ref_cols: 1
+      tunnel: false
 
 - name: 'aeroway=runway'
   input:
@@ -794,14 +794,14 @@ examples:
       addr:housename: 'Housename'
       addr:housenumber: 'Housenumber'
   output:
-    - layer: pois
-      geometry: point
-      allow_extra_tags: false
-      tags:
-        office: diplomatic
-        name: 'Name'
-        housename: 'Housename'
-        housenumber: 'Housenumber'
+  - layer: pois
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      office: diplomatic
+      name: 'Name'
+      housename: 'Housename'
+      housenumber: 'Housenumber'
 
 - name: 'arts_centre poi with invalid tag (man_made=beauty) is not emmitted as such'
   input:
@@ -992,7 +992,7 @@ examples:
       government: transportation
       short_name: DMV
       name: New York State Department of Motor Vehicles
-  output: []
+  output: [ ]
 
 - name: 'boundary_labels'
   input:
@@ -1016,8 +1016,8 @@ examples:
       # verified with a naive "projection" and sizes from https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616
       # 1° lat ~ 110.567km at the equator
       # 1° lon ~ 111.321km at the equator
-        # => ~12308.429km² = ~1230842,9 ha
-        # similar enough to ~1236418 ha adjusting for projection
+      # => ~12308.429km² = ~1230842,9 ha
+      # similar enough to ~1236418 ha adjusting for projection
       way_area: 1236418.8935608722
 
 - name: 'boundary_labels admin_level=2 z4'
