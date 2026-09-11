@@ -391,7 +391,7 @@ public class Contexts {
     public Object apply(String key) {
       if (key != null) {
         return switch (key) {
-          case FEATURE_TAGS -> mapWithDefault(tagValueProducer.mapTags(feature), NullValue.NULL_VALUE);
+          case FEATURE_TAGS -> mapWithDefault(tagValueProducer.mapTags(feature), NullT.NullValue);
           case FEATURE_ID -> feature.id();
           case FEATURE_SOURCE -> feature.getSource();
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());

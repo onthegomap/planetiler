@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -158,7 +159,7 @@ public abstract class BaseSchemaValidator {
       var input = example.input();
       var expectedFeatures = example.output();
       var geometry = parseGeometry(input.geometry());
-      var feature = SimpleFeature.create(geometry, input.tags(), input.source(), null, 0);
+      var feature = SimpleFeature.create(geometry, Map.copyOf(input.tags()), input.source(), null, 0);
       var collector = featureCollectorFactory.get(feature);
       profile.processFeature(feature, collector);
       List<FeatureWithOverrides> result = new ArrayList<>();
