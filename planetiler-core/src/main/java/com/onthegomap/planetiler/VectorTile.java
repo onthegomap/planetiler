@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.stats.Stats;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -60,6 +62,8 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.locationtech.jts.geom.util.GeometryFixer;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,8 +97,11 @@ public class VectorTile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
-  // TODO make these configurable
-  private static final int EXTENT = 4096;
+  public static final int DEFAULT_EXTENT = 4096;
+  // Global vector tile extent configured at runtime through PlanetilerConfig.
+  private static volatile int tileExtent = DEFAULT_EXTENT;
+  private static final int HILBERT_LEVEL = 16;
+  private static final long HILBERT_MAX_COORD = (1L << HILBERT_LEVEL) - 1;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -104,6 +111,17 @@ public class VectorTile {
     var encoder = new CommandEncoder(scale);
     encoder.accept(input);
     return encoder.result.toArray();
+  }
+
+  public static int extent() {
+    return tileExtent;
+  }
+
+  public static void setExtent(int extent) {
+    if (extent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, got " + extent);
+    }
+    tileExtent = extent;
   }
 
   /**
@@ -368,7 +386,11 @@ public class VectorTile {
       List<Feature> features = new ArrayList<>();
       for (VectorTileProto.Tile.Layer layer : tile.getLayersList()) {
         String layerName = layer.getName();
-        assert layer.getExtent() == 4096;
+        if (layer.getExtent() != tileExtent) {
+          throw new IllegalStateException(
+            "Unsupported vector tile extent: " + layer.getExtent() + " (expected " + tileExtent + ")"
+          );
+        }
         List<String> keys = layer.getKeysList();
         List<Object> values = new ArrayList<>();
 
@@ -447,9 +469,22 @@ public class VectorTile {
    */
   public static int hilbertIndex(Geometry geometry) {
     Coordinate coord = geometry.getCoordinate();
-    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
-    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
-    return (int) Hilbert.hilbertXYToIndex(15, x, y);
+    int x = zigZagEncode((int) Math.round(coord.x * tileExtent / SIZE));
+    int y = zigZagEncode((int) Math.round(coord.y * tileExtent / SIZE));
+    return hilbertIndexForEncodedCoords(x, y);
+  }
+
+  private static int hilbertIndexForEncodedCoords(int x, int y) {
+    int shift = Math.max(hilbertShiftToFitLevel(x), hilbertShiftToFitLevel(y));
+    return (int) Hilbert.hilbertXYToIndex(HILBERT_LEVEL, x >>> shift, y >>> shift);
+  }
+
+  private static int hilbertShiftToFitLevel(int coord) {
+    long unsignedCoord = Integer.toUnsignedLong(coord);
+    if (unsignedCoord <= HILBERT_MAX_COORD) {
+      return 0;
+    }
+    return Long.SIZE - Long.numberOfLeadingZeros(unsignedCoord) - HILBERT_LEVEL;
   }
 
   /**
@@ -479,8 +514,8 @@ public class VectorTile {
    * avoid needing to create an extra JTS geometry for encoding.
    */
   public static VectorGeometry encodeFill(double buffer) {
-    int min = (int) Math.round(EXTENT * buffer / 256d);
-    int width = EXTENT + min + min;
+    int min = (int) Math.round(tileExtent * buffer / 256d);
+    int width = tileExtent + min + min;
     return new VectorGeometry(new int[]{
       CommandEncoder.commandAndLength(Command.MOVE_TO, 1),
       zigZagEncode(-min), zigZagEncode(-min),
@@ -532,6 +567,359 @@ public class VectorTile {
   }
 
   /**
+   * Repairs polygon features whose final encoded command stream would exceed MapLibre's per-component fill-rendering
+   * vertex limit. Compliant features are inspected without decoding to JTS and remain byte-for-byte unchanged.
+   */
+  public void enforceRendererPolygonLimit(TileCoord tileCoord, int maxVertices, double maxTolerance) {
+    double initialTolerance = SIZE / tileExtent;
+    for (var layerEntry : layers.entrySet()) {
+      String layerName = layerEntry.getKey();
+      List<EncodedFeature> features = layerEntry.getValue().encodedFeatures;
+      for (int i = 0; i < features.size(); i++) {
+        EncodedFeature feature = features.get(i);
+        VectorGeometry original = feature.geometry();
+        if (original.geomType() != GeometryType.POLYGON) {
+          continue;
+        }
+        int originalCount = rendererPolygonVertexCount(original.commands());
+        if (originalCount <= maxVertices) {
+          continue;
+        }
+
+        RepairResult repaired;
+        try {
+          repaired = repairRendererPolygon(original, maxVertices, initialTolerance, maxTolerance);
+        } catch (RuntimeException e) {
+          throw new IllegalStateException(
+            "Unable to repair renderer polygon tile=" + tileCoord + " layer=" + layerName + " feature_id=" +
+              feature.id() + " original_vertices=" + originalCount + ": " + e.getMessage(),
+            e);
+        }
+        features.set(i, new EncodedFeature(feature.tags(), feature.id(), repaired.geometry()));
+        LOGGER.warn(
+          "Repaired renderer polygon tile={} layer={} feature_id={} original_vertices={} final_vertices={} tolerance={} attempts={}",
+          tileCoord, layerName, feature.id(), originalCount, repaired.vertexCount(), repaired.tolerance(),
+          repaired.attempts());
+      }
+    }
+  }
+
+  private static RepairResult repairRendererPolygon(VectorGeometry encoded, int maxVertices, double initialTolerance,
+    double maxTolerance) {
+    final Geometry original;
+    try {
+      original = encoded.decode();
+    } catch (GeometryException e) {
+      throw new IllegalStateException("Unable to decode oversized final polygon geometry", e);
+    }
+    if (original.isEmpty() || !(original instanceof Polygon || original instanceof MultiPolygon) || !original.isValid()) {
+      throw new IllegalStateException("Oversized final polygon geometry is not a valid polygon");
+    }
+
+    int attempts = 0;
+    int bestVertexCount = rendererPolygonVertexCount(encoded.commands());
+    for (double tolerance = initialTolerance; tolerance <= maxTolerance; tolerance *= 2) {
+      attempts++;
+      // Always simplify the original geometry, never the result of the previous attempt.
+      Geometry simplified = TopologyPreservingSimplifier.simplify(original, tolerance);
+      RepairResult result = tryRendererPolygonRepair(simplified, maxVertices, tolerance, attempts);
+      if (result != null) {
+        return result;
+      }
+      bestVertexCount = Math.min(bestVertexCount, encodedRendererPolygonVertexCount(simplified));
+
+      /*
+       * Whole-feature simplification can retain detail in one component because it must preserve topology against
+       * many nearby components. Try only the oversized components independently as a more aggressive fallback.
+       */
+      Geometry componentsSimplified = simplifyPolygonComponents(original, tolerance, maxVertices, false);
+      result = tryRendererPolygonRepair(componentsSimplified, maxVertices, tolerance, attempts);
+      if (result != null) {
+        return result;
+      }
+      bestVertexCount = Math.min(bestVertexCount, encodedRendererPolygonVertexCount(componentsSimplified));
+
+      /*
+       * Simplifying an entire polygon at once can retain excessive detail when many nearby holes constrain one
+       * another. Fall back to simplifying every ring independently with the topology-preserving simplifier, then
+       * validate the reassembled polygon as a whole before accepting it.
+       */
+      Geometry ringsSimplified = simplifyPolygonComponents(original, tolerance, maxVertices, true);
+      result = tryRendererPolygonRepair(ringsSimplified, maxVertices, tolerance, attempts);
+      if (result != null) {
+        return result;
+      }
+      bestVertexCount = Math.min(bestVertexCount, encodedRendererPolygonVertexCount(ringsSimplified));
+      if (tolerance > maxTolerance / 2) {
+        break;
+      }
+    }
+    throw new IllegalStateException(
+      "Unable to simplify final polygon below " + maxVertices + " vertices by maximum tolerance " + maxTolerance +
+        " after " + attempts + " attempts (best=" + bestVertexCount + ")");
+  }
+
+  private static RepairResult tryRendererPolygonRepair(Geometry simplified, int maxVertices, double tolerance,
+    int attempts) {
+    if (simplified == null || simplified.isEmpty() ||
+      !(simplified instanceof Polygon || simplified instanceof MultiPolygon)) {
+      return null;
+    }
+    simplified = repairRendererPolygonTopology(simplified);
+    if (simplified.isEmpty() || !(simplified instanceof Polygon || simplified instanceof MultiPolygon) ||
+      !simplified.isValid()) {
+      return null;
+    }
+    Geometry oriented = normalizeRendererPolygonWinding(simplified);
+    VectorGeometry candidate = encodeGeometry(oriented);
+    int candidateCount = rendererPolygonVertexCount(candidate.commands());
+    return candidateCount <= maxVertices && isValidEncodedPolygon(candidate) ?
+      new RepairResult(candidate, candidateCount, tolerance, attempts) : null;
+  }
+
+  static Geometry repairRendererPolygonTopology(Geometry geometry) {
+    return geometry.isValid() ? geometry : GeometryFixer.fix(geometry);
+  }
+
+  static Geometry normalizeRendererPolygonWinding(Geometry geometry) {
+    if (geometry instanceof Polygon polygon) {
+      return normalizeRendererPolygonWinding(polygon);
+    }
+    MultiPolygon multiPolygon = (MultiPolygon) geometry;
+    Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
+    for (int i = 0; i < polygons.length; i++) {
+      polygons[i] = normalizeRendererPolygonWinding((Polygon) multiPolygon.getGeometryN(i));
+    }
+    return geometry.getFactory().createMultiPolygon(polygons);
+  }
+
+  private static Polygon normalizeRendererPolygonWinding(Polygon polygon) {
+    LinearRing shell = orientRendererRing((LinearRing) polygon.getExteriorRing(), true);
+    LinearRing[] holes = new LinearRing[polygon.getNumInteriorRing()];
+    for (int i = 0; i < holes.length; i++) {
+      holes[i] = orientRendererRing((LinearRing) polygon.getInteriorRingN(i), false);
+    }
+    return polygon.getFactory().createPolygon(shell, holes);
+  }
+
+  private static LinearRing orientRendererRing(LinearRing ring, boolean ccw) {
+    LinearRing result = (LinearRing) ring.copy();
+    return Orientation.isCCW(result.getCoordinateSequence()) == ccw ? result : (LinearRing) result.reverse();
+  }
+
+  private static int encodedRendererPolygonVertexCount(Geometry geometry) {
+    return geometry == null || geometry.isEmpty() ? Integer.MAX_VALUE :
+      rendererPolygonVertexCount(encodeGeometry(geometry).commands());
+  }
+
+  private static Geometry simplifyPolygonComponents(Geometry original, double tolerance, int maxVertices,
+    boolean ringsIndependently) {
+    if (original instanceof Polygon polygon) {
+      return simplifyPolygonComponent(polygon, tolerance, maxVertices, ringsIndependently);
+    }
+    MultiPolygon multiPolygon = (MultiPolygon) original;
+    Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
+    for (int i = 0; i < polygons.length; i++) {
+      Polygon polygon = (Polygon) multiPolygon.getGeometryN(i);
+      polygons[i] = simplifyPolygonComponent(polygon, tolerance, maxVertices, ringsIndependently);
+      if (polygons[i] == null) {
+        return null;
+      }
+    }
+    return original.getFactory().createMultiPolygon(polygons);
+  }
+
+  private static Polygon simplifyPolygonComponent(Polygon polygon, double tolerance, int maxVertices,
+    boolean ringsIndependently) {
+    if (rendererPolygonVertexCount(encodeGeometry(polygon).commands()) <= maxVertices) {
+      return polygon;
+    }
+    if (!ringsIndependently) {
+      Geometry result = TopologyPreservingSimplifier.simplify(polygon, tolerance);
+      return result instanceof Polygon simplified ? simplified : null;
+    }
+
+    GeometryFactory factory = polygon.getFactory();
+    LinearRing shell = simplifyRingForRendererLimit((LinearRing) polygon.getExteriorRing(), tolerance, factory);
+    if (shell == null) {
+      return null;
+    }
+    LinearRing[] holes = new LinearRing[polygon.getNumInteriorRing()];
+    for (int i = 0; i < holes.length; i++) {
+      holes[i] = simplifyRingForRendererLimit((LinearRing) polygon.getInteriorRingN(i), tolerance, factory);
+      if (holes[i] == null) {
+        return null;
+      }
+    }
+    Polygon result = factory.createPolygon(shell, holes);
+    return result.isValid() ? result : null;
+  }
+
+  static LinearRing simplifyRingForRendererLimit(LinearRing ring, double tolerance, GeometryFactory factory) {
+    Polygon ringPolygon = factory.createPolygon((LinearRing) ring.copy());
+    Geometry simplified = TopologyPreservingSimplifier.simplify(ringPolygon, tolerance);
+    if (!(simplified instanceof Polygon polygon) || polygon.isEmpty()) {
+      return null;
+    }
+    LinearRing result = (LinearRing) polygon.getExteriorRing().copy();
+    // A hole is temporarily wrapped as a polygon shell above. JTS is free to normalize that shell's orientation,
+    // but MVT uses winding to distinguish shells from holes, so restore the input ring's winding before reassembly.
+    if (Orientation.isCCW(result.getCoordinateSequence()) != Orientation.isCCW(ring.getCoordinateSequence())) {
+      result = (LinearRing) result.reverse();
+    }
+    return result;
+  }
+
+  private static boolean isValidEncodedPolygon(VectorGeometry geometry) {
+    try {
+      Geometry decoded = geometry.decode();
+      return !decoded.isEmpty() && (decoded instanceof Polygon || decoded instanceof MultiPolygon) && decoded.isValid();
+    } catch (GeometryException e) {
+      return false;
+    }
+  }
+
+  /**
+   * Returns the largest MapLibre fill vertex count among polygon components in an encoded MVT command stream. Each
+   * component includes its outer ring and at most the 500 largest non-zero-area holes.
+   */
+  static int rendererPolygonVertexCount(int[] commands) {
+    List<EncodedRing> rings = decodeRingsForCounting(commands);
+    if (rings.isEmpty()) {
+      return 0;
+    }
+
+    int outerWinding = 0;
+    int max = 0;
+    ComponentVertexCount component = null;
+    for (EncodedRing ring : rings) {
+      if (ring.signedArea() == 0) {
+        continue;
+      }
+      int winding = ring.signedArea() > 0 ? 1 : -1;
+      if (outerWinding == 0) {
+        outerWinding = winding;
+      }
+      if (winding == outerWinding) {
+        if (component != null) {
+          max = Math.max(max, component.total());
+        }
+        component = new ComponentVertexCount(ring.vertices());
+      } else if (component != null) {
+        component.addHole(ring);
+      }
+    }
+    return component == null ? max : Math.max(max, component.total());
+  }
+
+  private static List<EncodedRing> decodeRingsForCounting(int[] commands) {
+    List<EncodedRing> result = new ArrayList<>();
+    RingAccumulator ring = null;
+    int x = 0;
+    int y = 0;
+    int i = 0;
+    while (i < commands.length) {
+      int commandAndLength = commands[i++];
+      int command = commandAndLength & 7;
+      int length = commandAndLength >>> 3;
+      if (length <= 0) {
+        throw new IllegalArgumentException("Invalid zero-length polygon geometry command");
+      }
+      if (command == Command.CLOSE_PATH.value) {
+        if (ring == null) {
+          throw new IllegalArgumentException("ClosePath before MoveTo in polygon geometry");
+        }
+        ring.close();
+        result.add(ring.result());
+        ring = null;
+        continue;
+      }
+      if (command != Command.MOVE_TO.value && command != Command.LINE_TO.value) {
+        throw new IllegalArgumentException("Invalid polygon geometry command " + command);
+      }
+      for (int j = 0; j < length; j++) {
+        if (i + 1 >= commands.length) {
+          throw new IllegalArgumentException("Truncated polygon geometry command stream");
+        }
+        x += zigZagDecode(commands[i++]);
+        y += zigZagDecode(commands[i++]);
+        if (command == Command.MOVE_TO.value) {
+          if (ring != null) {
+            throw new IllegalArgumentException("MoveTo before ClosePath in polygon geometry");
+          }
+          ring = new RingAccumulator(x, y);
+        } else {
+          if (ring == null) {
+            throw new IllegalArgumentException("LineTo before MoveTo in polygon geometry");
+          }
+          ring.add(x, y);
+        }
+      }
+    }
+    if (ring != null) {
+      throw new IllegalArgumentException("Polygon ring missing ClosePath");
+    }
+    return result;
+  }
+
+  private record EncodedRing(int vertices, double signedArea) {}
+
+  private static final class RingAccumulator {
+    private final int firstX;
+    private final int firstY;
+    private int previousX;
+    private int previousY;
+    private int vertices = 1;
+    private double twiceArea = 0;
+
+    private RingAccumulator(int x, int y) {
+      firstX = previousX = x;
+      firstY = previousY = y;
+    }
+
+    private void add(int x, int y) {
+      twiceArea += (double) previousX * y - (double) x * previousY;
+      previousX = x;
+      previousY = y;
+      vertices++;
+    }
+
+    private void close() {
+      twiceArea += (double) previousX * firstY - (double) firstX * previousY;
+    }
+
+    private EncodedRing result() {
+      return new EncodedRing(vertices, twiceArea);
+    }
+  }
+
+  private static final class ComponentVertexCount {
+    private static final int MAX_HOLES = 500;
+    private final int outerVertices;
+    private final PriorityQueue<EncodedRing> holes =
+      new PriorityQueue<>((a, b) -> Double.compare(Math.abs(a.signedArea()), Math.abs(b.signedArea())));
+    private int holeVertices = 0;
+
+    private ComponentVertexCount(int outerVertices) {
+      this.outerVertices = outerVertices;
+    }
+
+    private void addHole(EncodedRing hole) {
+      holes.add(hole);
+      holeVertices += hole.vertices();
+      if (holes.size() > MAX_HOLES) {
+        holeVertices -= holes.remove().vertices();
+      }
+    }
+
+    private int total() {
+      return outerVertices + holeVertices;
+    }
+  }
+
+  private record RepairResult(VectorGeometry geometry, int vertexCount, double tolerance, int attempts) {}
+
+  /**
    * Alias for {@link #toProto(boolean)} where {@code includeIds=true}
    */
   public VectorTileProto.Tile toProto() {
@@ -556,7 +944,7 @@ public class VectorTile {
       VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
         .setVersion(2)
         .setName(layerName)
-        .setExtent(EXTENT)
+        .setExtent(tileExtent)
         .addAllKeys(layer.keys());
 
       for (Object value : layer.values()) {
@@ -682,7 +1070,7 @@ public class VectorTile {
             return null;
           }
         }).filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
+        return new org.maplibre.mlt.data.Layer(name, features, tileExtent);
       }).toList());
   }
 
@@ -791,8 +1179,9 @@ public class VectorTile {
    * specification</a>.
    * <p>
    * To encode extra precision in intermediate feature geometries, the geometry contained in {@code commands} is scaled
-   * to a tile extent of {@code EXTENT * 2^scale}, so when the {@code scale == 0} the extent is {@link #EXTENT} and when
-   * {@code scale == 2} the extent is 4x{@link #EXTENT}. Geometries must be scaled back to 0 using {@link #unscale()}
+  * to a tile extent of {@code tileExtent * 2^scale}, so when the {@code scale == 0} the extent is
+  * {@link #tileExtent} and when {@code scale == 2} the extent is 4x{@link #tileExtent}. Geometries must be scaled
+  * back to 0 using {@link #unscale()}
    * before outputting to the archive.
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
@@ -857,7 +1246,7 @@ public class VectorTile {
 
     /** Converts an encoded geometry back to a JTS geometry. */
     public Geometry decode() throws GeometryException {
-      return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
+      return decodeCommands(geomType, commands, (tileExtent << scale) / SIZE);
     }
 
     /** Converts an encoded geometry back to a JTS geometry. */
@@ -926,7 +1315,7 @@ public class VectorTile {
 
       boolean isLine = geomType == GeometryType.LINE;
 
-      int extent = EXTENT << scale;
+      int extent = tileExtent << scale;
       int visited = INSIDE;
       int firstX = 0;
       int firstY = 0;
@@ -1005,7 +1394,7 @@ public class VectorTile {
       }
       IntArrayList result = null;
 
-      int extent = (EXTENT << scale);
+      int extent = (tileExtent << scale);
       int bufferInt = (int) Math.ceil(buffer * extent / 256);
       int min = -bufferInt;
       int max = extent + bufferInt;
@@ -1070,9 +1459,9 @@ public class VectorTile {
       if (commands.length < 3) {
         return 0;
       }
-      int x = commands[1];
-      int y = commands[2];
-      return (int) Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
+      int x = commands[1] >>> scale;
+      int y = commands[2] >>> scale;
+      return hilbertIndexForEncodedCoords(x, y);
     }
 
 
@@ -1085,8 +1474,8 @@ public class VectorTile {
         return null;
       }
       double factor = 1 << scale;
-      double x = zigZagDecode(commands[1]) * SIZE / EXTENT / factor;
-      double y = zigZagDecode(commands[2]) * SIZE / EXTENT / factor;
+      double x = zigZagDecode(commands[1]) * SIZE / tileExtent / factor;
+      double y = zigZagDecode(commands[2]) * SIZE / tileExtent / factor;
       return new CoordinateXY(x, y);
     }
   }
@@ -1192,7 +1581,7 @@ public class VectorTile {
     int x = 0, y = 0;
 
     CommandEncoder(int scale) {
-      this.SCALE = (EXTENT << scale) / SIZE;
+      this.SCALE = (tileExtent << scale) / SIZE;
     }
 
     static boolean shouldClosePath(Geometry geometry) {

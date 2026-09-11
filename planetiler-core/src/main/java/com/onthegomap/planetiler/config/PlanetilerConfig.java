@@ -29,6 +29,7 @@ public record PlanetilerConfig(
   int minzoom,
   int maxzoom,
   int maxzoomForRendering,
+  int tileExtent,
   boolean force,
   boolean append,
   boolean compressTempStorage,
@@ -54,6 +55,8 @@ public record PlanetilerConfig(
   boolean osmLazyReads,
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
+  int maxRendererPolygonVertices,
+  double maxRendererPolygonSimplificationTolerance,
   Boolean color,
   boolean keepUnzippedSources,
   TileCompression tileCompression,
@@ -91,8 +94,21 @@ public record PlanetilerConfig(
     if (maxzoom > MAX_MAXZOOM) {
       throw new IllegalArgumentException("Max zoom must be <= " + MAX_MAXZOOM + ", was " + maxzoom);
     }
+    if (tileExtent <= 0 || (tileExtent & (tileExtent - 1)) != 0) {
+      throw new IllegalArgumentException("tile_extent must be a power of 2, was " + tileExtent);
+    }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (maxRendererPolygonVertices < 4 || maxRendererPolygonVertices > 65_535) {
+      throw new IllegalArgumentException(
+        "max_renderer_polygon_vertices must be between 4 and 65535, was " + maxRendererPolygonVertices);
+    }
+    if (!(maxRendererPolygonSimplificationTolerance > 0) ||
+      !Double.isFinite(maxRendererPolygonSimplificationTolerance)) {
+      throw new IllegalArgumentException(
+        "max_renderer_polygon_simplification_tolerance must be finite and > 0, was " +
+          maxRendererPolygonSimplificationTolerance);
     }
   }
 
@@ -140,6 +156,8 @@ public record PlanetilerConfig(
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
+    int tileExtent = arguments.getInteger("tile_extent",
+      "vector tile extent (default 4096)", 4096);
     Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
     List<String> extraNameTags = arguments.getList("extra_name_tags", "Extra name tags to copy from OSM to output",
       List.of());
@@ -163,6 +181,7 @@ public record PlanetilerConfig(
       minzoom,
       maxzoom,
       renderMaxzoom,
+      tileExtent,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("append",
         "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
@@ -197,13 +216,13 @@ public record PlanetilerConfig(
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
       arguments.getDouble("min_feature_size_at_max_zoom",
         "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
-        256d / 4096),
+        256d / tileExtent),
       arguments.getDouble("min_feature_size",
         "Default value for the minimum size in tile pixels of features to emit below the maximum zoom level",
         1),
       arguments.getDouble("simplify_tolerance_at_max_zoom",
         "Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming",
-        256d / 4096),
+        256d / tileExtent),
       arguments.getDouble("simplify_tolerance",
         "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
         0.1d),
@@ -216,6 +235,12 @@ public record PlanetilerConfig(
       (int) (arguments.getDouble("tile_warning_size_mb",
         "Maximum size in megabytes of a tile to emit a warning about",
         1d) * 1024 * 1024),
+      arguments.getInteger("max_renderer_polygon_vertices",
+        "Maximum vertices in a polygon component (outer ring plus the 500 largest holes) before final MVT encoding",
+        60_000),
+      arguments.getDouble("max_renderer_polygon_simplification_tolerance",
+        "Maximum tile-pixel tolerance used to repair polygons that exceed the renderer vertex limit",
+        256d),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
         "keep unzipped sources by default after reading", false),

@@ -19,6 +19,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryPipeline;
 import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
@@ -1010,6 +1011,45 @@ class PlanetilerTests {
         feature(tileTopLeft(4), Map.of())
       ))
     ), results.tiles);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mvt", "mlt"})
+  void rendererPolygonVertexLimitAppliesToAllTileFormats(String tileFormat) throws Exception {
+    int columns = 3_500;
+    int pointsPerColumn = 20;
+    List<Coordinate> coordinates = new ArrayList<>(columns * pointsPerColumn + 3);
+    for (int column = 0; column < columns; column++) {
+      double x = 0.05 + 0.9 * column / (columns - 1d);
+      for (int row = 0; row < pointsPerColumn; row++) {
+        int orderedRow = (column & 1) == 0 ? row : pointsPerColumn - 1 - row;
+        double y = 0.2 + 0.5 * orderedRow / (pointsPerColumn - 1d);
+        coordinates.add(new Coordinate(x, y));
+      }
+    }
+    coordinates.add(new Coordinate(0.95, 0.95));
+    coordinates.add(new Coordinate(0.05, 0.95));
+    coordinates.add(coordinates.getFirst().copy());
+    Polygon polygon = GeoUtils.JTS_FACTORY.createPolygon(coordinates.toArray(Coordinate[]::new));
+
+    var results = runWithReaderFeatures(
+      Map.of(
+        "threads", "1",
+        "maxzoom", "0",
+        "render_maxzoom", "0",
+        "tile-format", tileFormat,
+        "max-renderer-polygon-vertices", "60000"
+      ),
+      List.of(newReaderFeature(GeoUtils.worldToLatLonCoords(polygon), Map.of())),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 0)
+        .setMinPixelSize(0)
+        .transformScaledGeometry(GeometryPipeline.NOOP)
+    );
+
+    var output = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
+    assertEquals(1, output.size());
+    assertTrue(output.getFirst().geometry().geom().getNumPoints() - 1 <= 60_000);
   }
 
   @Test
@@ -2088,9 +2128,89 @@ class PlanetilerTests {
         feature(newMultiLineString(
           newLineString(32, 64.3125, 37, 64.0625, 42, 64.3125),
           newLineString(32, 64, 37, 64.0625, 42, 64)
-        ), Map.of())
+        ), "layer", Map.of(), 0)
       )
     )), sortListValues(results.tiles));
+  }
+
+  @Test
+  void testTileExtentWorstCasePointLinePolygon() throws Exception {
+    var baseline = runTileExtentWorstCasePointLinePolygon(4096);
+
+    // Include both high and low extents to stress clipping/rounding behavior.
+    for (int tileExtent : List.of(512, 1024, 8192, 16384)) {
+      var result = runTileExtentWorstCasePointLinePolygon(tileExtent);
+      assertEquals(sortListValues(baseline.tiles), sortListValues(result.tiles), "tile_extent=" + tileExtent);
+    }
+  }
+
+  private PlanetilerResults runTileExtentWorstCasePointLinePolygon(int tileExtent) throws Exception {
+    var points = newMultiPoint(
+      z14Point(-255, -255),
+      z14Point(513, -255),
+      z14Point(513, 513),
+      z14Point(-255, 513),
+      z14Point(0, 0),
+      z14Point(128, 128),
+      z14Point(256, 256)
+    );
+
+    var lines = newMultiLineString(
+      newLineString(z14CoordinatePixelList(
+        -255, -255,
+        513, -255,
+        513, 513,
+        -255, 513,
+        -255, -255
+      )),
+      newLineString(z14CoordinatePixelList(
+        0, 0,
+        128, 128,
+        256, 256
+      ))
+    );
+
+    var polygon = newPolygon(z14CoordinatePixelList(
+      -255, -255,
+      513, -255,
+      513, 513,
+      -255, 513,
+      -255, -255
+    ));
+
+    return runWithReaderFeatures(
+      Map.of(
+        "threads", "1",
+        "maxzoom", "14",
+        "tile_extent", Integer.toString(tileExtent)
+      ),
+      List.of(
+        newReaderFeature(points, Map.of()),
+        newReaderFeature(lines, Map.of()),
+        newReaderFeature(polygon, Map.of())
+      ),
+      (in, features) -> {
+        if (in.isPoint()) {
+          features.point("points")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257);
+        }
+        if (in.canBeLine()) {
+          features.line("lines")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257)
+            .setMinPixelSize(0)
+            .setPixelTolerance(0);
+        }
+        if (in.canBePolygon()) {
+          features.polygon("polygons")
+            .setZoomRange(14, 14)
+            .setBufferPixels(257)
+            .setMinPixelSize(0)
+            .setPixelTolerance(0);
+        }
+      }
+    );
   }
 
   @ParameterizedTest
