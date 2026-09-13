@@ -278,6 +278,16 @@ public class TestUtils {
       Optional.ofNullable(db.metadata()).map(TileArchiveMetadata::format).orElse(TileFormat.MVT));
   }
 
+  private static ComparableFeature buildFeature(org.maplibre.mlt.data.Layer layer, org.maplibre.mlt.data.Feature feature) {
+    return feature(scale(feature.getGeometry(), 256.0 / layer.tileExtent()), layer.name(),
+            propertyMap(feature), feature.getId());
+  }
+  
+  private static Map<String, Object> propertyMap(org.maplibre.mlt.data.Feature feature) {
+    final var featureIndex = feature.getIndex();
+    return feature.getPropertyStream().collect(Collectors.toMap(p -> p.getName(), p -> p.getValue(featureIndex)));
+  }
+
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
     TileCompression tileCompression, TileFormat tileFormat)
     throws IOException {
@@ -289,9 +299,9 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       List<ComparableFeature> decoded = switch (tileFormat) {
-        case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
-          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
-            feature.properties(), feature.id())))
+        case MLT -> MltDecoder.decodeMlTile(bytes).getLayerStream()
+          .flatMap(layer -> layer.features().stream()
+            .map(feature -> buildFeature(layer, feature)))
           .toList();
         case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
           .map(
