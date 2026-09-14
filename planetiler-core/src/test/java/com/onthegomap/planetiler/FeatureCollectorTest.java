@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -242,6 +243,16 @@ class FeatureCollectorTest {
     assertEquals(1d, poly.getPixelToleranceAtZoom(12));
     assertEquals(1d, poly.getPixelToleranceAtZoom(13));
     assertEquals(256d / 4096, poly.getPixelToleranceAtZoom(14));
+  }
+
+  @Test
+  void testTileExtentArgAffectsDefaultMaxZoomThresholds() {
+    var customConfig = PlanetilerConfig.from(Arguments.of(Map.of("tile_extent", "8192")));
+    var customFactory = new FeatureCollector.Factory(customConfig, Stats.inMemory());
+    var collector = customFactory.get(newReaderFeature(rectangle(10, 20), Map.of()));
+    var poly = collector.polygon("layername");
+    assertEquals(256d / 8192, poly.getMinPixelSizeAtZoom(14));
+    assertEquals(256d / 8192, poly.getPixelToleranceAtZoom(14));
   }
 
   @Test
