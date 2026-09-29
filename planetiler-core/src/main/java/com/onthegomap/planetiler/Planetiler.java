@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -132,6 +133,8 @@ public class Planetiler {
     stats = arguments.getStats();
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
+    VectorTile.setExtent(config.tileExtent());
+    GeoUtils.setTileExtent(config.tileExtent());
     if (config.color() != null) {
       AnsiColors.setUseColors(config.color());
     }
