@@ -272,6 +272,6 @@ public record PlanetilerConfig(
   }
 
   public Duration maxHttpRequestDuration() {
-    return httpTimeout.multipliedBy(httpRetries + 1).plus(httpRetryWait.multipliedBy(httpRetries));
+    return httpTimeout.multipliedBy(httpRetries + 1L).plus(httpRetryWait.multipliedBy(httpRetries));
   }
 }
