@@ -174,8 +174,7 @@ public class Downloader {
       long size = 0;
       for (var item : group.getValue()) {
         try {
-          size += item.metadata.get(config.httpTimeout().multipliedBy(config.httpRetries() + 1).toMillis(),
-            TimeUnit.MILLISECONDS).size.orElse(0);
+          size += item.metadata.get(config.maxHttpRequestDuration().toMillis(), TimeUnit.MILLISECONDS).size.orElse(0);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IllegalStateException("Error getting size of " + item.url, e);

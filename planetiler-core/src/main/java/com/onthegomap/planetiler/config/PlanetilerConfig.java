@@ -270,4 +270,8 @@ public record PlanetilerConfig(
   public double tolerance(int zoom) {
     return zoom >= maxzoomForRendering ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
   }
+
+  public Duration maxHttpRequestDuration() {
+    return httpTimeout.multipliedBy(httpRetries + 1).plus(httpRetryWait.multipliedBy(httpRetries));
+  }
 }
