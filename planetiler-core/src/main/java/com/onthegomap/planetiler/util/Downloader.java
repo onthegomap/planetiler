@@ -174,7 +174,7 @@ public class Downloader {
       long size = 0;
       for (var item : group.getValue()) {
         try {
-          size += item.metadata.get(10, TimeUnit.SECONDS).size.orElse(0);
+          size += item.metadata.get(config.maxHttpRequestDuration().toMillis(), TimeUnit.MILLISECONDS).size.orElse(0);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IllegalStateException("Error getting size of " + item.url, e);
@@ -239,26 +239,40 @@ public class Downloader {
   }
 
   ResourceMetadata httpHead(String url) throws IOException, InterruptedException {
-    return client.send(newHttpRequest(url).HEAD().build(),
-      responseInfo -> {
-        int status = responseInfo.statusCode();
-        Optional<String> location = Optional.empty();
-        OptionalLong contentLength = OptionalLong.empty();
-        HttpHeaders headers = responseInfo.headers();
-        if (status >= 300 && status < 400) {
-          location = responseInfo.headers().firstValue(LOCATION);
-          if (location.isEmpty()) {
-            throw new IllegalStateException("Received " + status + " but no location header from " + url);
-          }
-        } else if (responseInfo.statusCode() != 200) {
-          throw new IllegalStateException("Bad response: " + responseInfo.statusCode());
+    for (int retry = 0; retry <= config.httpRetries(); retry++) {
+      boolean lastTry = retry == config.httpRetries();
+      int retriesRemaining = config.httpRetries() - retry;
+      try {
+        return client.send(newHttpRequest(url).HEAD().build(),
+          responseInfo -> {
+            int status = responseInfo.statusCode();
+            Optional<String> location = Optional.empty();
+            OptionalLong contentLength = OptionalLong.empty();
+            HttpHeaders headers = responseInfo.headers();
+            if (status >= 300 && status < 400) {
+              location = responseInfo.headers().firstValue(LOCATION);
+              if (location.isEmpty()) {
+                throw new IllegalStateException("Received " + status + " but no location header from " + url);
+              }
+            } else if (responseInfo.statusCode() != 200) {
+              throw new IllegalStateException("Bad response: " + responseInfo.statusCode());
+            } else {
+              contentLength = headers.firstValueAsLong(CONTENT_LENGTH);
+            }
+            boolean supportsRangeRequest = headers.allValues(ACCEPT_RANGES).contains("bytes");
+            ResourceMetadata metadata = new ResourceMetadata(location, url, contentLength, supportsRangeRequest);
+            return HttpResponse.BodyHandlers.replacing(metadata).apply(responseInfo);
+          }).body();
+      } catch (IOException e) {
+        if (lastTry) {
+          throw e;
         } else {
-          contentLength = headers.firstValueAsLong(CONTENT_LENGTH);
+          LOGGER.warn("Error fetching head for {}, retries remaining: {} {}", url, retriesRemaining, e.getMessage());
+          retrySleep();
         }
-        boolean supportsRangeRequest = headers.allValues(ACCEPT_RANGES).contains("bytes");
-        ResourceMetadata metadata = new ResourceMetadata(location, url, contentLength, supportsRangeRequest);
-        return HttpResponse.BodyHandlers.replacing(metadata).apply(responseInfo);
-      }).body();
+      }
+    }
+    throw new IllegalStateException();
   }
 
   private void httpDownload(ResourceToDownload resource, Path tmpPath)
