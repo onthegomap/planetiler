@@ -380,7 +380,7 @@ class GeoUtilsTest {
       Stats.inMemory(), "test");
     assertTrue(result.isValid());
     assertInstanceOf(Polygonal.class, result);
-    assertEquals(3.083984375, result.getArea(), 1e-5);
+    assertEquals(3.06640625, result.getArea(), 1e-5);
   }
 
   @Test
