@@ -2,10 +2,7 @@ package com.onthegomap.planetiler;
 
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
@@ -31,6 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
@@ -1225,5 +1223,32 @@ class FeatureMergeTest {
     );
     assertEquals(1, result.size());
     assertEquals(123, result.getFirst().id(), "single feature ID should not be modified");
+  }
+
+  @Test
+  void testIssueAdriaticOcean() throws Exception {
+    // see https://github.com/onthegomap/planetiler/issues/1622
+    try (var is = getClass().getResource("/issue_1622_8_138_92_tiled_polygons.wkb").openStream()) {
+      MultiPolygon geom = (MultiPolygon) new WKBReader().read(is.readAllBytes());
+      List<VectorTile.Feature> features = new ArrayList<>();
+      Point shouldBeIsland = newPoint(2950d * 256d / 4096d, 2750d * 256d / 4096d);
+      for (int i = 0; i < geom.getNumGeometries(); i++) {
+        VectorTile.Feature feature = new VectorTile.Feature("water", i, VectorTile.encodeGeometry(geom.getGeometryN(i)),
+          Map.of());
+        features.add(feature);
+
+        assertFalse(geom.getGeometryN(i).intersects(shouldBeIsland));
+        List<VectorTile.Feature> result = FeatureMerge.mergeOverlappingPolygons(List.of(feature), 1);
+        for (var item : result) {
+          assertFalse(item.geometry().decode().intersects(shouldBeIsland));
+        }
+      }
+      var result = FeatureMerge.mergeOverlappingPolygons(features, 1);
+      for (var feature : result) {
+        var decoded = feature.geometry().decode();
+        assertTrue(decoded.isValid());
+        assertFalse(decoded.intersects(shouldBeIsland));
+      }
+    }
   }
 }
