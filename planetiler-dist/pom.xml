@@ -39,6 +39,11 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.versatiles</groupId>
+      <artifactId>planetiler-shortbread</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.onthegomap.planetiler</groupId>
       <artifactId>planetiler-custommap</artifactId>
       <version>${project.parent.version}</version>
