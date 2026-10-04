@@ -144,13 +144,13 @@ public class Worker {
   }
 
   /** A thread factory that prepends {@code name-} to all thread names. */
-  private static class NamedThreadFactory implements ThreadFactory {
+  public static class NamedThreadFactory implements ThreadFactory {
 
     private final ThreadGroup group;
     private final AtomicInteger threadNumber = new AtomicInteger(1);
     private final String namePrefix;
 
-    private NamedThreadFactory(String name) {
+    public NamedThreadFactory(String name) {
       group = Thread.currentThread().getThreadGroup();
       namePrefix = name + "-";
     }
