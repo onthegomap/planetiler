@@ -66,7 +66,7 @@ generate vector tile features according to the [profile](#profiles) in a worker 
         - Uses an [IntRangeSet](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/IntRangeSet.java) to
           optimize processing for large filled areas (like oceans)
       - If any features wrapped past -180 or 180 degrees longitude, repeat with a 360 or -360 degree offset
-    - Reassemble each vector tile geometry and round to tile precision (4096x4096)
+    - Reassemble each vector tile geometry and round to tile precision (default 4096x4096)
       - For
         polygons, [GeoUtils#snapAndFixPolygon](planetiler-core/src/main/java/com/onthegomap/planetiler/geo/GeoUtils.java)
         uses [JTS](https://github.com/locationtech/jts) utilities to fix any topology errors (i.e. self-intersections)

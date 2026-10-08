@@ -310,6 +310,8 @@ public class TileArchiveWriter {
             layerStats = null;
             bytes = null;
           } else {
+            tile.enforceRendererPolygonLimit(tileFeatures.tileCoord(), config.maxRendererPolygonVertices(),
+              config.maxRendererPolygonSimplificationTolerance());
             encoded = switch (config.tileFormat()) {
               case MLT -> {
                 MapboxVectorTile mltInput = tile.toMltInput(stats);

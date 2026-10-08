@@ -42,7 +42,7 @@ public class LoopLineMerger {
   private final List<Node> output = new ArrayList<>();
   private int numNodes = 0;
   private int numEdges = 0;
-  private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.TILE_PRECISION);
+  private PrecisionModel precisionModel = new PrecisionModel(GeoUtils.tilePrecision());
   private GeometryFactory factory = new GeometryFactory(precisionModel);
   private double minLength = 0.0;
   private double loopMinLength = 0.0;

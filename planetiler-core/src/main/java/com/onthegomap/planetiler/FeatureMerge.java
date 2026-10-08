@@ -59,7 +59,7 @@ public class FeatureMerge {
   private static final BufferParameters bufferOps = new BufferParameters();
   // this is slightly faster than Comparator.comparingInt
   private static final Comparator<WithIndex<?>> BY_HILBERT_INDEX =
-    (o1, o2) -> Integer.compare(o1.hilbert, o2.hilbert);
+    (o1, o2) -> Integer.compareUnsigned(o1.hilbert, o2.hilbert);
 
   static {
     bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);

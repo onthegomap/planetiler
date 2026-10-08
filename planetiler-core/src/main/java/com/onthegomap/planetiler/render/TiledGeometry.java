@@ -20,6 +20,7 @@ package com.onthegomap.planetiler.render;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import com.carrotsearch.hppc.cursors.IntObjectCursor;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.IntRangeSet;
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -71,7 +72,6 @@ import org.roaringbitmap.RoaringBitmap;
 public class TiledGeometry {
 
   private static final Format FORMAT = Format.defaultInstance();
-  private static final double NEIGHBOR_BUFFER_EPS = 0.1d / 4096;
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
   private final TileExtents.ForZoom extents;
@@ -87,7 +87,7 @@ public class TiledGeometry {
     this.extents = extents;
     this.buffer = buffer;
     // make sure we inspect neighboring tiles when a line runs along an edge
-    this.neighborBuffer = buffer + NEIGHBOR_BUFFER_EPS;
+    this.neighborBuffer = buffer + 0.1d / VectorTile.extent();
     this.z = z;
     this.area = area;
     this.maxTilesAtThisZoom = 1 << z;
