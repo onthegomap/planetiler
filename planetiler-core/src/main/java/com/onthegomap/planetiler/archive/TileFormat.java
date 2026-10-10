@@ -18,8 +18,8 @@ public enum TileFormat {
 
   @JsonProperty("pbf")
   MVT("mvt", "pbf"),
-  @JsonProperty("application/vnd.maplibre-vector-tile")
-  MLT("mlt", "application/vnd.maplibre-vector-tile"),
+  @JsonProperty("application/vnd.maplibre-tile")
+  MLT("mlt", "application/vnd.maplibre-tile"),
   @JsonProperty("unknown")
   UNKNOWN("unknown", null);
 
