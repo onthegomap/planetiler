@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -93,6 +94,20 @@ public record PlanetilerConfig(
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (tileFormat != TileFormat.MLT &&
+      (mltFsst || mltFastPfor || mltTessellatePolygons || mltPolygonOutline || mltReorderFeature ||
+        mltSharedDictionaries)) {
+      throw new IllegalArgumentException("mlt_* options require tile_format=mlt, was " + tileFormat.id());
+    }
+    // TODO allow tessellation without outlines and add v2-only options once the native encoder exposes v2 encoding
+    if (mltTessellatePolygons && !mltPolygonOutline) {
+      throw new IllegalArgumentException(
+        "mlt_tessellate_polygons requires mlt_polygon_outline, MLT v1 cannot store polygon triangles without " +
+          "outlines");
+    }
+    if (mltPolygonOutline && !mltTessellatePolygons) {
+      throw new IllegalArgumentException("mlt_polygon_outline requires mlt_tessellate_polygons");
     }
   }
 
@@ -230,12 +245,13 @@ public record PlanetilerConfig(
             TileFormat.availableValues().stream().map(TileFormat::id).toList(),
           "mvt")),
       arguments.getBoolean("exclude_ids", "Exclude feature IDs from generated vector tiles", false),
-      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
+      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_tessellate_polygons",
-        "Pre-triangulate polygons when tile format=MLT so that clients do not need to", false),
+        "Pre-triangulate polygons when tile format=MLT so that clients do not need to, requires mlt_polygon_outline",
+        false),
       arguments.getBoolean("mlt_polygon_outline",
-        "Store polygon outlines together with pre-triangulated polygons", false),
+        "Store polygon outlines together with pre-triangulated polygons, requires mlt_tessellate_polygons", false),
       arguments.getBoolean("mlt_reorder_features",
         "Allow re-ordering output features within each layer when tile format=MLT to reduce tile sizes", false),
       arguments.getBoolean("mlt_shared_dict", "Share dictionaries between string fields when tile format=MLT", false),
@@ -261,6 +277,26 @@ public record PlanetilerConfig(
         false),
       parallelTempIO
     );
+  }
+
+  /**
+   * Returns warnings about enabled {@code mlt_*} options that make gzip-compressed tiles larger.
+   * <p>
+   * FSST and FastPFOR shrink the uncompressed tile but leave output that gzip cannot compress further, so a gzipped
+   * tile usually ends up larger than without them.
+   */
+  public List<String> mltWarnings() {
+    if (tileFormat != TileFormat.MLT || tileCompression != TileCompression.GZIP) {
+      return List.of();
+    }
+    List<String> warnings = new ArrayList<>();
+    if (mltFsst) {
+      warnings.add("mlt_fsst usually makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+    }
+    if (mltFastPfor) {
+      warnings.add("mlt_fastpfor makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+    }
+    return warnings;
   }
 
   public double minFeatureSize(int zoom) {
