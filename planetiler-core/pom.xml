@@ -198,6 +198,12 @@
     </dependency>
     <dependency>
       <groupId>org.maplibre</groupId>
+      <artifactId>mlt-ffi-java</artifactId>
+      <version>${mlt-ffi.version}</version>
+    </dependency>
+    <dependency>
+      <!-- only used to decode MLT tiles for layer stats, encoding uses the native mlt-ffi-java encoder -->
+      <groupId>org.maplibre</groupId>
       <artifactId>mlt</artifactId>
       <version>0.0.10</version>
       <exclusions>
