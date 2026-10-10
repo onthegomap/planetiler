@@ -60,7 +60,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.data.LayerSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -659,31 +659,66 @@ public class VectorTile {
     return layers.isEmpty();
   }
 
-  public MapboxVectorTile toMltInput() {
+  public LayerSource toMltInput() {
     return toMltInput(DefaultStats.get());
   }
 
-  public MapboxVectorTile toMltInput(Stats stats) {
-    return new MapboxVectorTile(
-      layers.entrySet().stream().filter(e -> !e.getValue().encodedFeatures.isEmpty()).map(entry -> {
-        String name = entry.getKey();
-        Layer layer = entry.getValue();
-        var keys = layer.keys();
-        var values = layer.values();
-        List<org.maplibre.mlt.data.Feature> features = layer.encodedFeatures.stream().map(feature -> {
+  public LayerSource toMltInput(Stats stats) {
+    return new LayerAdapter(stats);
+  }
+
+  private class LayerAdapter implements LayerSource {
+      LayerAdapter(Stats stats) {
+        this.stats = stats;
+      }
+
+      @Override
+      public long getLayerCount() {
+        return layers.size();
+      }
+
+      @Override
+      public Stream<org.maplibre.mlt.data.Layer> getLayerStream(boolean parallel) {
+        if (adaptedLayers == null) {
+          adaptedLayers = generateLayers();
+        }
+        return parallel ? adaptedLayers.parallelStream() : adaptedLayers.stream();
+      }
+
+      private List<org.maplibre.mlt.data.Layer> generateLayers() {
+        return layers.entrySet().stream()
+        .filter(entry -> !entry.getValue().encodedFeatures.isEmpty())
+        .map(entry -> generateLayer(entry.getKey(), entry.getValue()))
+        .filter(Objects::nonNull)
+        .toList();
+      }
+
+      private org.maplibre.mlt.data.Layer generateLayer(String layerName, Layer layer) {
+        final var keys = layer.keys();
+        final var values = layer.values();
+        final var features = layer.encodedFeatures.stream().map(feature -> {
           Map<String, Object> properties = new LinkedHashMap<>();
           for (int i = 0; i < feature.tags.size(); i += 2) {
-            properties.put(keys.get(feature.tags.get(i)), values.get(feature.tags.get(i + 1)));
+            final var value = values.get(feature.tags.get(i + 1));
+            properties.put(keys.get(feature.tags.get(i)), value);
           }
           try {
-            return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), properties);
+            return (org.maplibre.mlt.data.Feature)org.maplibre.mlt.data.MVTFeature.builder()
+            .id(feature.id)
+            .geometry(feature.geometry.decodeToExtent())
+            .properties(properties)
+            .build();
           } catch (GeometryException e) {
             e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
             return null;
           }
         }).filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
-      }).toList());
+
+        return new org.maplibre.mlt.data.Layer(layerName, features, EXTENT);
+      }
+
+      private final Stats stats;
+      private List<org.maplibre.mlt.data.Layer> adaptedLayers;
   }
 
   public Integer getNumKeys(String layer) {

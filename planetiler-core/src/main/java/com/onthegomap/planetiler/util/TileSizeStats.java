@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.TileSizeStats.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedOutputStream;
@@ -31,6 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +44,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.maplibre.mlt.converter.encodings.MltTypeMap;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.maplibre.mlt.data.Feature;
 import org.maplibre.mlt.decoder.DecodingUtils;
 import org.maplibre.mlt.decoder.MltDecoder;
@@ -257,7 +258,7 @@ public class TileSizeStats {
     return result;
   }
 
-  public static List<LayerStats> computeMltTileStats(VectorTile vtile, MapboxVectorTile input, byte[] output) {
+  public static List<LayerStats> computeMltTileStats(VectorTile vtile, org.maplibre.mlt.data.LayerSource input, byte[] output) {
     Map<String, Integer> encodedLayerSizes = new HashMap<>();
     Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
     try (final var stream = new ByteArrayInputStream(output)) {
@@ -272,11 +273,11 @@ public class TileSizeStats {
             MltMetadata.FeatureTable metadata = metadataExtent.getLeft();
             byte[] tile = countStream.readNBytes((int) (bodySize - countStream.getCount()));
             final var offset = new IntWrapper(0);
-            for (var columnMetadata : metadata.columns) {
-              attrBytes += consumeColumn(columnMetadata, tile, offset);
+            for (var columnMetadata : metadata.columns()) {
+              attrBytes += consumeColumn(columnMetadata.field(), tile, offset);
             }
-            encodedLayerSizes.put(metadata.name, length);
-            encodedLayerAttributeSizes.put(metadata.name, attrBytes);
+            encodedLayerSizes.put(metadata.name(), length);
+            encodedLayerAttributeSizes.put(metadata.name(), attrBytes);
           }
         } else {
           // Skip the remainder of this one
@@ -286,7 +287,7 @@ public class TileSizeStats {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-    return input.layers().stream().map(layer -> new LayerStats(
+    return input.getLayerStream().map(layer -> new LayerStats(
       layer.name(),
       encodedLayerSizes.getOrDefault(layer.name(), -1),
       layer.features().size(),
@@ -297,24 +298,21 @@ public class TileSizeStats {
     )).toList();
   }
 
-  private static int consumeColumn(MltMetadata.Field columnMetadata, byte[] tile, IntWrapper offset)
+  private static int consumeColumn(MltMetadata.Field field, byte[] tile, IntWrapper offset)
     throws IOException {
     final var hasStreamCount =
-      columnMetadata instanceof MltMetadata.Column col && MltTypeMap.Tag0x01.hasStreamCount(col);
-    int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
+      MltTypeMap.Tag0x01.hasStreamCount(field.type());
+    final int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
 
     int start = offset.get();
     if (numStreams == 0) {
-      if (columnMetadata.isNullable) {
+      if (field.type().isNullable()) {
         skipOverStream(tile, offset);
       }
       skipOverStream(tile, offset);
-    } else if (columnMetadata.complexType != null &&
-      columnMetadata.complexType.physicalType == MltMetadata.ComplexType.STRUCT) {
-
+    } else if (field.type().is(MltMetadata.ComplexType.STRUCT)) {
       skipOverSharedDictionary(tile, offset);
-
-      for (var child : columnMetadata.complexType.children) {
+      for (var child : field.type().complexType().children()) {
         consumeColumn(child, tile, offset);
       }
     } else {
@@ -323,8 +321,7 @@ public class TileSizeStats {
       }
     }
     int size = offset.get() - start;
-    if (columnMetadata instanceof MltMetadata.Column col && !MltTypeMap.Tag0x01.isGeometry(col) &&
-      !MltTypeMap.Tag0x01.isID(col)) {
+    if (!MltTypeMap.Tag0x01.isGeometry(field.type()) && !MltTypeMap.Tag0x01.isID(field.type())) {
       return size;
     }
     return 0;
@@ -348,8 +345,8 @@ public class TileSizeStats {
     return streamMetadata;
   }
 
-  private static int countGeometries(List<Feature> features) {
-    return features.stream().mapToInt(feature -> countGeometries(feature.geometry())).sum();
+  private static int countGeometries(Collection<Feature> features) {
+    return features.stream().mapToInt(feature -> countGeometries(feature.getGeometry())).sum();
   }
 
   private static int countGeometries(Geometry geometry) {
