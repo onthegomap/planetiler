@@ -27,8 +27,6 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
-import com.onthegomap.planetiler.stats.DefaultStats;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
@@ -38,7 +36,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -60,7 +57,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -474,6 +470,25 @@ public class VectorTile {
     return result;
   }
 
+  /** Returns the number of internal geometries in the encoded geometry {@code commands}. */
+  public static int countGeometries(int[] commands) {
+    int result = 0;
+    int idx = 0;
+    while (idx < commands.length) {
+      int length = commands[idx];
+      int command = length & ((1 << 3) - 1);
+      length = length >> 3;
+      if (command == Command.MOVE_TO.value) {
+        result += length;
+      }
+      idx += 1;
+      if (command != Command.CLOSE_PATH.value) {
+        idx += length * 2;
+      }
+    }
+    return result;
+  }
+
   /**
    * Returns the encoded geometry for a polygon that fills an entire tile plus {@code buffer} pixels as a shortcut to
    * avoid needing to create an extra JTS geometry for encoding.
@@ -530,6 +545,44 @@ public class VectorTile {
     }
     return this;
   }
+
+  /**
+   * Visits the features added to each non-empty layer in layer name order.
+   *
+   * @param beginLayer called with the layer name before the features of each non-empty layer
+   * @param feature    called for each feature of the layer last passed to {@code beginLayer}
+   */
+  public void forEachFeature(Consumer<String> beginLayer, Consumer<Feature> feature) {
+    for (var e : layers.entrySet()) {
+      var features = e.getValue().encodedFeatures;
+      if (!features.isEmpty()) {
+        beginLayer.accept(e.getKey());
+        for (int i = 0; i < features.size(); i++) {
+          feature.accept(features.get(i).source());
+        }
+      }
+    }
+  }
+
+  /** Returns the feature, geometry, attribute key and attribute value counts of each non-empty layer. */
+  public Map<String, LayerCounts> layerCounts() {
+    Map<String, LayerCounts> result = new LinkedHashMap<>();
+    for (var e : layers.entrySet()) {
+      var layer = e.getValue();
+      if (!layer.encodedFeatures.isEmpty()) {
+        int geometries = 0;
+        for (var feature : layer.encodedFeatures) {
+          geometries += countGeometries(feature.geometry.commands());
+        }
+        result.put(e.getKey(),
+          new LayerCounts(layer.encodedFeatures.size(), geometries, layer.keys.size(), layer.values.size()));
+      }
+    }
+    return result;
+  }
+
+  /** Feature, geometry, attribute key and attribute value counts of one layer. */
+  public record LayerCounts(int features, int geometries, int attrKeys, int attrValues) {}
 
   /**
    * Alias for {@link #toProto(boolean)} where {@code includeIds=true}
@@ -657,33 +710,6 @@ public class VectorTile {
 
   public boolean isEmpty() {
     return layers.isEmpty();
-  }
-
-  public MapboxVectorTile toMltInput() {
-    return toMltInput(DefaultStats.get());
-  }
-
-  public MapboxVectorTile toMltInput(Stats stats) {
-    return new MapboxVectorTile(
-      layers.entrySet().stream().filter(e -> !e.getValue().encodedFeatures.isEmpty()).map(entry -> {
-        String name = entry.getKey();
-        Layer layer = entry.getValue();
-        var keys = layer.keys();
-        var values = layer.values();
-        List<org.maplibre.mlt.data.Feature> features = layer.encodedFeatures.stream().map(feature -> {
-          Map<String, Object> properties = new LinkedHashMap<>();
-          for (int i = 0; i < feature.tags.size(); i += 2) {
-            properties.put(keys.get(feature.tags.get(i)), values.get(feature.tags.get(i + 1)));
-          }
-          try {
-            return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), properties);
-          } catch (GeometryException e) {
-            e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
-            return null;
-          }
-        }).filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
-      }).toList());
   }
 
   public Integer getNumKeys(String layer) {
@@ -1316,10 +1342,10 @@ public class VectorTile {
     }
   }
 
-  private record EncodedFeature(IntArrayList tags, long id, VectorGeometry geometry) {
+  private record EncodedFeature(IntArrayList tags, long id, VectorGeometry geometry, Feature source) {
 
     EncodedFeature(Feature in) {
-      this(new IntArrayList(), in.id(), in.geometry());
+      this(new IntArrayList(), in.id(), in.geometry(), in);
     }
   }
 

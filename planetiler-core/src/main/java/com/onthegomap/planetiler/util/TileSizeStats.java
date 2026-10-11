@@ -39,11 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import me.lemire.integercompression.IntWrapper;
 import org.apache.commons.lang3.tuple.Pair;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
 import org.maplibre.mlt.converter.encodings.MltTypeMap;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
-import org.maplibre.mlt.data.Feature;
 import org.maplibre.mlt.decoder.DecodingUtils;
 import org.maplibre.mlt.decoder.MltDecoder;
 import org.maplibre.mlt.metadata.stream.DictionaryType;
@@ -257,7 +253,28 @@ public class TileSizeStats {
     return result;
   }
 
-  public static List<LayerStats> computeMltTileStats(VectorTile vtile, MapboxVectorTile input, byte[] output) {
+  /**
+   * Returns the size and statistics for each layer in {@code output}, the MLT encoding of {@code tile}.
+   * <p>
+   * Feature, geometry, and attribute key/value counts come from {@code tile}, layer and attribute sizes from
+   * {@code output}.
+   */
+  public static List<LayerStats> computeMltTileStats(VectorTile tile, byte[] output) {
+    var sizes = encodedMltSizes(output);
+    return tile.layerCounts().entrySet().stream().map(layer -> new LayerStats(
+      layer.getKey(),
+      sizes.layerBytes().getOrDefault(layer.getKey(), -1),
+      layer.getValue().features(),
+      layer.getValue().geometries(),
+      sizes.attrBytes().getOrDefault(layer.getKey(), -1),
+      layer.getValue().attrKeys(),
+      layer.getValue().attrValues()
+    )).sorted().toList();
+  }
+
+  private record MltSizes(Map<String, Integer> layerBytes, Map<String, Integer> attrBytes) {}
+
+  private static MltSizes encodedMltSizes(byte[] output) {
     Map<String, Integer> encodedLayerSizes = new HashMap<>();
     Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
     try (final var stream = new ByteArrayInputStream(output)) {
@@ -286,15 +303,7 @@ public class TileSizeStats {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-    return input.layers().stream().map(layer -> new LayerStats(
-      layer.name(),
-      encodedLayerSizes.getOrDefault(layer.name(), -1),
-      layer.features().size(),
-      countGeometries(layer.features()),
-      encodedLayerAttributeSizes.getOrDefault(layer.name(), -1),
-      vtile == null ? 0 : vtile.getNumKeys(layer.name()),
-      vtile == null ? 0 : vtile.getNumValues(layer.name())
-    )).toList();
+    return new MltSizes(encodedLayerSizes, encodedLayerAttributeSizes);
   }
 
   private static int consumeColumn(MltMetadata.Field columnMetadata, byte[] tile, IntWrapper offset)
@@ -346,22 +355,6 @@ public class TileSizeStats {
     var streamMetadata = StreamMetadataDecoder.decode(tile, offset);
     offset.add(streamMetadata.byteLength());
     return streamMetadata;
-  }
-
-  private static int countGeometries(List<Feature> features) {
-    return features.stream().mapToInt(feature -> countGeometries(feature.geometry())).sum();
-  }
-
-  private static int countGeometries(Geometry geometry) {
-    if (geometry instanceof GeometryCollection gc) {
-      int num = 0;
-      for (int i = 0; i < gc.getNumGeometries(); i++) {
-        num += countGeometries(gc.getGeometryN(i));
-      }
-      return num;
-    } else {
-      return 1;
-    }
   }
 
   @FunctionalInterface

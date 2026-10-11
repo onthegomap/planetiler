@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.DynamicNode;
+import org.maplibre.mlt.ffi.MltConverter;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -79,7 +80,6 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
-import org.maplibre.mlt.decoder.MltDecoder;
 
 public class TestUtils {
 
@@ -288,23 +288,14 @@ public class TestUtils {
         case NONE -> tile.bytes();
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
-      List<ComparableFeature> decoded = switch (tileFormat) {
-        case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
-          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
-            feature.properties(), feature.id())))
-          .toList();
-        case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
-          .map(
-            feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
-          .toList();
-      };
+      // the java MLT decoder cannot read every column type the native encoder writes, so decode with the native decoder
+      var mvt = tileFormat == TileFormat.MLT ? MltConverter.mltToMvt(bytes) : bytes;
+      List<ComparableFeature> decoded = VectorTile.decode(mvt).stream()
+        .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
+        .toList();
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
-  }
-
-  private static Geometry scale(Geometry geometry, double v) {
-    return AffineTransformation.scaleInstance(v, v).transform(geometry);
   }
 
   public static Geometry decodeSilently(VectorTile.VectorGeometry geom) {
