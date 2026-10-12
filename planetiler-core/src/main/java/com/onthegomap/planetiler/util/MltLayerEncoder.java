@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.util;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import org.maplibre.mlt.ffi.MltEncoder;
-import org.maplibre.mlt.ffi.MltEncoderOptions;
 import org.maplibre.mlt.ffi.MvtGeometryType;
 import org.maplibre.mlt.ffi.NativeLibrary;
 
@@ -33,7 +32,7 @@ public class MltLayerEncoder implements AutoCloseable {
   /** Builds v1 options from the {@code mlt_*} settings in {@code config}. */
   public MltLayerEncoder(PlanetilerConfig config) {
     // set every option explicitly since the native defaults enable FSST, FastPFOR and shared dictionaries
-    var options = MltEncoderOptions.builder()
+    encoder = MltEncoder.builder()
       .allowFsst(config.mltFsst())
       .allowFastPfor(config.mltFastPfor())
       .tessellate(config.mltTessellatePolygons())
@@ -42,7 +41,6 @@ public class MltLayerEncoder implements AutoCloseable {
       .attemptIdSort(config.mltReorderFeature())
       .allowSharedDict(config.mltSharedDictionaries())
       .build();
-    encoder = new MltEncoder(options);
   }
 
   /** Returns the MLT encoding of {@code tile} with the standard extent, one layer per non-empty layer. */
@@ -64,19 +62,7 @@ public class MltLayerEncoder implements AutoCloseable {
     } else {
       encoder.beginFeature(geometryType, geometry.commands());
     }
-    for (var tag : feature.tags().entrySet()) {
-      String key = tag.getKey();
-      switch (tag.getValue()) {
-        case null -> {
-          // skip missing values
-        }
-        case Boolean b -> encoder.setBool(key, b);
-        case Float f -> encoder.setFloat(key, f);
-        case Double d -> encoder.setDouble(key, d);
-        case Number n -> encoder.setLong(key, n.longValue());
-        case Object value -> encoder.setString(key, value.toString());
-      }
-    }
+    encoder.setProperties(feature.tags());
   }
 
   @Override

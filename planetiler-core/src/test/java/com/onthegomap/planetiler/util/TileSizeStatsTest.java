@@ -168,7 +168,7 @@ class TileSizeStatsTest {
   }
 
   @Test
-  void computeMltStatsSkipsLayersWithoutFeatures() throws IOException {
+  void computeMltStatsSkipsLayersWithoutFeatures() {
     var noGeometry = new VectorTile.VectorGeometry(new int[0], GeometryType.POINT, 0);
     var tile = new VectorTile()
       .addLayerFeatures("empty", List.of(new VectorTile.Feature("empty", 1, noGeometry, Map.of())))
