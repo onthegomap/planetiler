@@ -17,6 +17,8 @@ import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class PlanetilerConfigTest {
 
@@ -100,63 +102,26 @@ class PlanetilerConfigTest {
 
   @Test
   void rejectsMltAdvancedWithDefaultTileFormat() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--mlt-advanced")
-    ));
+    var arguments = Arguments.fromArgs("--mlt-advanced");
+
+    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(arguments));
 
     assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
   }
 
-  @Test
-  void rejectsMltFsstWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-fsst")
-    ));
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "--mlt-fsst",
+    "--mlt-fastpfor",
+    "--mlt-tessellate-polygons",
+    "--mlt-polygon-outline",
+    "--mlt-reorder-features",
+    "--mlt-shared-dict",
+  })
+  void rejectsMltOptionWithMvt(String mltOption) {
+    var arguments = Arguments.fromArgs("--tile-format=mvt", mltOption);
 
-    assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
-  }
-
-  @Test
-  void rejectsMltFastPforWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-fastpfor")
-    ));
-
-    assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
-  }
-
-  @Test
-  void rejectsMltTessellatePolygonsWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-tessellate-polygons", "--mlt-polygon-outline")
-    ));
-
-    assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
-  }
-
-  @Test
-  void rejectsMltPolygonOutlineWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-polygon-outline")
-    ));
-
-    assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
-  }
-
-  @Test
-  void rejectsMltReorderFeaturesWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-reorder-features")
-    ));
-
-    assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
-  }
-
-  @Test
-  void rejectsMltSharedDictWithMvt() {
-    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(
-      Arguments.fromArgs("--tile-format=mvt", "--mlt-shared-dict")
-    ));
+    var error = assertThrows(IllegalArgumentException.class, () -> PlanetilerConfig.from(arguments));
 
     assertEquals("mlt_* options require tile_format=mlt, was mvt", error.getMessage());
   }
