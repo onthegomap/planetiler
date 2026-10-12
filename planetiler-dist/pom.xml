@@ -73,7 +73,7 @@
           <skip>false</skip>
           <from>
             <image>
-              eclipse-temurin:23-jdk
+              eclipse-temurin:25-jdk
             </image>
             <platforms>
               <platform>

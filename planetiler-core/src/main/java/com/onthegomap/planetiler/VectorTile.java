@@ -1226,7 +1226,7 @@ public class VectorTile {
         case LineString lineString ->
           encode(lineString.getCoordinateSequence(), shouldClosePath(geometry), GeometryType.LINE);
         case Point point -> encode(point.getCoordinateSequence(), false, GeometryType.POINT);
-        case Puntal ignored -> encode(new CoordinateArraySequence(geometry.getCoordinates()), shouldClosePath(geometry),
+        case Puntal _ -> encode(new CoordinateArraySequence(geometry.getCoordinates()), shouldClosePath(geometry),
           geometry instanceof MultiPoint, GeometryType.POINT);
         case null -> LOGGER.warn("Null geometry type");
         default -> LOGGER.warn("Unrecognized geometry type: {}", geometry.getGeometryType());
