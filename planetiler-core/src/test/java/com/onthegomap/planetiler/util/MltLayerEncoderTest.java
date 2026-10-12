@@ -10,14 +10,17 @@ import static com.onthegomap.planetiler.TestUtils.newPolygon;
 import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.TestUtils.rectangleCoordList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.TestUtils.ComparableFeature;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryType;
 import java.sql.DriverManager;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -98,6 +101,41 @@ class MltLayerEncoderTest {
 
     assertEquals(List.of(TestUtils.feature(newPoint(1, 2), "layer",
       Map.of("string", "a", "integer", 1L, "boolean", true, "float", 1.5f, "double", 2.25), 1)), decoded);
+  }
+
+  @Test
+  void skipsAttributesWithoutValue() {
+    Map<String, Object> tags = new HashMap<>();
+    tags.put("missing", null);
+    tags.put("present", "a");
+    var tile = tileWith(feature("layer", 1, newPoint(1, 2), tags));
+
+    var decoded = decode(encoder.encode(tile, true));
+
+    assertEquals(List.of(TestUtils.feature(newPoint(1, 2), "layer", Map.of("present", "a"), 1)), decoded);
+  }
+
+  @Test
+  void leavesOutLayersWithoutFeatures() {
+    var noGeometry = new VectorTile.VectorGeometry(new int[0], GeometryType.POINT, 0);
+    var tile = tileWith(
+      new VectorTile.Feature("empty", 1, noGeometry, Map.of()),
+      feature("layer", 2, newPoint(1, 2), Map.of()));
+
+    var decoded = decode(encoder.encode(tile, true));
+
+    assertEquals(List.of(TestUtils.feature(newPoint(1, 2), "layer", Map.of(), 2)), decoded);
+  }
+
+  @Test
+  void rejectsUnknownGeometryType() {
+    var unknown = new VectorTile.VectorGeometry(VectorTile.encodeGeometry(newPoint(1, 2)).commands(),
+      GeometryType.UNKNOWN, 0);
+    var tile = tileWith(new VectorTile.Feature("layer", 1, unknown, Map.of()));
+
+    var error = assertThrows(IllegalArgumentException.class, () -> encoder.encode(tile, true));
+
+    assertEquals("unknown geometry type in layer layer", error.getMessage());
   }
 
   @Test

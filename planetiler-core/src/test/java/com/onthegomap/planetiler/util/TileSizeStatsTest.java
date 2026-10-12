@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
@@ -154,6 +155,33 @@ class TileSizeStatsTest {
         """
         .trim(),
       (TileSizeStats.headerRow() + String.join("", formatted)).trim());
+  }
+
+  @Test
+  void computeMltStatsOfLayerMissingFromEncodedTile() {
+    var tile = new VectorTile().addLayerFeatures("a", List.of(
+      new VectorTile.Feature("a", 1, VectorTile.encodeGeometry(newPoint(0, 0)), Map.of())));
+
+    var stats = TileSizeStats.computeMltTileStats(tile, new byte[0]);
+
+    assertEquals(List.of(new TileSizeStats.LayerStats("a", -1, 1, 1, -1, 0, 0)), stats);
+  }
+
+  @Test
+  void computeMltStatsSkipsLayersWithoutFeatures() throws IOException {
+    var noGeometry = new VectorTile.VectorGeometry(new int[0], GeometryType.POINT, 0);
+    var tile = new VectorTile()
+      .addLayerFeatures("empty", List.of(new VectorTile.Feature("empty", 1, noGeometry, Map.of())))
+      .addLayerFeatures("a", List.of(
+        new VectorTile.Feature("a", 2, VectorTile.encodeGeometry(newPoint(0, 0)), Map.of())));
+    byte[] mlt;
+    try (var encoder = new MltLayerEncoder(PlanetilerConfig.defaults())) {
+      mlt = encoder.encode(tile, true);
+    }
+
+    var stats = TileSizeStats.computeMltTileStats(tile, mlt);
+
+    assertEquals(List.of("a"), stats.stream().map(TileSizeStats.LayerStats::layer).toList());
   }
 
   @Test

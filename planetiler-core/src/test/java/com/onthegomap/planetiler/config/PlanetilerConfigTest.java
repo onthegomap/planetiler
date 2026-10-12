@@ -42,6 +42,7 @@ class PlanetilerConfigTest {
     "--tile-format=mvt --mlt-fsst",
     "--tile-format=mvt --mlt-fastpfor",
     "--tile-format=mvt --mlt-tessellate-polygons --mlt-polygon-outline",
+    "--tile-format=mvt --mlt-polygon-outline",
     "--tile-format=mvt --mlt-reorder-features",
     "--tile-format=mvt --mlt-shared-dict",
   })
