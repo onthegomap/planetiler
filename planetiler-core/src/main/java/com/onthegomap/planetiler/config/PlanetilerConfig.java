@@ -94,20 +94,6 @@ public record PlanetilerConfig(
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
     }
-    if (tileFormat != TileFormat.MLT &&
-      (mltFsst || mltFastPfor || mltTessellatePolygons || mltPolygonOutline || mltReorderFeature ||
-        mltSharedDictionaries)) {
-      throw new IllegalArgumentException("mlt_* options require tile_format=mlt, was " + tileFormat.id());
-    }
-    // TODO allow tessellation without outlines and add v2-only options once the native encoder exposes v2 encoding
-    if (mltTessellatePolygons && !mltPolygonOutline) {
-      throw new IllegalArgumentException(
-        "mlt_tessellate_polygons requires mlt_polygon_outline, MLT v1 cannot store polygon triangles without " +
-          "outlines");
-    }
-    if (mltPolygonOutline && !mltTessellatePolygons) {
-      throw new IllegalArgumentException("mlt_polygon_outline requires mlt_tessellate_polygons");
-    }
   }
 
   public static PlanetilerConfig defaults() {
