@@ -77,7 +77,6 @@ public class TileArchiveWriter {
       MltLayerEncoder.load();
       new MltLayerEncoder(config).close();
     }
-    config.mltWarnings().forEach(LOGGER::warn);
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);
