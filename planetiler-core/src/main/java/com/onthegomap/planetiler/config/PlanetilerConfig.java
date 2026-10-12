@@ -279,26 +279,6 @@ public record PlanetilerConfig(
     );
   }
 
-  /**
-   * Returns warnings about enabled {@code mlt_*} options that make gzip-compressed tiles larger.
-   * <p>
-   * FSST and FastPFOR shrink the uncompressed tile but leave output that gzip cannot compress further, so a gzipped
-   * tile usually ends up larger than without them.
-   */
-  public List<String> mltWarnings() {
-    if (tileFormat != TileFormat.MLT || tileCompression != TileCompression.GZIP) {
-      return List.of();
-    }
-    List<String> warnings = new ArrayList<>();
-    if (mltFsst) {
-      warnings.add("mlt_fsst usually makes gzip-compressed tiles larger, use tile_compression=none or disable it");
-    }
-    if (mltFastPfor) {
-      warnings.add("mlt_fastpfor makes gzip-compressed tiles larger, use tile_compression=none or disable it");
-    }
-    return warnings;
-  }
-
   public double minFeatureSize(int zoom) {
     return zoom >= maxzoomForRendering ? minFeatureSizeAtMaxZoom : minFeatureSizeBelowMaxZoom;
   }
