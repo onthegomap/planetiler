@@ -109,6 +109,23 @@ jobs:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
 
+    - id: month
+      run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+    # JDK + jmods downloads (~1 GB). The month in the key means a newer JDK release
+    # gets picked up about once a month; the Makefile caches the chosen tag in here too.
+    - uses: actions/cache@v4
+      with:
+        path: .cache
+        key: jdk-${{ steps.month.outputs.value }}
+
+    - run: make -j4
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/*
+
     - name: Download data (java)
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
       with:
@@ -127,6 +144,25 @@ jobs:
       run: ./scripts/test-release.sh CI_ONLY
       env:
         SKIP_EXAMPLE_PROJECT: true
+
+  smoke-macos:
+    needs: build
+    runs-on: macos-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with: { name: dist, path: dist }
+    - name: Cache data/sources
+      uses: ./.github/cache-sources-action
+
+    - name: Smoke test
+      run: |
+        set -euxo pipefail
+        mkdir t && cd t
+        tar -xzf ../dist/planetiler_*_darwin_arm64.tar.gz
+        ./planetiler --jvm-args=-version 2>&1 | grep -i openjdk
+        ./planetiler --extract-jar && test -s planetiler.jar
+        ./planetiler --download --area=monaco --output=monaco.mbtiles
+        test -s monaco.mbtiles
 
   quickstart:
     name: Quickstart script

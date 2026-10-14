@@ -30,4 +30,4 @@ data/
 /launcher/payload_*
 /dist/
 /build/
-/.jdk-cache/
+/.cache/
