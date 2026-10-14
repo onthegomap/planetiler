@@ -162,9 +162,6 @@ jobs:
         pattern: planetiler_*_darwin_arm64.tar.gz
         merge-multiple: true
         path: dist
-    - name: Cache data/sources
-      uses: ./.github/cache-sources-action
-
     - name: Smoke test
       run: |
         set -euxo pipefail
@@ -172,9 +169,8 @@ jobs:
         tar -xzf ../dist/planetiler_*_darwin_arm64.tar.gz
         ./planetiler --jvm-args=-version 2>&1 | grep -i openjdk
         ./planetiler --extract-jar && test -s planetiler.jar
-        ./planetiler --download --area=monaco --output=monaco.mbtiles
+        ./planetiler --download --area=monaco --output=monaco.mbtiles --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip
         test -s monaco.mbtiles
-
   quickstart:
     name: Quickstart script
     runs-on: ubuntu-latest
