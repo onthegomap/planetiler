@@ -25,9 +25,3 @@ TODO
 
 data/
 *-unzipped/
-
-# go builder
-/launcher/payload_*
-/dist/
-/build/
-/.cache/

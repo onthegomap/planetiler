@@ -116,23 +116,23 @@ jobs:
     # gets picked up about once a month; the Makefile caches the chosen tag in here too.
     - uses: actions/cache@v4
       with:
-        path: .cache
+        path: launcher/.cache
         key: jdk-${{ steps.month.outputs.value }}
 
-    - run: make JAR=planetiler-dist/target/*with-deps.jar
+    - run: make -c launcher JAR="$PWD/planetiler-dist/target/*with-deps.jar"
 
     - uses: actions/upload-artifact@v7
-      with: { path: dist/planetiler_*_linux_amd64.tar.gz, archive: false }
+      with: { path: launcher/dist/planetiler_*_linux_amd64.tar.gz, archive: false }
     - uses: actions/upload-artifact@v7
-      with: { path: dist/planetiler_*_linux_arm64.tar.gz, archive: false }
+      with: { path: launcher/dist/planetiler_*_linux_arm64.tar.gz, archive: false }
     - uses: actions/upload-artifact@v7
-      with: { path: dist/planetiler_*_darwin_amd64.tar.gz, archive: false }
+      with: { path: launcher/dist/planetiler_*_darwin_amd64.tar.gz, archive: false }
     - uses: actions/upload-artifact@v7
-      with: { path: dist/planetiler_*_darwin_arm64.tar.gz, archive: false }
+      with: { path: launcher/dist/planetiler_*_darwin_arm64.tar.gz, archive: false }
     - uses: actions/upload-artifact@v7
-      with: { path: dist/planetiler_*_windows_amd64.zip, archive: false }
+      with: { path: launcher/dist/planetiler_*_windows_amd64.zip, archive: false }
     - uses: actions/upload-artifact@v7
-      with: { path: dist/checksums.txt, archive: false }
+      with: { path: launcher/dist/checksums.txt, archive: false }
 
     - name: Download data (java)
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
@@ -169,8 +169,29 @@ jobs:
         tar -xzf ../dist/planetiler_*_darwin_arm64.tar.gz
         ./planetiler --jvm-args=-version 2>&1 | grep -i openjdk
         ./planetiler --extract-jar && test -s planetiler.jar
-        ./planetiler --download --area=monaco --output=monaco.mbtiles --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip
+        ./planetiler --download --area=monaco --output=monaco.mbtiles --only-layers=poi
         test -s monaco.mbtiles
+
+  smoke-windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: planetiler_*_windows_amd64.zip
+        merge-multiple: true
+        path: dist
+    - name: Smoke test
+      shell: bash
+      run: |
+        set -euxo pipefail
+        mkdir t && cd t
+        unzip ../dist/planetiler_*_windows_amd64.zip
+        ./planetiler.exe --jvm-args=-version 2>&1 | grep -i openjdk
+        ./planetiler.exe --extract-jar && test -s planetiler.jar
+        ./planetiler.exe --download --area=monaco --output=monaco.mbtiles --only-layers=poi
+        test -s monaco.mbtiles
+
   quickstart:
     name: Quickstart script
     runs-on: ubuntu-latest
