@@ -1,119 +1,90 @@
-# Self-extracting planetiler launchers for every platform.
-#
-#   make -j        build everything in parallel   -> dist/
-#   make host      only this machine's binary     -> build/<platform>/planetiler
-#   make smoke     run the host binary (java -version)
-#   make clean     remove build output (keeps the JDK download cache)
-#   make distclean also remove the JDK cache (next build picks up the newest JDK)
-#
-# Needs: curl tar unzip zip go, plus planetiler.jar (or JAR=path/to/it).
+# Self-extracting planetiler launchers.
+#   make -j      all platforms  -> dist/
+#   make host    this machine   -> build/<platform>/planetiler
+#   make smoke   run it with java -version
+#   make clean | distclean (also drops the JDK cache)
+# Needs: curl tar unzip zip go, plus planetiler.jar (or JAR=path/to/it)
 # NOTE: recipe lines must start with a TAB.
 
-JAR            ?= ../planetiler.jar
-JAR            := $(abspath $(JAR))
-VERSION        ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-JDK_FEATURE    ?= 25
-MODULES        ?= java.se,jdk.compiler,jdk.management,jdk.unsupported
-JLINK_COMPRESS ?= zip-0
-CACHE          ?= .cache
-
+JAR       ?= ../planetiler.jar
+JAR       := $(abspath $(JAR))
+VERSION   ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+JDK_TAG   ?= jdk-25.0.4.1+1
+MODULES   ?= java.se,jdk.compiler,jdk.management,jdk.unsupported
+CACHE     ?= .cache
 PLATFORMS := linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64
 
-# linux_amd64 -> Go names (linux, amd64) and Adoptium names (linux, x64; mac, aarch64)
-goos   = $(word 1,$(subst _, ,$1))
-goarch = $(word 2,$(subst _, ,$1))
-a_os   = $(subst darwin,mac,$(call goos,$1))
-a_arch = $(subst arm64,aarch64,$(subst amd64,x64,$(call goarch,$1)))
+HOST   := $(shell go env GOOS)_$(shell go env GOARCH)
+SHA256 := $(shell command -v sha256sum >/dev/null && echo sha256sum || echo shasum -a 256)
 
-# the machine we build on (it runs jlink)
-HOST := $(shell uname -s | tr A-Z a-z)_$(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-$(if $(filter $(HOST),$(PLATFORMS)),,$(error unsupported build host '$(HOST)': use Linux, macOS or WSL))
-SHA256 := $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || echo shasum -a 256)
+# linux_amd64 -> Go names (linux, amd64) and Adoptium download URL (linux, x64; mac, aarch64)
+os   = $(word 1,$(subst _, ,$1))
+arch = $(word 2,$(subst _, ,$1))
+dl   = https://api.adoptium.net/v3/binary/version/$(subst +,%2B,$(JDK_TAG))/$(subst darwin,mac,$(call os,$1))/$(subst arm64,aarch64,$(subst amd64,x64,$(call arch,$1)))
 
-# ONE exact JDK release for the host JDK and every target's jmods (they must match exactly).
-# Resolved once and cached in .cache/jdk-tag. Pin with: make JDK_TAG='jdk-25.0.3+9'
-API := https://api.adoptium.net/v3
-ifndef JDK_TAG
-JDK_TAG := $(shell mkdir -p $(CACHE); [ -s $(CACHE)/jdk-tag ] || curl -fsSL '$(API)/assets/latest/$(JDK_FEATURE)/hotspot?architecture=$(call a_arch,$(HOST))&image_type=jdk&os=$(call a_os,$(HOST))&vendor=eclipse' | grep -o '"release_name" *: *"[^"]*"' | sed -n '1s/.*: *"\(.*\)"/\1/p' > $(CACHE)/jdk-tag; cat $(CACHE)/jdk-tag)
-endif
-$(if $(JDK_TAG),,$(error could not resolve a JDK release from Adoptium (offline?); set JDK_TAG=...))
+JDK   := $(CACHE)/$(subst +,_,$(JDK_TAG))
+JLINK := $(JDK)/host/$(if $(filter darwin_%,$(HOST)),Contents/Home/)bin/jlink
 
-TAG_URL  := $(subst +,%2B,$(JDK_TAG))
-JDK_DIR  := $(CACHE)/$(subst +,_,$(JDK_TAG))
-HOST_JDK := $(JDK_DIR)/host-jdk$(if $(filter darwin_%,$(HOST)),/Contents/Home)
-
-LAUNCHER_SRC := $(filter-out payload_%,$(wildcard *.go)) go.mod
+LAUNCHER := $(filter-out payload_%,$(wildcard *.go)) go.mod
+GOBUILD   = CGO_ENABLED=0 GOOS=$(call os,$*) GOARCH=$(call arch,$*) go build -trimpath -ldflags="-s -w" -o $@ .
 ARCHIVES := $(foreach p,$(PLATFORMS),dist/planetiler_$(VERSION)_$(p).$(if $(filter windows_%,$(p)),zip,tar.gz))
 
-.PHONY: all host payloads smoke clean distclean
-.SECONDARY:          # keep intermediate payload files
+.SILENT:
+.SECONDARY:
 .DELETE_ON_ERROR:
+.PHONY: all host smoke clean distclean
 
 all: $(ARCHIVES) dist/checksums.txt
-
 host: build/$(HOST)/planetiler
-
-# only the generated payload files (e.g. for a goreleaser `before` hook: make -j payloads)
-payloads: $(foreach p,$(PLATFORMS),payload_$(p).go)
-
-smoke: build/$(HOST)/planetiler
+smoke: host
 	build/$(HOST)/planetiler --jvm-args=-version
 
-# ---------- 1. downloads (cached in .cache/) ----------
+# ---- JDK downloads (cached): a host JDK to run jlink, plus each target's jmods ----
 
-# full JDK for this machine: only used to RUN jlink
-$(HOST_JDK)/bin/jlink:
-	rm -rf $(JDK_DIR)/host-jdk $(JDK_DIR)/host-jdk.tmp
-	mkdir -p $(JDK_DIR)/host-jdk.tmp
-	curl -fsSL "$(API)/binary/version/$(TAG_URL)/$(call a_os,$(HOST))/$(call a_arch,$(HOST))/jdk/hotspot/normal/eclipse" | tar -xz -C $(JDK_DIR)/host-jdk.tmp --strip-components=1
-	mv $(JDK_DIR)/host-jdk.tmp $(JDK_DIR)/host-jdk
+$(JLINK):
+	echo "downloading host JDK"
+	rm -rf $(JDK)/host && mkdir -p $(JDK)/host
+	curl -fsSL "$(call dl,$(HOST))/jdk/hotspot/normal/eclipse" | tar -xz -C $(JDK)/host --strip-components=1
 
-# the target platform's jmods (JDK 24+ no longer ships them inside the JDK)
-$(JDK_DIR)/jmods-%/java.base.jmod:
-	rm -rf $(@D) $(@D).tmp
-	mkdir -p $(@D) $(@D).tmp/x
-	curl -fsSL -o $(@D).tmp/archive "$(API)/binary/version/$(TAG_URL)/$(call a_os,$*)/$(call a_arch,$*)/jmods/hotspot/normal/eclipse" || { echo "no jmods for $* at $(JDK_TAG): pin JDK_TAG to a release that exists for every platform" >&2; exit 1; }
-	if [ "$$(head -c 2 $(@D).tmp/archive)" = PK ]; then unzip -q $(@D).tmp/archive -d $(@D).tmp/x; else tar -xzf $(@D).tmp/archive -C $(@D).tmp/x; fi
-	find $(@D).tmp/x -name '*.jmod' -exec mv {} $(@D)/ \;
-	rm -rf $(@D).tmp
+$(JDK)/jmods-%/java.base.jmod:
+	echo "downloading jmods for $*"
+	rm -rf $(@D) && mkdir -p $(@D)/.x
+	curl -fsSL -o $(@D)/.archive "$(call dl,$*)/jmods/hotspot/normal/eclipse"
+	if [ "$$(head -c2 $(@D)/.archive)" = PK ]; then unzip -q $(@D)/.archive -d $(@D)/.x; else tar -xzf $(@D)/.archive -C $(@D)/.x; fi
+	find $(@D)/.x -name '*.jmod' -exec mv {} $(@D) \;
+	rm -rf $(@D)/.x $(@D)/.archive
 
-# ---------- 2. per-platform payload: jlink runtime + jar, tar+gzip ----------
+# ---- payload: jlink runtime + jar -> tgz, plus the Go file that embeds it ----
 
-payload_%.tgz: $(JAR) $(HOST_JDK)/bin/jlink $(JDK_DIR)/jmods-%/java.base.jmod
-	rm -rf build/stage/$*
-	mkdir -p build/stage/$*
-	$(HOST_JDK)/bin/jlink --module-path $(JDK_DIR)/jmods-$* --add-modules $(MODULES) \
-		--strip-debug --no-header-files --no-man-pages --compress=$(JLINK_COMPRESS) \
+payload_%.go: $(JAR) $(JLINK) $(JDK)/jmods-%/java.base.jmod
+	echo "building payload $*"
+	rm -rf build/stage/$* && mkdir -p build/stage/$*
+	$(JLINK) --module-path $(JDK)/jmods-$* --add-modules $(MODULES) \
+		--strip-debug --no-header-files --no-man-pages --compress=zip-0 \
 		--output build/stage/$*/runtime
 	cp $(JAR) build/stage/$*/planetiler.jar
-	COPYFILE_DISABLE=1 tar -czf $@ -C build/stage/$* planetiler.jar runtime
+	COPYFILE_DISABLE=1 tar -czf payload_$*.tgz -C build/stage/$* planetiler.jar runtime
 	rm -rf build/stage/$*
+	id=$$($(SHA256) < payload_$*.tgz | cut -c1-12); \
+	printf '// Code generated by Makefile; DO NOT EDIT.\n\npackage main\n\nimport _ "embed"\n\n//go:embed payload_%s.tgz\nvar payload []byte\n\nconst payloadID = "%s"\n' "$*" "$$id" > $@
 
-# Go file embedding the payload; the id (payload hash) names the runtime cache dir
-payload_%.go: payload_%.tgz
-	id=$$($(SHA256) < $< | cut -c1-12); \
-	printf '// Code generated by Makefile; DO NOT EDIT.\n\npackage main\n\nimport _ "embed"\n\n//go:embed %s\nvar payload []byte\n\nconst payloadID = "%s"\n' "$(notdir $<)" "$$id" > $@
+# ---- binaries and release archives ----
 
-# ---------- 3. launcher binaries (Go picks payload_<os>_<arch>.go by filename) ----------
+build/%/planetiler.exe: payload_%.go $(LAUNCHER)
+	echo "building $@"
+	$(GOBUILD)
 
-build/%/planetiler: payload_%.go payload_%.tgz $(LAUNCHER_SRC)
-	mkdir -p $(@D)
-	CGO_ENABLED=0 GOOS=$(call goos,$*) GOARCH=$(call goarch,$*) go build -trimpath -ldflags "-s -w" -o $@ .
-
-build/windows_%/planetiler.exe: payload_windows_%.go payload_windows_%.tgz $(LAUNCHER_SRC)
-	mkdir -p $(@D)
-	CGO_ENABLED=0 GOOS=windows GOARCH=$* go build -trimpath -ldflags "-s -w" -o $@ .
-
-# ---------- 4. release archives ----------
+build/%/planetiler: payload_%.go $(LAUNCHER)
+	echo "building $@"
+	$(GOBUILD)
 
 dist/planetiler_$(VERSION)_%.tar.gz: build/%/planetiler
-	mkdir -p dist
-	tar -czf $@ -C build/$* planetiler
+	echo "building $@"
+	mkdir -p dist && tar -czf $@ -C build/$* planetiler
 
-dist/planetiler_$(VERSION)_windows_%.zip: build/windows_%/planetiler.exe
-	mkdir -p dist
-	rm -f $(abspath $@)
-	cd build/windows_$* && zip -q $(abspath $@) planetiler.exe
+dist/planetiler_$(VERSION)_%.zip: build/%/planetiler.exe
+	echo "building $@"
+	mkdir -p dist && rm -f $@ && cd build/$* && zip -q $(abspath $@) planetiler.exe
 
 dist/checksums.txt: $(ARCHIVES)
 	cd dist && $(SHA256) $(notdir $(ARCHIVES)) > checksums.txt
