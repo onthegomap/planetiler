@@ -119,7 +119,7 @@ jobs:
         path: launcher/.cache
         key: jdk-${{ steps.month.outputs.value }}
 
-    - run: make -c launcher JAR="$PWD/planetiler-dist/target/*with-deps.jar"
+    - run: make -C launcher JAR="$PWD/planetiler-dist/target/*with-deps.jar"
 
     - uses: actions/upload-artifact@v7
       with: { path: launcher/dist/planetiler_*_linux_amd64.tar.gz, archive: false }

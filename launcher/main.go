@@ -15,16 +15,11 @@ import (
 // `payload` (gzipped tar) and `payloadID` come from the generated
 // payload_<goos>_<goarch>.go file.
 
-// Always passed to the JVM, before user-supplied args.
-var defaultJVMArgs = []string{}
-
 func main() {
-	var (
-		memory     string
-		jvmArgs    []string
-		extractJar bool
-		rest       []string
-	)
+	var memory string
+	var jvmArgs, rest []string
+	extractJar := false
+
 	// Launcher flags are intercepted anywhere and never reach planetiler.
 	for _, a := range os.Args[1:] {
 		switch {
@@ -40,28 +35,21 @@ func main() {
 	}
 
 	if extractJar {
-		if err := extractJarTo("planetiler.jar"); err != nil {
-			fail(err)
-		}
+		check(extract(".", func(name string) bool { return name == "planetiler.jar" }))
 		fmt.Println("wrote planetiler.jar")
 		return
 	}
 
 	cache := cacheDir()
-	javaName := "java"
+	java := filepath.Join(cache, "runtime", "bin", "java")
 	if runtime.GOOS == "windows" {
-		javaName = "java.exe"
+		java += ".exe"
 	}
-	java := filepath.Join(cache, "runtime", "bin", javaName)
-	if err := ensureInstalled(cache, java); err != nil {
-		fail(err)
-	}
+	check(ensureInstalled(cache, java))
 	jar := filepath.Join(cache, "planetiler.jar")
 
 	// Later flags win in the JVM: JAVA_OPTS < --memory < --jvm-args
-	args := []string{java}
-	args = append(args, defaultJVMArgs...)
-	args = append(args, strings.Fields(os.Getenv("JAVA_OPTS"))...)
+	args := append([]string{java, "-showversion"}, strings.Fields(os.Getenv("JAVA_OPTS"))...)
 	if memory != "" {
 		args = append(args, "-Xmx"+memory)
 	}
@@ -77,9 +65,8 @@ func main() {
 	} else {
 		args = append(args, "-jar", jar)
 	}
-	args = append(args, rest...)
 
-	fail(execJava(java, args)) // only returns on error
+	check(execJava(java, append(args, rest...))) // only returns on error
 }
 
 func unquote(s string) string { return strings.Trim(s, "\"'") }
@@ -107,13 +94,12 @@ func ensureInstalled(cache, java string) error {
 	if err != nil {
 		return err
 	}
-	if err := extractAll(tmp); err != nil {
-		os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp) // no-op after a successful rename
+	if err := extract(tmp, nil); err != nil {
 		return err
 	}
 	os.RemoveAll(cache) // broken/partial install, if any
 	if err := os.Rename(tmp, cache); err != nil {
-		os.RemoveAll(tmp)
 		if _, e := os.Stat(java); e == nil {
 			return nil // another process won the race
 		}
@@ -122,7 +108,8 @@ func ensureInstalled(cache, java string) error {
 	return nil
 }
 
-func walkTar(fn func(*tar.Header, io.Reader) (stop bool, err error)) error {
+// extract unpacks the payload into dst; if keep != nil, only files it accepts.
+func extract(dst string, keep func(name string) bool) error {
 	gz, err := gzip.NewReader(bytes.NewReader(payload))
 	if err != nil {
 		return err
@@ -137,72 +124,45 @@ func walkTar(fn func(*tar.Header, io.Reader) (stop bool, err error)) error {
 		if err != nil {
 			return err
 		}
-		stop, err := fn(h, tr)
+		if h.Typeflag == tar.TypeXGlobalHeader {
+			continue
+		}
+		name := filepath.FromSlash(strings.TrimPrefix(h.Name, "./"))
+		if name == "" || name == "." {
+			continue
+		}
+		if !filepath.IsLocal(name) {
+			return fmt.Errorf("unsafe path in payload: %q", h.Name)
+		}
+		if keep != nil && !keep(h.Name) {
+			continue
+		}
+		target := filepath.Join(dst, name)
+
+		switch h.Typeflag {
+		case tar.TypeDir:
+			err = os.MkdirAll(target, 0o755)
+		case tar.TypeReg:
+			if err = os.MkdirAll(filepath.Dir(target), 0o755); err == nil {
+				err = writeFile(target, tr, h.FileInfo().Mode().Perm())
+			}
+		case tar.TypeSymlink:
+			if runtime.GOOS == "windows" {
+				continue // needs privileges; only used for duplicate files
+			}
+			if err = os.MkdirAll(filepath.Dir(target), 0o755); err == nil {
+				err = os.Symlink(h.Linkname, target)
+			}
+		default:
+			err = fmt.Errorf("unsupported entry type %q in payload: %s", h.Typeflag, h.Name)
+		}
 		if err != nil {
 			return err
 		}
-		if stop {
-			return nil
-		}
 	}
-}
-
-func extractAll(dst string) error {
-	root := filepath.Clean(dst) + string(os.PathSeparator)
-	return walkTar(func(h *tar.Header, r io.Reader) (bool, error) {
-		target := filepath.Join(dst, filepath.FromSlash(h.Name))
-		if !strings.HasPrefix(target+string(os.PathSeparator), root) {
-			return false, fmt.Errorf("unsafe path in payload: %q", h.Name)
-		}
-		switch h.Typeflag {
-		case tar.TypeDir:
-			return false, os.MkdirAll(target, 0o755)
-		case tar.TypeReg:
-			mode := h.FileInfo().Mode().Perm()
-			if strings.HasPrefix(h.Name, "runtime/bin/") || strings.HasSuffix(h.Name, "/jspawnhelper") {
-				mode |= 0o111
-			}
-			return false, writeFile(target, r, mode)
-		case tar.TypeSymlink:
-			if runtime.GOOS == "windows" {
-				return false, nil // needs privileges; only used for duplicate legal notices
-			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return false, err
-			}
-			return false, os.Symlink(h.Linkname, target)
-		case tar.TypeLink:
-			src := filepath.Join(dst, filepath.FromSlash(h.Linkname))
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return false, err
-			}
-			if err := os.Link(src, target); err != nil {
-				return false, copyFile(src, target)
-			}
-		}
-		return false, nil
-	})
-}
-
-func extractJarTo(dst string) error {
-	found := false
-	err := walkTar(func(h *tar.Header, r io.Reader) (bool, error) {
-		if h.Typeflag == tar.TypeReg && strings.TrimPrefix(h.Name, "./") == "planetiler.jar" {
-			found = true
-			return true, writeFile(dst, r, 0o644)
-		}
-		return false, nil
-	})
-	if err == nil && !found {
-		err = fmt.Errorf("planetiler.jar not found in payload")
-	}
-	return err
 }
 
 func writeFile(path string, r io.Reader, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return err
@@ -214,20 +174,7 @@ func writeFile(path string, r io.Reader, mode os.FileMode) error {
 	return f.Close()
 }
 
-func copyFile(src, dst string) error {
-	f, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	return writeFile(dst, f, st.Mode().Perm())
-}
-
-func fail(err error) {
+func check(err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "planetiler:", err)
 		os.Exit(1)
