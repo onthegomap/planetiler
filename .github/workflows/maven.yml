@@ -154,14 +154,16 @@ jobs:
         SKIP_EXAMPLE_PROJECT: true
 
   smoke-macos:
-    needs: build
+    needs: run
     runs-on: macos-latest
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         pattern: planetiler_*_darwin_arm64.tar.gz
         merge-multiple: true
         path: dist
+    - run: ls -R dist
+      shell: bash
     - name: Smoke test
       run: |
         set -euxo pipefail
@@ -173,14 +175,16 @@ jobs:
         test -s monaco.mbtiles
 
   smoke-windows:
-    needs: build
+    needs: run
     runs-on: windows-latest
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         pattern: planetiler_*_windows_amd64.zip
         merge-multiple: true
         path: dist
+    - run: ls -R dist
+      shell: bash
     - name: Smoke test
       shell: bash
       run: |
