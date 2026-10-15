@@ -75,8 +75,12 @@ payload_%.go: $(JAR) $(JLINK) build/modules.txt $(JDK)/jmods-%/java.base.jmod
 build/modules.txt: $(JAR) $(JLINK)
 	echo "Finding deps of $(JAR)"
 	mkdir -p build
-	$(JDEPS) --print-module-deps --ignore-missing-deps --multi-release $(JDK_VERSION) $(JAR) \
-		| tr ',' '\n' | grep -vxE '$(EXCLUDE)' | paste -sd, - > $@
+	cp $(JAR) build/deps.jar
+	zip -qd build/deps.jar module-info.class 'META-INF/versions/*/module-info.class' || true
+	$(JDEPS) --print-module-deps --ignore-missing-deps --multi-release 25 build/deps.jar > build/modules.raw
+	tr ',' '\n' < build/modules.raw | grep -vxE '$(EXCLUDE)' | paste -sd, - > $@
+	test -s $@
+	rm -f build/deps.jar build/modules.raw
 	echo "modules: $$(cat $@),$(EXTRA_MODULES)"
 
 # ---- binaries and release archives ----
