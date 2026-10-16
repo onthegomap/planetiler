@@ -30,10 +30,10 @@ import org.openmaptiles.util.VerifyMonaco;
 public class Main {
   static {
     int version = Runtime.version().feature();
-    if (version < 21) {
+    if (version < 25) {
       System.err.println(
         "You are using Java " + version +
-          " but Planetiler requires 21 or later, for more details on upgrading see: https://github.com/onthegomap/planetiler/blob/main/CONTRIBUTING.md");
+          " but Planetiler requires 25 or later, for more details on upgrading see: https://github.com/onthegomap/planetiler/blob/main/CONTRIBUTING.md");
       System.exit(1);
     }
   }
