@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.google.common.io.CountingInputStream;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
@@ -21,10 +20,8 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,20 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-import me.lemire.integercompression.IntWrapper;
-import org.apache.commons.lang3.tuple.Pair;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
-import org.maplibre.mlt.converter.encodings.MltTypeMap;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
-import org.maplibre.mlt.data.Feature;
-import org.maplibre.mlt.decoder.DecodingUtils;
-import org.maplibre.mlt.decoder.MltDecoder;
-import org.maplibre.mlt.metadata.stream.DictionaryType;
-import org.maplibre.mlt.metadata.stream.PhysicalStreamType;
-import org.maplibre.mlt.metadata.stream.StreamMetadata;
-import org.maplibre.mlt.metadata.stream.StreamMetadataDecoder;
-import org.maplibre.mlt.metadata.tileset.MltMetadata;
+import org.maplibre.mlt.ffi.MltLayerStats;
 import vector_tile.VectorTileProto;
 
 /**
@@ -257,111 +241,29 @@ public class TileSizeStats {
     return result;
   }
 
-  public static List<LayerStats> computeMltTileStats(VectorTile vtile, MapboxVectorTile input, byte[] output) {
-    Map<String, Integer> encodedLayerSizes = new HashMap<>();
-    Map<String, Integer> encodedLayerAttributeSizes = new HashMap<>();
-    try (final var stream = new ByteArrayInputStream(output)) {
-      while (stream.available() > 0) {
-        int length = DecodingUtils.decodeVarint(stream);
-        Pair<Integer, Integer> tag = DecodingUtils.decodeVarintWithLength(stream);
-        int bodySize = length - tag.getRight();
-        int attrBytes = 0;
-        if (tag.getLeft() == 1) {
-          try (var countStream = new CountingInputStream(stream)) {
-            final var metadataExtent = MltDecoder.parseEmbeddedMetadata(countStream);
-            MltMetadata.FeatureTable metadata = metadataExtent.getLeft();
-            byte[] tile = countStream.readNBytes((int) (bodySize - countStream.getCount()));
-            final var offset = new IntWrapper(0);
-            for (var columnMetadata : metadata.columns) {
-              attrBytes += consumeColumn(columnMetadata, tile, offset);
-            }
-            encodedLayerSizes.put(metadata.name, length);
-            encodedLayerAttributeSizes.put(metadata.name, attrBytes);
-          }
-        } else {
-          // Skip the remainder of this one
-          stream.skipNBytes((long) length - tag.getRight());
-        }
-      }
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+  /**
+   * Returns the size and statistics for each layer in {@code output}, the MLT encoding of {@code tile}.
+   * <p>
+   * Feature, geometry, and attribute key/value counts come from {@code tile}, layer and attribute sizes from
+   * {@code output}.
+   */
+  public static List<LayerStats> computeMltTileStats(VectorTile tile, byte[] output) {
+    Map<String, MltLayerStats> sizes = new HashMap<>();
+    for (var layer : MltLayerStats.of(output)) {
+      sizes.put(layer.name(), layer);
     }
-    return input.layers().stream().map(layer -> new LayerStats(
-      layer.name(),
-      encodedLayerSizes.getOrDefault(layer.name(), -1),
-      layer.features().size(),
-      countGeometries(layer.features()),
-      encodedLayerAttributeSizes.getOrDefault(layer.name(), -1),
-      vtile == null ? 0 : vtile.getNumKeys(layer.name()),
-      vtile == null ? 0 : vtile.getNumValues(layer.name())
-    )).toList();
-  }
-
-  private static int consumeColumn(MltMetadata.Field columnMetadata, byte[] tile, IntWrapper offset)
-    throws IOException {
-    final var hasStreamCount =
-      columnMetadata instanceof MltMetadata.Column col && MltTypeMap.Tag0x01.hasStreamCount(col);
-    int numStreams = hasStreamCount ? DecodingUtils.decodeVarints(tile, offset, 1)[0] : 0;
-
-    int start = offset.get();
-    if (numStreams == 0) {
-      if (columnMetadata.isNullable) {
-        skipOverStream(tile, offset);
-      }
-      skipOverStream(tile, offset);
-    } else if (columnMetadata.complexType != null &&
-      columnMetadata.complexType.physicalType == MltMetadata.ComplexType.STRUCT) {
-
-      skipOverSharedDictionary(tile, offset);
-
-      for (var child : columnMetadata.complexType.children) {
-        consumeColumn(child, tile, offset);
-      }
-    } else {
-      for (int i = 0; i < numStreams; i++) {
-        skipOverStream(tile, offset);
-      }
-    }
-    int size = offset.get() - start;
-    if (columnMetadata instanceof MltMetadata.Column col && !MltTypeMap.Tag0x01.isGeometry(col) &&
-      !MltTypeMap.Tag0x01.isID(col)) {
-      return size;
-    }
-    return 0;
-  }
-
-  private static void skipOverSharedDictionary(byte[] tile, IntWrapper offset) throws IOException {
-    boolean decoded = false;
-    while (!decoded) {
-      var metadata = skipOverStream(tile, offset);
-      var dictionaryType = metadata.logicalStreamType().dictionaryType();
-      if (metadata.physicalStreamType() == PhysicalStreamType.DATA &&
-        (dictionaryType == DictionaryType.SINGLE || dictionaryType == DictionaryType.SHARED)) {
-        decoded = true;
-      }
-    }
-  }
-
-  private static StreamMetadata skipOverStream(byte[] tile, IntWrapper offset) throws IOException {
-    var streamMetadata = StreamMetadataDecoder.decode(tile, offset);
-    offset.add(streamMetadata.byteLength());
-    return streamMetadata;
-  }
-
-  private static int countGeometries(List<Feature> features) {
-    return features.stream().mapToInt(feature -> countGeometries(feature.geometry())).sum();
-  }
-
-  private static int countGeometries(Geometry geometry) {
-    if (geometry instanceof GeometryCollection gc) {
-      int num = 0;
-      for (int i = 0; i < gc.getNumGeometries(); i++) {
-        num += countGeometries(gc.getGeometryN(i));
-      }
-      return num;
-    } else {
-      return 1;
-    }
+    return tile.layerCounts().entrySet().stream().map(layer -> {
+      var size = sizes.get(layer.getKey());
+      return new LayerStats(
+        layer.getKey(),
+        size == null ? -1 : size.bytes(),
+        layer.getValue().features(),
+        layer.getValue().geometries(),
+        size == null ? -1 : size.propertyBytes(),
+        layer.getValue().attrKeys(),
+        layer.getValue().attrValues()
+      );
+    }).sorted().toList();
   }
 
   @FunctionalInterface

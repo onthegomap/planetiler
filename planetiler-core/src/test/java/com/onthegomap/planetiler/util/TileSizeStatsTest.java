@@ -4,20 +4,17 @@ import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
-import org.maplibre.mlt.converter.ConversionConfig;
-import org.maplibre.mlt.converter.FeatureTableOptimizations;
-import org.maplibre.mlt.converter.MltConverter;
-import org.maplibre.mlt.converter.mvt.ColumnMapping;
-import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
-import org.maplibre.mlt.decoder.MltDecoder;
+import org.maplibre.mlt.ffi.MltConverter;
 
 class TileSizeStatsTest {
   @Test
@@ -131,21 +128,18 @@ class TileSizeStatsTest {
           Map.of("key1", "value1", "key2", 3)
         )
       ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
-    ColumnMappingConfig columnMappings = new ColumnMappingConfig();
-    var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
-    Map<String, FeatureTableOptimizations> optimizations = Map.of();
-    var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(false).useFastPFOR(false)
-      .optimizations(optimizations).build();
-    var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
-    var stats = TileSizeStats.computeMltTileStats(vectorTile, mltInput, mlt);
+    byte[] mlt;
+    try (var encoder = new MltLayerEncoder(PlanetilerConfig.defaults())) {
+      mlt = encoder.encode(vectorTile, true);
+    }
+    var stats = TileSizeStats.computeMltTileStats(vectorTile, mlt);
     assertEquals(2, stats.size());
     var entry1 = stats.getFirst();
     assertEquals("a", entry1.layer());
     assertEquals(2, entry1.layerFeatures());
-    assertEquals(85, entry1.layerBytes());
+    assertEquals(69, entry1.layerBytes());
 
-    assertEquals(41, entry1.layerAttrBytes());
+    assertEquals(28, entry1.layerAttrBytes());
     assertEquals(2, entry1.layerAttrKeys());
     assertEquals(3, entry1.layerAttrValues());
     var entry2 = stats.get(1);
@@ -156,7 +150,7 @@ class TileSizeStatsTest {
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_geometries	layer_attr_bytes	layer_attr_keys	layer_attr_values
-        3	1	2	34	999	a	85	2	2	41	2	3
+        3	1	2	34	999	a	69	2	2	28	2	3
         3	1	2	34	999	b	25	1	1	0	0	0
         """
         .trim(),
@@ -164,12 +158,41 @@ class TileSizeStatsTest {
   }
 
   @Test
+  void computeMltStatsOfLayerMissingFromEncodedTile() {
+    var tile = new VectorTile().addLayerFeatures("a", List.of(
+      new VectorTile.Feature("a", 1, VectorTile.encodeGeometry(newPoint(0, 0)), Map.of())));
+
+    var stats = TileSizeStats.computeMltTileStats(tile, new byte[0]);
+
+    assertEquals(List.of(new TileSizeStats.LayerStats("a", -1, 1, 1, -1, 0, 0)), stats);
+  }
+
+  @Test
+  void computeMltStatsSkipsLayersWithoutFeatures() {
+    var noGeometry = new VectorTile.VectorGeometry(new int[0], GeometryType.POINT, 0);
+    var tile = new VectorTile()
+      .addLayerFeatures("empty", List.of(new VectorTile.Feature("empty", 1, noGeometry, Map.of())))
+      .addLayerFeatures("a", List.of(
+        new VectorTile.Feature("a", 2, VectorTile.encodeGeometry(newPoint(0, 0)), Map.of())));
+    byte[] mlt;
+    try (var encoder = new MltLayerEncoder(PlanetilerConfig.defaults())) {
+      mlt = encoder.encode(tile, true);
+    }
+
+    var stats = TileSizeStats.computeMltTileStats(tile, mlt);
+
+    assertEquals(List.of("a"), stats.stream().map(TileSizeStats.LayerStats::layer).toList());
+  }
+
+  @Test
   void issue1470_computeMltFastPforStats() throws IOException {
     try (var is = Objects.requireNonNull(getClass().getResourceAsStream("/fastpfor.mlt"))) {
       var bytes = is.readAllBytes();
-      var mlt = MltDecoder.decodeMlTile(bytes);
-      var mvt = new MapboxVectorTile(mlt.layers());
-      TileSizeStats.computeMltTileStats(null, mvt, bytes);
+      var tile = new VectorTile();
+      VectorTile.decode(MltConverter.mltToMvt(bytes)).stream()
+        .collect(Collectors.groupingBy(VectorTile.Feature::layer))
+        .forEach(tile::addLayerFeatures);
+      TileSizeStats.computeMltTileStats(tile, bytes);
     }
   }
 
@@ -190,25 +213,20 @@ class TileSizeStatsTest {
           Map.of("key:1", "value2", "key:2", "value1")
         )
       ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
-    ColumnMappingConfig columnMappings =
-      ColumnMappingConfig.of(Pattern.compile(".*"), List.of(new ColumnMapping("key", ":", true)));
-    var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
-    var conversionConfig = ConversionConfig.builder().includeIds(true).useFSST(true).useFastPFOR(false)
-      .optimizations(
-        Map.of("a",
-          new FeatureTableOptimizations(false, false,
-            List.of(new ColumnMapping("key", ":", true)))))
-      .build();
-    var mlt = MltConverter.convertMvt(mltInput, tilesetMetadata, conversionConfig, null);
-    var stats = TileSizeStats.computeMltTileStats(vectorTile, mltInput, mlt);
+    // shared dictionaries make the native encoder group "key:1" and "key:2" into a nested struct column
+    var config = PlanetilerConfig.from(Arguments.of("tile_format", "mlt", "mlt_shared_dict", "true"));
+    byte[] mlt;
+    try (var encoder = new MltLayerEncoder(config)) {
+      mlt = encoder.encode(vectorTile, true);
+    }
+    var stats = TileSizeStats.computeMltTileStats(vectorTile, mlt);
     assertEquals(1, stats.size());
     var entry1 = stats.getFirst();
     assertEquals("a", entry1.layer());
     assertEquals(2, entry1.layerFeatures());
-    assertEquals(95, entry1.layerBytes());
+    assertEquals(79, entry1.layerBytes());
 
-    assertEquals(50, entry1.layerAttrBytes());
+    assertEquals(37, entry1.layerAttrBytes());
     assertEquals(2, entry1.layerAttrKeys());
     assertEquals(2, entry1.layerAttrValues());
 
@@ -216,7 +234,7 @@ class TileSizeStatsTest {
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_geometries	layer_attr_bytes	layer_attr_keys	layer_attr_values
-        3	1	2	34	999	a	95	2	2	50	2	2
+        3	1	2	34	999	a	79	2	2	37	2	2
         """
         .trim(),
       (TileSizeStats.headerRow() + String.join("", formatted)).trim());
