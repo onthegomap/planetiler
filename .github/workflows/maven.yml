@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         submodules: true
-    - name: Set up JDK 21
+    - name: Set up JDK 25
       uses: actions/setup-java@v6
       with:
         java-version: 25
@@ -65,7 +65,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         submodules: true
-    - name: Set up JDK 21
+    - name: Set up JDK 25
       uses: actions/setup-java@v6
       with:
         java-version: 25
