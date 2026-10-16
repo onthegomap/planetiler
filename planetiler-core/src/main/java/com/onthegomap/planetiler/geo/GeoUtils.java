@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.geotools.api.referencing.FactoryException;
@@ -48,9 +49,23 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
  */
 public class GeoUtils {
 
-  /** Rounding precision for 256x256px tiles encoded using 4096 values. */
-  public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
+  /**
+   * Rounding precision for 256x256px tiles encoded using {@code tile_extent} values (default 4096).
+   */
+  private static final AtomicReference<PrecisionModel> tilePrecision =
+    new AtomicReference<>(new PrecisionModel(4096d / 256d));
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+
+  public static PrecisionModel tilePrecision() {
+    return tilePrecision.get();
+  }
+
+  public static void setTileExtent(int tileExtent) {
+    if (tileExtent <= 0) {
+      throw new IllegalArgumentException("tile_extent must be > 0, got " + tileExtent);
+    }
+    tilePrecision.set(new PrecisionModel(tileExtent / 256d));
+  }
 
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
   public static final CoordinateSequence EMPTY_COORDINATE_SEQUENCE = new PackedCoordinateSequence.Double(0, 2, 0);
@@ -309,11 +324,11 @@ public class GeoUtils {
   }
 
   /**
-   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #tilePrecision()} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
   public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
+    return snapAndFixPolygon(geom, tilePrecision(), stats, stage);
   }
 
   private static class OrientationFixer extends GeometryTransformer {
