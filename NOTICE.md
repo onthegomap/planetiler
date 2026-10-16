@@ -59,6 +59,15 @@ The `planetiler-core` module includes the following software:
     "OpenMapTiles" with a link to http://openmaptiles.org/. More
     details [here](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md#design-license-cc-by-40)
 
+The single-file launcher binaries (`launcher/`, distributed on the releases page) also include:
+
+- A minimal Java runtime built with `jlink` from [Eclipse Temurin](https://adoptium.net/). OpenJDK is licensed under
+  [GPLv2 with the Classpath Exception](https://openjdk.org/legal/gplv2+ce.html); the license texts for
+  every bundled module, including third-party components such as the ones in `java.desktop`, are
+  in the runtime's `legal/` directory. Source for the exact release is available from
+  [Adoptium](https://github.com/adoptium) and [OpenJDK](https://github.com/openjdk).
+- The Go standard library (BSD 3-Clause License), statically linked into the launcher.
+
 ## Data
 
 |           source           |                                                        license                                                         | used as default | included in repo |
