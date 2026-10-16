@@ -19,7 +19,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>25</maven.compiler.release>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.22.2</jackson.version>
+    <jackson.version>2.22.3</jackson.version>
     <junit.version>6.1.2</junit.version>
     <mlt-ffi.version>0.1.37</mlt-ffi.version>
     <!-- 1.21 has some critical bug fixes but hasn't been release yet -->

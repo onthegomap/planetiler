@@ -225,11 +225,11 @@ class TileArchiveMetadataTest {
 
     var map = new TreeMap<>(metadata.toMap());
     System.err.println(map);
-    assertEquals("application/vnd.maplibre-vector-tile", map.get("format"));
+    assertEquals("application/vnd.maplibre-tile", map.get("format"));
     assertEquals(TileFormat.MLT, jsonMapperStrict.convertValue(map, TileArchiveMetadata.class).format());
 
     assertEquals(TileFormat.MLT, jsonMapperStrict.readValue("""
-      {"format": "application/vnd.maplibre-vector-tile"}
+      {"format": "application/vnd.maplibre-tile"}
       """, TileArchiveMetadata.class).format());
   }
 

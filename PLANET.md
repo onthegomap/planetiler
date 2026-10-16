@@ -88,7 +88,7 @@ running Ubuntu 21.04 x64 in the nyc3 location.
 First, I installed java 25 jre and screen:
 
 ```bash
-apt-get update && apt-get install -y openjdk-21-jre-headless screen
+apt-get update && apt-get install -y openjdk-25-jre-headless screen
 ```
 
 Then I added a script `runworld.sh` to run with 100GB of RAM:

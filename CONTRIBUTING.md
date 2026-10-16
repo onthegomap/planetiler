@@ -15,8 +15,8 @@ To set up your local development environment:
   use:
   - [Windows installer](https://adoptium.net/installation/windows)
   - [macOS installer](https://adoptium.net/installation/macOS) (or `brew install --cask temurin`,
-    or `port install openjdk21-temurin`)
-  - [Linux installer](https://adoptium.net/installation/linux) (or `apt-get install openjdk-21-jdk`)
+    or `port install openjdk25-temurin`)
+  - [Linux installer](https://adoptium.net/installation/linux) (or `apt-get install openjdk-25-jdk`)
   - If you update from an older version of java on Ubuntu, run `sudo update-alternatives --config java` after installing
     the new jdk.
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
