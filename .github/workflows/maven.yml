@@ -190,7 +190,7 @@ jobs:
       run: |
         set -euxo pipefail
         mkdir t && cd t
-        unzip ../dist/planetiler_*_windows_amd64.zip
+        mv ../dist/planetiler.exe ./planetiler.exe || unzip ../dist/planetiler_*_windows_amd64.zip
         ./planetiler.exe --jvm-args=-version 2>&1 | grep -i openjdk
         ./planetiler.exe --extract-jar && test -s planetiler.jar
         ./planetiler.exe --download --area=monaco --output=monaco.mbtiles --only-layers=poi
