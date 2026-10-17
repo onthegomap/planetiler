@@ -44,7 +44,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v6
       with:
-        java-version: 21
+        java-version: 25
         distribution: 'temurin'
         cache: 'maven'
     - uses: actions/setup-node@v7

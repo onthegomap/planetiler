@@ -668,7 +668,7 @@ public class Planetiler {
 
   public Translations translations() {
     if (translations == null) {
-      boolean transliterate = arguments.getBoolean("transliterate", "attempt to transliterate latin names", true);
+      boolean transliterate = arguments.getBoolean("transliterate", "attempt to transliterate latin names", false);
       List<String> languages = arguments.getList("languages",
         "Languages to include labels for. \"default\" expands to the default set of languages configured by the profile. \"-lang\" excludes \"lang\". \"*\" includes every language not listed.",
         this.defaultLanguages);
