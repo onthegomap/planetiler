@@ -76,7 +76,7 @@ planetiler --help
 
 An experimental single executable that bundles `planetiler.jar` and a minimal Java runtime, so you don't need to
 install Java. Download the one for your platform from the
-[latest release](https://github.com/onthegomap/planetiler/releases/latest), extract it, and run it.
+[latest snapshot release](https://github.com/onthegomap/planetiler/releases/latest-main), extract it, and run it.
 
 **macOS (Apple Silicon)**
 
