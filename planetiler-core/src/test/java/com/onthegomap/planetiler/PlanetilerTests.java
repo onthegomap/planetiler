@@ -1573,7 +1573,7 @@ class PlanetilerTests {
         with(new OsmElement.Relation(18), rel -> {
           rel.setTag("type", "relation");
           rel.setTag("name", "rel name");
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 17, "outer"));
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, 17, "outer"));
         })
       ),
       in -> in.hasTag("type", "relation") ?

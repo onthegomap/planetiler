@@ -886,6 +886,65 @@ class OsmReaderTest {
     ), feature1.relationInfo(TestRelInfo.class, true));
   }
 
+  @Test
+  void testMultipolygonInRelation() {
+    record BuildingRelationInfo(long id) implements OsmRelationInfo {}
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+        return relation.hasTag("type", "building") ? List.of(new BuildingRelationInfo(relation.id())) : null;
+      }
+    }, stats);
+    var way = new OsmElement.Way(5);
+    way.nodes().add(1, 2, 3, 1);
+    var multipolygon = new OsmElement.Relation(6);
+    multipolygon.setTag("type", "multipolygon");
+    multipolygon.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way.id(), "outer"));
+    var building = new OsmElement.Relation(7);
+    building.setTag("type", "building");
+    building.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, multipolygon.id(), "outline"));
+    List<OsmElement> elements = List.of(node(1, 0.1, 0.1), node(2, 0.9, 0.1), node(3, 0.9, 0.9), way, multipolygon,
+      building);
+
+    processPass1Block(reader, elements);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(w -> reader.processWayPass2(w, nodeCache));
+    var feature = reader.processRelationPass2(multipolygon, nodeCache);
+
+    assertEquals(List.of(new OsmReader.RelationMember<>("outline", new BuildingRelationInfo(7), List.of())),
+      feature.relationInfo(BuildingRelationInfo.class));
+  }
+
+  @Test
+  void testMultipolygonDoesNotGetRelationsOfWayWithSameId() {
+    record BuildingRelationInfo(long id) implements OsmRelationInfo {}
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
+      @Override
+      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+        return relation.hasTag("type", "building") ? List.of(new BuildingRelationInfo(relation.id())) : null;
+      }
+    }, stats);
+    var way = new OsmElement.Way(6);
+    way.nodes().add(1, 2, 3, 1);
+    var multipolygon = new OsmElement.Relation(6);
+    multipolygon.setTag("type", "multipolygon");
+    multipolygon.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way.id(), "outer"));
+    var building = new OsmElement.Relation(7);
+    building.setTag("type", "building");
+    building.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, way.id(), "outline"));
+    List<OsmElement> elements = List.of(node(1, 0.1, 0.1), node(2, 0.9, 0.1), node(3, 0.9, 0.9), way, multipolygon,
+      building);
+
+    processPass1Block(reader, elements);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(w -> reader.processWayPass2(w, nodeCache));
+    var feature = reader.processRelationPass2(multipolygon, nodeCache);
+
+    assertEquals(List.of(), feature.relationInfo(BuildingRelationInfo.class));
+  }
+
   private OsmReader newOsmReader() {
     return new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, profile, stats);
   }
