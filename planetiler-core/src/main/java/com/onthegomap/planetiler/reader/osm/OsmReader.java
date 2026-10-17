@@ -553,7 +553,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     // Relation info gets used during way processing, except multipolygons which we have to process after we've
     // stored all the node IDs for each way.
     if (isMultipolygon(rel)) {
-      List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.id());
+      List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForRelation(rel.id());
       return new MultipolygonSourceFeature(rel, nodeLocations, parentRelations);
     } else {
       return null;
@@ -583,6 +583,20 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited, List.of(parsed.relationId())));
         }
       }
+    }
+    return rels;
+  }
+
+  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForRelation(long relationId) {
+    LongArrayList parentRelations = relationToParentRelations.get(relationId);
+    if (parentRelations.isEmpty()) {
+      return null;
+    }
+    List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
+    for (int p = 0; p < parentRelations.size(); p++) {
+      var visited = new HashSet<Long>();
+      visited.add(relationId);
+      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited, List.of()));
     }
     return rels;
   }
