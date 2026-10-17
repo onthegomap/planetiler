@@ -58,12 +58,12 @@ planetiler --download --area=monaco --output=monaco.pmtiles \
 
 ## Install
 
-|                    Method                     | Needs Java? |                 Good for                 |                 Command to run                 |
-|-----------------------------------------------|-------------|------------------------------------------|------------------------------------------------|
-| [Homebrew](#homebrew)                         | no          | macOS and Linux desktops                 | `planetiler`                                   |
-| [Single-file launcher](#single-file-launcher) | no          | any platform, servers, CI (experimental) | `./planetiler` (`.\planetiler.exe` on Windows) |
-| [Jar](#jar)                                   | Java 25+    | existing Java setups, custom profiles    | `java -jar planetiler.jar`                     |
-| [Docker](#docker)                             | no          | containers                               | `docker run ... ghcr.io/onthegomap/planetiler` |
+|                    Method                     | Needs Java? |                   Good for                    |                 Command to run                 |
+|-----------------------------------------------|-------------|-----------------------------------------------|------------------------------------------------|
+| [Homebrew](#homebrew)                         | no          | macOS and Linux desktops                      | `planetiler`                                   |
+| [Single-file launcher](#single-file-launcher) | no          | supported platforms or servers (experimental) | `./planetiler` (`.\planetiler.exe` on Windows) |
+| [Jar](#jar)                                   | Java 25+    | existing Java setups, custom profiles         | `java -jar planetiler.jar`                     |
+| [Docker](#docker)                             | no          | containers                                    | `docker run ... ghcr.io/onthegomap/planetiler` |
 
 ### Homebrew
 
