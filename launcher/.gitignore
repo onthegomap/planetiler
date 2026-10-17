@@ -1,0 +1,6 @@
+# go builder
+payload_*
+dist/
+build/
+.cache/
+smoke.mbtiles

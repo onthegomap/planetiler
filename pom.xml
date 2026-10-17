@@ -206,6 +206,7 @@
             <excludes>
               <exclude>**/target/**</exclude>
               <exclude>planetiler-openmaptiles/**</exclude>
+              <exclude>launcher/**</exclude>
             </excludes>
             <flexmark/>
           </markdown>

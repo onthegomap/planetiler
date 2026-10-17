@@ -109,6 +109,28 @@ jobs:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
 
+    # JDK + jmods downloads (~1 GB). Version pinned explicitly in Makefile, so cache until
+    # that changes
+    - uses: actions/cache@v4
+      with:
+        path: launcher/.cache
+        key: jdk-${{ hashFiles('launcher/Makefile') }}
+
+    - run: make -C launcher JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
+
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/planetiler_*_linux_amd64.tar.gz, archive: false }
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/planetiler_*_linux_arm64.tar.gz, archive: false }
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/planetiler_*_darwin_amd64.tar.gz, archive: false }
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/planetiler_*_darwin_arm64.tar.gz, archive: false }
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/planetiler_*_windows_amd64.zip, archive: false }
+    - uses: actions/upload-artifact@v7
+      with: { path: launcher/dist/checksums.txt, archive: false }
+
     - name: Download data (java)
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
       with:
@@ -127,6 +149,49 @@ jobs:
       run: ./scripts/test-release.sh CI_ONLY
       env:
         SKIP_EXAMPLE_PROJECT: true
+
+  smoke-macos:
+    needs: run
+    runs-on: macos-latest
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: planetiler_*_darwin_arm64.tar.gz
+        merge-multiple: true
+        path: dist
+    - run: ls -R dist
+      shell: bash
+    - name: Smoke test
+      run: |
+        set -euxo pipefail
+        mkdir t && cd t
+        tar -xzf ../dist/planetiler_*_darwin_arm64.tar.gz
+        ./planetiler --jvm-args=-version 2>&1 | grep -i openjdk
+        ./planetiler --extract-jar && test -s planetiler.jar
+        ./planetiler --download --area=monaco --output=monaco.mbtiles --only-layers=poi
+        test -s monaco.mbtiles
+
+  smoke-windows:
+    needs: run
+    runs-on: windows-latest
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: planetiler_*_windows_amd64.zip
+        merge-multiple: true
+        path: dist
+    - run: ls -R dist
+      shell: bash
+    - name: Smoke test
+      shell: bash
+      run: |
+        set -euxo pipefail
+        mkdir t && cd t
+        mv ../dist/planetiler.exe ./planetiler.exe || unzip ../dist/planetiler_*_windows_amd64.zip
+        ./planetiler.exe --jvm-args=-version 2>&1 | grep -i openjdk
+        ./planetiler.exe --extract-jar && test -s planetiler.jar
+        ./planetiler.exe --download --area=monaco --output=monaco.mbtiles --only-layers=poi
+        test -s monaco.mbtiles
 
   quickstart:
     name: Quickstart script
