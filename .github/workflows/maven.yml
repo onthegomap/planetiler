@@ -109,15 +109,12 @@ jobs:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
 
-    - id: month
-      run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
-
     # JDK + jmods downloads (~1 GB). The month in the key means a newer JDK release
     # gets picked up about once a month; the Makefile caches the chosen tag in here too.
     - uses: actions/cache@v4
       with:
         path: launcher/.cache
-        key: jdk-${{ steps.month.outputs.value }}
+        key: jdk-${{ hashFiles('launcher/Makefile') }}
 
     - run: make -C launcher JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
 

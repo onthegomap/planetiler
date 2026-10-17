@@ -76,12 +76,10 @@ jobs:
       with:
         name: planetiler-build
         path: build-jar
-    - id: month
-      run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
     - uses: actions/cache@v4
       with:
         path: launcher/.cache
-        key: jdk-${{ steps.month.outputs.value }}
+        key: jdk-${{ hashFiles('launcher/Makefile') }}
     - name: Build launchers
       run: make -C launcher VERSION=snapshot JAR="$(realpath build-jar/*with-deps.jar)"
     - name: Publish rolling release
