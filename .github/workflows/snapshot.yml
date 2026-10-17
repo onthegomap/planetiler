@@ -89,10 +89,16 @@ jobs:
       run: |
         set -euxo pipefail
         cp build-jar/*with-deps.jar launcher/dist/planetiler.jar
+        # point the tag at this commit (no-op for watchers; only publishing a release notifies)
+        git tag -f latest-main "$GITHUB_SHA"
+        git push -f origin latest-main
         cd launcher/dist
         sha256sum planetiler* > checksums.txt
-        gh release delete latest-main --cleanup-tag --yes || true
-        gh release create latest-main * \
-          --prerelease --target "$GITHUB_SHA" \
-          --title "Latest main build" \
-          --notes "Automated, unreleased build of ${GITHUB_SHA}. Experimental; use a tagged release for production."
+        notes="Automated, unreleased build of ${GITHUB_SHA}. Experimental; use a tagged release for production."
+        if gh release view latest-main >/dev/null 2>&1; then
+          gh release upload latest-main * --clobber
+          gh release edit latest-main --notes "$notes"
+        else
+          gh release create latest-main * --prerelease --verify-tag \
+            --title "Latest main build" --notes "$notes"
+        fi
