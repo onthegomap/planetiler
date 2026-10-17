@@ -109,8 +109,8 @@ jobs:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
 
-    # JDK + jmods downloads (~1 GB). The month in the key means a newer JDK release
-    # gets picked up about once a month; the Makefile caches the chosen tag in here too.
+    # JDK + jmods downloads (~1 GB). Version pinned explicitly in Makefile, so cache until
+    # that changes
     - uses: actions/cache@v4
       with:
         path: launcher/.cache
