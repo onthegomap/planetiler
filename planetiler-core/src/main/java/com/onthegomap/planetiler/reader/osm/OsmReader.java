@@ -545,7 +545,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     // area tag used to differentiate between whether a closed way should be treated as a polygon or linestring
     String area = way.getString("area");
-    List<RelationMember<OsmRelationInfo>> rels = getRelationMembershipForWay(way.id());
+    List<RelationMember<OsmRelationInfo>> rels = getRelationMemberships(wayToRelations.get(way.id()));
     return new WaySourceFeature(way, closed, area, nodeLocations, rels);
   }
 
@@ -553,15 +553,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     // Relation info gets used during way processing, except multipolygons which we have to process after we've
     // stored all the node IDs for each way.
     if (isMultipolygon(rel)) {
-      List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForRelation(rel.id());
+      List<RelationMember<OsmRelationInfo>> parentRelations =
+        getRelationMemberships(relationToParentRelations.get(rel.id()));
       return new MultipolygonSourceFeature(rel, nodeLocations, parentRelations);
     } else {
       return null;
     }
   }
 
-  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForWay(long wayId) {
-    LongArrayList relationIds = wayToRelations.get(wayId);
+  private List<RelationMember<OsmRelationInfo>> getRelationMemberships(LongArrayList relationIds) {
     List<RelationMember<OsmRelationInfo>> rels = null;
     if (!relationIds.isEmpty()) {
       rels = new ArrayList<>(relationIds.size());
@@ -583,20 +583,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited, List.of(parsed.relationId())));
         }
       }
-    }
-    return rels;
-  }
-
-  private List<RelationMember<OsmRelationInfo>> getRelationMembershipForRelation(long relationId) {
-    LongArrayList parentRelations = relationToParentRelations.get(relationId);
-    if (parentRelations.isEmpty()) {
-      return null;
-    }
-    List<RelationMember<OsmRelationInfo>> rels = new ArrayList<>(parentRelations.size());
-    for (int p = 0; p < parentRelations.size(); p++) {
-      var visited = new HashSet<Long>();
-      visited.add(relationId);
-      rels.addAll(getRelationInfosForRelationId(parentRelations.get(p), visited, List.of()));
     }
     return rels;
   }
