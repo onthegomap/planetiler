@@ -76,7 +76,7 @@ jobs:
       with:
         name: planetiler-build
         path: build-jar
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       with:
         path: launcher/.cache
         key: jdk-${{ hashFiles('launcher/Makefile') }}
