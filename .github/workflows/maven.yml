@@ -111,7 +111,7 @@ jobs:
 
     # JDK + jmods downloads (~1 GB). Version pinned explicitly in Makefile, so cache until
     # that changes
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       with:
         path: launcher/.cache
         key: jdk-${{ hashFiles('launcher/Makefile') }}
