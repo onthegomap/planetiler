@@ -606,10 +606,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * For symbols (text/icons) where clients try to avoid label collisions, features are placed in the order they
      * appear in each layer, so features that appear earlier (lower sort key) will show up at lower zoom levels than
      * feature that appear later (higher sort key) in a layer.
+     *
+     * @throws IllegalArgumentException if {@code sortKey} is outside [{@link FeatureGroup#SORT_KEY_MIN},
+     *                                  {@link FeatureGroup#SORT_KEY_MAX}]
      */
     public Feature setSortKey(int sortKey) {
-      assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX : "Sort key " + sortKey +
-        " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " + FeatureGroup.SORT_KEY_MAX + "]";
+      if (sortKey < FeatureGroup.SORT_KEY_MIN || sortKey > FeatureGroup.SORT_KEY_MAX) {
+        throw new IllegalArgumentException("Sort key " + sortKey +
+          " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " + FeatureGroup.SORT_KEY_MAX + "]");
+      }
       this.sortKey = sortKey;
       return this;
     }

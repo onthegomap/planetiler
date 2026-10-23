@@ -3,8 +3,11 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -922,5 +925,47 @@ class FeatureCollectorTest {
     assertEquals(0, sourceLine.lengthMeters());
     assertEquals(0, sourceLine.sizeMeters());
     assertEquals(0, sourceLine.areaMeters());
+  }
+
+  @Test
+  void testSetSortKeyAcceptsValuesInsideRange() {
+    var feature = factory.get(newReaderFeature(newPoint(0, 0), Map.of())).point("layer");
+    for (int sortKey : new int[] {FeatureGroup.SORT_KEY_MIN, -1_000_000, 0, 1_000_000, FeatureGroup.SORT_KEY_MAX}) {
+      assertSame(feature, feature.setSortKey(sortKey));
+      assertEquals(sortKey, feature.getSortKey());
+    }
+  }
+
+  @Test
+  void testSetSortKeyRejectsValuesOutsideRange() {
+    var feature = factory.get(newReaderFeature(newPoint(0, 0), Map.of())).point("layer");
+    for (int sortKey : new int[] {
+      FeatureGroup.SORT_KEY_MIN - 1, FeatureGroup.SORT_KEY_MAX + 1, Integer.MIN_VALUE, Integer.MAX_VALUE, -4_402_075
+    }) {
+      feature.setSortKey(3);
+      var exception = assertThrows(IllegalArgumentException.class, () -> feature.setSortKey(sortKey));
+      assertEquals(3, feature.getSortKey());
+      assertEquals("Sort key " + sortKey + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " +
+        FeatureGroup.SORT_KEY_MAX + "]", exception.getMessage());
+    }
+  }
+
+  @Test
+  void testSetSortKeyDescendingReversesEndpointsAndRejectsOutOfRange() {
+    var feature = factory.get(newReaderFeature(newPoint(0, 0), Map.of())).point("layer");
+    assertSame(feature, feature.setSortKeyDescending(FeatureGroup.SORT_KEY_MIN));
+    assertEquals(FeatureGroup.SORT_KEY_MAX, feature.getSortKey());
+    assertSame(feature, feature.setSortKeyDescending(FeatureGroup.SORT_KEY_MAX));
+    assertEquals(FeatureGroup.SORT_KEY_MIN, feature.getSortKey());
+
+    for (int sortKey : new int[] {
+      FeatureGroup.SORT_KEY_MIN - 1, FeatureGroup.SORT_KEY_MAX + 1, Integer.MIN_VALUE, Integer.MAX_VALUE
+    }) {
+      feature.setSortKey(3);
+      var exception = assertThrows(IllegalArgumentException.class, () -> feature.setSortKeyDescending(sortKey));
+      assertEquals(3, feature.getSortKey());
+      assertEquals("Sort key " + (-1 - sortKey) + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " +
+        FeatureGroup.SORT_KEY_MAX + "]", exception.getMessage());
+    }
   }
 }
