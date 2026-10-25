@@ -4,7 +4,6 @@ import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -937,35 +936,38 @@ class FeatureCollectorTest {
   }
 
   @Test
-  void testSetSortKeyRejectsValuesOutsideRange() {
+  void testSetSortKeyClampsValuesOutsideRange() {
     var feature = factory.get(newReaderFeature(newPoint(0, 0), Map.of())).point("layer");
-    for (int sortKey : new int[] {
-      FeatureGroup.SORT_KEY_MIN - 1, FeatureGroup.SORT_KEY_MAX + 1, Integer.MIN_VALUE, Integer.MAX_VALUE, -4_402_075
-    }) {
+    for (int sortKey : new int[] {FeatureGroup.SORT_KEY_MIN - 1, Integer.MIN_VALUE, -4_402_075}) {
       feature.setSortKey(3);
-      var exception = assertThrows(IllegalArgumentException.class, () -> feature.setSortKey(sortKey));
-      assertEquals(3, feature.getSortKey());
-      assertEquals("Sort key " + sortKey + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " +
-        FeatureGroup.SORT_KEY_MAX + "]", exception.getMessage());
+      assertSame(feature, feature.setSortKey(sortKey));
+      assertEquals(FeatureGroup.SORT_KEY_MIN, feature.getSortKey());
+    }
+    for (int sortKey : new int[] {FeatureGroup.SORT_KEY_MAX + 1, Integer.MAX_VALUE}) {
+      feature.setSortKey(3);
+      assertSame(feature, feature.setSortKey(sortKey));
+      assertEquals(FeatureGroup.SORT_KEY_MAX, feature.getSortKey());
     }
   }
 
   @Test
-  void testSetSortKeyDescendingReversesEndpointsAndRejectsOutOfRange() {
+  void testSetSortKeyDescendingReversesEndpointsAndClampsOutOfRange() {
     var feature = factory.get(newReaderFeature(newPoint(0, 0), Map.of())).point("layer");
     assertSame(feature, feature.setSortKeyDescending(FeatureGroup.SORT_KEY_MIN));
     assertEquals(FeatureGroup.SORT_KEY_MAX, feature.getSortKey());
     assertSame(feature, feature.setSortKeyDescending(FeatureGroup.SORT_KEY_MAX));
     assertEquals(FeatureGroup.SORT_KEY_MIN, feature.getSortKey());
 
-    for (int sortKey : new int[] {
-      FeatureGroup.SORT_KEY_MIN - 1, FeatureGroup.SORT_KEY_MAX + 1, Integer.MIN_VALUE, Integer.MAX_VALUE
-    }) {
+    // below the range reverses to above it, so it clamps to the max, and the other way around
+    for (int sortKey : new int[] {FeatureGroup.SORT_KEY_MIN - 1, Integer.MIN_VALUE}) {
       feature.setSortKey(3);
-      var exception = assertThrows(IllegalArgumentException.class, () -> feature.setSortKeyDescending(sortKey));
-      assertEquals(3, feature.getSortKey());
-      assertEquals("Sort key " + (-1 - sortKey) + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " +
-        FeatureGroup.SORT_KEY_MAX + "]", exception.getMessage());
+      assertSame(feature, feature.setSortKeyDescending(sortKey));
+      assertEquals(FeatureGroup.SORT_KEY_MAX, feature.getSortKey());
+    }
+    for (int sortKey : new int[] {FeatureGroup.SORT_KEY_MAX + 1, Integer.MAX_VALUE}) {
+      feature.setSortKey(3);
+      assertSame(feature, feature.setSortKeyDescending(sortKey));
+      assertEquals(FeatureGroup.SORT_KEY_MIN, feature.getSortKey());
     }
   }
 }
