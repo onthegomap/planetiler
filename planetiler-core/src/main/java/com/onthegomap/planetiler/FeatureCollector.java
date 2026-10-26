@@ -23,9 +23,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility that {@link Profile} implementations use to build map features that should be emitted for an input source
@@ -43,7 +47,9 @@ import org.locationtech.jts.geom.Geometry;
  */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureCollector.class);
   private static final Geometry EMPTY_GEOM = GeoUtils.JTS_FACTORY.createGeometryCollection();
+  private static final Set<String> LAYERS_WITH_CLAMPED_SORT_KEY = ConcurrentHashMap.newKeySet();
 
   private final SourceFeature source;
   private final List<Feature> output = new ArrayList<>();
@@ -606,11 +612,19 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * For symbols (text/icons) where clients try to avoid label collisions, features are placed in the order they
      * appear in each layer, so features that appear earlier (lower sort key) will show up at lower zoom levels than
      * feature that appear later (higher sort key) in a layer.
+     * <p>
+     * A sort key outside [{@link FeatureGroup#SORT_KEY_MIN}, {@link FeatureGroup#SORT_KEY_MAX}] is clamped to the
+     * nearest end of that range, and an error is logged the first time that happens for each layer.
      */
     public Feature setSortKey(int sortKey) {
-      assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX : "Sort key " + sortKey +
-        " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " + FeatureGroup.SORT_KEY_MAX + "]";
-      this.sortKey = sortKey;
+      int clamped = Math.clamp(sortKey, FeatureGroup.SORT_KEY_MIN, FeatureGroup.SORT_KEY_MAX);
+      if (clamped != sortKey && LAYERS_WITH_CLAMPED_SORT_KEY.add(layer)) {
+        LOGGER.error(
+          "Sort key {} in layer {} is outside of allowed range [{}, {}], clamping to {} (logged once per layer)",
+          sortKey, layer, FeatureGroup.SORT_KEY_MIN, FeatureGroup.SORT_KEY_MAX, clamped);
+      }
+      assert clamped == sortKey; // ensure unit tests fail fast in this case
+      this.sortKey = clamped;
       return this;
     }
 
