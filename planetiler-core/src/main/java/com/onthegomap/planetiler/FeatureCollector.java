@@ -622,8 +622,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         LOGGER.error(
           "Sort key {} in layer {} is outside of allowed range [{}, {}], clamping to {} (logged once per layer)",
           sortKey, layer, FeatureGroup.SORT_KEY_MIN, FeatureGroup.SORT_KEY_MAX, clamped);
-        assert false; // ensure unit tests fail fast in this case
       }
+      assert clamped == sortKey; // ensure unit tests fail fast in this case
       this.sortKey = clamped;
       return this;
     }
