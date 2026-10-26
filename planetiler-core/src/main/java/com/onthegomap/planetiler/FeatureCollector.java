@@ -619,8 +619,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setSortKey(int sortKey) {
       int clamped = Math.clamp(sortKey, FeatureGroup.SORT_KEY_MIN, FeatureGroup.SORT_KEY_MAX);
       if (clamped != sortKey && LAYERS_WITH_CLAMPED_SORT_KEY.add(layer)) {
-        LOGGER.error("Sort key {} in layer {} is outside of allowed range [{}, {}], clamping to {} (logged once per layer)",
+        LOGGER.error(
+          "Sort key {} in layer {} is outside of allowed range [{}, {}], clamping to {} (logged once per layer)",
           sortKey, layer, FeatureGroup.SORT_KEY_MIN, FeatureGroup.SORT_KEY_MAX, clamped);
+        assert false; // ensure unit tests fail fast in this case
       }
       this.sortKey = clamped;
       return this;
