@@ -120,6 +120,49 @@ class FeatureGroupTest {
   private record Feature(Map<String, Object> attrs, Geometry geom) {}
 
   @Test
+  void testFeatureOrderDoesNotDependOnStringEncodingOrder() {
+    assertEquals(
+      featureOrderAfterEncodingKeysInOrder("a", "b"),
+      featureOrderAfterEncodingKeysInOrder("b", "a")
+    );
+  }
+
+  /**
+   * Writing features from several threads assigns string IDs in a different order each run, so encode keys in a
+   * specific order first, then return the order of tied features in another tile.
+   */
+  private List<Map<String, Object>> featureOrderAfterEncodingKeysInOrder(String... keys) {
+    var sorter = FeatureSort.newInMemory();
+    var group = new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile(), config, Stats.inMemory());
+    var encoder = group.newRenderedFeatureEncoder();
+    try (var writer = group.writerForThread()) {
+      for (String key : keys) {
+        writer.accept(encoder.apply(new RenderedFeature(TileCoord.ofXYZ(0, 0, 0),
+          new VectorTile.Feature("layer", 1, VectorTile.encodeGeometry(newPoint(1, 2)), Map.of(key, 1)), 0,
+          Optional.empty())));
+      }
+      // features that tie on everything before their attributes: same tile, layer, sort key, ID and geometry type
+      for (String key : List.of("a", "b")) {
+        writer.accept(encoder.apply(new RenderedFeature(TileCoord.ofXYZ(1, 1, 1),
+          new VectorTile.Feature("layer", 2, VectorTile.encodeGeometry(newPoint(3, 4)), Map.of(key, 1)), 0,
+          Optional.empty())));
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+    sorter.sort();
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (var tile : group) {
+      if (tile.tileCoord().equals(TileCoord.ofXYZ(1, 1, 1))) {
+        for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
+          result.add(feature.tags());
+        }
+      }
+    }
+    return result;
+  }
+
+  @Test
   void testPutPoints() {
     put(3, "layer3", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
     put(3, "layer4", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));

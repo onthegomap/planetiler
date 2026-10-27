@@ -56,6 +56,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -1818,6 +1819,57 @@ class PlanetilerTests {
         ))
       )
     )), sortListValues(results.tiles));
+  }
+
+  @Test
+  void testOsmRelationInfoOrderDoesNotDependOnRelationProcessingOrder() throws Exception {
+    // Pass 1 processes relations from several threads when the node map supports parallel writes, so the order it sees
+    // them in changes from run to run. Processing them out of order from a single thread reproduces that reliably.
+    List<OsmElement.Relation> relations = List.of(
+      // way 5 is in relations 1-3, and relation 4 which is in relations 6-8
+      routeRelationWithMembers(1, OsmElement.Type.WAY, 5, "a"),
+      routeRelationWithMembers(2, OsmElement.Type.WAY, 5, "b"),
+      routeRelationWithMembers(3, OsmElement.Type.WAY, 5, "c"),
+      routeRelationWithMembers(4, OsmElement.Type.WAY, 5, "d"),
+      routeRelationWithMembers(6, OsmElement.Type.RELATION, 4, "e"),
+      routeRelationWithMembers(7, OsmElement.Type.RELATION, 4, "f"),
+      routeRelationWithMembers(8, OsmElement.Type.RELATION, 4, "g")
+    );
+    String inIdOrder = relationInfoOrderForWay(relations);
+    assertEquals(inIdOrder, relationInfoOrderForWay(relations.reversed()));
+    assertEquals(inIdOrder, relationInfoOrderForWay(List.of(
+      relations.get(2), relations.get(5), relations.get(0), relations.get(3),
+      relations.get(6), relations.get(1), relations.get(4)
+    )));
+  }
+
+  private static OsmElement.Relation routeRelationWithMembers(long id, OsmElement.Type type, long ref, String role) {
+    var relation = new OsmElement.Relation(id);
+    relation.setTag("type", "route");
+    relation.members().add(new OsmElement.Relation.Member(type, ref, role));
+    return relation;
+  }
+
+  /** Returns the relation IDs and roles that way 5 sees (including super-relations), in the order they are returned. */
+  private String relationInfoOrderForWay(List<OsmElement.Relation> relations) throws Exception {
+    record TestRelationInfo(long id) implements OsmRelationInfo {}
+    List<OsmElement> elements = new ArrayList<>(List.of(
+      new OsmElement.Node(1, 0, 0),
+      new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
+      with(new OsmElement.Way(5), way -> way.nodes().add(1, 2))
+    ));
+    elements.addAll(relations);
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      elements,
+      relation -> List.of(new TestRelationInfo(relation.id())),
+      (in, features) -> features.line("layer")
+        .setZoomRange(0, 0)
+        .setAttr("relations", in.relationInfo(TestRelationInfo.class, true).stream()
+          .map(member -> member.relation().id() + ":" + member.role())
+          .collect(Collectors.joining(",")))
+    );
+    return (String) results.tiles.get(TileCoord.ofXYZ(0, 0, 0)).getFirst().attrs().get("relations");
   }
 
   @Test

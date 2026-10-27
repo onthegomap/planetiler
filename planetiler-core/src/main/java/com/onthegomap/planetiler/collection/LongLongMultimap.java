@@ -39,7 +39,19 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
 
   /** Returns a new multimap where each write adds a value for the given key. */
   static Appendable newAppendableMultimap() {
-    return new SparseUnorderedBinarySearchMultimap();
+    return new SparseUnorderedBinarySearchMultimap(0);
+  }
+
+  /**
+   * Returns a new multimap like {@link #newAppendableMultimap()} that returns each key's values sorted by
+   * {@code value & orderMask}, with values that tie on those bits in the order they were written.
+   * <p>
+   * Useful to keep reads deterministic when values get written from several threads.
+   *
+   * @param orderMask bits of each value that determine its order
+   */
+  static Appendable newAppendableMultimap(long orderMask) {
+    return new SparseUnorderedBinarySearchMultimap(orderMask);
   }
 
   /**
@@ -137,7 +149,12 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
     private final LongArrayList keys = new LongArrayList();
     private final LongArrayList values = new LongArrayList();
+    private final long orderMask;
     private volatile boolean prepared = false;
+
+    private SparseUnorderedBinarySearchMultimap(long orderMask) {
+      this.orderMask = orderMask;
+    }
 
     @Override
     public void put(long key, long val) {
@@ -195,9 +212,28 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
           sortedValues[to++] = values.get(from++);
         }
       }
+      if (orderMask != 0) {
+        sortValuesWithinKeys(sortedKeys, sortedValues, orderMask);
+      }
       keys.buffer = sortedKeys;
       values.buffer = sortedValues;
       LOGGER.debug("Sorted long long multimap {}", timer.stop());
+    }
+
+    /** Stably sorts the values of each run of equal keys by {@code value & mask}. */
+    private static void sortValuesWithinKeys(long[] keys, long[] values, long mask) {
+      // insertion sort: runs are short (the relations a way belongs to) and it is stable without boxing. Keys are
+      // already sorted, so stopping at a different key keeps each value within its own key's run.
+      for (int i = 1; i < keys.length; i++) {
+        long key = keys[i];
+        long value = values[i];
+        long order = value & mask;
+        int j = i - 1;
+        for (; j >= 0 && keys[j] == key && (values[j] & mask) > order; j--) {
+          values[j + 1] = values[j];
+        }
+        values[j + 1] = value;
+      }
     }
 
     @Override

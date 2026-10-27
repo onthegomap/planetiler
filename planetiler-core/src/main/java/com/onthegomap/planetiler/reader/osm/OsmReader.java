@@ -85,11 +85,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   // need to store route info to use later when processing ways
   // <~500mb
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
+  // Pass 1 can process relations from several threads, which append to these in a different order every run, so
+  // order values by relation ID (not role, since role IDs are also assigned in a different order each time planetiler
+  // runs) to keep output deterministic between runs
   // ~800mb, ~1.6GB when sorting
-  private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap();
+  private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap(NOT_ROLE_MASK);
 
   // ~20mb or ~40mb while sorting
-  private LongLongMultimap.Appendable relationToParentRelations = LongLongMultimap.newAppendableMultimap();
+  private LongLongMultimap.Appendable relationToParentRelations =
+    LongLongMultimap.newAppendableMultimap(NOT_ROLE_MASK);
 
   private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)

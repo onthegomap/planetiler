@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -168,7 +169,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to indicate whether the
    * value contains grouping information.
    *
-   * <p>Bit layout (64 bits total):
+   * <p>
+   * Bit layout (64 bits total):
+   *
    * <pre>
    * [tile: 33 bits (63-31)][layer: 8 bits (30-23)][sortKey: 22 bits (22-1)][hasGroup: 1 bit (0)]
    * </pre>
@@ -279,6 +282,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         packer.packLong(group.group());
         packer.packInt(group.limit());
       }
+      // everything written before the attributes must be compared in sameEncodingBeforeAttributes
       packer.packLong(vectorTileFeature.id());
       packer.packByte(encodeGeomTypeAndScale(vectorTileFeature.geometry()));
       var attrs = vectorTileFeature.tags();
@@ -310,6 +314,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       throw new IllegalStateException(e);
     }
     return packer.toByteArray();
+  }
+
+  /**
+   * Returns true if {@link #encodeValue} writes the same bytes for both features up to their attributes, so their
+   * relative order depends on attribute key IDs. Keep in sync with {@link #encodeValue}.
+   */
+  private static boolean sameEncodingBeforeAttributes(VectorTile.Feature a, VectorTile.Feature b) {
+    return a.group() == b.group() &&
+      a.id() == b.id() &&
+      a.geometry().geomType() == b.geometry().geomType() &&
+      a.geometry().scale() == b.geometry().scale() &&
+      a.tags().size() == b.tags().size();
   }
 
   /** Returns a new feature writer that can be used for a single thread. */
@@ -396,6 +412,15 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   public int chunksToRead() {
     return sorter.chunksToRead();
+  }
+
+  // Allocating an array inside the comparator is fine because tied features that differ only by attributes are very
+  // rare, only a handful of instances on the planet and 0 on smaller extracts
+  private static final Comparator<VectorTile.Feature> BY_ATTRIBUTE_KEYS =
+    (a, b) -> Arrays.compare(sortedKeys(a), sortedKeys(b));
+
+  private static String[] sortedKeys(VectorTile.Feature feature) {
+    return feature.tags().keySet().stream().sorted().toArray(String[]::new);
   }
 
   public static TileCoord getCurrentTileForDebugging() {
@@ -524,6 +549,30 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
     }
 
+    /**
+     * Features are sorted by their encoded bytes, so features that tie on everything before their attributes get
+     * ordered by attribute key IDs, which writer threads assign first come, first served. Reorder runs of those by
+     * attribute key names so the output does not depend on thread timing.
+     */
+    private void orderTiesByAttributeKeys(List<VectorTile.Feature> features) {
+      int start = 0;
+      boolean keysDiffer = false;
+      for (int i = 1; i <= features.size(); i++) {
+        // the entry key holds the layer and sort key, which decoded features don't have
+        if (i < features.size() && entries.get(start).key() == entries.get(i).key() &&
+          sameEncodingBeforeAttributes(features.get(start), features.get(i))) {
+          keysDiffer |= !features.get(start).tags().keySet().equals(features.get(i).tags().keySet());
+        } else {
+          if (keysDiffer) {
+            // stable, and only for runs that need it, so order is unchanged for everything already deterministic
+            features.subList(start, i).sort(BY_ATTRIBUTE_KEYS);
+          }
+          start = i;
+          keysDiffer = false;
+        }
+      }
+    }
+
     public VectorTile getVectorTile() {
       return getVectorTile(null);
     }
@@ -540,8 +589,12 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         List<VectorTile.Feature> items = new ArrayList<>();
         String currentLayer = null;
         Map<String, List<VectorTile.Feature>> layerFeatures = new TreeMap<>();
+        List<VectorTile.Feature> decoded = new ArrayList<>(entries.size());
         for (SortableFeature entry : entries) {
-          var feature = decodeVectorTileFeature(entry);
+          decoded.add(decodeVectorTileFeature(entry));
+        }
+        orderTiesByAttributeKeys(decoded);
+        for (var feature : decoded) {
           String layer = feature.layer();
 
           if (currentLayer == null) {
