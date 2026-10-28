@@ -176,6 +176,65 @@ abstract class LongLongMultimapTest {
     }
   }
 
+  static class SparseUnorderedWithOrderMaskTest extends LongLongMultimapTest {
+
+    private static final long MASK = (1L << 48) - 1;
+
+    @BeforeEach
+    void setup() {
+      this.map = LongLongMultimap.newAppendableMultimap(MASK);
+    }
+
+    private static long value(long ordered, long other) {
+      return ordered | (other << 48);
+    }
+
+    @Test
+    void readOrderDoesNotDependOnWriteOrder() {
+      var a = LongLongMultimap.newAppendableMultimap(MASK);
+      var b = LongLongMultimap.newAppendableMultimap(MASK);
+      // the high bits differ between runs, like IDs that get assigned first come, first served
+      a.put(1, value(3, 1));
+      a.put(2, value(1, 1));
+      a.put(1, value(1, 2));
+      a.put(1, value(2, 1));
+      a.put(1, value(2, 2));
+      a.put(2, value(4, 2));
+
+      b.put(1, value(1, 1));
+      b.put(1, value(2, 2));
+      b.put(1, value(2, 1));
+      b.put(2, value(4, 1));
+      b.put(2, value(1, 2));
+      b.put(1, value(3, 2));
+
+      for (long key = 0; key <= 2; key++) {
+        assertEquals(masked(a.get(key)), masked(b.get(key)), "key " + key);
+      }
+    }
+
+    @Test
+    void equalOrderedBitsKeepWriteOrder() {
+      var a = LongLongMultimap.newAppendableMultimap(MASK);
+      var b = LongLongMultimap.newAppendableMultimap(MASK);
+      a.put(1, value(2, 1));
+      a.put(1, value(1, 1));
+      a.put(1, value(1, 2));
+      b.put(1, value(1, 1));
+      b.put(1, value(1, 2));
+      b.put(1, value(2, 1));
+      assertEquals(a.get(1), b.get(1));
+    }
+
+    private static LongArrayList masked(LongArrayList values) {
+      LongArrayList result = new LongArrayList();
+      for (int i = 0; i < values.size(); i++) {
+        result.add(values.get(i) & MASK);
+      }
+      return result;
+    }
+  }
+
   static class DenseOrderedTest extends LongLongMultimapTest {
 
     @BeforeEach

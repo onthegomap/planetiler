@@ -88,6 +88,7 @@
     <module>planetiler-openmaptiles/submodule.pom.xml</module>
     <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
+    <module>planetiler-fuzz</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>
   </modules>

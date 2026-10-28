@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.examples.overture.OvertureBasemap;
+import com.onthegomap.planetiler.fuzz.DeterminismFuzzer;
 import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.util.CompareArchives;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -82,7 +83,8 @@ public class Main {
     entry("verify-monaco", VerifyMonaco::main),
     entry("stats", TileSizeStats::main),
     entry("top-osm-tiles", TopOsmTiles::main),
-    entry("compare", CompareArchives::main)
+    entry("compare", CompareArchives::main),
+    entry("fuzz-determinism", DeterminismFuzzer::main)
   );
 
   private static EntryPoint bundledSchema(String path) {
