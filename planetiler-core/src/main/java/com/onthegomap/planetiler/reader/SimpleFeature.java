@@ -190,6 +190,11 @@ public class SimpleFeature extends SourceFeature {
     return tags;
   }
 
+  /** Returns the number of points in this feature's geometry without converting between projections. */
+  public int numPoints() {
+    return (latLonGeometry != null ? latLonGeometry : worldGeometry).getNumPoints();
+  }
+
   @Override
   public boolean isPoint() {
     return GeometryType.POINT.equals(GeometryType.typeOf(latLonGeometry != null ? latLonGeometry : worldGeometry));

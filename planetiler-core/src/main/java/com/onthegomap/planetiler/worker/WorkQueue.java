@@ -15,6 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 /**
  * A high-performance blocking queue to hand off work from producing threads to consuming threads.
@@ -37,6 +38,8 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
 
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
+  private final ToIntFunction<? super T> weigher;
+  private final int maxBatchWeight;
   private final List<WriterForThread> writers = new CopyOnWriteArrayList<>();
   private final ThreadLocal<WriterForThread> writerProvider = ThreadLocal.withInitial(WriterForThread::new);
   private final List<ReaderForThread> readers = new CopyOnWriteArrayList<>();
@@ -56,6 +59,24 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
    * @param stats    stats to monitor this with
    */
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
+    this(name, capacity, maxBatch, null, Integer.MAX_VALUE, stats);
+  }
+
+  /**
+   * Returns a queue that hands off a batch once it holds {@code maxBatch} items or once their total weight reaches
+   * {@code maxBatchWeight}, whichever comes first, so that expensive items get spread over more consumers.
+   *
+   * @param name           ID to prepend to stats generated about this queue
+   * @param capacity       maximum number of pending items that can be held in the queue
+   * @param maxBatch       batch size to buffer elements into before handing off to the blocking queue
+   * @param weigher        estimated cost for a consumer to process each item, or {@code null} to batch by count only
+   * @param maxBatchWeight total weight that triggers handing off a batch before it is full
+   * @param stats          stats to monitor this with
+   */
+  public WorkQueue(String name, int capacity, int maxBatch, ToIntFunction<? super T> weigher, int maxBatchWeight,
+    Stats stats) {
+    this.weigher = weigher;
+    this.maxBatchWeight = maxBatchWeight;
     this.pendingBatchesCapacity = Math.max(1, capacity / maxBatch);
     this.batchSize = maxBatch;
     itemQueue = new ArrayBlockingQueue<>(pendingBatchesCapacity);
@@ -138,6 +159,7 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
 
     final AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
     Queue<T> writeBatch = null;
+    int writeBatchWeight = 0;
     final Counter pendingCount = pendingCountAll.counterForThread();
     final Counter enqueueCountStat = enqueueCountStatAll.counterForThread();
     final Counter enqueueBlockTimeNanos = enqueueBlockTimeNanosAll.counterForThread();
@@ -158,7 +180,10 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
       writeBatch.offer(item);
       pendingCount.inc();
 
-      if (writeBatch.size() >= batchSize) {
+      if (weigher != null) {
+        writeBatchWeight += weigher.applyAsInt(item);
+      }
+      if (writeBatch.size() >= batchSize || writeBatchWeight >= maxBatchWeight) {
         flushWrites();
       }
       enqueueCountStat.inc();
@@ -169,6 +194,7 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
         try {
           Queue<T> oldWriteBatch = writeBatch;
           writeBatch = null;
+          writeBatchWeight = 0;
           writeBatchRef.set(null);
           // blocks if full
           if (!itemQueue.offer(oldWriteBatch)) {

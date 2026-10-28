@@ -205,4 +205,11 @@ class SimpleFeatureTest {
     assertEquals(expectedX, centroid.getX(), 1e-5);
     assertEquals(expectedY, centroid.getY(), 1e-5);
   }
+
+  @Test
+  void testNumPoints() {
+    assertEquals(1, SimpleFeature.fromLatLonGeometry(newPoint(1, 2)).numPoints());
+    assertEquals(3, SimpleFeature.fromLatLonGeometry(newLineString(0, 0, 1, 1, 2, 2)).numPoints());
+    assertEquals(5, SimpleFeature.fromWorldGeometry(rectangle(0.1, 0.2)).numPoints());
+  }
 }

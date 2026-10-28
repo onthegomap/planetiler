@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 /**
  * A mini-framework for chaining sequential steps that run in dedicated threads with a queue between each.
@@ -142,10 +143,19 @@ public record WorkerPipeline<T>(
   public interface Bufferable<E> {
 
     /**
+     * Adds a {@link WorkQueue} that groups items into batches of up to {@code batchSize} items, or fewer once their
+     * total {@code weigher} weight reaches {@code maxBatchWeight}, so that expensive items get spread over more
+     * consumer threads.
+     */
+    Builder<E> addBuffer(String name, int size, int batchSize, ToIntFunction<? super E> weigher, int maxBatchWeight);
+
+    /**
      * Adds a {@link WorkQueue} that groups items into batches before enqueueing them to reduce contention when many
      * threads are reading or writing to the queue simultaneously.
      */
-    Builder<E> addBuffer(String name, int size, int batchSize);
+    default Builder<E> addBuffer(String name, int size, int batchSize) {
+      return addBuffer(name, size, batchSize, null, Integer.MAX_VALUE);
+    }
 
     /**
      * Adds a {@link WorkQueue} with batching disabled.
@@ -163,8 +173,8 @@ public record WorkerPipeline<T>(
      * queue.
      */
     public <T> Bufferable<T> fromGenerator(String name, SourceStep<T> producer, int threads) {
-      return (queueName, size, batchSize) -> {
-        var nextQueue = new WorkQueue<T>(prefix + "_" + queueName, size, batchSize, stats);
+      return (queueName, size, batchSize, weigher, maxBatchWeight) -> {
+        var nextQueue = new WorkQueue<T>(prefix + "_" + queueName, size, batchSize, weigher, maxBatchWeight, stats);
         Worker worker = new Worker(prefix + "_" + name, stats, threads,
           () -> producer.run(nextQueue.threadLocalWriter()));
         return new Builder<>(prefix, name, nextQueue, worker, stats);
@@ -245,8 +255,8 @@ public record WorkerPipeline<T>(
      */
     public <O2> Bufferable<O2> addWorker(String name, int threads, WorkerStep<O, O2> step) {
       Builder<O> curr = this;
-      return (queueName, size, batchSize) -> {
-        var nextOutputQueue = new WorkQueue<O2>(prefix + "_" + queueName, size, batchSize, stats);
+      return (queueName, size, batchSize, weigher, maxBatchWeight) -> {
+        var nextOutputQueue = new WorkQueue<O2>(prefix + "_" + queueName, size, batchSize, weigher, maxBatchWeight, stats);
         var worker = new Worker(prefix + "_" + name, stats, threads,
           () -> step.run(outputQueue.threadLocalReader(), nextOutputQueue.threadLocalWriter()));
         return new Builder<>(prefix, name, curr, outputQueue, nextOutputQueue, worker, stats);

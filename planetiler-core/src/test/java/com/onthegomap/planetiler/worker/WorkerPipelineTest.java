@@ -43,6 +43,23 @@ class WorkerPipelineTest {
 
   @Test
   @Timeout(10)
+  void testWeightedBuffer() {
+    Set<Integer> result = new ConcurrentSkipListSet<>();
+    var pipeline = WorkerPipeline.start("test", stats)
+      .<Integer>fromGenerator("reader", next -> {
+        for (int i = 0; i < 100; i++) {
+          next.accept(i);
+        }
+      }).addBuffer("reader_queue", 10, 4, i -> i, 50)
+      .sinkToConsumer("process", 2, result::add);
+
+    pipeline.awaitAndLog(ProgressLoggers.create(), Duration.ofSeconds(1));
+
+    assertEquals(100, result.size());
+  }
+
+  @Test
+  @Timeout(10)
   void testPipelineFromQueue() {
     var queue = new WorkQueue<Integer>("readerqueue", 10, 1, stats);
     Set<Integer> result = new ConcurrentSkipListSet<>();
