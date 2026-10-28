@@ -93,6 +93,47 @@ class WorkQueueTest {
     assertEquals(0, q.getPending());
   }
 
+  @Test
+  @Timeout(10)
+  void testHandsOffBatchOnceMaxWeightReached() {
+    WorkQueue<Integer> q = new WorkQueue<>("queue", 1000, 16, i -> i, 10, stats);
+    q.accept(3);
+    q.accept(4);
+    q.accept(5);
+    // get() on an open queue only returns once the writer handed off a batch
+    assertEquals(3, q.get());
+    assertEquals(4, q.get());
+    assertEquals(5, q.get());
+    q.accept(1);
+    q.close();
+    assertEquals(1, q.get());
+    assertNull(q.get());
+  }
+
+  @Test
+  @Timeout(10)
+  void testItemHeavierThanMaxWeightHandedOffAlone() {
+    WorkQueue<Integer> q = new WorkQueue<>("queue", 1000, 16, i -> i, 10, stats);
+    q.accept(100);
+    assertEquals(100, q.get());
+    q.accept(200);
+    assertEquals(200, q.get());
+    q.close();
+    assertNull(q.get());
+  }
+
+  @Test
+  @Timeout(10)
+  void testWeightedQueueStillHandsOffFullBatches() {
+    WorkQueue<Integer> q = new WorkQueue<>("queue", 1000, 2, i -> 0, 10, stats);
+    q.accept(1);
+    q.accept(2);
+    assertEquals(1, q.get());
+    assertEquals(2, q.get());
+    q.close();
+    assertNull(q.get());
+  }
+
   private <T> WorkQueue<T> newQueue(int maxBatch) {
     return new WorkQueue<>("queue", 1000, maxBatch, stats);
   }

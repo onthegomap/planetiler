@@ -30,6 +30,10 @@ import org.slf4j.LoggerFactory;
 public class SourceFeatureProcessor<F extends SourceFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFeatureProcessor.class);
+  // Hand features off from reader to workers in batches of up to 16 features to improve throughput for many small
+  // features, but pass big features off in their own batch, capping total points across all features in a batch to ~1k
+  private static final int PROCESS_BATCH_SIZE = 16;
+  private static final int PROCESS_BATCH_MAX_POINTS = 1_000;
 
   private final Profile profile;
   private final Stats stats;
@@ -85,7 +89,8 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     var pipeline = WorkerPipeline.start(sourceName, stats)
       .readFromTiny("source_paths", sourcePaths)
       .addWorker("read", readThreads, readPaths())
-      .addBuffer("process_queue", 1000, 1)
+      .addBuffer("process_queue", 1000, PROCESS_BATCH_SIZE, SourceFeatureProcessor::processingCost,
+        PROCESS_BATCH_MAX_POINTS)
       .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
@@ -127,6 +132,11 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
       LOGGER.warn("Error closing writer", e);
     }
     timer.stop();
+  }
+
+  private static int processingCost(SourceFeature feature) {
+    // features with an unknown cost get handed off on their own
+    return feature instanceof SimpleFeature simpleFeature ? simpleFeature.numPoints() : PROCESS_BATCH_MAX_POINTS;
   }
 
   private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
