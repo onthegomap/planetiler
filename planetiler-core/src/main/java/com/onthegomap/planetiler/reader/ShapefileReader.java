@@ -14,21 +14,22 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.geotools.api.data.FeatureSource;
 import org.geotools.api.feature.simple.SimpleFeatureType;
-import org.geotools.api.filter.Filter;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.api.referencing.operation.OperationNotFoundException;
 import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.shapefile.ShapefileDataStore;
-import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.feature.FeatureCollection;
+import org.geotools.data.shapefile.dbf.DbaseFileReader;
+import org.geotools.data.shapefile.files.ShpFileType;
+import org.geotools.data.shapefile.files.ShpFiles;
+import org.geotools.data.shapefile.shp.IndexFile;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
-import org.geotools.util.factory.GeoTools;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,11 +45,14 @@ import org.slf4j.LoggerFactory;
 public class ShapefileReader extends SimpleReader<SimpleFeature> {
   private static final Logger LOGGER = LoggerFactory.getLogger(ShapefileReader.class);
 
-  private final FeatureCollection<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> inputSource;
   private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
+  private final ShpFiles shpFiles;
   private final String layer;
+  private final Path input;
   private MathTransform transformToLatLon;
+  // bounds in the shapefile's coordinate reference system, or null to read every record
+  private Envelope sourceBounds = null;
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input) {
     this(sourceProjection, sourceName, input, Bounds.WORLD);
@@ -57,8 +61,10 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
   public ShapefileReader(String sourceProjection, String sourceName, Path input, Bounds bounds) {
     super(sourceName);
     this.layer = input.getFileName().toString().replaceAll("\\.shp$", "");
+    this.input = input;
     dataStore = open(input);
     try {
+      shpFiles = new ShpFiles(input.toUri().toURL());
       String typeName = dataStore.getTypeNames()[0];
       FeatureSource<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> source = dataStore
         .getFeatureSource(typeName);
@@ -71,28 +77,21 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
         transformToLatLon = null;
       }
 
-      Filter filter = Filter.INCLUDE;
-
+      var schema = source.getSchema();
       Envelope env = bounds.latLon();
       if (!bounds.isWorld()) {
-        var ff = CommonFactoryFinder.getFilterFactory(GeoTools.getDefaultHints());
-        var schema = source.getSchema();
-
-        String geometryPropertyName = schema.getGeometryDescriptor().getLocalName();
-
         var bbox = new ReferencedEnvelope(env.getMinX(), env.getMaxX(), env.getMinY(), env.getMaxY(), dest);
         try {
-          var bbox2 = bbox.transform(schema.getGeometryDescriptor().getCoordinateReferenceSystem(), true);
-          filter = ff.bbox(ff.property(geometryPropertyName), bbox2);
-        } catch (TransformException e) {
-          // just use include filter
+          sourceBounds =
+            new Envelope(bbox.transform(schema.getGeometryDescriptor().getCoordinateReferenceSystem(), true));
+        } catch (TransformException _) {
+          // just read every record
         }
       }
 
-      inputSource = source.getFeatures(filter);
-      attributeNames = new String[inputSource.getSchema().getAttributeCount()];
+      attributeNames = new String[schema.getAttributeCount()];
       for (int i = 0; i < attributeNames.length; i++) {
-        attributeNames[i] = inputSource.getSchema().getDescriptor(i).getLocalName();
+        attributeNames[i] = schema.getDescriptor(i).getLocalName();
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -151,30 +150,82 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public long getFeatureCount() {
-    return inputSource.size();
+    // only reads record headers: counting through ShapefileDataStore with a bounds filter decodes every geometry,
+    // which is slow and fails on bad records
+    try {
+      if (sourceBounds == null && (!shpFiles.isLocal() || shpFiles.exists(ShpFileType.SHX))) {
+        try (var shx = new IndexFile(shpFiles, false)) {
+          return shx.getRecordCount();
+        } catch (IOException _) {
+          // no usable .shx, count the .shp records instead
+        }
+      }
+      long count = 0;
+      try (var shp = openShp()) {
+        while (shp.hasNext()) {
+          var nextRecord = shp.nextRecord();
+          if (sourceBounds == null || sourceBounds.intersects(nextRecord.envelope())) {
+            count++;
+          }
+        }
+      }
+      return count;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   @Override
-  public void readFeatures(Consumer<SimpleFeature> next) throws TransformException {
+  public void readFeatures(Consumer<SimpleFeature> next) throws IOException, TransformException {
+    boolean hasAttributes = attributeNames.length > 1;
     long id = 0;
-    try (var iter = inputSource.features()) {
-      while (iter.hasNext()) {
-        org.geotools.api.feature.simple.SimpleFeature feature = iter.next();
-        Geometry source = (Geometry) feature.getDefaultGeometry();
-        Geometry latLonGeometry = source;
-        if (transformToLatLon != null) {
-          latLonGeometry = JTS.transform(source, transformToLatLon);
-        }
-        if (latLonGeometry != null) {
-          SimpleFeature geom = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
-            sourceName, layer, ++id);
-          for (int i = 1; i < attributeNames.length; i++) {
-            geom.setTag(attributeNames[i], feature.getAttribute(i));
+    try (
+      var shp = openShp();
+      var dbf = hasAttributes ?
+        new DbaseFileReader(shpFiles, false, dataStore.getCharset(), dataStore.getTimeZone()) : null
+    ) {
+      while (shp.hasNext()) {
+        // read the .shp and .dbf files in lockstep so if a single feature fails, it advances both to avoid reading
+        // mismatched geometries and attributes
+        var nextRecord = shp.nextRecord();
+        var row = dbf == null ? null : dbf.readRow();
+        boolean deleted = row != null && row.isDeleted();
+        if (!deleted && (sourceBounds == null || sourceBounds.intersects(nextRecord.envelope()))) {
+          Geometry source = readGeometry(nextRecord);
+          if (source != null) {
+            next.accept(toFeature(source, row, ++id));
           }
-          next.accept(geom);
         }
       }
     }
+  }
+
+  private Geometry readGeometry(org.geotools.data.shapefile.shp.ShapefileReader.Record shpRecord) {
+    try {
+      return (Geometry) shpRecord.shape();
+    } catch (RuntimeException e) {
+      LOGGER.warn("Skipping record {} of {} with a geometry that can't be read: {}", shpRecord.number,
+        input.getFileName(), e.toString());
+      return null;
+    }
+  }
+
+  private SimpleFeature toFeature(Geometry source, DbaseFileReader.Row row, long id)
+    throws IOException, TransformException {
+    Geometry latLonGeometry = transformToLatLon == null ? source : JTS.transform(source, transformToLatLon);
+    SimpleFeature feature = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
+      sourceName, layer, id);
+    if (row != null) {
+      for (int i = 1; i < attributeNames.length; i++) {
+        // the schema lists the geometry first, then the .dbf columns in order
+        feature.setTag(attributeNames[i], row.read(i - 1));
+      }
+    }
+    return feature;
+  }
+
+  private org.geotools.data.shapefile.shp.ShapefileReader openShp() throws IOException {
+    return new org.geotools.data.shapefile.shp.ShapefileReader(shpFiles, true, false, new GeometryFactory());
   }
 
   @Override

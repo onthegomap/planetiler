@@ -1,7 +1,9 @@
 package com.onthegomap.planetiler.reader;
 
 import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
@@ -11,8 +13,12 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,20 +26,25 @@ import org.geotools.api.data.SimpleFeatureStore;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.DefaultTransaction;
+import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 
 class ShapefileReaderTest {
   @TempDir
@@ -135,6 +146,89 @@ class ShapefileReaderTest {
       assertEquals(0, features.getFirst().latLonGeometry().getCentroid().getY(), 1e-4);
       assertEquals(3, features.getFirst().getTag("value"));
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testSkipsRecordWithGeometryThatCantBeRead(boolean withBounds, @TempDir Path dir)
+    throws IOException, TransformException {
+    // write 3 polygons with value 1, 2 and 3, then set the second one's point count to 0 like the polygons with 1 ring
+    // and no points in Geofabrik extracts (#1568) that make GeoTools throw while decoding them
+    var shpPath = writePolygons(dir.resolve("test.shp"), 3);
+    var shp = ByteBuffer.wrap(Files.readAllBytes(shpPath));
+    // records start after the 100-byte header with an 8-byte header holding their length in 16-bit words
+    int secondRecord = 100 + 8 + shp.getInt(100 + 4) * 2;
+    // the point count follows the shape type, bounding box and part count
+    shp.order(ByteOrder.LITTLE_ENDIAN).putInt(secondRecord + 8 + 40, 0);
+    Files.write(shpPath, shp.array());
+
+    // counting within bounds used to decode every geometry, so it failed on the unreadable record too
+    var bounds = withBounds ? new Bounds(new Envelope(0, 10, 0, 10)) : Bounds.WORLD;
+    try (var reader = new ShapefileReader(null, "test", shpPath, bounds)) {
+      assertEquals(3, reader.getFeatureCount());
+      List<SimpleFeature> features = new CopyOnWriteArrayList<>();
+      reader.readFeatures(features::add);
+      assertEquals(2, features.size());
+      assertEquals(1, features.get(0).getTag("value"));
+      assertEquals(rectangle(1, 1.5).getEnvelopeInternal(), features.get(0).latLonGeometry().getEnvelopeInternal());
+      assertEquals(3, features.get(1).getTag("value"));
+      assertEquals(rectangle(3, 3.5).getEnvelopeInternal(), features.get(1).latLonGeometry().getEnvelopeInternal());
+    }
+  }
+
+  @Test
+  void testFailsWhenDbfHasFewerRecordsThanShp(@TempDir Path dir) throws IOException {
+    var shpPath = writePolygons(dir.resolve("test.shp"), 3);
+    writePolygons(dir.resolve("other.shp"), 2);
+    Files.copy(dir.resolve("other.dbf"), dir.resolve("test.dbf"), StandardCopyOption.REPLACE_EXISTING);
+    try (var reader = new ShapefileReader(null, "test", shpPath)) {
+      assertThrows(RuntimeException.class, () -> reader.readFeatures(feature -> {
+      }));
+    }
+  }
+
+  @Test
+  void testIgnoresExtraDbfRecords(@TempDir Path dir) throws IOException, TransformException {
+    var shpPath = writePolygons(dir.resolve("test.shp"), 3);
+    writePolygons(dir.resolve("other.shp"), 4);
+    Files.copy(dir.resolve("other.dbf"), dir.resolve("test.dbf"), StandardCopyOption.REPLACE_EXISTING);
+    try (var reader = new ShapefileReader(null, "test", shpPath)) {
+      List<SimpleFeature> features = new CopyOnWriteArrayList<>();
+      reader.readFeatures(features::add);
+      assertEquals(3, features.size());
+      for (int i = 1; i <= 3; i++) {
+        var feature = features.get(i - 1);
+        assertEquals(i, feature.getTag("value"));
+        assertEquals(rectangle(i, i + 0.5).getEnvelopeInternal(), feature.latLonGeometry().getEnvelopeInternal());
+      }
+    }
+  }
+
+  /** Writes polygons with {@code value} 1 to {@code count} in order, the i-th covering (i, i) to (i + 0.5, i + 0.5). */
+  private static Path writePolygons(Path shpPath, int count) throws IOException {
+    var dataStore = (ShapefileDataStore) new ShapefileDataStoreFactory()
+      .createNewDataStore(Map.of("url", shpPath.toUri().toURL()));
+    var builder = new SimpleFeatureTypeBuilder();
+    builder.setName("the_geom");
+    builder.setCRS(DefaultGeographicCRS.WGS84);
+    builder.add("the_geom", Polygon.class);
+    builder.add("value", Integer.class);
+    builder.setDefaultGeometry("the_geom");
+    var type = builder.buildFeatureType();
+    dataStore.createSchema(type);
+    try (var transaction = new DefaultTransaction("create")) {
+      var featureStore = (SimpleFeatureStore) dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
+      featureStore.setTransaction(transaction);
+      // ListFeatureCollection keeps the order, DefaultFeatureCollection sorts by generated feature ID
+      var collection = new ListFeatureCollection(type);
+      for (int i = 1; i <= count; i++) {
+        collection.add(SimpleFeatureBuilder.build(type, new Object[]{rectangle(i, i + 0.5), i}, null));
+      }
+      featureStore.addFeatures(collection);
+      transaction.commit();
+    }
+    dataStore.dispose();
+    return shpPath;
   }
 
   private static void testReadShapefile(Path path) {
