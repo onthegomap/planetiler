@@ -15,9 +15,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.Filters;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
@@ -115,35 +121,10 @@ public record GeoParquetMetadata(
      */
     public FilterPredicate bboxFilter(MessageType schema, Bounds bounds) {
       if (!bounds.isWorld()) {
-        var covering = covering();
-        // if covering metadata missing, use default bbox:{xmin,xmax,ymin,ymax}
-        if (covering == null) {
-          if (hasNumericField(schema, "bbox.xmin") &&
-            hasNumericField(schema, "bbox.xmax") &&
-            hasNumericField(schema, "bbox.ymin") &&
-            hasNumericField(schema, "bbox.ymax")) {
-            covering = new GeoParquetMetadata.Covering(new GeoParquetMetadata.CoveringBbox(
-              List.of("bbox.xmin"),
-              List.of("bbox.ymin"),
-              List.of("bbox.xmax"),
-              List.of("bbox.ymax")
-            ));
-          } else if (hasNumericField(schema, "bbox", "xmin") &&
-            hasNumericField(schema, "bbox", "xmax") &&
-            hasNumericField(schema, "bbox", "ymin") &&
-            hasNumericField(schema, "bbox", "ymax")) {
-            covering = new GeoParquetMetadata.Covering(new GeoParquetMetadata.CoveringBbox(
-              List.of("bbox", "xmin"),
-              List.of("bbox", "ymin"),
-              List.of("bbox", "xmax"),
-              List.of("bbox", "ymax")
-            ));
-          }
-        }
-        if (covering != null) {
+        var coveringBbox = coveringBbox(schema);
+        if (coveringBbox != null) {
           var latLonBounds = bounds.latLon();
           // TODO apply projection
-          var coveringBbox = covering.bbox();
           var coordinateType =
             schema.getColumnDescription(coveringBbox.xmax().toArray(String[]::new))
               .getPrimitiveType()
@@ -171,6 +152,56 @@ public record GeoParquetMetadata(
         }
       }
       return null;
+    }
+
+    /**
+     * Returns the columns with each row's bbox, from the covering metadata or the {@code bbox.xmin/xmax/ymin/ymax}
+     * columns if that is missing, or null if neither is there.
+     */
+    public CoveringBbox coveringBbox(MessageType schema) {
+      if (covering != null && covering.bbox() != null) {
+        return covering.bbox();
+      } else if (hasNumericField(schema, "bbox.xmin") &&
+        hasNumericField(schema, "bbox.xmax") &&
+        hasNumericField(schema, "bbox.ymin") &&
+        hasNumericField(schema, "bbox.ymax")) {
+        return new CoveringBbox(List.of("bbox.xmin"), List.of("bbox.ymin"), List.of("bbox.xmax"), List.of("bbox.ymax"));
+      } else if (hasNumericField(schema, "bbox", "xmin") &&
+        hasNumericField(schema, "bbox", "xmax") &&
+        hasNumericField(schema, "bbox", "ymin") &&
+        hasNumericField(schema, "bbox", "ymax")) {
+        return new CoveringBbox(List.of("bbox", "xmin"), List.of("bbox", "ymin"), List.of("bbox", "xmax"),
+          List.of("bbox", "ymax"));
+      }
+      return null;
+    }
+
+    /**
+     * Returns the envelope of all row bboxes in {@code rowGroup} from the covering columns' statistics, or null if
+     * there are no usable statistics.
+     */
+    public Envelope rowGroupEnvelope(MessageType schema, BlockMetaData rowGroup) {
+      var coveringBbox = coveringBbox(schema);
+      if (coveringBbox == null) {
+        return null;
+      }
+      Map<ColumnPath, Statistics<?>> stats = rowGroup.getColumns().stream().collect(Collectors.toMap(
+        ColumnChunkMetaData::getPath,
+        ColumnChunkMetaData::getStatistics
+      ));
+      double xmin = statistic(stats, coveringBbox.xmin(), Statistics::genericGetMin);
+      double ymin = statistic(stats, coveringBbox.ymin(), Statistics::genericGetMin);
+      double xmax = statistic(stats, coveringBbox.xmax(), Statistics::genericGetMax);
+      double ymax = statistic(stats, coveringBbox.ymax(), Statistics::genericGetMax);
+      // a NaN min / max would make the envelope intersect nothing, so don't use it to skip the row group
+      return Double.isNaN(xmin + ymin + xmax + ymax) ? null : new Envelope(xmin, xmax, ymin, ymax);
+    }
+
+    private static double statistic(Map<ColumnPath, Statistics<?>> stats, List<String> column,
+      Function<Statistics<?>, Object> value) {
+      var stat = stats.get(ColumnPath.get(column.toArray(String[]::new)));
+      return stat != null && !stat.isEmpty() && stat.hasNonNullValue() && value.apply(stat) instanceof Number n ?
+        n.doubleValue() : Double.NaN;
     }
 
     /** Returns the geoarrow type string of this geometry column, or null if not geoarrow. */

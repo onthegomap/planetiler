@@ -225,4 +225,21 @@ class ParquetInputFileTest {
     assertEquals(Set.of(-71.0743637084961, -71.07461547851562, -71.07460021972656), xmins);
     assertEquals(Set.of(1596647976000L, 1624238059000L, 1625971545000L), updateTime);
   }
+
+  @Test
+  void testSkipsRowGroupsOutsideBounds() {
+    // boston.parquet has no file-level bbox, so only its row group statistics show whether it is in bounds, and like
+    // most files it doesn't record NaN counts, which makes parquet-java ignore those statistics
+    Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
+    var outside = new ParquetInputFile("parquet", "layer", path, null,
+      new Bounds(new Envelope(-71.08, -71.075, 42.356, 42.357)), null, null);
+    assertEquals(0, outside.getBlockCount());
+    assertEquals(0, outside.getCount());
+    assertFalse(outside.get().iterator().hasNext());
+
+    var inside = new ParquetInputFile("parquet", "layer", path, null,
+      new Bounds(new Envelope(-71.075, -71.074, 42.356, 42.357)), null, null);
+    assertEquals(1, inside.getBlockCount());
+    assertEquals(3, inside.getCount());
+  }
 }
