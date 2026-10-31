@@ -464,13 +464,17 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     long nodes = estimateNumNodes(osmFileSize);
     long maxNodeId = estimateMaxNodeId(osmFileSize);
 
+    // sparsearray and sortedtable keep ~4 bytes per 256-ID chunk that has nodes, plus ~210 bytes per 131,072-ID page
+    // that has nodes: dense on the planet, but on an extract each node may be in its own chunk and page
+    long inMemoryIndex = Math.min(nodes, maxNodeId / 256) * 4 + Math.min(nodes, maxNodeId / 131_072) * 210;
+
     ResourceUsage check = new ResourceUsage("nodemap");
 
     return switch (type) {
       case NOOP -> check;
-      case SPARSE_ARRAY -> check.addMemory(300_000_000L, "sparsearray node location in-memory index")
+      case SPARSE_ARRAY -> check.addMemory(inMemoryIndex, "sparsearray node location in-memory index")
         .add(path, storage, 9 * nodes, "sparsearray node location cache");
-      case SORTED_TABLE -> check.addMemory(300_000_000L, "sortedtable node location in-memory index")
+      case SORTED_TABLE -> check.addMemory(inMemoryIndex, "sortedtable node location in-memory index")
         .add(path, storage, 12 * nodes, "sortedtable node location cache");
       case ARRAY -> check.add(path, storage, 8 * maxNodeId,
         "array node location cache (switch to sparsearray to reduce size)");
@@ -500,8 +504,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   private static long estimateMaxNodeId(long osmFileSize) {
     // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~9.5b, so scale from there
-    // but don't go less than 9.5b in case it's an extract
-    return Math.round(9_500_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
+    // but don't go less than 14b (it was ~14.3b on 10/29/2026) since extracts contain recent nodes too
+    return Math.max(14_000_000_000L, Math.round(9_500_000_000d * osmFileSize / 66_691_979_646d));
   }
 
   private void render(FeatureCollector.Factory featureCollectors, FeatureRenderer renderer, OsmElement element,

@@ -98,6 +98,22 @@ public abstract class LongLongMapTest {
     assertArrayEquals(expected, result);
   }
 
+  @Test
+  public void insertClustersAcrossIndexPages() {
+    // keys on both sides of 256-ID chunk and 131,072-ID index page boundaries, with gaps of empty pages in between
+    long[] keys = {1, 255, 256, 131_071, 131_072, 131_073, 1_000_000, 1_000_200};
+    for (int i = 0; i < keys.length; i++) {
+      sequential.put(keys[i], i + 1);
+    }
+    for (int i = 0; i < keys.length; i++) {
+      assertEquals(i + 1, sequential.get(keys[i]), "key " + keys[i]);
+    }
+    for (long missing : new long[]{0, 2, 254, 257, 1_000, 131_070, 131_074, 500_000, 999_999, 1_000_001, 1_000_199,
+      1_000_201, 2_000_000}) {
+      assertEquals(Long.MIN_VALUE, sequential.get(missing), "key " + missing);
+    }
+  }
+
   public static class SortedTableTest extends LongLongMapTest {
 
     @Override
@@ -141,10 +157,10 @@ public abstract class LongLongMapTest {
               storage == Storage.DIRECT ? ResourceUsage.DIRECT_MEMORY : ResourceUsage.HEAP
             );
           var sizeDescription = variant + " " + Format.defaultInstance().storage(usage);
-          // sanity check to ensure that the estimate size is between 60 and 100GB for a 70GB input file
+          // sanity check to ensure that the estimate size is between 60 and 120GB for a 70GB input file
           if (type != LongLongMap.Type.NOOP) {
             assertTrue(usage > 60_000_000_000L, sizeDescription);
-            assertTrue(usage < 100_000_000_000L, sizeDescription);
+            assertTrue(usage < 120_000_000_000L, sizeDescription);
           }
           try (LongLongMap map = LongLongMap.from(type, storage, params)) {
             try (var writer = map.newWriter()) {

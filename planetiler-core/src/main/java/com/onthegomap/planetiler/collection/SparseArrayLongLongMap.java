@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.collection;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 
-import com.carrotsearch.hppc.ByteArrayList;
 import java.io.IOException;
 
 /**
@@ -11,11 +10,10 @@ import java.io.IOException;
  */
 public class SparseArrayLongLongMap implements LongLongMap, LongLongMap.SequentialWrites {
 
-  // The key space is broken into chunks of 256 and for each chunk, store:
-  // 1) the index in the outputs array for the first key in the block
-  private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
-  // 2) the number of leading 0's at the start of each block
-  private final ByteArrayList offsetStartPad = new ByteArrayList();
+  // The key space is broken into chunks of 256 and for each chunk with keys, store the index in the values array of
+  // its first key shifted left 8 bits, plus the number of missing keys at the start of the chunk in the low 8 bits.
+  // Only chunks with keys use memory, so small extracts don't pay for every chunk up to the largest node ID.
+  private final SparseMonotonicLongMap offsets = new SparseMonotonicLongMap();
 
   private final AppendStore.Longs values;
   private int lastChunk = -1;
@@ -39,10 +37,7 @@ public class SparseArrayLongLongMap implements LongLongMap, LongLongMap.Sequenti
     if (chunk != lastChunk) {
       // new chunk, store offset and leading zeros
       lastOffset = offset;
-      while (offsets.size() <= chunk) {
-        offsets.appendLong(idx);
-        offsetStartPad.add((byte) offset);
-      }
+      offsets.add(chunk, (idx << 8) | offset);
       lastChunk = chunk;
     } else {
       // same chunk, write not_founds until we get to right idx
@@ -57,13 +52,15 @@ public class SparseArrayLongLongMap implements LongLongMap, LongLongMap.Sequenti
   public long get(long key) {
     int chunk = (int) (key >>> 8);
     int offset = (int) (key & 255);
-    if (chunk >= offsets.size()) {
+    long entry = offsets.get(chunk);
+    if (entry < 0) {
       return MISSING_VALUE;
     }
 
-    long lo = offsets.getLong(chunk);
-    long hi = Math.min(values.size(), chunk >= offsets.size() - 1 ? values.size() : offsets.getLong(chunk + 1L)) - 1;
-    int startPad = offsetStartPad.get(chunk) & 255;
+    long lo = entry >>> 8;
+    long next = offsets.next(chunk);
+    long hi = (next < 0 ? values.size() : next >>> 8) - 1;
+    int startPad = (int) (entry & 255);
 
     long index = lo + offset - startPad;
 
@@ -81,13 +78,11 @@ public class SparseArrayLongLongMap implements LongLongMap, LongLongMap.Sequenti
 
   @Override
   public long estimateMemoryUsageBytes() {
-    return values.estimateMemoryUsageBytes() + estimateSize(offsets) + estimateSize(offsetStartPad);
+    return values.estimateMemoryUsageBytes() + estimateSize(offsets);
   }
 
   @Override
   public void close() throws IOException {
-    offsetStartPad.release();
     values.close();
-    offsets.close();
   }
 }
