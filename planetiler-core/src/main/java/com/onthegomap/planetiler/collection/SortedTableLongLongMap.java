@@ -11,7 +11,8 @@ public class SortedTableLongLongMap implements LongLongMap, LongLongMap.Sequenti
    * It's not actually a binary search, it keeps track of the first index of each block of 256 keys, so it
    * can do an O(1) lookup to narrow down the search space to 256 values.
    */
-  private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
+  // only chunks with keys use memory, so small extracts don't pay for every chunk up to the largest node ID
+  private final SparseMonotonicLongMap offsets = new SparseMonotonicLongMap();
   private final AppendStore.Longs keys;
   private final AppendStore.Longs values;
   private long lastChunk = -1;
@@ -31,9 +32,7 @@ public class SortedTableLongLongMap implements LongLongMap, LongLongMap.Sequenti
     long idx = keys.size();
     long chunk = key >>> 8;
     if (chunk != lastChunk) {
-      while (offsets.size() <= chunk) {
-        offsets.appendLong(idx);
-      }
+      offsets.add(chunk, idx);
       lastChunk = chunk;
     }
     keys.appendLong(key);
@@ -43,13 +42,13 @@ public class SortedTableLongLongMap implements LongLongMap, LongLongMap.Sequenti
   @Override
   public long get(long key) {
     long chunk = key >>> 8;
-    if (chunk >= offsets.size()) {
+    // use the "offsets" index to narrow search space to <256 values
+    long lo = offsets.get(chunk);
+    if (lo < 0) {
       return MISSING_VALUE;
     }
-
-    // use the "offsets" index to narrow search space to <256 values
-    long lo = offsets.getLong(chunk);
-    long hi = Math.min(keys.size(), chunk >= offsets.size() - 1 ? keys.size() : offsets.getLong(chunk + 1)) - 1;
+    long next = offsets.next(chunk);
+    long hi = (next < 0 ? keys.size() : next) - 1;
 
     while (lo <= hi) {
       long idx = (lo + hi) >>> 1;
@@ -80,6 +79,5 @@ public class SortedTableLongLongMap implements LongLongMap, LongLongMap.Sequenti
   public void close() throws IOException {
     keys.close();
     values.close();
-    offsets.close();
   }
 }
