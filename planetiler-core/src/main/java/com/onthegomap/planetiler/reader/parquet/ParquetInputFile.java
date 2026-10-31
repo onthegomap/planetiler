@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -30,6 +31,7 @@ import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.InputFile;
@@ -53,7 +55,7 @@ public class ParquetInputFile {
   private final ToLongFunction<Map<String, Object>> idGenerator;
   private final String layer;
   private final long count;
-  private final int blockCount;
+  private final List<Integer> rowGroupsInBounds;
   final GeometryReader geometryReader;
   private final Map<String, Object> extraFields;
   private final Set<GeometryType> geometryTypes;
@@ -92,12 +94,28 @@ public class ParquetInputFile {
           }
         }
       }
-      count = outOfBounds ? 0 : file.getFilteredRecordCount();
-      blockCount = outOfBounds ? 0 : metadata.getBlocks().size();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
     this.filter = filter == null ? FilterCompat.NOOP : FilterCompat.get(filter);
+    var blocks = metadata.getBlocks();
+    rowGroupsInBounds = outOfBounds ? List.of() : IntStream.range(0, blocks.size())
+      .filter(i -> mayIntersect(blocks.get(i), bounds))
+      .boxed()
+      .toList();
+    count = rowGroupsInBounds.stream().mapToLong(i -> blocks.get(i).getRowCount()).sum();
+  }
+
+  private boolean mayIntersect(BlockMetaData rowGroup, Bounds bounds) {
+    if (bounds.isWorld()) {
+      return true;
+    }
+    // parquet-java's own row group filter ignores floating point column statistics unless the file records how many
+    // NaNs each column has, which most writers (including Overture's) omit, so check the bbox statistics here. Rows
+    // with a NaN bbox can't be in bounds anyway.
+    var envelope =
+      geoparquet.primaryColumnMetadata().rowGroupEnvelope(metadata.getFileMetaData().getSchema(), rowGroup);
+    return envelope == null || envelope.intersects(bounds.latLon());
   }
 
   private static long hashToLong(Object o) {
@@ -129,7 +147,7 @@ public class ParquetInputFile {
     long fileHash = Hashing.fnv1a64(path.toString().getBytes(StandardCharsets.UTF_8));
     var schema = metadata.getFileMetaData().getSchema();
     var columnIOFactory = new ColumnIOFactory(metadata.getFileMetaData().getCreatedBy(), false);
-    return () -> IntStream.range(0, metadata.getBlocks().size()).mapToObj(blockIndex -> {
+    return () -> rowGroupsInBounds.stream().map(blockIndex -> {
       long blockHash = Hashing.fnv1a64(fileHash, ByteBuffer.allocate(4).putInt(blockIndex).array());
       // happens in reader thread
       return (Block) new Block() {
@@ -146,8 +164,9 @@ public class ParquetInputFile {
         @Override
         public Iterator<ParquetFeature> iterator() {
           PageReadStore group;
-          try (var reader = open()) {
-            group = reader.readFilteredRowGroup(blockIndex);
+          var footer = new ParquetMetadata(metadata.getFileMetaData(), List.of(metadata.getBlocks().get(blockIndex)));
+          try (var reader = ParquetFileReader.open(inputFile, footer, readOptions(), inputFile.newStream())) {
+            group = reader.readFilteredRowGroup(0);
             if (group == null) {
               return Collections.emptyIterator();
             }
@@ -213,9 +232,13 @@ public class ParquetInputFile {
   }
 
   private ParquetFileReader open() throws IOException {
-    return ParquetFileReader.open(inputFile, ParquetReadOptions.builder()
+    return ParquetFileReader.open(inputFile, readOptions());
+  }
+
+  private ParquetReadOptions readOptions() {
+    return ParquetReadOptions.builder()
       .withRecordFilter(filter)
-      .build());
+      .build();
   }
 
   public long getCount() {
@@ -223,7 +246,7 @@ public class ParquetInputFile {
   }
 
   public long getBlockCount() {
-    return blockCount;
+    return rowGroupsInBounds.size();
   }
 
   public interface BlockReader extends Iterable<Block>, Closeable {
