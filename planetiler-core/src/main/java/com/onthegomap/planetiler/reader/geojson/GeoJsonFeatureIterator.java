@@ -135,22 +135,30 @@ class GeoJsonFeatureIterator implements CloseableIterator<GeoJsonFeature> {
   }
 
   private boolean consume(JsonToken tokenType) throws IOException {
-    if (parser.nextToken() != tokenType) {
-      warn("Unexpected token type: " + tokenType);
-      parser.skipChildren();
-      return false;
+    return consume(tokenType, false);
+  }
+
+  private boolean consume(JsonToken tokenType, boolean allowNull) throws IOException {
+    JsonToken found = parser.nextToken();
+    if (found == tokenType) {
+      return true;
     }
-    return true;
+    // RFC 7946 allows null for "geometry" and "properties"
+    if (!allowNull || found != JsonToken.VALUE_NULL) {
+      warn("Expected " + tokenType + " but got " + found);
+      parser.skipChildren();
+    }
+    return false;
   }
 
   private void consumeProperties() throws IOException {
-    if (consume(JsonToken.START_OBJECT)) {
+    if (consume(JsonToken.START_OBJECT, true)) {
       properties = mapper.readValue(parser, Map.class);
     }
   }
 
   private void consumeGeometry() throws IOException {
-    if (consume(JsonToken.START_OBJECT)) {
+    if (consume(JsonToken.START_OBJECT, true)) {
       geometryStart = parser.currentTokenLocation();
       geometry = mapper.readValue(parser, GeoJsonGeometry.class);
     } else {

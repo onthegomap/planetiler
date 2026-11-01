@@ -287,6 +287,19 @@ class GeoJsonTest {
     testParse(json, List.of());
   }
 
+  @Test
+  void testNullGeometryAndProperties() {
+    testParse("""
+      {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"name": "unlocated"}, "geometry": null},
+        {"type": "Feature", "properties": null, "geometry": {"type": "Point", "coordinates": [1, 2]}}
+      ]}
+      """, List.of(
+      new GeoJsonFeature(emptyGeometry(), Map.of("name", "unlocated")),
+      new GeoJsonFeature(newPoint(1, 2), Map.of())
+    ));
+  }
+
   private void testParse(String json, List<GeoJsonFeature> expected) {
     testParse(json, expected, expected.size());
   }
