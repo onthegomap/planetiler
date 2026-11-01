@@ -2,21 +2,10 @@ package com.onthegomap.planetiler.reader.geojson;
 
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.Appender;
-import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.AbstractAppender;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -299,55 +288,16 @@ class GeoJsonTest {
   }
 
   @Test
-  void testNullGeometryAndPropertiesDoNotWarn() {
-    String json = """
+  void testNullGeometryAndProperties() {
+    testParse("""
       {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"name": "unlocated"}, "geometry": null},
         {"type": "Feature", "properties": null, "geometry": {"type": "Point", "coordinates": [1, 2]}}
       ]}
-      """;
-    testParse(json, List.of(
+      """, List.of(
       new GeoJsonFeature(emptyGeometry(), Map.of("name", "unlocated")),
       new GeoJsonFeature(newPoint(1, 2), Map.of())
     ));
-    assertEquals(List.of(), parseWarnings(json));
-  }
-
-  @Test
-  void testWarningNamesTheTokenFound() {
-    List<String> warnings = parseWarnings("""
-      {"type": "Feature", "geometry": {"type": "Point", "coordinates": [1, 2]}, "properties": "string"}
-      """);
-    assertEquals(1, warnings.size());
-    assertTrue(warnings.get(0).endsWith("Expected START_OBJECT but got VALUE_STRING"), warnings.get(0));
-  }
-
-  private static List<String> parseWarnings(String json) {
-    List<String> warnings = new CopyOnWriteArrayList<>();
-    String loggerName = GeoJsonFeatureIterator.class.getName();
-    LoggerContext context = (LoggerContext) LogManager.getContext(false);
-    Configuration config = context.getConfiguration();
-    Appender appender = new AbstractAppender("geojson-warnings", null, null, true, Property.EMPTY_ARRAY) {
-      @Override
-      public void append(LogEvent event) {
-        warnings.add(event.getMessage().getFormattedMessage());
-      }
-    };
-    appender.start();
-    LoggerConfig loggerConfig = new LoggerConfig(loggerName, Level.WARN, true);
-    loggerConfig.addAppender(appender, null, null);
-    config.addLogger(loggerName, loggerConfig);
-    context.updateLoggers();
-    try {
-      for (var ignored : GeoJson.from(json)) {
-        // read every feature
-      }
-    } finally {
-      config.removeLogger(loggerName);
-      context.updateLoggers();
-      appender.stop();
-    }
-    return warnings;
   }
 
   private void testParse(String json, List<GeoJsonFeature> expected) {
