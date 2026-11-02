@@ -8,16 +8,23 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.remote.DownloadMode;
+import com.onthegomap.planetiler.reader.remote.RangeFile;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stats.Timers;
+import com.onthegomap.planetiler.util.CompletableFutures;
+import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,16 +90,76 @@ public class ParquetReader {
   }
 
   public void process(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) {
+    try {
+      processLocal(sourcePath, writer, config);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  private void processLocal(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) throws IOException {
     var timer = stats.startStage(sourceName);
-    var inputFiles = sourcePath.stream()
-      .filter(d -> !"_SUCCESS".equals(d.getFileName().toString()))
-      .map(path -> {
-        var hivePartitionFields = hivePartitioning ? getHivePartitionFields(path) : null;
-        String layer = getLayerName(path);
-        return new ParquetInputFile(sourceName, layer, path, null, config.bounds(), hivePartitionFields, idGenerator);
-      })
-      .filter(file -> !file.shouldSkip(profile))
+    List<ParquetInputFile> inputFiles = new ArrayList<>();
+    try {
+      for (var path : sourcePath) {
+        if (!"_SUCCESS".equals(path.getFileName().toString())) {
+          inputFiles.add(newInputFile(path, RangeFile.openLocal(path), config));
+        }
+      }
+      process(inputFiles, writer, config, timer);
+    } finally {
+      closeAll(inputFiles);
+    }
+  }
+
+  /**
+   * Reads features from local or remote files and writes them to {@code writer}.
+   * <p>
+   * {@code pathToUrl} maps where each file is (or would be) on local disk to its URL. Files that are complete on local
+   * disk get read from there, the others from their URL according to {@code mode} (see
+   * {@link RangeFile#open(Path, String, DownloadMode, boolean, Downloader)}).
+   */
+  public void processRemote(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh, Downloader downloader,
+    FeatureGroup writer, PlanetilerConfig config) throws IOException {
+    var timer = stats.startStage(sourceName);
+    var inputFiles = openAll(pathToUrl, mode, refresh, downloader, config);
+    try {
+      process(inputFiles, writer, config, timer);
+    } finally {
+      closeAll(inputFiles);
+    }
+  }
+
+  private List<ParquetInputFile> openAll(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh,
+    Downloader downloader, PlanetilerConfig config) throws IOException {
+    // opening a remote file and reading its footer take a round trip or two each, so open them all at once
+    var opening = pathToUrl.entrySet().stream().sorted(Map.Entry.comparingByKey())
+      .map(entry -> downloader.supplyAsync(() -> newInputFile(entry.getKey(),
+        RangeFile.open(entry.getKey(), entry.getValue(), mode, refresh, downloader), config)))
       .toList();
+    return CompletableFutures.joinAllOrClose(opening);
+  }
+
+  private ParquetInputFile newInputFile(Path path, RangeFile file, PlanetilerConfig config) throws IOException {
+    try {
+      return new ParquetInputFile(sourceName, getLayerName(path), path, file, null, config.bounds(),
+        hivePartitioning ? getHivePartitionFields(path) : null, idGenerator);
+    } catch (RuntimeException e) {
+      // not try-with-resources: on success the ParquetInputFile owns the file and closes it later
+      file.close();
+      throw e;
+    }
+  }
+
+  private static void closeAll(List<ParquetInputFile> files) throws IOException {
+    for (var file : files) {
+      file.close();
+    }
+  }
+
+  private void process(List<ParquetInputFile> files, FeatureGroup writer, PlanetilerConfig config,
+    Timers.Finishable timer) {
+    var inputFiles = files.stream().filter(file -> !file.shouldSkip(profile)).toList();
     // don't show % complete on features when a filter is present because to determine total # elements would
     // take an expensive initial query, and % complete on blocks gives a good enough proxy
     long featureCount = inputFiles.stream().anyMatch(ParquetInputFile::hasFilter) ? 0 :
@@ -114,8 +181,27 @@ public class ParquetReader {
     }).toList();
     Distributor<ParquetFeature> distributor = Distributor.createWithCapacity(1_000);
 
-    var pipeline = WorkerPipeline.start(sourceName, stats)
-      .readFromTiny("blocks", inputBlocks)
+    int lookAhead = lookAheadBlocks(blockCount, inputFiles.stream().mapToLong(ParquetInputFile::getBytesToRead).sum(),
+      processThreads, config);
+
+    var rangeFiles = inputFiles.stream().map(ParquetInputFile::file).toList();
+    // files complete on local disk fetch nothing, and opening a remote one always makes a request
+    boolean remote = rangeFiles.stream().anyMatch(file -> file.requestsMade() > 0);
+    // before the pipeline starts fetching: progress counts the row group bytes only, not the footers fetched already
+    long bytesToFetch = inputFiles.stream().mapToLong(ParquetInputFile::getBytesToFetch).sum();
+    long requestsToFetch = inputFiles.stream().mapToLong(ParquetInputFile::getRequestsToFetch).sum();
+    long bytesFetchedBefore = rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum();
+    long requestsMadeBefore = rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum();
+
+    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch", next -> {
+      for (var block : inputBlocks) {
+        block.startFetchIfNecessary();
+        next.accept(block);
+      }
+    })
+      // remote blocks start fetching once they enter this queue, so its size bounds the requests in flight and the
+      // fetched bytes held in memory
+      .addBuffer("blocks", lookAhead, 1)
       .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var blocks = blocksRead.counterForThread();
         var elements = featuresRead.counterForThread();
@@ -150,7 +236,19 @@ public class ParquetReader {
       .addRatePercentCounter("read", featureCount, featuresRead, true)
       .addRatePercentCounter("blocks", blockCount, blocksRead, false)
       .addRateCounter("write", writer::numFeaturesWritten)
-      .addFileSize(writer)
+      .addFileSize(writer);
+
+    if (remote) {
+      var format = loggers.getFormat();
+      loggers = loggers
+        .addStorageRatePercentCounter("download", bytesToFetch,
+          () -> rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum() - bytesFetchedBefore, false)
+        .add(() -> " " +
+          format.numeric(rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum() - requestsMadeBefore) + "/" +
+          format.numeric(requestsToFetch) + " req");
+    }
+
+    loggers = loggers
       .newLine()
       .add(() -> workingOn.entrySet().stream()
         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
@@ -168,11 +266,12 @@ public class ParquetReader {
       var format = Format.defaultInstance();
       long count = featuresRead.get();
       var elapsed = timer.elapsed();
-      LOGGER.info("Processed {} parquet features ({}/s, {} blocks, {} files) in {}",
+      LOGGER.info("Processed {} parquet features ({}/s, {} blocks, {} files{}) in {}",
         format.integer(count),
         format.numeric(count * NANOSECONDS_PER_SECOND / elapsed.wall().toNanos()),
         format.integer(blocksRead.get()),
         format.integer(inputFiles.size()),
+        remote ? ", downloaded " + fetched(rangeFiles) : "",
         elapsed
       );
     }
@@ -187,6 +286,24 @@ public class ParquetReader {
     } catch (IOException e) {
       LOGGER.warn("Error closing writer", e);
     }
+  }
+
+  private static String fetched(List<RangeFile> files) {
+    var format = Format.defaultInstance();
+    return format.storage(files.stream().mapToLong(RangeFile::bytesFetched).sum(), false) + "B in " +
+      format.integer(files.stream().mapToLong(RangeFile::requestsMade).sum()) + " requests";
+  }
+
+  /**
+   * Returns how many blocks to fetch ahead of the workers: enough to keep every range request busy twice over (so the
+   * next requests start as soon as some finish) and at least one per worker, but no more than 1/8 of the heap.
+   */
+  static int lookAheadBlocks(long blocks, long bytes, int processThreads, PlanetilerConfig config) {
+    long averageBlockBytes = Math.max(1, bytes / blocks);
+    long rangeBytesInFlight = config.downloadRangeConcurrency() * config.downloadRangeChunkSizeMB() * 1_000_000L;
+    long wanted = Math.max(processThreads, Math.ceilDiv(2 * rangeBytesInFlight, averageBlockBytes));
+    long memoryLimit = ProcessInfo.getMaxMemoryBytes() / 8;
+    return Math.clamp(Math.min(wanted, memoryLimit / averageBlockBytes), 1, Integer.MAX_VALUE);
   }
 
   private String getLayerName(Path path) {

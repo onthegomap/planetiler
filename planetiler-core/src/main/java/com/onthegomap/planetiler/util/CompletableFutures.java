@@ -1,0 +1,101 @@
+package com.onthegomap.planetiler.util;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+
+/** Utilities for waiting on {@link CompletableFuture CompletableFutures}. */
+public class CompletableFutures {
+  private CompletableFutures() {}
+
+  /**
+   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
+   * one fails.
+   */
+  public static CompletableFuture<Void> joinFutures(CompletableFuture<?>... futures) {
+    return joinFutures(List.of(futures));
+  }
+
+  /**
+   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
+   * one fails.
+   */
+  public static CompletableFuture<Void> joinFutures(Collection<CompletableFuture<?>> futures) {
+    CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    // fail fast on exceptions
+    for (CompletableFuture<?> f : futures) {
+      f.whenComplete((res, ex) -> {
+        if (ex != null) {
+          result.completeExceptionally(ex);
+          futures.forEach(other -> other.cancel(true));
+        }
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Waits for {@code future} and returns its result, or throws what it failed with without the
+   * {@link ExecutionException} around it.
+   * <p>
+   * A {@link RuntimeException} or {@link Error} gets thrown as is, checked exceptions the way
+   * {@link Exceptions#throwFatalException(Throwable)} throws them (an {@link IOException} as an
+   * {@link UncheckedIOException}); see {@link #awaitIO(CompletableFuture)} to get IOExceptions back.
+   */
+  public static <T> T await(CompletableFuture<T> future) {
+    try {
+      return future.get();
+    } catch (InterruptedException e) {
+      return Exceptions.throwFatalException(e);
+    } catch (ExecutionException e) {
+      return Exceptions.throwFatalException(e.getCause());
+    }
+  }
+
+  /**
+   * Waits for {@code future} like {@link #await(CompletableFuture)} but throws an {@link IOException} it failed with
+   * (also when wrapped in an {@link UncheckedIOException}) as a checked {@link IOException}.
+   */
+  public static <T> T awaitIO(CompletableFuture<T> future) throws IOException {
+    try {
+      return await(future);
+    } catch (UncheckedIOException e) {
+      return Exceptions.throwAsIOException(e);
+    }
+  }
+
+  /**
+   * Waits for all {@code futures}, which each open a resource, and returns the resources in the same order.
+   * <p>
+   * If any fail, this still waits for all of them, closes the ones that opened, and throws the failure of the first one
+   * that failed in list order, like {@link #awaitIO(CompletableFuture)}.
+   */
+  public static <T extends Closeable> List<T> joinAllOrClose(List<CompletableFuture<T>> futures) throws IOException {
+    List<T> result = new ArrayList<>();
+    Throwable error = null;
+    for (var future : futures) {
+      try {
+        result.add(future.join());
+      } catch (CompletionException e) {
+        error = error == null ? e.getCause() : error;
+      }
+    }
+    if (error != null) {
+      for (var opened : result) {
+        try {
+          opened.close();
+        } catch (IOException e) {
+          error.addSuppressed(e);
+        }
+      }
+      Exceptions.throwAsIOException(error);
+    }
+    return result;
+  }
+}

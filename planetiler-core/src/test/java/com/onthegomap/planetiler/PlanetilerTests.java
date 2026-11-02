@@ -38,6 +38,7 @@ import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.StubRangeDownloader;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -3101,6 +3102,55 @@ class PlanetilerTests {
         }
       }
       assertTrue(featureCount > 0, "expected features from overture source");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"streaming", "cached"})
+  void testPlanetilerRunnerRemoteParquet(String mode) throws Exception {
+    String url = "http://host/boston.parquet";
+    var downloader = new StubRangeDownloader(PlanetilerConfig.defaults())
+      .put(url, Files.readAllBytes(TestUtils.pathToResource("parquet").resolve("boston.parquet")));
+    // feature ids come from the file's path, so the local run reads the same path the remote one would cache to
+    Path path = tempDir.resolve("sources").resolve("boston.parquet");
+    Path remoteOutput = tempDir.resolve("remote.mbtiles");
+    Path localOutput = tempDir.resolve("local.mbtiles");
+    var profile = new Profile.NullProfile() {
+      @Override
+      public void processFeature(SourceFeature source, FeatureCollector features) {
+        features.polygon("buildings")
+          .setZoomRange(0, 14)
+          .setMinPixelSize(0)
+          .setAttr("id", source.getString("id"));
+      }
+    };
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=" + mode))
+      .setDownloader(downloader)
+      .setProfile(profile)
+      .addParquetSource("parquet", path, url)
+      .setOutput(remoteOutput)
+      .run();
+    assertFalse(downloader.requests().isEmpty());
+    assertEquals(mode.equals("cached"), Files.exists(path), "cached keeps a local copy, streaming doesn't");
+
+    if (!Files.exists(path)) {
+      FileUtils.createParentDirectories(path);
+      Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), path);
+    }
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(profile)
+      .addParquetSource("parquet", List.of(path))
+      .setOutput(localOutput)
+      .run();
+
+    try (
+      Mbtiles remote = Mbtiles.newReadOnlyDatabase(remoteOutput);
+      Mbtiles local = Mbtiles.newReadOnlyDatabase(localOutput)
+    ) {
+      var tiles = TestUtils.getTileMap(local);
+      assertFalse(tiles.isEmpty());
+      assertEquals(tiles, TestUtils.getTileMap(remote));
     }
   }
 

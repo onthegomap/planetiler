@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
-import static com.onthegomap.planetiler.worker.Worker.joinFutures;
+import static com.onthegomap.planetiler.util.CompletableFutures.joinFutures;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;

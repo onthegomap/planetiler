@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.LogUtil;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -80,33 +81,19 @@ public class Worker {
       }, es));
     }
     es.shutdown();
-    done = joinFutures(results);
+    done = CompletableFutures.joinFutures(results);
   }
 
-  /**
-   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
-   * one fails.
-   */
+  /** @deprecated use {@link CompletableFutures#joinFutures(CompletableFuture[])} */
+  @Deprecated
   public static CompletableFuture<Void> joinFutures(CompletableFuture<?>... futures) {
-    return joinFutures(List.of(futures));
+    return CompletableFutures.joinFutures(futures);
   }
 
-  /**
-   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
-   * one fails.
-   */
+  /** @deprecated use {@link CompletableFutures#joinFutures(Collection)} */
+  @Deprecated
   public static CompletableFuture<Void> joinFutures(Collection<CompletableFuture<?>> futures) {
-    CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
-    // fail fast on exceptions
-    for (CompletableFuture<?> f : futures) {
-      f.whenComplete((res, ex) -> {
-        if (ex != null) {
-          result.completeExceptionally(ex);
-          futures.forEach(other -> other.cancel(true));
-        }
-      });
-    }
-    return result;
+    return CompletableFutures.joinFutures(futures);
   }
 
   public String getPrefix() {

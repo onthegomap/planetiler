@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.worker;
 
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
-import static com.onthegomap.planetiler.worker.Worker.joinFutures;
+import static com.onthegomap.planetiler.util.CompletableFutures.joinFutures;
 
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.IterableOnce;

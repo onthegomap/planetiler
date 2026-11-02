@@ -370,6 +370,10 @@ public class ProgressLoggers {
     }
   }
 
+  public Format getFormat() {
+    return format;
+  }
+
   private record ProgressLogger(String name, Supplier<String> fn) {
 
     @Override
