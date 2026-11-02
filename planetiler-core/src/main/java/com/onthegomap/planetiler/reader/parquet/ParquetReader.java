@@ -234,21 +234,21 @@ public class ParquetReader {
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("read", featureCount, featuresRead, true)
-      .addRatePercentCounter("blocks", blockCount, blocksRead, false)
-      .addRateCounter("write", writer::numFeaturesWritten)
-      .addFileSize(writer);
+      .addRatePercentCounter("blocks", blockCount, blocksRead, false);
 
     if (remote) {
       var format = loggers.getFormat();
       loggers = loggers
         .addStorageRatePercentCounter("download", bytesToFetch,
           () -> rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum() - bytesFetchedBefore, false)
-        .add(() -> " " +
+        .add(() -> " (" +
           format.numeric(rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum() - requestsMadeBefore) + "/" +
-          format.numeric(requestsToFetch) + " req");
+          format.numeric(requestsToFetch) + ")");
     }
 
     loggers = loggers
+      .addRateCounter("write", writer::numFeaturesWritten)
+      .addFileSize(writer)
       .newLine()
       .add(() -> workingOn.entrySet().stream()
         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
