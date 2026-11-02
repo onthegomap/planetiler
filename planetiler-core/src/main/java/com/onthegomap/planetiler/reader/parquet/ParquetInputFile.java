@@ -200,8 +200,10 @@ public class ParquetInputFile implements Closeable {
 
         @Override
         public void startFetchIfNecessary() {
-          // larger row groups get read by parquet in smaller pieces instead
-          if (span.length() <= MAX_FETCH_BYTES) {
+          // Bytes already on local disk or in memory get read by parquet straight into its own buffers: copying them
+          // into one array first would only double the memory per row group. Larger row groups get read by parquet in
+          // smaller pieces instead.
+          if (span.length() <= MAX_FETCH_BYTES && file.bytesToFetch(span.start(), (int) span.length()) > 0) {
             bytes = file.readLater(span.start(), (int) span.length());
           }
         }
@@ -348,8 +350,8 @@ public class ParquetInputFile implements Closeable {
     String layer();
 
     /**
-     * Starts fetching this block's bytes in the background if the file is remote, so that iterating over it later
-     * blocks less. Returns right away, and does nothing for local files.
+     * Starts fetching this block's bytes in the background if they have to come from a remote server, so that iterating
+     * over it later blocks less. Returns right away, and does nothing when the bytes are already local.
      */
     default void startFetchIfNecessary() {}
   }

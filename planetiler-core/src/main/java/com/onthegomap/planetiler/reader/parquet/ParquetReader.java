@@ -299,7 +299,7 @@ public class ParquetReader {
    * next requests start as soon as some finish) and at least one per worker, but no more than 1/8 of the heap.
    */
   static int lookAheadBlocks(long blocks, long bytes, int processThreads, PlanetilerConfig config) {
-    long averageBlockBytes = Math.max(1, bytes / blocks);
+    long averageBlockBytes = blocks == 0 ? 1 : Math.max(1, bytes / blocks);
     long rangeBytesInFlight = config.downloadRangeConcurrency() * config.downloadRangeChunkSizeMB() * 1_000_000L;
     long wanted = Math.max(processThreads, Math.ceilDiv(2 * rangeBytesInFlight, averageBlockBytes));
     long memoryLimit = ProcessInfo.getMaxMemoryBytes() / 8;

@@ -48,15 +48,19 @@ public class CachedRangeFile implements RangeFile {
   private long unsyncedBytes = 0;
   private FileChannel rangesFile;
 
-  private CachedRangeFile(Path path, HttpRangeFile remote, long length, List<Range<Long>> ranges) throws IOException {
+  private CachedRangeFile(Path path, HttpRangeFile remote, long length, List<Range<Long>> ranges, boolean newFile)
+    throws IOException {
     this.path = path;
     this.rangesPath = rangesPath(path);
     this.remote = remote;
     this.length = length;
     cachedByteRanges.addAll(ranges);
-    // SPARSE only matters on Windows; other platforms leave holes in files written at far offsets anyway
-    this.channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.SPARSE,
-      StandardOpenOption.READ, StandardOpenOption.WRITE);
+    // SPARSE only matters on Windows (other platforms leave holes in files written at far offsets anyway), where the JDK
+    // only applies it together with CREATE_NEW; a file created sparse stays sparse when reopened
+    this.channel = newFile ?
+      FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.SPARSE, StandardOpenOption.READ,
+        StandardOpenOption.WRITE) :
+      FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
     this.rangesFile = FileChannel.open(rangesPath, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
   }
 
@@ -106,7 +110,7 @@ public class CachedRangeFile implements RangeFile {
     var remote = HttpRangeFile.open(downloader, url, VALIDATION_BYTES); // NOSONAR
     var previous = readMeta(path);
     if (previous != null && Files.exists(path) && remote.isSameVersion(previous)) {
-      return new CachedRangeFile(path, remote, previous.length(), readRanges(path));
+      return new CachedRangeFile(path, remote, previous.length(), readRanges(path), false);
     }
     LOGGER.info("{} changed since it was partially downloaded to {}, starting over", url, path);
     return createNew(path, remote);
@@ -132,7 +136,7 @@ public class CachedRangeFile implements RangeFile {
     // the ranges file marks the cache as partial, so it gets created before any data is written
     Files.writeString(rangesPath(path), "");
     MAPPER.writeValue(metaPath(path).toFile(), remote.version());
-    var result = new CachedRangeFile(path, remote, remote.length(), List.of());
+    var result = new CachedRangeFile(path, remote, remote.length(), List.of(), true);
     // the end of the file came with the request that opened it, keep it so the next run doesn't need to fetch it
     result.store(remote.tailOffset(), remote.tail());
     return result;
@@ -149,7 +153,7 @@ public class CachedRangeFile implements RangeFile {
     if (previous == null || !isPartial(path)) {
       throw new IOException(path + " is not a partially downloaded file");
     }
-    return new CachedRangeFile(path, null, previous.length(), readRanges(path));
+    return new CachedRangeFile(path, null, previous.length(), readRanges(path), false);
   }
 
   private static RemoteVersion readMeta(Path path) {

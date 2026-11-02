@@ -248,12 +248,20 @@ class ParquetInputFileTest {
   }
 
   /** Records the reads made through a local file. */
+  /** Records reads from a local file, acting like a remote one (every byte needs fetching) if {@code remote}. */
   private static class RecordingRangeFile implements RangeFile {
     private final RangeFile delegate;
+    private final boolean remote;
     final List<String> reads = new CopyOnWriteArrayList<>();
 
-    RecordingRangeFile(Path path) {
+    RecordingRangeFile(Path path, boolean remote) {
       this.delegate = new LocalRangeFile(path);
+      this.remote = remote;
+    }
+
+    @Override
+    public long bytesToFetch(long offset, int length) {
+      return remote ? length : 0;
     }
 
     @Override
@@ -282,7 +290,7 @@ class ParquetInputFileTest {
   @Test
   void testFetchesOnlyRowGroupsInBounds() throws IOException {
     Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
-    try (var file = new RecordingRangeFile(path)) {
+    try (var file = new RecordingRangeFile(path, true)) {
       var outside = new ParquetInputFile("parquet", "layer", path, file, null,
         new Bounds(new Envelope(-71.08, -71.075, 42.356, 42.357)), null, null);
       file.reads.clear();
@@ -306,6 +314,25 @@ class ParquetInputFileTest {
       }
       // the whole row group in one read that starts when the block is handed out, nothing else
       assertEquals(List.of("readLater 4+" + inside.getBytesToRead()), file.reads);
+      assertEquals(3, features);
+    }
+  }
+
+  @Test
+  void testLocalBlocksAreReadWithoutCopyingUpFront() throws IOException {
+    Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
+    try (var file = new RecordingRangeFile(path, false)) {
+      var input = new ParquetInputFile("parquet", "layer", path, file, null, Bounds.WORLD, null, null);
+      file.reads.clear();
+      int features = 0;
+      for (var block : input.get()) {
+        block.startFetchIfNecessary();
+        assertEquals(List.of(), file.reads, "nothing read before iterating");
+        for (var feature : block) {
+          features++;
+        }
+      }
+      assertTrue(file.reads.stream().allMatch(read -> read.startsWith("read ")), file.reads.toString());
       assertEquals(3, features);
     }
   }
