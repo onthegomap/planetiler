@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -203,5 +204,103 @@ class DownloaderTest {
     var exception = assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
     assertInstanceOf(IllegalStateException.class, exception.getCause());
     assertTrue(exception.getMessage().contains("--force"), exception.getMessage());
+  }
+
+  private static final byte[] RANGE_BYTES = "0123456789".getBytes(StandardCharsets.UTF_8);
+
+  private static String string(Downloader.RangeResponse response) {
+    return new String(response.bytes(), StandardCharsets.UTF_8);
+  }
+
+  @Test
+  void testFetchTailAndRange() throws Exception {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES, "\"v1\"", "date1");
+
+    var tail = downloader.fetchTail("http://url", 3);
+    assertEquals("789", string(tail));
+    assertEquals(7, tail.offset());
+    assertEquals(new Downloader.RemoteVersion(10, "\"v1\"", "date1"), tail.version());
+
+    var range = downloader.fetchRange("http://url", tail.version(), 2, 4).get();
+    assertEquals("2345", string(range));
+    assertEquals(2, range.offset());
+  }
+
+  @Test
+  void testFetchRangeFollowsRedirects() throws Exception {
+    var downloader = new StubRangeDownloader(config)
+      .redirect("http://a", "http://b")
+      .put("http://b", RANGE_BYTES);
+    var response = downloader.fetchTail("http://a", 2);
+    assertEquals("http://b", response.url());
+    assertEquals("89", string(response));
+  }
+
+  @Test
+  void testFetchRangeSendsPreconditions() throws Exception {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES, "W/\"weak\"", "date1");
+    var version = downloader.fetchTail("http://url", 1).version();
+    downloader.fetchRange("http://url", version, 0, 1).get();
+    downloader.fetchRange("http://url", new Downloader.RemoteVersion(10, "\"strong\"", "date1"), 0, 1)
+      .handle((result, error) -> null).get();
+    downloader.fetchRange("http://url", null, 0, 1).get();
+
+    var requests = downloader.requests();
+    // If-Match only works with strong ETags, so a weak one falls back to Last-Modified
+    assertEquals(new StubRangeDownloader.Request("http://url", "bytes=0-0", null, "date1"), requests.get(1));
+    assertEquals(new StubRangeDownloader.Request("http://url", "bytes=0-0", "\"strong\"", null), requests.get(2));
+    assertEquals(new StubRangeDownloader.Request("http://url", "bytes=0-0", null, null), requests.get(3));
+  }
+
+  @Test
+  void testFetchRangeFailsWhenFileChanged() throws Exception {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES, "\"v1\"", null);
+    var version = downloader.fetchTail("http://url", 1).version();
+    downloader.put("http://url", RANGE_BYTES, "\"v2\"", null);
+
+    var future = downloader.fetchRange("http://url", version, 0, 1);
+    var exception = assertThrows(ExecutionException.class, future::get);
+    assertInstanceOf(Downloader.RemoteFileChangedException.class, exception.getCause());
+    assertTrue(exception.getCause().getMessage().contains("--download-fail-if-changed=false"),
+      exception.getCause().getMessage());
+  }
+
+  @Test
+  void testFetchRangeRetriesServerErrors() throws Exception {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES).failNext(2, 503);
+    assertEquals("9", string(downloader.fetchTail("http://url", 1)));
+    assertEquals(3, downloader.requests().size());
+
+    downloader.failNext(config.httpRetries() + 1, 429);
+    assertThrows(IOException.class, () -> downloader.fetchTail("http://url", 1));
+  }
+
+  @Test
+  void testFetchRangeFailsWithoutRangeSupport() {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES).ignoreRanges();
+    var exception = assertThrows(IllegalStateException.class, () -> downloader.fetchTail("http://url", 1));
+    assertTrue(exception.getMessage().contains("does not support range requests"), exception.getMessage());
+  }
+
+  @Test
+  void testRemoteVersionMatchesOnlyValidatorsBothHave() {
+    var version = new Downloader.RemoteVersion(10, "\"a\"", "date1");
+    assertTrue(version.matches(new Downloader.RemoteVersion(10, "\"a\"", "date1")));
+    assertTrue(version.matches(new Downloader.RemoteVersion(10, null, null)));
+    assertFalse(version.matches(new Downloader.RemoteVersion(11, "\"a\"", "date1")));
+    assertFalse(version.matches(new Downloader.RemoteVersion(10, "\"b\"", "date1")));
+    assertFalse(version.matches(new Downloader.RemoteVersion(10, null, "date2")));
+  }
+
+  @Test
+  void testFetchTailWithoutSuffixRangeSupport() throws Exception {
+    var downloader = new StubRangeDownloader(config).put("http://url", RANGE_BYTES).ignoreSuffixRanges();
+
+    var tail = downloader.fetchTail("http://url", 3);
+    assertEquals("789", string(tail));
+    assertEquals(7, tail.offset());
+    assertEquals(10, tail.version().length());
+    assertEquals(List.of("bytes=-3", "bytes=0-0", "bytes=7-9"),
+      downloader.requests().stream().map(StubRangeDownloader.Request::range).toList());
   }
 }

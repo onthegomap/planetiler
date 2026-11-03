@@ -19,6 +19,8 @@ import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.parquet.ParquetReader;
+import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
+import com.onthegomap.planetiler.reader.remote.DownloadMode;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -46,6 +48,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -100,6 +103,8 @@ public class Planetiler {
   private final Path featureDbPath;
   private final Path onlyRunTests;
   private final boolean downloadSources;
+  private final DownloadMode downloadMode;
+  private Downloader downloader;
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
@@ -138,7 +143,9 @@ public class Planetiler {
     tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     onlyRunTests = arguments.file("tests", "run test cases in a yaml then quit", null);
-    downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
+    downloadMode = DownloadMode.parse(arguments.getString("download",
+      "download missing sources: false, cached (same as true), streaming or full", "false"));
+    downloadSources = onlyDownloadSources || downloadMode.enabled();
     refreshSources =
       arguments.getBoolean("refresh_sources", "download new version of source files if they have changed", false);
     fetchOsmTileStats =
@@ -575,38 +582,109 @@ public class Planetiler {
   }
 
   /**
+   * Adds a new <a href="https://github.com/opengeospatial/geoparquet">GeoParquet</a> source that will be processed when
+   * {@link #run()} is called.
+   * <p>
+   * If the file does not exist and the {@code download} argument is set, then with {@code download=cached} (or
+   * {@code true}) or {@code download=streaming} only the parts of {@code defaultUrl} the map bounds need get read with
+   * range requests (keeping them in a sparse file at the source's path with {@code cached}), and with
+   * {@code download=full} the whole file gets downloaded first. {@code download_<name>} overrides that for this source.
+   * <p>
+   * To override the location of the file, set {@code name_path=newpath.parquet} in the arguments and to override the
+   * download URL set {@code name_url=http://url/of/file.parquet}.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL of the file if {@code name_url} argument is not set
+   * @return this runner instance for chaining
+   * @see ParquetReader
+   */
+  public Planetiler addParquetSource(String name, Path defaultPath, String defaultUrl) {
+    var source = sourceArgs(name, "parquet", defaultPath, defaultUrl);
+    if (source.mode().fetchWhileProcessing() && source.url() != null) {
+      return addStage(name, "Process features in " + source.path() + " using " +
+        source.mode().name().toLowerCase(Locale.ROOT) + " range requests to " + source.url(),
+        ifSourceUsed(name, () -> new ParquetReader(name, profile, stats)
+          .processRemote(Map.of(source.path(), source.url()), source.mode(), source.refresh(), downloader(),
+            featureGroup, config)));
+    }
+    addDownload(source);
+    return addParquetSource(name, List.of(source.path()));
+  }
+
+  /**
    * Adds a new <a href="https://overturemaps.org/">Overture Maps</a> source that reads from a mirror of overture data
    * on disk, either fetched using an external tool or downloaded automatically using the stac catalog.
+   * <p>
+   * With {@code download=cached} (or {@code true}) or {@code download=streaming}, only the parts of the files in the
+   * catalog that the map bounds need get read with range requests (keeping them in sparse files under {@code rootPath}
+   * with {@code cached}), and with {@code download=full} the whole files in the map bounds get downloaded first.
+   * {@code download_<name>} overrides that for this source.
    */
   public Planetiler addOvertureSource(String name, String theme, String type, Path rootPath) {
     Path downloadDir = arguments.file(name + "_path", name + " overture download directory", rootPath);
-    boolean refresh =
-      arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
+    boolean refresh = refreshSource(name);
+    String catalogUrl = arguments.getString("overture_catalog_url", "Overture STAC catalog to find files in",
+      OvertureStac.DEFAULT_CATALOG_URL);
+    DownloadMode mode = downloadMode(name);
+    Path typeDir = downloadDir.resolve("theme=" + theme).resolve("type=" + type);
+    Function<String, Path> localPath = url -> typeDir.resolve(url.substring(url.lastIndexOf('/') + 1));
 
-    if (downloadSources || refresh) {
+    if (mode.fetchWhileProcessing()) {
+      return addStage(name, "Process features in " + typeDir + " using " + mode.name().toLowerCase(Locale.ROOT) +
+        " range requests", ifSourceUsed(name, () -> {
+          var urls = OvertureStac.create(config).getParquetUrls(catalogUrl, theme, type, config.bounds());
+          new ParquetReader(name, profile, stats, fields -> fields.get("id"), fields -> fields.get("type"), true)
+            .processRemote(urls.stream().collect(Collectors.toMap(localPath, url -> url)), mode, refresh, downloader(), featureGroup, config);
+        }));
+    }
+
+    if (mode.enabled() || refresh) {
       // Kick off catalog traversal in the background; download() will wait for all futures before running.
       OvertureStac stac = OvertureStac.create(config);
       // ensure parent directory exists
-      FileUtils.createDirectory(downloadDir
-        .resolve("theme=" + theme)
-        .resolve("type=" + type));
+      FileUtils.createDirectory(typeDir);
       toDownload.add(new ToDownload(name, CompletableFuture.supplyAsync(() -> {
-        List<String> urls = stac.getParquetUrls(theme, type, config.bounds());
+        List<String> urls = stac.getParquetUrls(catalogUrl, theme, type, config.bounds());
         return urls.stream()
-          .map(url -> Map.entry(url, downloadDir
-            .resolve("theme=" + theme)
-            .resolve("type=" + type)
-            .resolve(url.substring(url.lastIndexOf('/') + 1))))
-          .filter(entry -> refresh || !Files.exists(entry.getValue()))
+          .map(url -> Map.entry(url, localPath.apply(url)))
+          .filter(entry -> CachedRangeFile.deleteIfPartial(entry.getValue()) || refresh ||
+            !Files.exists(entry.getValue()))
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       }, virtualThreadPoolExecutor)));
     }
 
-    return addParquetSource(name, List.of(downloadDir.resolve("theme=" + theme).resolve("type=" + type)),
+    return addParquetSource(name, List.of(typeDir),
       () -> Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find(),
       true,
       fields -> fields.get("id"),
       fields1 -> fields1.get("type"));
+  }
+
+  // use one downloader for whole files and range requests, so they share the bandwidth limit
+  private synchronized Downloader downloader() {
+    if (downloader == null) {
+      downloader = Downloader.create(config);
+    }
+    return downloader;
+  }
+
+  /** Makes downloads use {@code downloader}, for tests to simulate a server. */
+  synchronized Planetiler setDownloader(Downloader downloader) {
+    this.downloader = downloader;
+    return this;
+  }
+
+  private boolean refreshSource(String name) {
+    return arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
+  }
+
+  private DownloadMode downloadMode(String name) {
+    var mode = DownloadMode.parse(arguments.getString("download_" + name,
+      "how to download " + name + ": false, cached (same as true), streaming or full",
+      downloadMode.name().toLowerCase(Locale.ROOT)));
+    // only_download is for running offline later, which needs whole files
+    return onlyDownloadSources ? DownloadMode.FULL : mode;
   }
 
   /**
@@ -990,6 +1068,9 @@ public class Planetiler {
     try {
       stats.close();
       virtualThreadPoolExecutor.close();
+      if (downloader != null) {
+        downloader.close();
+      }
     } catch (Exception e) {
       throw new PlanetilerException(e);
     }
@@ -1100,30 +1181,43 @@ public class Planetiler {
   }
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
-    Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
-    boolean refresh =
-      arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
+    var source = sourceArgs(name, type, defaultPath, defaultUrl);
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
-    if (downloadSources || refresh) {
-      String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
-      if ((!Files.exists(path) || refresh) && url != null) {
-        toDownload.add(new ToDownload(name, url, path));
-      }
+    addDownload(source);
+    inputPaths.add(new InputPath(name, source.path(), freeAfterReading));
+    return source.path();
+  }
+
+  /** Reads the arguments of a source with a local path and a download URL, each once so each gets logged once. */
+  private SourceArgs sourceArgs(String name, String type, Path defaultPath, String defaultUrl) {
+    Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
+    boolean refresh = refreshSource(name);
+    DownloadMode mode = downloadMode(name);
+    String url = mode.enabled() || refresh ?
+      arguments.getString(name + "_url", name + " " + type + " url", defaultUrl) : null;
+    return new SourceArgs(name, path, url, mode, refresh);
+  }
+
+  /** Queues {@code source} for a full download before the stages run if it is missing or needs a refresh. */
+  private void addDownload(SourceArgs source) {
+    Path path = source.path();
+    // a partial cache from a cached / streaming run can't be completed by a full download, so it starts over
+    if (source.url() != null &&
+      (CachedRangeFile.deleteIfPartial(path) || !Files.exists(path) || source.refresh())) {
+      toDownload.add(new ToDownload(source.name(), source.url(), path));
     }
-    inputPaths.add(new InputPath(name, path, freeAfterReading));
-    return path;
   }
 
   private void download() {
     var timer = stats.startStage("download");
-    Downloader downloader = Downloader.create(config());
-    for (ToDownload toDownload : toDownload) {
-      if (profile.caresAboutSource(toDownload.id)) {
-        toDownload.urlToPath.join().forEach((url, path) -> downloader.add(toDownload.id, url, path));
+    Downloader fetcher = downloader();
+    for (ToDownload download : toDownload) {
+      if (profile.caresAboutSource(download.id)) {
+        download.urlToPath.join().forEach((url, path) -> fetcher.add(download.id, url, path));
       }
     }
-    downloader.run();
+    fetcher.run();
     timer.stop();
   }
 
@@ -1149,6 +1243,8 @@ public class Planetiler {
   }
 
   private record InputPath(String id, Path path, boolean freeAfterReading) {}
+
+  private record SourceArgs(String name, Path path, String url, DownloadMode mode, boolean refresh) {}
 
   /** An exception that occurs while running planetiler. */
   public static class PlanetilerException extends RuntimeException {

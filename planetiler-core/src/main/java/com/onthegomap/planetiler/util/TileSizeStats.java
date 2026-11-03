@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.util;
 
-import static com.onthegomap.planetiler.worker.Worker.joinFutures;
+import static com.onthegomap.planetiler.util.CompletableFutures.joinFutures;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.ObjectWriter;

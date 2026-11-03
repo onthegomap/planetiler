@@ -33,7 +33,8 @@ public class OvertureStac {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OvertureStac.class);
 
-  static final String DEFAULT_CATALOG_URL = "https://stac.overturemaps.org/catalog.json";
+  /** The URL of the official Overture STAC catalog. */
+  public static final String DEFAULT_CATALOG_URL = "https://stac.overturemaps.org/catalog.json";
 
   private static final ObjectMapper MAPPER =
     new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -97,7 +98,8 @@ public class OvertureStac {
     return getParquetUrls(DEFAULT_CATALOG_URL, theme, type, bounds);
   }
 
-  List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
+  /** Same as {@link #getParquetUrls(String, String, Bounds)} but using the STAC catalog at {@code catalogUrl}. */
+  public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
     LOGGER.info("Fetching Overture STAC catalog from {}", catalogUrl);
     StacCatalog catalog = fetch(catalogUrl, StacCatalog.class);
 

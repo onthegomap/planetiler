@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.archive;
 
+import static com.onthegomap.planetiler.util.CompletableFutures.joinFutures;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
-import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;

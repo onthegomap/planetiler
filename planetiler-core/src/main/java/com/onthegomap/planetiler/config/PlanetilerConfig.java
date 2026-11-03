@@ -47,6 +47,9 @@ public record PlanetilerConfig(
   long downloadChunkSizeMB,
   int downloadThreads,
   double downloadMaxBandwidth,
+  long downloadRangeChunkSizeMB,
+  int downloadRangeConcurrency,
+  boolean downloadFailIfChanged,
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
@@ -93,6 +96,12 @@ public record PlanetilerConfig(
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (downloadRangeChunkSizeMB <= 0) {
+      throw new IllegalArgumentException("--download-range-chunk-size-mb must be > 0, was " + downloadRangeChunkSizeMB);
+    }
+    if (downloadRangeConcurrency <= 0) {
+      throw new IllegalArgumentException("--download-range-concurrency must be > 0, was " + downloadRangeConcurrency);
     }
   }
 
@@ -195,6 +204,12 @@ public record PlanetilerConfig(
       arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
       Parse.bandwidth(arguments.getString("download_max_bandwidth",
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
+      arguments.getLong("download_range_chunk_size_mb",
+        "Largest range request in megabytes when using streaming or cached download mode", 2),
+      arguments.getInteger("download_range_concurrency",
+        "Maximum number of range requests in flight at once when using streaming or cached download mode", 16),
+      arguments.getBoolean("download_fail_if_changed",
+        "Fail when the ETag or Last-Modified header of a remote file changes mid-download", true),
       arguments.getDouble("min_feature_size_at_max_zoom",
         "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
         256d / 4096),

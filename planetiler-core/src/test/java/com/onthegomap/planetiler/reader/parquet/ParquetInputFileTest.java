@@ -9,7 +9,10 @@ import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.remote.LocalRangeFile;
+import com.onthegomap.planetiler.reader.remote.RangeFile;
 import com.onthegomap.planetiler.util.Glob;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.junit.jupiter.api.DynamicTest;
@@ -241,5 +245,94 @@ class ParquetInputFileTest {
       new Bounds(new Envelope(-71.075, -71.074, 42.356, 42.357)), null, null);
     assertEquals(1, inside.getBlockCount());
     assertEquals(3, inside.getCount());
+  }
+
+  /** Records reads from a local file, acting like a remote one (every byte needs fetching) if {@code remote}. */
+  private static class RecordingRangeFile implements RangeFile {
+    private final RangeFile delegate;
+    private final boolean remote;
+    final List<String> reads = new CopyOnWriteArrayList<>();
+
+    RecordingRangeFile(Path path, boolean remote) {
+      this.delegate = new LocalRangeFile(path);
+      this.remote = remote;
+    }
+
+    @Override
+    public long bytesToFetch(long offset, int length) {
+      return remote ? length : 0;
+    }
+
+    @Override
+    public long length() throws IOException {
+      return delegate.length();
+    }
+
+    @Override
+    public byte[] read(long offset, int length) throws IOException {
+      reads.add("read " + offset + "+" + length);
+      return delegate.read(offset, length);
+    }
+
+    @Override
+    public Pending readLater(long offset, int length) {
+      reads.add("readLater " + offset + "+" + length);
+      return delegate.readLater(offset, length);
+    }
+
+    @Override
+    public void close() throws IOException {
+      delegate.close();
+    }
+  }
+
+  @Test
+  void testFetchesOnlyRowGroupsInBounds() throws IOException {
+    Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
+    try (var file = new RecordingRangeFile(path, true)) {
+      var outside = new ParquetInputFile("parquet", "layer", path, file, null,
+        new Bounds(new Envelope(-71.08, -71.075, 42.356, 42.357)), null, null);
+      file.reads.clear();
+      for (var block : outside.get()) {
+        block.startFetchIfNecessary();
+        block.forEach(feature -> {
+        });
+      }
+      assertEquals(List.of(), file.reads);
+      assertEquals(0, outside.getBytesToRead());
+
+      var inside = new ParquetInputFile("parquet", "layer", path, file, null,
+        new Bounds(new Envelope(-71.075, -71.074, 42.356, 42.357)), null, null);
+      file.reads.clear();
+      int features = 0;
+      for (var block : inside.get()) {
+        block.startFetchIfNecessary();
+        for (var _ : block) {
+          features++;
+        }
+      }
+      // the whole row group in one read that starts when the block is handed out, nothing else
+      assertEquals(List.of("readLater 4+" + inside.getBytesToRead()), file.reads);
+      assertEquals(3, features);
+    }
+  }
+
+  @Test
+  void testLocalBlocksAreReadWithoutCopyingUpFront() throws IOException {
+    Path path = TestUtils.pathToResource("parquet").resolve("boston.parquet");
+    try (var file = new RecordingRangeFile(path, false)) {
+      var input = new ParquetInputFile("parquet", "layer", path, file, null, Bounds.WORLD, null, null);
+      file.reads.clear();
+      int features = 0;
+      for (var block : input.get()) {
+        block.startFetchIfNecessary();
+        assertEquals(List.of(), file.reads, "nothing read before iterating");
+        for (var _ : block) {
+          features++;
+        }
+      }
+      assertTrue(file.reads.stream().allMatch(read -> read.startsWith("read ")), file.reads.toString());
+      assertEquals(3, features);
+    }
   }
 }

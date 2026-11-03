@@ -33,6 +33,23 @@ public class Exceptions {
   }
 
   /**
+   * Re-throw a caught exception like {@link #throwFatalException(Throwable)}, except that an {@link IOException} (also
+   * one wrapped in an {@link UncheckedIOException}) gets thrown as a checked {@link IOException}.
+   *
+   * @param exception The original exception
+   * @param <T>       Return type if caller requires it
+   */
+  public static <T> T throwAsIOException(Throwable exception) throws IOException {
+    switch (exception) {
+      case IOException e -> throw e;
+      case UncheckedIOException e -> throw e.getCause();
+      default -> {
+        return throwFatalException(exception);
+      }
+    }
+  }
+
+  /**
    * Fatal exception that will result in planetiler exiting early and shutting down.
    */
   public static class FatalPlanetilerException extends RuntimeException {

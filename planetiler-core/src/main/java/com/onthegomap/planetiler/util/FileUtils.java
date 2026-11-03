@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -384,5 +385,21 @@ public class FileUtils {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  /**
+   * Reads {@code length} bytes at {@code offset} from {@code channel}.
+   *
+   * @throws EOFException if the channel ends before {@code offset + length}
+   */
+  public static byte[] readFully(FileChannel channel, long offset, int length) throws IOException {
+    byte[] result = new byte[length];
+    var buffer = ByteBuffer.wrap(result);
+    while (buffer.hasRemaining()) {
+      if (channel.read(buffer, offset + buffer.position()) < 0) {
+        throw new EOFException("Unexpected EOF at " + (offset + buffer.position()));
+      }
+    }
+    return result;
   }
 }

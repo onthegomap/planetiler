@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -80,5 +81,27 @@ class ParquetReaderTest {
       ParquetReader.getHivePartitionFields(Path.of("a", "b", "c=d", "e=f")));
     assertEquals(Map.of("a", "b", "c", "d", "e", "f"),
       ParquetReader.getHivePartitionFields(Path.of("a=b", "b", "c=d", "e=f")));
+  }
+
+  @Test
+  @Timeout(30)
+  void testNothingToRead() {
+    // bounds that miss every file, and no files at all (e.g. Overture bounds over open ocean)
+    var outsideBoston = PlanetilerConfig.from(Arguments.of("bounds", "7.40,43.72,7.44,43.75"));
+    List<String> ids = new CopyOnWriteArrayList<>();
+    var profile = new Profile.NullProfile() {
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        ids.add(sourceFeature.getString("id"));
+      }
+    };
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, outsideBoston, stats);
+    var reader = new ParquetReader("source", profile, stats);
+    var files = bostons();
+
+    reader.process(files, featureGroup, outsideBoston);
+    reader.process(List.of(), featureGroup, outsideBoston);
+
+    assertEquals(List.of(), ids);
   }
 }
