@@ -137,7 +137,6 @@ public class Planetiler {
   private Duration wikidataMaxAge = Duration.ZERO;
   private int wikidataUpdateLimit = 0;
   private final boolean fetchOsmTileStats;
-  private TileArchiveMetadata tileArchiveMetadata;
   private final ExecutorService virtualThreadPoolExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
   private Planetiler(Arguments arguments) {
@@ -1048,7 +1047,7 @@ public class Planetiler {
       checkMemory();
     }
     // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
-    tileArchiveMetadata = new TileArchiveMetadata(profile, config);
+    TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
     try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
       featureGroup =
