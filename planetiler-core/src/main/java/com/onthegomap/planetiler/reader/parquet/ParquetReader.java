@@ -19,15 +19,17 @@ import com.onthegomap.planetiler.stats.Timers;
 import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -98,18 +100,9 @@ public class ParquetReader {
   }
 
   private void processLocal(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) throws IOException {
-    var timer = stats.startStage(sourceName);
-    List<ParquetInputFile> inputFiles = new ArrayList<>();
-    try {
-      for (var path : sourcePath) {
-        if (!"_SUCCESS".equals(path.getFileName().toString())) {
-          inputFiles.add(newInputFile(path, RangeFile.openLocal(path), config));
-        }
-      }
-      process(inputFiles, writer, config, timer);
-    } finally {
-      closeAll(inputFiles);
-    }
+    var paths = sourcePath.stream().filter(path -> !"_SUCCESS".equals(path.getFileName().toString())).toList();
+    // local files open quickly, so open them on this thread
+    processAll(paths, RangeFile::openLocal, task -> CompletableFutures.supplyAsync(task, Runnable::run), writer, config);
   }
 
   /**
@@ -121,23 +114,23 @@ public class ParquetReader {
    */
   public void processRemote(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh, Downloader downloader,
     FeatureGroup writer, PlanetilerConfig config) throws IOException {
+    // opening a remote file and reading its footer take a round trip or two each, so open them all at once
+    processAll(pathToUrl.keySet().stream().sorted().toList(),
+      path -> RangeFile.open(path, pathToUrl.get(path), mode, refresh, downloader), downloader::supplyAsync, writer,
+      config);
+  }
+
+  private void processAll(List<Path> paths, FunctionThatThrows<Path, RangeFile> open,
+    Function<Callable<ParquetInputFile>, CompletableFuture<ParquetInputFile>> start, FeatureGroup writer,
+    PlanetilerConfig config) throws IOException {
     var timer = stats.startStage(sourceName);
-    var inputFiles = openAll(pathToUrl, mode, refresh, downloader, config);
+    var opening = paths.stream().map(path -> start.apply(() -> newInputFile(path, open.apply(path), config))).toList();
+    var inputFiles = CompletableFutures.joinAllOrClose(opening);
     try {
       process(inputFiles, writer, config, timer);
     } finally {
       closeAll(inputFiles);
     }
-  }
-
-  private List<ParquetInputFile> openAll(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh,
-    Downloader downloader, PlanetilerConfig config) throws IOException {
-    // opening a remote file and reading its footer take a round trip or two each, so open them all at once
-    var opening = pathToUrl.entrySet().stream().sorted(Map.Entry.comparingByKey())
-      .map(entry -> downloader.supplyAsync(() -> newInputFile(entry.getKey(),
-        RangeFile.open(entry.getKey(), entry.getValue(), mode, refresh, downloader), config)))
-      .toList();
-    return CompletableFutures.joinAllOrClose(opening);
   }
 
   private ParquetInputFile newInputFile(Path path, RangeFile file, PlanetilerConfig config) throws IOException {

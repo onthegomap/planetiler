@@ -85,13 +85,13 @@ public class Worker {
   }
 
   /** @deprecated use {@link CompletableFutures#joinFutures(CompletableFuture[])} */
-  @Deprecated
+  @Deprecated(since = "0.10.3", forRemoval = true)
   public static CompletableFuture<Void> joinFutures(CompletableFuture<?>... futures) {
     return CompletableFutures.joinFutures(futures);
   }
 
   /** @deprecated use {@link CompletableFutures#joinFutures(Collection)} */
-  @Deprecated
+  @Deprecated(since = "0.10.3", forRemoval = true)
   public static CompletableFuture<Void> joinFutures(Collection<CompletableFuture<?>> futures) {
     return CompletableFutures.joinFutures(futures);
   }

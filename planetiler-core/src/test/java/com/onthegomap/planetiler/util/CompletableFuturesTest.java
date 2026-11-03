@@ -97,4 +97,29 @@ class CompletableFuturesTest {
     assertTrue(joined.isCompletedExceptionally());
     assertTrue(never.isCancelled());
   }
+
+  @Test
+  void testSupplyAsyncReturnsResult() {
+    assertEquals("ok", CompletableFutures.supplyAsync(() -> "ok", Runnable::run).join());
+  }
+
+  @Test
+  void testSupplyAsyncFailsWithCheckedException() {
+    var error = new IOException("fail");
+    var future = CompletableFutures.<String>supplyAsync(() -> {
+      throw error;
+    }, Runnable::run);
+    var thrown = assertThrows(IOException.class, () -> CompletableFutures.awaitIO(future));
+    assertSame(error, thrown);
+  }
+
+  @Test
+  void testSupplyAsyncFailsWithRuntimeException() {
+    var error = new IllegalStateException("fail");
+    var future = CompletableFutures.<String>supplyAsync(() -> {
+      throw error;
+    }, Runnable::run);
+    var thrown = assertThrows(IllegalStateException.class, () -> CompletableFutures.await(future));
+    assertSame(error, thrown);
+  }
 }

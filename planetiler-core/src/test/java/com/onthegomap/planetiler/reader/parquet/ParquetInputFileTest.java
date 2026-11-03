@@ -247,7 +247,6 @@ class ParquetInputFileTest {
     assertEquals(3, inside.getCount());
   }
 
-  /** Records the reads made through a local file. */
   /** Records reads from a local file, acting like a remote one (every byte needs fetching) if {@code remote}. */
   private static class RecordingRangeFile implements RangeFile {
     private final RangeFile delegate;
@@ -308,7 +307,7 @@ class ParquetInputFileTest {
       int features = 0;
       for (var block : inside.get()) {
         block.startFetchIfNecessary();
-        for (var feature : block) {
+        for (var _ : block) {
           features++;
         }
       }
@@ -328,7 +327,7 @@ class ParquetInputFileTest {
       for (var block : input.get()) {
         block.startFetchIfNecessary();
         assertEquals(List.of(), file.reads, "nothing read before iterating");
-        for (var feature : block) {
+        for (var _ : block) {
           features++;
         }
       }

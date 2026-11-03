@@ -6,9 +6,11 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 
 /** Utilities for waiting on {@link CompletableFuture CompletableFutures}. */
 public class CompletableFutures {
@@ -41,6 +43,24 @@ public class CompletableFutures {
   }
 
   /**
+   * Runs {@code task} on {@code executor} like {@link CompletableFuture#supplyAsync(java.util.function.Supplier,
+   * Executor)}, except that {@code task} may throw checked exceptions.
+   * <p>
+   * The future fails with whatever {@code task} throws.
+   */
+  public static <T> CompletableFuture<T> supplyAsync(Callable<T> task, Executor executor) {
+    return CompletableFuture.supplyAsync(() -> {
+      try {
+        return task.call();
+      } catch (RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new CompletionException(e);
+      }
+    }, executor);
+  }
+
+  /**
    * Waits for {@code future} and returns its result, or throws what it failed with without the
    * {@link ExecutionException} around it.
    * <p>
@@ -52,6 +72,7 @@ public class CompletableFutures {
     try {
       return future.get();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return Exceptions.throwFatalException(e);
     } catch (ExecutionException e) {
       return Exceptions.throwFatalException(e.getCause());

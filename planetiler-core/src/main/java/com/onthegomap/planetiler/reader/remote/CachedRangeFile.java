@@ -212,7 +212,7 @@ public class CachedRangeFile implements RangeFile {
   @Override
   public Pending readLater(long offset, int length) {
     if (isCached(offset, length)) {
-      return () -> LocalRangeFile.readFully(channel, offset, length);
+      return () -> FileUtils.readFully(channel, offset, length);
     } else if (remote == null) {
       return () -> {
         throw new IOException(

@@ -30,7 +30,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -59,8 +58,8 @@ import org.slf4j.LoggerFactory;
  * }
  * }
  * <p>
- * Close the downloader when done with it to stop its threads; {@link #run()} leaves them running so the same
- * downloader can make more requests afterwards (they are virtual threads, so an unclosed downloader costs little).
+ * Close the downloader when done with it to stop its threads; {@link #run()} leaves them running so the same downloader
+ * can make more requests afterwards (they are virtual threads, so an unclosed downloader costs little).
  * <p>
  * As a shortcut to find the URL of a file to download from the <a href="https://download.geofabrik.de/">Geofabrik
  * download site</a>, you can use "geofabrik:extract name" (i.e. "geofabrik:monaco" or "geofabrik:australia") to look up
@@ -309,62 +308,63 @@ public class Downloader implements Closeable {
     FileUtils.setLength(tmpPath, metadata.size.orElse(1));
     Semaphore perFileLimiter =
       perFileLimiters.computeIfAbsent(resource.id(), id -> new Semaphore(config.downloadThreads()));
-    CompletableFutures.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
-      LogUtil.setStage("download", resource.id);
-      perFileLimiter.acquire();
-      try {
-        var counter = resource.progress.counterForThread();
-        for (int retry = 0; retry <= config.httpRetries(); retry++) {
-          boolean lastTry = retry == config.httpRetries();
-          int retriesRemaining = config.httpRetries() - retry;
-          int countToRewind = 0;
-          try (
-            var fc = FileChannel.open(tmpPath, WRITE);
-            var inputStream = (ranges || range.start > 0) ?
-              openStreamRange(canonicalUrl, range.start, range.end) :
-              openStream(canonicalUrl);
-          ) {
-            long offset = range.start;
-            byte[] buffer = new byte[16384];
-            int read;
-            while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
-              counter.incBy(read);
-              countToRewind += read;
-              if (rateLimiter != null) {
-                rateLimiter.acquire(read);
-              }
-              int position = 0;
-              int remaining = read;
-              while (remaining > 0) {
-                int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
-                if (written <= 0) {
-                  throw new IOException("Failed to write to " + tmpPath);
+    CompletableFutures
+      .joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
+        LogUtil.setStage("download", resource.id);
+        perFileLimiter.acquire();
+        try {
+          var counter = resource.progress.counterForThread();
+          for (int retry = 0; retry <= config.httpRetries(); retry++) {
+            boolean lastTry = retry == config.httpRetries();
+            int retriesRemaining = config.httpRetries() - retry;
+            int countToRewind = 0;
+            try (
+              var fc = FileChannel.open(tmpPath, WRITE);
+              var inputStream = (ranges || range.start > 0) ?
+                openStreamRange(canonicalUrl, range.start, range.end) :
+                openStream(canonicalUrl);
+            ) {
+              long offset = range.start;
+              byte[] buffer = new byte[16384];
+              int read;
+              while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
+                counter.incBy(read);
+                countToRewind += read;
+                if (rateLimiter != null) {
+                  rateLimiter.acquire(read);
                 }
-                position += written;
-                remaining -= written;
-                offset += written;
+                int position = 0;
+                int remaining = read;
+                while (remaining > 0) {
+                  int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
+                  if (written <= 0) {
+                    throw new IOException("Failed to write to " + tmpPath);
+                  }
+                  position += written;
+                  remaining -= written;
+                  offset += written;
+                }
               }
-            }
-            if (offset < range.end && range.end != Long.MAX_VALUE) {
-              throw new IOException("Unexpected EOF at " + offset + "/" + range.end);
-            }
-            // successfully downloaded file
-            break;
-          } catch (IOException e) {
-            if (lastTry) {
-              throw e;
-            } else {
-              counter.incBy(-countToRewind);
-              LOGGER.warn("Error downloading {}, retries remaining: {} {}", canonicalUrl, retriesRemaining,
-                e.getMessage());
-              retrySleep();
+              if (offset < range.end && range.end != Long.MAX_VALUE) {
+                throw new IOException("Unexpected EOF at " + offset + "/" + range.end);
+              }
+              // successfully downloaded file
+              break;
+            } catch (IOException e) {
+              if (lastTry) {
+                throw e;
+              } else {
+                counter.incBy(-countToRewind);
+                LOGGER.warn("Error downloading {}, retries remaining: {} {}", canonicalUrl, retriesRemaining,
+                  e.getMessage());
+                retrySleep();
+              }
             }
           }
+        } finally {
+          perFileLimiter.release();
         }
-      } finally {
-        perFileLimiter.release();
-      }
-    }), executor)).toArray(CompletableFuture[]::new)).get();
+      }), executor)).toArray(CompletableFuture[]::new)).get();
   }
 
   /**
@@ -377,7 +377,7 @@ public class Downloader implements Closeable {
   public RangeResponse fetchTail(String url, int length) throws IOException {
     try {
       return sendRangeRequest(url, null, "bytes=-" + length);
-    } catch (IllegalStateException e) {
+    } catch (IllegalStateException _) {
       // some servers don't support suffix ranges: get the file's length from its first byte, then ask for the tail
       long fileLength = sendRangeRequest(url, null, "bytes=0-0").version().length();
       return sendRangeRequest(url, null, "bytes=" + Math.max(0, fileLength - length) + "-" + (fileLength - 1));
@@ -404,15 +404,7 @@ public class Downloader implements Closeable {
    * The future fails with whatever {@code task} throws.
    */
   public <T> CompletableFuture<T> supplyAsync(Callable<T> task) {
-    return CompletableFuture.supplyAsync(() -> {
-      try {
-        return task.call();
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new CompletionException(e);
-      }
-    }, executor);
+    return CompletableFutures.supplyAsync(task, executor);
   }
 
   /** Returns the config this downloader was created with. */
@@ -450,22 +442,26 @@ public class Downloader implements Closeable {
 
   private Attempt sendWithRetries(String url, HttpRequest request, String range) throws IOException {
     try {
-      for (int retry = 0;; retry++) {
-        try {
-          return sendWithLimit(url, request);
-        } catch (IOException e) {
-          int retriesRemaining = config.httpRetries() - retry;
-          if (retriesRemaining <= 0) {
-            throw e;
-          }
-          LOGGER.warn("Error fetching {} of {}, retries remaining: {} {}", range, url, retriesRemaining,
-            e.getMessage());
-        }
-        retrySleep();
-      }
+      return sendWithRetriesInterruptibly(url, request, range);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(e);
+    }
+  }
+
+  private Attempt sendWithRetriesInterruptibly(String url, HttpRequest request, String range)
+    throws IOException, InterruptedException {
+    for (int retry = 0;; retry++) {
+      try {
+        return sendWithLimit(url, request);
+      } catch (IOException e) {
+        int retriesRemaining = config.httpRetries() - retry;
+        if (retriesRemaining <= 0) {
+          throw e;
+        }
+        LOGGER.warn("Error fetching {} of {}, retries remaining: {} {}", range, url, retriesRemaining, e.getMessage());
+      }
+      retrySleep();
     }
   }
 
@@ -550,6 +546,7 @@ public class Downloader implements Closeable {
   public record RangeResponse(String url, RemoteVersion version, long offset, byte[] bytes) {
 
     @Override
+    @SuppressWarnings("java:S6878")
     public boolean equals(Object o) {
       return this == o || (o instanceof RangeResponse other && Objects.equals(url, other.url) &&
         Objects.equals(version, other.version) && offset == other.offset && Arrays.equals(bytes, other.bytes));

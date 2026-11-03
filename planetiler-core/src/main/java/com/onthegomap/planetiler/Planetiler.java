@@ -628,15 +628,14 @@ public class Planetiler {
       OvertureStac.DEFAULT_CATALOG_URL);
     DownloadMode mode = downloadMode(name);
     Path typeDir = downloadDir.resolve("theme=" + theme).resolve("type=" + type);
+    Function<String, Path> localPath = url -> typeDir.resolve(url.substring(url.lastIndexOf('/') + 1));
 
     if (mode.fetchWhileProcessing()) {
       return addStage(name, "Process features in " + typeDir + " using " + mode.name().toLowerCase(Locale.ROOT) +
         " range requests", ifSourceUsed(name, () -> {
           var urls = OvertureStac.create(config).getParquetUrls(catalogUrl, theme, type, config.bounds());
           new ParquetReader(name, profile, stats, fields -> fields.get("id"), fields -> fields.get("type"), true)
-            .processRemote(urls.stream()
-              .collect(Collectors.toMap(url -> typeDir.resolve(url.substring(url.lastIndexOf('/') + 1)), url -> url)),
-              mode, refresh, downloader(), featureGroup, config);
+            .processRemote(urls.stream().collect(Collectors.toMap(localPath, url -> url)), mode, refresh, downloader(), featureGroup, config);
         }));
     }
 
@@ -644,23 +643,18 @@ public class Planetiler {
       // Kick off catalog traversal in the background; download() will wait for all futures before running.
       OvertureStac stac = OvertureStac.create(config);
       // ensure parent directory exists
-      FileUtils.createDirectory(downloadDir
-        .resolve("theme=" + theme)
-        .resolve("type=" + type));
+      FileUtils.createDirectory(typeDir);
       toDownload.add(new ToDownload(name, CompletableFuture.supplyAsync(() -> {
         List<String> urls = stac.getParquetUrls(catalogUrl, theme, type, config.bounds());
         return urls.stream()
-          .map(url -> Map.entry(url, downloadDir
-            .resolve("theme=" + theme)
-            .resolve("type=" + type)
-            .resolve(url.substring(url.lastIndexOf('/') + 1))))
+          .map(url -> Map.entry(url, localPath.apply(url)))
           .filter(entry -> CachedRangeFile.deleteIfPartial(entry.getValue()) || refresh ||
             !Files.exists(entry.getValue()))
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       }, virtualThreadPoolExecutor)));
     }
 
-    return addParquetSource(name, List.of(downloadDir.resolve("theme=" + theme).resolve("type=" + type)),
+    return addParquetSource(name, List.of(typeDir),
       () -> Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find(),
       true,
       fields -> fields.get("id"),

@@ -1,12 +1,16 @@
 package com.onthegomap.planetiler.util;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -174,5 +178,16 @@ class FileUtilsTest {
     Path path = tmpDir.resolve("toExpand");
     FileUtils.setLength(path, 1000);
     assertEquals(1000, Files.size(path));
+  }
+
+  @Test
+  void testReadFully() throws IOException {
+    Path path = tmpDir.resolve("file");
+    Files.write(path, new byte[]{1, 2, 3, 4, 5});
+    try (var channel = FileChannel.open(path)) {
+      assertArrayEquals(new byte[]{2, 3, 4}, FileUtils.readFully(channel, 1, 3));
+      assertArrayEquals(new byte[0], FileUtils.readFully(channel, 5, 0));
+      assertThrows(EOFException.class, () -> FileUtils.readFully(channel, 3, 3));
+    }
   }
 }
