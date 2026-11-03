@@ -166,21 +166,26 @@ public class Downloader implements Closeable {
   }
 
   /**
-   * Starts downloading all resources in parallel, logging progress until complete.
+   * Starts downloading all resources added since the last call in parallel, logging progress until complete.
    *
    * @throws IllegalStateException if an error occurs downloading any resource, will be thrown after all resources
    *                               finish
    */
   public void run() {
+    if (toDownloadList.isEmpty()) {
+      return;
+    }
+    var batch = List.copyOf(toDownloadList);
+    toDownloadList.clear();
     var downloads = CompletableFuture
-      .allOf(toDownloadList.stream()
+      .allOf(batch.stream()
         .map(this::downloadIfNecessary)
         .toArray(CompletableFuture[]::new)
       );
 
     ProgressLoggers loggers = ProgressLoggers.create();
 
-    var groupedById = toDownloadList.stream().collect(Collectors.groupingBy(ResourceToDownload::id));
+    var groupedById = batch.stream().collect(Collectors.groupingBy(ResourceToDownload::id));
 
     for (var group : groupedById.entrySet()) {
       long size = 0;

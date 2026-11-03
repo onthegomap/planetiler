@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
@@ -42,6 +43,7 @@ import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,16 +53,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
+import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,10 +92,11 @@ import org.slf4j.LoggerFactory;
  * <p>
  * See {@code ToiletsOverlayLowLevelApi} or unit tests for examples using the low-level API.
  */
-@SuppressWarnings("UnusedReturnValue")
+@SuppressWarnings({"UnusedReturnValue", "java:S6539"})
 public class Planetiler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
+  private static final ObjectMapper JSON = new ObjectMapper();
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
   private final List<InputPath> inputPaths = new ArrayList<>();
@@ -105,6 +111,8 @@ public class Planetiler {
   private final boolean downloadSources;
   private final DownloadMode downloadMode;
   private Downloader downloader;
+  private OvertureStac overtureStac;
+  private final Map<String, String> sourceMetadata = new TreeMap<>();
   private final boolean refreshSources;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
@@ -221,11 +229,9 @@ public class Planetiler {
       ),
       ifSourceUsed(name, () -> {
         var header = osmInputFile.getHeader();
-        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationtime", header.instant());
-        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationseq",
-          header.osmosisReplicationSequenceNumber());
-        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationurl",
-          header.osmosisReplicationBaseUrl());
+        setSourceMetadata("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        setSourceMetadata("planetiler:" + name + ":osmosisreplicationseq", header.osmosisReplicationSequenceNumber());
+        setSourceMetadata("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
@@ -633,25 +639,25 @@ public class Planetiler {
     if (mode.fetchWhileProcessing()) {
       return addStage(name, "Process features in " + typeDir + " using " + mode.name().toLowerCase(Locale.ROOT) +
         " range requests", ifSourceUsed(name, () -> {
-          var urls = OvertureStac.create(config).getParquetUrls(catalogUrl, theme, type, config.bounds());
+          var urls = overtureStac().getParquetUrls(catalogUrl, theme, type, config.bounds());
           new ParquetReader(name, profile, stats, fields -> fields.get("id"), fields -> fields.get("type"), true)
-            .processRemote(urls.stream().collect(Collectors.toMap(localPath, url -> url)), mode, refresh, downloader(), featureGroup, config);
+            .processRemote(urls.stream().collect(Collectors.toMap(localPath, url -> url)), mode, refresh, downloader(),
+              featureGroup, config);
         }));
     }
 
     if (mode.enabled() || refresh) {
-      // Kick off catalog traversal in the background; download() will wait for all futures before running.
-      OvertureStac stac = OvertureStac.create(config);
       // ensure parent directory exists
       FileUtils.createDirectory(typeDir);
-      toDownload.add(new ToDownload(name, CompletableFuture.supplyAsync(() -> {
-        List<String> urls = stac.getParquetUrls(catalogUrl, theme, type, config.bounds());
-        return urls.stream()
-          .map(url -> Map.entry(url, localPath.apply(url)))
-          .filter(entry -> CachedRangeFile.deleteIfPartial(entry.getValue()) || refresh ||
-            !Files.exists(entry.getValue()))
-          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-      }, virtualThreadPoolExecutor)));
+      // the catalog lookup needs the final map bounds, so download() calls this once they are resolved
+      Supplier<Map<String, Path>> overtureUrls = () -> overtureStac()
+        .getParquetUrls(catalogUrl, theme, type, config.bounds())
+        .stream()
+        .map(url -> Map.entry(url, localPath.apply(url)))
+        .filter(
+          entry -> CachedRangeFile.deleteIfPartial(entry.getValue()) || refresh || !Files.exists(entry.getValue()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      toDownload.add(new ToDownload(name, true, overtureUrls));
     }
 
     return addParquetSource(name, List.of(typeDir),
@@ -659,6 +665,19 @@ public class Planetiler {
       true,
       fields -> fields.get("id"),
       fields1 -> fields1.get("type"));
+  }
+
+  private synchronized OvertureStac overtureStac() {
+    if (overtureStac == null) {
+      overtureStac = OvertureStac.create(config);
+    }
+    return overtureStac;
+  }
+
+  /** Makes Overture sources list their files with {@code overtureStac}, for tests to simulate the STAC catalog. */
+  synchronized Planetiler setOvertureStac(OvertureStac overtureStac) {
+    this.overtureStac = overtureStac;
+    return this;
   }
 
   // use one downloader for whole files and range requests, so they share the bandwidth limit
@@ -943,7 +962,8 @@ public class Planetiler {
     boolean hasFeatureDb = Files.exists(featureDbPath);
     boolean hasStringEncoders = Files.exists(stringEncoderPath);
     boolean hasChunkManifest = Files.exists(chunkManifestPath);
-    boolean hasReusableFeatureDb = hasFeatureDb && hasStringEncoders && hasChunkManifest;
+    boolean hasSourceInfo = Files.exists(sourceInfoPath());
+    boolean hasReusableFeatureDb = hasFeatureDb && hasStringEncoders && hasChunkManifest && hasSourceInfo;
     boolean reuseExistingFeatureDb = config.reuseFeatureDb() && hasReusableFeatureDb;
 
     LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
@@ -986,14 +1006,30 @@ public class Planetiler {
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
-    if (!toDownload.isEmpty()) {
-      download();
+    var downloadTimer = toDownload.isEmpty() ? null : stats.startStage("download");
+    if (reuseExistingFeatureDb) {
+      // no source gets read, and the bounds come from the run that wrote the feature DB
+      restoreSourceInfo();
+      // the stages don't need them, but --only-download and --fetch-wikidata (reads the .osm.pbf) still do
+      download(download -> true);
+    } else if (boundsNeedOsmDownload()) {
+      // sources that list their files for the map bounds wait for the .osm.pbf the bounds come from
+      download(download -> !download.needsBounds);
+      // fail fast with "Run with --download" error since osm.pbf is needed for osm fallback
+      ensureInputFilesExist();
+      addOsmBoundsFallback();
+      download(download -> download.needsBounds);
+    } else {
+      // the bounds don't wait for a download: given explicitly, no .osm.pbf, or it is already on disk
+      addOsmBoundsFallback();
+      download(download -> true);
+      ensureInputFilesExist();
+    }
+    if (downloadTimer != null) {
+      downloadTimer.stop();
     }
     if (fetchOsmTileStats) {
       TopOsmTiles.downloadPrecomputed(config);
-    }
-    if (!reuseExistingFeatureDb) {
-      ensureInputFilesExist();
     }
 
     if (fetchWikidata) {
@@ -1010,11 +1046,6 @@ public class Planetiler {
     if (osmInputFile != null && !reuseExistingFeatureDb) {
       checkDiskSpace();
       checkMemory();
-      var bounds = config.bounds();
-      if (!parseNodeBounds) {
-        bounds.addFallbackProvider(osmInputFile);
-      }
-      bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
     // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
     tileArchiveMetadata = new TileArchiveMetadata(profile, config);
@@ -1053,9 +1084,11 @@ public class Planetiler {
         if (config.reuseFeatureDb()) {
           featureGroup.saveStringEncoders(stringEncoderPath);
           featureGroup.saveChunkManifest(chunkManifestPath);
+          saveSourceInfo();
         }
       }
 
+      sourceMetadata.forEach(tileArchiveMetadata::setExtraMetadata);
       TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,
         config, stats);
     } catch (IOException e) {
@@ -1209,16 +1242,83 @@ public class Planetiler {
     }
   }
 
-  private void download() {
-    var timer = stats.startStage("download");
+  private void download(Predicate<ToDownload> filter) {
     Downloader fetcher = downloader();
+    // start listing the files of all sources before waiting on any, since a catalog lookup can take a few seconds
+    List<Map.Entry<String, CompletableFuture<Map<String, Path>>>> lookups = new ArrayList<>();
     for (ToDownload download : toDownload) {
-      if (profile.caresAboutSource(download.id)) {
-        download.urlToPath.join().forEach((url, path) -> fetcher.add(download.id, url, path));
+      if (filter.test(download) && profile.caresAboutSource(download.id)) {
+        lookups
+          .add(Map.entry(download.id, CompletableFuture.supplyAsync(download.urlToPath, virtualThreadPoolExecutor)));
+      }
+    }
+    for (var lookup : lookups) {
+      for (var file : lookup.getValue().join().entrySet()) {
+        fetcher.add(lookup.getKey(), file.getKey(), file.getValue());
       }
     }
     fetcher.run();
-    timer.stop();
+  }
+
+  /** Returns true if the map bounds come from a {@code .osm.pbf} that isn't on disk yet (missing or downloading). */
+  private boolean boundsNeedOsmDownload() {
+    if (osmInputFile == null || !config.bounds().isWorld()) {
+      return false;
+    }
+    Path osmPath = osmInputFile.getPath();
+    return !Files.exists(osmPath) ||
+      toDownload.stream()
+        .anyMatch(download -> !download.needsBounds && download.urlToPath.get().containsValue(osmPath));
+  }
+
+  /** Makes the map bounds fall back to those of the {@code .osm.pbf} when none were given. */
+  private void addOsmBoundsFallback() {
+    if (osmInputFile != null) {
+      var bounds = config.bounds();
+      if (!parseNodeBounds) {
+        bounds.addFallbackProvider(osmInputFile);
+      }
+      bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
+    }
+  }
+
+  private Path sourceInfoPath() {
+    return featureDbPath.resolve(featureDbPath.getFileName() + ".sources");
+  }
+
+  // a reused feature DB skips reading the sources, so save what else reading them determined next to it
+  private void saveSourceInfo() {
+    var bounds = config.bounds();
+    var latLon = bounds.latLon();
+    var info = new SourceInfo(bounds.isWorld() ? null :
+      List.of(latLon.getMinX(), latLon.getMinY(), latLon.getMaxX(), latLon.getMaxY()), sourceMetadata);
+    try {
+      JSON.writeValue(sourceInfoPath().toFile(), info);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to save source info to " + sourceInfoPath(), e);
+    }
+  }
+
+  private void restoreSourceInfo() {
+    Path path = sourceInfoPath();
+    SourceInfo info;
+    try {
+      info = JSON.readValue(path.toFile(), SourceInfo.class);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to load source info from " + path, e);
+    }
+    sourceMetadata.putAll(info.metadata());
+    var bounds = info.bounds();
+    if (bounds != null) {
+      config.bounds()
+        .addFallbackProvider(() -> new Envelope(bounds.get(0), bounds.get(2), bounds.get(1), bounds.get(3)));
+    }
+  }
+
+  private void setSourceMetadata(String key, Object value) {
+    if (value != null) {
+      sourceMetadata.put(key, value.toString());
+    }
   }
 
   private void ensureInputFilesExist() {
@@ -1236,11 +1336,14 @@ public class Planetiler {
     }
   }
 
-  private record ToDownload(String id, CompletableFuture<Map<String, Path>> urlToPath) {
+  private record ToDownload(String id, boolean needsBounds, Supplier<Map<String, Path>> urlToPath) {
     ToDownload(String id, String url, Path path) {
-      this(id, CompletableFuture.completedFuture(Map.of(url, path)));
+      this(id, false, () -> Map.of(url, path));
     }
   }
+
+  /** Metadata possibly read from OSM input files so we can save/restore as json when reuse_feature_db=true */
+  private record SourceInfo(List<Double> bounds, Map<String, String> metadata) {}
 
   private record InputPath(String id, Path path, boolean freeAfterReading) {}
 
