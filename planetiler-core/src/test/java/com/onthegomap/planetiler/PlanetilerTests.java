@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -30,6 +31,7 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
@@ -38,6 +40,7 @@ import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.OvertureStac;
 import com.onthegomap.planetiler.util.StubRangeDownloader;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
@@ -55,6 +58,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -67,6 +71,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.MultiPolygon;
@@ -3154,6 +3159,42 @@ class PlanetilerTests {
     }
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "full, false", "cached, false", "streaming, false",
+    "full, true", "cached, true", "streaming, true"
+  })
+  void testOvertureFilesListedForBoundsFromOsmFile(String mode, boolean downloadOsm) throws IOException {
+    Path localOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
+    Path osmPath = downloadOsm ? tempDir.resolve("sources").resolve("monaco.osm.pbf") : localOsm;
+    String osmUrl = "http://host/monaco.osm.pbf";
+    List<Envelope> lookups = new CopyOnWriteArrayList<>();
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=" + mode))
+      .setDownloader(new StubRangeDownloader(PlanetilerConfig.defaults()).put(osmUrl, Files.readAllBytes(localOsm)))
+      .setOvertureStac(recordingOvertureStac(lookups))
+      .setProfile(new Profile.NullProfile())
+      .addOsmSource("osm", osmPath, osmUrl)
+      .addOvertureSource("overture-buildings", "buildings", "building", tempDir.resolve("overture"))
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertEquals(1, lookups.size());
+    assertEquals(new OsmInputFile(localOsm).getLatLonBounds(), lookups.getFirst());
+  }
+
+  /** Returns a STAC catalog without files that records the bounds of each lookup in {@code lookups}. */
+  private static OvertureStac recordingOvertureStac(List<Envelope> lookups) {
+    return new OvertureStac(PlanetilerConfig.defaults()) {
+      @Override
+      public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
+        // copy since the bounds get updated in place once they are known
+        lookups.add(new Envelope(bounds.latLon()));
+        return List.of();
+      }
+    };
+  }
+
   private void runWithProfile(Path tempDir, Profile profile, boolean force) {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
@@ -3560,6 +3601,44 @@ class PlanetilerTests {
       assertEquals(TestUtils.getTileMap(db1), TestUtils.getTileMap(db2));
     }
     assertArrayEquals(Files.readAllBytes(mbtiles), Files.readAllBytes(mbtiles2));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"full", "streaming"})
+  void testReuseFeatureDbWithOsmAndOvertureSources(String mode) throws Exception {
+    Path tmpData = tempDir.resolve("data");
+    List<Envelope> lookups = new CopyOnWriteArrayList<>();
+    Path osmPath = TestUtils.pathToResource("monaco-latest.osm.pbf");
+    BiFunction<Path, String, Path> run = (osm, output) -> {
+      Path path = tempDir.resolve(output);
+      Planetiler.create(Arguments.fromArgs("--tmpdir=" + tmpData, "--reuse_featuredb=true", "--force=true",
+        "--download=" + mode))
+        .setOvertureStac(recordingOvertureStac(lookups))
+        .setProfile((SourceFeature source, FeatureCollector features) -> {
+          if (source.isPoint() && source.hasTag("name")) {
+            features.point("points").setZoomRange(0, 14).setAttr("name", source.getTag("name"));
+          }
+        })
+        .addOsmSource("osm", osm)
+        .addOvertureSource("overture-buildings", "buildings", "building", tempDir.resolve("overture"))
+        .setOutput(path)
+        .run();
+      return path;
+    };
+
+    Path first = run.apply(osmPath, "output.mbtiles");
+    // the reuse run gets the bounds and OSM header metadata of the first run without the .osm.pbf
+    Path second = run.apply(tmpData.resolve("missing.osm.pbf"), "output2.mbtiles");
+
+    // only full downloads list files when reusing the feature DB, since the range mode stages don't run
+    assertEquals(mode.equals("full") ? 2 : 1, lookups.size());
+    var osmBounds = new OsmInputFile(osmPath).getLatLonBounds();
+    assertTrue(lookups.stream().allMatch(osmBounds::equals), lookups::toString);
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(first)) {
+      assertFalse(TestUtils.getTileMap(db).isEmpty());
+      assertNotNull(db.metadataTable().getAll().get("planetiler:osm:osmosisreplicationseq"));
+    }
+    assertArrayEquals(Files.readAllBytes(first), Files.readAllBytes(second));
   }
 
   @FunctionalInterface

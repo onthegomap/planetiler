@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -23,7 +24,8 @@ import javax.net.ssl.SSLSession;
 
 /**
  * A {@link Downloader} that answers range requests from files held in memory instead of a real server, so tests can
- * read "remote" files without network access and check the requests that were made.
+ * read "remote" files without network access and check the requests that were made. Also serves whole-file downloads
+ * ({@link Downloader#run()}) of those files, without recording them.
  */
 public class StubRangeDownloader extends Downloader {
 
@@ -149,6 +151,30 @@ public class StubRangeDownloader extends Downloader {
     Map<String, String> responseHeaders = new HashMap<>(validators);
     responseHeaders.put(CONTENT_RANGE, "bytes " + start + "-" + end + "/" + length);
     return response(request, 206, responseHeaders, Arrays.copyOfRange(file.bytes, start, end + 1));
+  }
+
+  @Override
+  ResourceMetadata httpHead(String url) {
+    return new ResourceMetadata(Optional.empty(), url, OptionalLong.of(file(url).bytes.length), !ignoreRanges);
+  }
+
+  @Override
+  InputStream openStream(String url) {
+    return new ByteArrayInputStream(file(url).bytes);
+  }
+
+  @Override
+  InputStream openStreamRange(String url, long start, long end) {
+    byte[] bytes = file(url).bytes;
+    return new ByteArrayInputStream(bytes, (int) start, (int) (Math.min(end, bytes.length) - start));
+  }
+
+  private File file(String url) {
+    File file = files.get(url);
+    if (file == null) {
+      throw new IllegalStateException("404: " + url);
+    }
+    return file;
   }
 
   private static HttpResponse<InputStream> response(HttpRequest request, int status, Map<String, String> headers,
