@@ -5,7 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.util.Downloader;
-import com.onthegomap.planetiler.util.StubRangeDownloader;
+import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.StubDownloader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -18,16 +19,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 abstract class RangeFileTest {
 
   static final String URL = "http://host/file.parquet";
   // larger than the tail fetched when opening a remote file, so reads at the start need range requests
   static final byte[] CONTENTS = contents(3_000_000);
-  static final PlanetilerConfig CONFIG = PlanetilerConfig.from(Arguments.of("download_range_chunk_size_mb", "1"));
+  // like parquet files, which fetch their footer when they get opened
+  static final int TAIL_BYTES = 1 << 20;
+  static final PlanetilerConfig CONFIG = PlanetilerConfig.from(Arguments.of("download_chunk_size_mb", "1"));
   @TempDir
   Path tmp;
-  StubRangeDownloader downloader;
+  StubDownloader downloader;
   RangeFile file;
 
   static byte[] contents(int length) {
@@ -42,7 +47,7 @@ abstract class RangeFileTest {
 
   @BeforeEach
   void setup() throws IOException {
-    downloader = new StubRangeDownloader(CONFIG).put(URL, CONTENTS);
+    downloader = new StubDownloader(CONFIG).put(URL, CONTENTS);
     file = open();
   }
 
@@ -96,7 +101,7 @@ abstract class RangeFileTest {
     void testLocalFileWinsInEveryMode() throws IOException {
       Path path = tmp.resolve("file.parquet");
       for (var mode : DownloadMode.values()) {
-        try (var opened = RangeFile.open(path, URL, mode, false, downloader)) {
+        try (var opened = RangeFile.open(path, URL, TAIL_BYTES, mode, false, downloader)) {
           assertInstanceOf(LocalRangeFile.class, opened);
         }
       }
@@ -108,12 +113,12 @@ abstract class RangeFileTest {
 
     @Override
     RangeFile open() throws IOException {
-      return RangeFile.open(tmp.resolve("file.parquet"), URL, DownloadMode.STREAMING, false, downloader);
+      return RangeFile.open(tmp.resolve("file.parquet"), URL, TAIL_BYTES, DownloadMode.STREAMING, false, downloader);
     }
 
     @Test
     void testOpenFetchesTail() {
-      assertEquals(List.of(new StubRangeDownloader.Request(URL, "bytes=-" + HttpRangeFile.TAIL_BYTES, null, null)),
+      assertEquals(List.of(new StubDownloader.Request(URL, "bytes=-" + TAIL_BYTES, null, null)),
         downloader.requests());
       assertFalse(Files.exists(tmp.resolve("file.parquet")));
     }
@@ -121,7 +126,7 @@ abstract class RangeFileTest {
     @Test
     void testReadsFromTailMakeNoRequests() throws IOException {
       downloader.clearRequests();
-      assertReads(file, CONTENTS.length - HttpRangeFile.TAIL_BYTES, HttpRangeFile.TAIL_BYTES);
+      assertReads(file, CONTENTS.length - TAIL_BYTES, TAIL_BYTES);
       assertEquals(List.of(), downloader.requests());
     }
 
@@ -129,8 +134,9 @@ abstract class RangeFileTest {
     void testSplitsLargeReads() throws IOException {
       downloader.clearRequests();
       file.read(100, 2_500_000);
-      assertEquals(List.of("bytes=100-1000099", "bytes=1000100-2000099", "bytes=2000100-2500099"),
-        downloader.requests().stream().map(StubRangeDownloader.Request::range).sorted().toList());
+      // split evenly into requests no larger than download_chunk_size_mb
+      assertEquals(List.of("bytes=100-833433", "bytes=1666768-2500099", "bytes=833434-1666767"),
+        downloader.requests().stream().map(StubDownloader.Request::range).sorted().toList());
     }
 
     @Test
@@ -143,11 +149,11 @@ abstract class RangeFileTest {
     @Test
     void testIgnoresValidatorsWithCheckForChangesOff() throws IOException {
       var config = PlanetilerConfig.from(Arguments.of("download_fail_if_changed", "false"));
-      var lenient = new StubRangeDownloader(config).put(URL, CONTENTS);
+      var lenient = new StubDownloader(config).put(URL, CONTENTS);
       try (var opened = HttpRangeFile.open(lenient, URL)) {
         lenient.put(URL, CONTENTS, "\"new\"", "new date");
         assertArrayEquals(Arrays.copyOf(CONTENTS, 10), opened.read(0, 10));
-        assertEquals(new StubRangeDownloader.Request(URL, "bytes=0-9", null, null), lenient.requests().getLast());
+        assertEquals(new StubDownloader.Request(URL, "bytes=0-9", null, null), lenient.requests().getLast());
 
         // a different length can't be the same file
         lenient.put(URL, contents(CONTENTS.length + 1));
@@ -157,22 +163,22 @@ abstract class RangeFileTest {
 
     @Test
     void testCountsFetchedBytesWithoutRetries() throws IOException {
-      assertEquals(HttpRangeFile.TAIL_BYTES, file.bytesFetched());
+      assertEquals(TAIL_BYTES, file.bytesFetched());
       assertEquals(1, file.requestsMade());
 
       file.read(100, 2_500_000);
-      assertEquals(HttpRangeFile.TAIL_BYTES + 2_500_000, file.bytesFetched());
+      assertEquals(TAIL_BYTES + 2_500_000, file.bytesFetched());
       assertEquals(4, file.requestsMade());
 
       downloader.failNext(1, 503);
       file.read(0, 10);
-      assertEquals(HttpRangeFile.TAIL_BYTES + 2_500_010, file.bytesFetched());
+      assertEquals(TAIL_BYTES + 2_500_010, file.bytesFetched());
       assertEquals(5, file.requestsMade());
     }
 
     @Test
     void testToFetchMatchesReads() throws IOException {
-      long tailStart = CONTENTS.length - HttpRangeFile.TAIL_BYTES;
+      long tailStart = CONTENTS.length - TAIL_BYTES;
       assertEquals(0, file.bytesToFetch(tailStart, 100));
       assertEquals(0, file.requestsToFetch(tailStart, 100));
       assertEquals(10, file.bytesToFetch(tailStart - 5, 10), "reads starting before the tail fetch all of it");
@@ -180,8 +186,21 @@ abstract class RangeFileTest {
       assertEquals(3, file.requestsToFetch(100, 2_500_000));
 
       file.read(100, 2_500_000);
-      assertEquals(HttpRangeFile.TAIL_BYTES + 2_500_000, file.bytesFetched());
+      assertEquals(TAIL_BYTES + 2_500_000, file.bytesFetched());
       assertEquals(1 + 3, file.requestsMade());
+    }
+
+    @Test
+    void testOpenWithoutTailFetchesFirstByte() throws IOException {
+      downloader.clearRequests();
+      try (var opened = HttpRangeFile.open(downloader, URL)) {
+        assertEquals(List.of(new StubDownloader.Request(URL, "bytes=0-0", null, null)), downloader.requests());
+        assertEquals(CONTENTS.length, opened.length());
+        assertEquals(0, opened.bytesToFetch(0, 1));
+        assertEquals(10, opened.bytesToFetch(0, 10));
+        assertReads(opened, 0, 1);
+        assertEquals(1, downloader.requests().size());
+      }
     }
   }
 
@@ -192,13 +211,13 @@ abstract class RangeFileTest {
     @Override
     RangeFile open() throws IOException {
       path = tmp.resolve("file.parquet");
-      return RangeFile.open(path, URL, DownloadMode.CACHED, false, downloader);
+      return RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, false, downloader);
     }
 
     private RangeFile reopen() throws IOException {
       file.close();
       downloader.clearRequests();
-      return file = RangeFile.open(path, URL, DownloadMode.CACHED, false, downloader);
+      return file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, false, downloader);
     }
 
     @Test
@@ -206,7 +225,7 @@ abstract class RangeFileTest {
       file.read(10, 100);
       reopen();
       // only checks that the remote file didn't change
-      assertEquals(List.of(new StubRangeDownloader.Request(URL, "bytes=-1", null, null)), downloader.requests());
+      assertEquals(List.of(new StubDownloader.Request(URL, "bytes=0-0", null, null)), downloader.requests());
       assertReads(file, 10, 100);
       assertReads(file, CONTENTS.length - 100L, 100);
       assertEquals(1, downloader.requests().size());
@@ -228,7 +247,7 @@ abstract class RangeFileTest {
 
     @Test
     void testBecomesCompleteFile() throws IOException {
-      file.read(0, CONTENTS.length - HttpRangeFile.TAIL_BYTES);
+      file.read(0, CONTENTS.length - TAIL_BYTES);
       assertFalse(Files.exists(CachedRangeFile.rangesPath(path)));
       assertTrue(Files.exists(CachedRangeFile.metaPath(path)));
       assertArrayEquals(CONTENTS, Files.readAllBytes(path));
@@ -243,16 +262,16 @@ abstract class RangeFileTest {
       file.read(0, CONTENTS.length);
       file.close();
 
-      file = RangeFile.open(path, URL, DownloadMode.CACHED, true, downloader);
+      file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, true, downloader);
       assertInstanceOf(LocalRangeFile.class, file);
       file.close();
 
       downloader.put(URL, CONTENTS, "\"new\"", null);
-      file = RangeFile.open(path, URL, DownloadMode.STREAMING, true, downloader);
+      file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.STREAMING, true, downloader);
       assertInstanceOf(HttpRangeFile.class, file);
       assertTrue(Files.exists(path), "streaming leaves the local copy alone");
 
-      file = RangeFile.open(path, URL, DownloadMode.CACHED, true, downloader);
+      file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, true, downloader);
       assertInstanceOf(CachedRangeFile.class, file);
       assertTrue(CachedRangeFile.isPartial(path));
     }
@@ -279,20 +298,6 @@ abstract class RangeFileTest {
     }
 
     @Test
-    void testDeleteIfPartial() throws IOException {
-      file.read(10, 100);
-      file.close();
-      assertTrue(CachedRangeFile.deleteIfPartial(path));
-      assertFalse(Files.exists(path));
-      assertFalse(Files.exists(CachedRangeFile.rangesPath(path)));
-      assertFalse(Files.exists(CachedRangeFile.metaPath(path)));
-
-      Files.write(path, CONTENTS);
-      assertFalse(CachedRangeFile.deleteIfPartial(path));
-      assertTrue(Files.exists(path));
-    }
-
-    @Test
     void testCountsOnlyBytesFetchedFromRemote() throws IOException {
       file.read(10, 100);
       reopen();
@@ -315,6 +320,20 @@ abstract class RangeFileTest {
       file.close();
       file = RangeFile.openLocal(path);
       assertEquals(0, file.bytesToFetch(0, 210), "nothing gets fetched offline");
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"CACHED", "STREAMING"})
+    void testDownloadsWholeFileWithoutRangeSupport(DownloadMode mode) throws IOException {
+      file.close();
+      Files.delete(path);
+      Files.delete(CachedRangeFile.rangesPath(path));
+      downloader.ignoreRanges();
+      FileUtils.delete(path, CachedRangeFile.metaPath(path));
+      file = RangeFile.open(path, URL, TAIL_BYTES, mode, false, downloader);
+      assertInstanceOf(LocalRangeFile.class, file);
+      assertReads(file, 0, CONTENTS.length);
+      file.close();
     }
   }
 }

@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.util;
 
 import static com.google.common.net.HttpHeaders.ACCEPT;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
-import static com.google.common.net.HttpHeaders.USER_AGENT;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
 import com.carrotsearch.hppc.LongHashSet;
@@ -15,7 +14,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.Hppc;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -30,11 +28,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -48,9 +41,6 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,17 +63,15 @@ public class Wikidata {
   private final LongSet visited = new LongHashSet();
   private final List<Long> qidsToFetch;
   private final Writer writer;
-  private final Client client;
+  private final Downloader downloader;
   private final int batchSize;
   private final Profile profile;
-  private final PlanetilerConfig config;
 
-  Wikidata(Writer writer, Client client, int batchSize, Profile profile, PlanetilerConfig config) {
+  Wikidata(Writer writer, Downloader downloader, int batchSize, Profile profile) {
     this.writer = writer;
-    this.client = client;
+    this.downloader = downloader;
     this.batchSize = batchSize;
     this.profile = profile;
-    this.config = config;
     qidsToFetch = new ArrayList<>(batchSize);
   }
 
@@ -113,8 +101,8 @@ public class Wikidata {
    *
    * @throws UncheckedIOException if an error occurs
    */
-  public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats) {
-    fetch(infile, outfile, config, profile, stats, Duration.ofSeconds(0), 0);
+  public static void fetch(OsmInputFile infile, Path outfile, Downloader downloader, Profile profile, Stats stats) {
+    fetch(infile, outfile, downloader, profile, stats, Duration.ofSeconds(0), 0);
   }
 
   /**
@@ -123,8 +111,9 @@ public class Wikidata {
    *
    * @throws UncheckedIOException if an error occurs
    */
-  public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats,
+  public static void fetch(OsmInputFile infile, Path outfile, Downloader downloader, Profile profile, Stats stats,
     Duration maxAge, int updateLimit) {
+    var config = downloader.config();
 
     var timer = stats.startStage("wikidata");
     int processThreads = Math.max(1, config.threads() - 1);
@@ -135,8 +124,7 @@ public class Wikidata {
       Writer writer = Files.newBufferedWriter(outfile);
       OsmBlockSource osmSource = infile.get()
     ) {
-      HttpClient client = HttpClient.newBuilder().connectTimeout(config.httpTimeout()).build();
-      Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile, config);
+      Wikidata fetcher = new Wikidata(writer, downloader, 5_000, profile);
       fetcher.loadExisting(oldMappings);
 
       String pbfParsePrefix = "pbfwikidata";
@@ -303,9 +291,6 @@ public class Wikidata {
       batches.inc();
       LOGGER.info("Fetched batch {} ({} qids) {}", batches.get(), qidsToFetch.size(), timer.stop());
       writeTranslations(results, Hppc.newLongObjectHashMap());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throwFatalException(e);
     } catch (IOException e) {
       throwFatalException(e);
     }
@@ -327,8 +312,7 @@ public class Wikidata {
    * Make an HTTP request to wikidata's <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">sparql
    * endpoint</a> to fetch name translations for a set of QIDs.
    */
-  private LongObjectMap<Map<String, String>> queryWikidata(List<Long> qidsToFetch)
-    throws IOException, InterruptedException {
+  private LongObjectMap<Map<String, String>> queryWikidata(List<Long> qidsToFetch) throws IOException {
     if (qidsToFetch.isEmpty()) {
       return Hppc.newLongObjectHashMap();
     }
@@ -339,44 +323,10 @@ public class Wikidata {
       }
       """.formatted(qidList).replaceAll("\\s+", " ").trim();
 
-    HttpRequest request = HttpRequest.newBuilder(URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
-      .timeout(config.httpTimeout())
-      .header(USER_AGENT, config.httpUserAgent())
-      .header(ACCEPT, "application/sparql-results+json")
-      .header(CONTENT_TYPE, "application/sparql-query")
-      .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
-      .build();
+    var request = new Downloader.Request("https://query.wikidata.org/bigdata/namespace/wdq/sparql",
+      Map.of(ACCEPT, "application/sparql-results+json", CONTENT_TYPE, "application/sparql-query"), query);
 
-    LongObjectMap<Map<String, String>> result = null;
-    for (int i = 0; i <= config.httpRetries() && result == null; i++) {
-      try {
-        var response = client.send(request);
-        if (response != null) {
-          try (var bis = new BufferedInputStream(response)) {
-            result = parseResults(bis);
-          }
-        }
-      } catch (IOException e) {
-        boolean lastTry = i == config.httpRetries();
-        if (!lastTry) {
-          LOGGER.warn("sparql query failed, retrying: {}", e.toString());
-        } else {
-          LOGGER.error("sparql query failed, exhausted retries: {}", e.toString());
-          throw e;
-        }
-        sleep(config.httpRetryWait());
-      }
-    }
-
-    if (result != null) {
-      return result;
-    } else {
-      throw new IllegalStateException("No response or exception"); // should never happen
-    }
-  }
-
-  protected void sleep(Duration duration) throws InterruptedException {
-    Thread.sleep(duration.toMillis());
+    return downloader.sendWithRetries(request, body -> parseResults(new BufferedInputStream(body)));
   }
 
   void loadExisting(WikidataTranslations oldMappings) throws IOException {
@@ -406,35 +356,6 @@ public class Wikidata {
       writer.write(System.lineSeparator());
     }
     writer.flush();
-  }
-
-  /** Abstraction over HTTP client so tests can easily mock-out the client's response. */
-  interface Client {
-
-    static Client wrap(HttpClient client) {
-      return req -> {
-        var response = client.send(req, BodyHandlers.ofInputStream());
-        if (response.statusCode() >= 400) {
-          String body;
-          try (var responseBody = response.body()) {
-            body = new String(responseBody.readAllBytes(), StandardCharsets.UTF_8);
-          } catch (IOException e) {
-            body = "Error reading body: " + e;
-          }
-          throw new IOException("Error reading " + response.statusCode() + ": " + body);
-        }
-        String encoding = response.headers().firstValue("Content-Encoding").orElse("");
-        InputStream is = response.body();
-        is = switch (encoding) {
-          case "gzip" -> new GZIPInputStream(is);
-          case "deflate" -> new InflaterInputStream(is, new Inflater(true));
-          default -> is;
-        };
-        return is;
-      };
-    }
-
-    InputStream send(HttpRequest req) throws IOException, InterruptedException;
   }
 
   public static class WikidataTranslations implements Translations.TranslationProvider {

@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.util;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.Bounds;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -39,15 +38,11 @@ public class OvertureStac {
   private static final ObjectMapper MAPPER =
     new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-  private final PlanetilerConfig config;
+  private final Downloader downloader;
 
-  public OvertureStac(PlanetilerConfig config) {
-    this.config = config;
-  }
-
-  /** Creates an {@link OvertureStac} backed by real HTTP using the default Overture catalog URL. */
-  public static OvertureStac create(PlanetilerConfig config) {
-    return new OvertureStac(config);
+  /** Creates an {@link OvertureStac} that fetches catalogs through {@code downloader}. */
+  public OvertureStac(Downloader downloader) {
+    this.downloader = downloader;
   }
 
 
@@ -263,12 +258,8 @@ public class OvertureStac {
     return URI.create(base).resolve(href).toString();
   }
 
-  /**
-   * Fetches and deserializes a STAC JSON resource. Subclasses can override to provide stub responses in tests (see
-   * {@link Downloader} for the same pattern).
-   */
-  protected <T> T fetch(String url, Class<T> type) {
-    try (InputStream in = Downloader.openStream(url, config)) {
+  private <T> T fetch(String url, Class<T> type) {
+    try (InputStream in = downloader.openStream(url)) {
       return MAPPER.readValue(in, type);
     } catch (IOException e) {
       throw new UncheckedIOException("Failed to fetch STAC URL: " + url, e);

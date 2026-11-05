@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.stats;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import com.onthegomap.planetiler.util.LogUtil;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -22,5 +23,19 @@ class StatsTest {
     a.dataError("a");
     a.dataError("b");
     assertEquals(Map.of("a", 2L, "b", 1L), a.dataErrors());
+  }
+
+  @Test
+  void stageLogPrefixEndsWithStage() {
+    var stats = Stats.inMemory();
+    // the log prefix is per thread, and other tests on this thread may have left one behind
+    String before = LogUtil.getStage();
+    var outer = stats.startStage("outer");
+    var inner = stats.startStage("inner");
+    assertEquals("inner", LogUtil.getStage());
+    inner.stop();
+    assertEquals("outer", LogUtil.getStage());
+    outer.stop();
+    assertEquals(before, LogUtil.getStage());
   }
 }

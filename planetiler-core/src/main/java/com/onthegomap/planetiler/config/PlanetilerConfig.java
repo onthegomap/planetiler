@@ -44,11 +44,11 @@ public record PlanetilerConfig(
   Duration httpTimeout,
   int httpRetries,
   Duration httpRetryWait,
+  Duration httpRetryMaxWait,
   long downloadChunkSizeMB,
   int downloadThreads,
   double downloadMaxBandwidth,
-  long downloadRangeChunkSizeMB,
-  int downloadRangeConcurrency,
+  int downloadMaxRequests,
   boolean downloadFailIfChanged,
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
@@ -97,11 +97,14 @@ public record PlanetilerConfig(
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
     }
-    if (downloadRangeChunkSizeMB <= 0) {
-      throw new IllegalArgumentException("--download-range-chunk-size-mb must be > 0, was " + downloadRangeChunkSizeMB);
+    if (downloadChunkSizeMB <= 0) {
+      throw new IllegalArgumentException("--download-chunk-size-mb must be > 0, was " + downloadChunkSizeMB);
     }
-    if (downloadRangeConcurrency <= 0) {
-      throw new IllegalArgumentException("--download-range-concurrency must be > 0, was " + downloadRangeConcurrency);
+    if (downloadThreads <= 0) {
+      throw new IllegalArgumentException("--download-threads must be > 0, was " + downloadThreads);
+    }
+    if (downloadMaxRequests <= 0) {
+      throw new IllegalArgumentException("--download-max-requests must be > 0, was " + downloadMaxRequests);
     }
   }
 
@@ -200,14 +203,16 @@ public record PlanetilerConfig(
       arguments.getDuration("http_timeout", "Timeout to use when downloading files over HTTP", "30s"),
       arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 5),
       arguments.getDuration("http_retry_wait", "How long to wait before retrying HTTP request", "5s"),
-      arguments.getLong("download_chunk_size_mb", "Size of file chunks to download in parallel in megabytes", 100),
-      arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
+      arguments.getDuration("http_retry_max_wait",
+        "Longest a server may make us wait (Retry-After) before retrying an HTTP request, longer waits get capped",
+        "5m"),
+      arguments.getLong("download_chunk_size_mb", "Largest HTTP request to make when downloading in megabytes", 100),
+      arguments.getInteger("download_threads",
+        "Number of parallel requests to use when downloading each file in full", 4),
       Parse.bandwidth(arguments.getString("download_max_bandwidth",
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
-      arguments.getLong("download_range_chunk_size_mb",
-        "Largest range request in megabytes when using streaming or cached download mode", 2),
-      arguments.getInteger("download_range_concurrency",
-        "Maximum number of range requests in flight at once when using streaming or cached download mode", 16),
+      arguments.getInteger("download_max_requests",
+        "Maximum number of HTTP requests in flight at once across all downloads", 16),
       arguments.getBoolean("download_fail_if_changed",
         "Fail when the ETag or Last-Modified header of a remote file changes mid-download", true),
       arguments.getDouble("min_feature_size_at_max_zoom",
@@ -287,6 +292,8 @@ public record PlanetilerConfig(
   }
 
   public Duration maxHttpRequestDuration() {
-    return httpTimeout.multipliedBy(httpRetries + 1L).plus(httpRetryWait.multipliedBy(httpRetries));
+    // a server may ask to wait up to httpRetryMaxWait before each retry
+    Duration retryWait = httpRetryWait.compareTo(httpRetryMaxWait) > 0 ? httpRetryWait : httpRetryMaxWait;
+    return httpTimeout.multipliedBy(httpRetries + 1L).plus(retryWait.multipliedBy(httpRetries));
   }
 }

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -42,22 +41,22 @@ public class AwsOsm {
    * The index is only fetched once and cached after that.
    *
    * @param searchQuery the snapshot to search for
-   * @param config      planetiler config with user-agent and timeout to use when downloading
+   * @param downloader  downloader to fetch the index with
    * @return the URL of a {@code .osm.pbf} file with name or snapshot ID matching {@code searchQuery}
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
-  public String getDownloadUrl(String searchQuery, PlanetilerConfig config) {
-    var indexXml = getAndCacheIndex(config);
+  public String getDownloadUrl(String searchQuery, Downloader downloader) {
+    var indexXml = getAndCacheIndex(downloader);
     return searchIndexForDownloadUrl(searchQuery, indexXml);
   }
 
-  private synchronized List<ContentXml> getAndCacheIndex(PlanetilerConfig config) {
+  private synchronized List<ContentXml> getAndCacheIndex(Downloader downloader) {
     if (entries.isEmpty()) {
       List<ContentXml> result = new ArrayList<>();
       String nextPageParam = "";
       int pageNum = 0;
       do {
-        try (InputStream inputStream = Downloader.openStream(bucketIndexUrl + "?list-type=2" + nextPageParam, config)) {
+        try (InputStream inputStream = downloader.openStream(bucketIndexUrl + "?list-type=2" + nextPageParam)) {
           if (pageNum++ > MAX_PAGES) {
             throw new IllegalArgumentException("Too many entries in " + bucketIndexUrl + " to page through");
           }

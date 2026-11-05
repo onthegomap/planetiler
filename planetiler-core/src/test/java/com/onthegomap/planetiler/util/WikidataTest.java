@@ -10,14 +10,9 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse.BodySubscriber;
-import java.net.http.HttpResponse.BodySubscribers;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -26,19 +21,15 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.Flow;
-import java.util.concurrent.Flow.Subscription;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 class WikidataTest {
 
   final PlanetilerConfig config = PlanetilerConfig.from(Arguments.fromArgs("--http-retries=1"));
   final Profile profile = new Profile.NullProfile();
+  static final String URL = "https://query.wikidata.org/bigdata/namespace/wdq/sparql";
   final String response = """
     {
       "head" : {
@@ -108,26 +99,23 @@ class WikidataTest {
   }
 
   @TestFactory
-  List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
+  List<DynamicTest> testFetchWikidata() throws IOException {
     StringWriter writer = new StringWriter();
-    Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-    Wikidata fixture = createFixture(writer, client, 2);
+    var downloader = new StubDownloader(config);
+    Wikidata fixture = new Wikidata(writer, downloader, 2, profile);
     fixture.fetch(1L);
-    Mockito.verifyNoInteractions(client);
-    Mockito.when(client.send(Mockito.any()))
-      .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
+    assertEquals(List.of(), downloader.sent);
+    downloader.put(URL, response.getBytes(StandardCharsets.UTF_8));
     fixture.fetch(2L);
 
     return List.of(
       dynamicTest("verify http response", () -> {
-        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
-        Mockito.verify(client).send(captor.capture());
-        HttpRequest request = captor.getValue();
-        assertEquals("https://query.wikidata.org/bigdata/namespace/wdq/sparql", request.uri().toString());
-        assertEquals("POST", request.method());
-        assertEquals(Optional.of("application/sparql-results+json"), request.headers().firstValue("Accept"));
-        assertEquals(Optional.of("application/sparql-query"), request.headers().firstValue("Content-Type"));
-        String body = getHttpRequestBody(request);
+        assertEquals(1, downloader.sent.size());
+        Downloader.Request request = downloader.sent.getFirst();
+        assertEquals(URL, request.url());
+        assertEquals("application/sparql-results+json", request.headers().get("Accept"));
+        assertEquals("application/sparql-query", request.headers().get("Content-Type"));
+        String body = request.body();
         assertEqualsIgnoringWhitespace("""
           SELECT ?id ?label where {
             VALUES ?id { wd:Q1 wd:Q2 } ?id (owl:sameAs* / rdfs:label) ?label
@@ -141,36 +129,33 @@ class WikidataTest {
       }),
       dynamicTest("do not re-request on subsequent loads", () -> {
         StringWriter writer2 = new StringWriter();
-        Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-        Wikidata fixture2 = createFixture(writer2, client2, 2);
+        var downloader2 = new StubDownloader(config);
+        Wikidata fixture2 = new Wikidata(writer2, downloader2, 2, profile);
         fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
         fixture2.fetch(1L);
         fixture2.fetch(2L);
         fixture2.fetch(1L);
         fixture2.flush();
-        Mockito.verifyNoInteractions(client2);
+        assertEquals(List.of(), downloader2.sent);
       })
     );
   }
 
   @Test
-  void testRetryFailedRequestOnce() throws IOException, InterruptedException {
+  void testRetryFailedRequestOnce() throws IOException {
     StringWriter writer = new StringWriter();
-    Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-    Wikidata fixture = createFixture(writer, client, 1);
-    Mockito.when(client.send(Mockito.any()))
-      // fail once then succeed
-      .thenThrow(IOException.class)
-      .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
+    var downloader = new StubDownloader(config);
+    downloader.put(URL, response.getBytes(StandardCharsets.UTF_8));
+    Wikidata fixture = new Wikidata(writer, downloader, 1, profile);
+    // fail once then succeed
+    downloader.failNext(1, 503);
     fixture.fetch(1L);
     var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
     assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
     assertEquals(Map.of("es", "es name2"), translations.get(2));
 
-    Mockito.reset(client);
-    Mockito.when(client.send(Mockito.any()))
-      // fail all subsequent requests
-      .thenThrow(IOException.class);
+    // fail all subsequent requests
+    downloader.failNext(Integer.MAX_VALUE, 503);
     var outerException = assertThrows(RuntimeException.class, () -> fixture.fetch(2L));
     var innerException = outerException.getCause();
     assertInstanceOf(IOException.class, innerException);
@@ -179,9 +164,9 @@ class WikidataTest {
   @Test
   void testLegacyWikidataNamesJson() throws IOException {
     try (var reader = new BufferedReader(new StringReader(wikidataNamesLegacyJson))) {
-        // no timestamp + age limit set => all old => all should be dropped
-        var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0, clock);
-        assertEquals(0, translationsProvider.getAll().size());
+      // no timestamp + age limit set => all old => all should be dropped
+      var translationsProvider = Wikidata.load(reader, Duration.ofSeconds(1), 0, clock);
+      assertEquals(0, translationsProvider.getAll().size());
     }
   }
 
@@ -210,40 +195,5 @@ class WikidataTest {
 
   private static String ignoreWhitespace(String in) {
     return in == null ? null : in.replaceAll("\\s+", " ").trim();
-  }
-
-  private String getHttpRequestBody(HttpRequest request) {
-    BodySubscriber<String> stringSubscriber = BodySubscribers.ofString(StandardCharsets.UTF_8);
-    request.bodyPublisher().ifPresent(p -> p.subscribe(new Flow.Subscriber<>() {
-      @Override
-      public void onSubscribe(Subscription subscription) {
-        stringSubscriber.onSubscribe(subscription);
-      }
-
-      @Override
-      public void onNext(ByteBuffer item) {
-        stringSubscriber.onNext(List.of(item));
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        stringSubscriber.onError(throwable);
-      }
-
-      @Override
-      public void onComplete() {
-        stringSubscriber.onComplete();
-      }
-    }));
-    return stringSubscriber.getBody().toCompletableFuture().join();
-  }
-
-  private Wikidata createFixture(StringWriter writer, Wikidata.Client client, int batchSize) {
-    return new Wikidata(writer, client, batchSize, profile, config) {
-      @Override
-      protected void sleep(Duration duration) {
-        // don't sleep in tests
-      }
-    };
   }
 }

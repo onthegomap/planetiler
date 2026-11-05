@@ -48,7 +48,7 @@ import org.tukaani.xz.XZInputStream;
  * </pre>
  * <p>
  * You can also fetch precomputed top-1m tile stats from summer 2023 using
- * {@link #downloadPrecomputed(PlanetilerConfig)}
+ * {@link #downloadPrecomputed(Downloader)}
  */
 public class TopOsmTiles {
 
@@ -184,14 +184,14 @@ public class TopOsmTiles {
    * {@link PlanetilerConfig#tileWeights()} path if they don't already exist.
    */
   @SuppressWarnings("java:S2142")
-  public static void downloadPrecomputed(PlanetilerConfig config) {
-    var dest = config.tileWeights();
+  public static void downloadPrecomputed(Downloader downloader) {
+    var dest = downloader.config().tileWeights();
     if (!Files.exists(dest)) {
       var tmp = dest.resolveSibling(dest.getFileName() + ".tmp");
       FileUtils.deleteOnExit(tmp);
       try {
         try (
-          var in = Downloader.openStream(DOWLOAD_URL, config);
+          var in = downloader.openStream(DOWLOAD_URL);
           var out = Files.newOutputStream(tmp, CREATE, TRUNCATE_EXISTING, WRITE)
         ) {
           LOGGER.info("Downloading pre-computed tile weights from {} to {}", DOWLOAD_URL, dest);
