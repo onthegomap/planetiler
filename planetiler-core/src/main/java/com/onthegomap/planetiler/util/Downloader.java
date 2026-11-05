@@ -253,7 +253,9 @@ public class Downloader implements Closeable {
         resource.progress.add(file.length() - missing);
         resource.length.complete(file.length());
         String redirectInfo = file.url().equals(resource.url) ? "" : " (redirected to " + file.url() + ")";
-        String resumeInfo = resuming ? " (resuming, " + missing + " of " + file.length() + " bytes left)" : "";
+        String resumeInfo =
+          resuming ? " (resuming, " + FORMAT.storage(missing) + "B of " + FORMAT.storage(file.length()) + "B left)" :
+            "";
         LOGGER.info("Downloading {}{} to {}{}", resource.url, redirectInfo, output, resumeInfo);
         diskSpaceCheck.addDisk(output, missing, resource.id);
         diskSpaceCheck.checkAgainstLimits(config.force(), false);
