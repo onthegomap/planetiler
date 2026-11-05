@@ -299,7 +299,7 @@ public class CachedRangeFile implements RangeFile {
       cachedByteRanges.add(range);
       rangesToSync.add(range);
       unsyncedBytes += count;
-      if (finishIfComplete()) {
+      if (markFinishedIfComplete()) {
         return;
       }
       needsSync = unsyncedBytes >= SYNC_BYTES;
@@ -328,13 +328,13 @@ public class CachedRangeFile implements RangeFile {
         new RemoteVersion(length, version.etag(), version.lastModified()));
       this.length = length;
       if (rangesFile != null) {
-        finishIfComplete();
+        markFinishedIfComplete();
       }
     }
   }
 
   // once every byte is here the file is a complete copy of the remote file; the caller holds the lock
-  private boolean finishIfComplete() throws IOException {
+  private boolean markFinishedIfComplete() throws IOException {
     // an unknown length (< 0) waits for setLength
     if (length < 0 || (length > 0 && !cachedByteRanges.encloses(Range.closedOpen(0L, length)))) {
       return false;
@@ -374,7 +374,7 @@ public class CachedRangeFile implements RangeFile {
     synchronized (rangeLock) {
       // an empty file never gets a write that would finish it
       if (rangesFile != null) {
-        finishIfComplete();
+        markFinishedIfComplete();
       }
       channel.close();
       if (rangesFile != null) {

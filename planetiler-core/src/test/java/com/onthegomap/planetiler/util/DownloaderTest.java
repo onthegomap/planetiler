@@ -474,4 +474,17 @@ class DownloaderTest {
     assertEquals(0, Files.size(dest));
     assertFalse(CachedRangeFile.isPartial(dest));
   }
+
+  @Test
+  void testFetchSkipsRemainingRequestsAfterOneFails() {
+    var oneThreadNoRetries =
+      PlanetilerConfig.from(Arguments.of(Map.of("download_threads", "1", "http_retries", "0")));
+    var downloader = new StubDownloader(oneThreadNoRetries, 4).put("http://url", RANGE_BYTES).failNext(1, 503);
+    var version = new Downloader.RemoteVersion(RANGE_BYTES.length, null, null);
+    var result = new byte[10];
+
+    assertThrows(ExecutionException.class, () -> fetch(downloader, version, 0, result));
+    // 3 requests planned, the 2 after the failed one never get sent
+    assertEquals(1, downloader.requests().size());
+  }
 }

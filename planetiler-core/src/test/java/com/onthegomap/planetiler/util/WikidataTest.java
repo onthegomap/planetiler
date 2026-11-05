@@ -99,7 +99,7 @@ class WikidataTest {
   }
 
   @TestFactory
-  List<DynamicTest> testFetchWikidata() throws IOException {
+  List<DynamicTest> testFetchWikidata() {
     StringWriter writer = new StringWriter();
     var downloader = new StubDownloader(config);
     Wikidata fixture = new Wikidata(writer, downloader, 2, profile);

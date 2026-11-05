@@ -359,11 +359,19 @@ public class Downloader implements Closeable {
    */
   public CompletableFuture<Void> fetchRanges(String url, RemoteVersion expected, List<ByteRange> ranges, Sink sink) {
     Semaphore perFetch = new Semaphore(config.downloadThreads());
+    // once a request fails for good the file can't be completed, so requests that haven't started yet get skipped
+    // instead of each retrying against a server that is likely down; allOf still waits for the ones in flight
+    AtomicBoolean failed = new AtomicBoolean(false);
     return CompletableFuture.allOf(planRequests(ranges).stream()
       .map(request -> async(() -> {
         perFetch.acquire();
         try {
-          fetchResumingOnError(url, expected, request, sink);
+          if (!failed.get()) {
+            fetchResumingOnError(url, expected, request, sink);
+          }
+        } catch (IOException | RuntimeException e) {
+          failed.set(true);
+          throw e;
         } finally {
           perFetch.release();
         }
@@ -524,8 +532,10 @@ public class Downloader implements Closeable {
       }
     }
     String cause = e instanceof BadResponseException bad ? "server responded: " + bad.response : e.getMessage();
-    LOGGER.warn("Error {}, retrying in {}{}, {}, {} {} left", what, FORMAT.duration(wait), reason, cause,
-      retriesRemaining, retriesRemaining == 1 ? "retry" : "retries");
+    if (LOGGER.isWarnEnabled()) {
+      LOGGER.warn("Error {}, retrying in {}{}, {}, {} {} left", what, FORMAT.duration(wait), reason, cause,
+        retriesRemaining, retriesRemaining == 1 ? "retry" : "retries");
+    }
     try {
       retrySleep(wait);
     } catch (InterruptedException _) {
@@ -884,8 +894,8 @@ public class Downloader implements Closeable {
       this.retryAfter = retryAfter;
     }
 
-    // 501 Not Implemented won't change on retry
     boolean retryable() {
+      // 501 Not Implemented won't change on retry
       return status == 429 || (status >= 500 && status != 501);
     }
   }
