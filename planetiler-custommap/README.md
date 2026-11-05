@@ -169,8 +169,9 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `multipolygon_geometry_madvise` - Use linux madvise(random) for multiplygon geometries
 - `http_user_agent` - User-Agent header to set when downloading files over HTTP
 - `http_retries` - Retries to use when downloading files over HTTP
-- `download_chunk_size_mb` - Size of file chunks to download in parallel in megabytes
-- `download_threads` - Number of parallel threads to use when downloading each file
+- `download_chunk_size_mb` - Largest HTTP request to make when downloading in megabytes
+- `download_threads` - Number of parallel requests to use when downloading each file in full
+- `download_max_requests` - Maximum number of HTTP requests in flight at once across all downloads
 - `min_feature_size_at_max_zoom` - Default value for the minimum size in tile pixels of features to emit at the maximum
   zoom level to allow for overzooming
 - `min_feature_size` - Default value for the minimum size in tile pixels of features to emit below the maximum zoom

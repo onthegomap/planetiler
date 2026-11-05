@@ -48,6 +48,9 @@ public class ParquetReader {
   public static final String DEFAULT_LAYER = "features";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ParquetReader.class);
+  // parquet files keep their metadata in a footer, so fetching a generous chunk of the end of a remote file with the
+  // request that opens it avoids a round trip per metadata read
+  private static final int FOOTER_PREFETCH_BYTES = 1 << 20;
   private final String sourceName;
   private final Function<Map<String, Object>, Object> idGenerator;
   private final Function<Map<String, Object>, Object> layerGenerator;
@@ -102,7 +105,8 @@ public class ParquetReader {
   private void processLocal(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) throws IOException {
     var paths = sourcePath.stream().filter(path -> !"_SUCCESS".equals(path.getFileName().toString())).toList();
     // local files open quickly, so open them on this thread
-    processAll(paths, RangeFile::openLocal, task -> CompletableFutures.supplyAsync(task, Runnable::run), writer, config);
+    processAll(paths, RangeFile::openLocal, task -> CompletableFutures.supplyAsync(task, Runnable::run), writer,
+      config);
   }
 
   /**
@@ -110,14 +114,14 @@ public class ParquetReader {
    * <p>
    * {@code pathToUrl} maps where each file is (or would be) on local disk to its URL. Files that are complete on local
    * disk get read from there, the others from their URL according to {@code mode} (see
-   * {@link RangeFile#open(Path, String, DownloadMode, boolean, Downloader)}).
+   * {@link RangeFile#open(Path, String, int, DownloadMode, boolean, Downloader)}).
    */
   public void processRemote(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh, Downloader downloader,
     FeatureGroup writer, PlanetilerConfig config) throws IOException {
     // opening a remote file and reading its footer take a round trip or two each, so open them all at once
     processAll(pathToUrl.keySet().stream().sorted().toList(),
-      path -> RangeFile.open(path, pathToUrl.get(path), mode, refresh, downloader), downloader::supplyAsync, writer,
-      config);
+      path -> RangeFile.open(path, pathToUrl.get(path), FOOTER_PREFETCH_BYTES, mode, refresh, downloader),
+      downloader::async, writer, config);
   }
 
   private void processAll(List<Path> paths, FunctionThatThrows<Path, RangeFile> open,
@@ -293,7 +297,7 @@ public class ParquetReader {
    */
   static int lookAheadBlocks(long blocks, long bytes, int processThreads, PlanetilerConfig config) {
     long averageBlockBytes = blocks == 0 ? 1 : Math.max(1, bytes / blocks);
-    long rangeBytesInFlight = config.downloadRangeConcurrency() * config.downloadRangeChunkSizeMB() * 1_000_000L;
+    long rangeBytesInFlight = (long) config.downloadMaxRequests() * Downloader.MIN_REQUEST_BYTES;
     long wanted = Math.max(processThreads, Math.ceilDiv(2 * rangeBytesInFlight, averageBlockBytes));
     long memoryLimit = ProcessInfo.getMaxMemoryBytes() / 8;
     return Math.clamp(Math.min(wanted, memoryLimit / averageBlockBytes), 1, Integer.MAX_VALUE);

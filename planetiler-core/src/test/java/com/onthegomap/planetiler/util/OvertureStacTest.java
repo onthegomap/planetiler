@@ -10,39 +10,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Envelope;
 
 /**
- * Tests for {@link OvertureStac} — all catalog JSON is provided inline; no real HTTP calls are made.
- * Uses a subclass that overrides {@link OvertureStac#fetch} to return stub responses from a map.
+ * Tests for {@link OvertureStac} — all catalog JSON is provided inline; no real HTTP calls are made. Serves the
+ * catalogs from a {@link StubDownloader}.
  */
 class OvertureStacTest {
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  private static final ObjectMapper MAPPER =
+    new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   private static final PlanetilerConfig CONFIG = PlanetilerConfig.defaults();
 
-  /** OvertureStac subclass that serves stub JSON from a map instead of making real HTTP requests. */
+  /** OvertureStac that fetches the JSON in {@code stubs} from a stub server instead of making real HTTP requests. */
   private static OvertureStac stubStac(Map<String, String> stubs) {
-    return new OvertureStac(CONFIG) {
-      @Override
-      protected <T> T fetch(String url, Class<T> type) {
-        String json = stubs.get(url);
-        if (json == null) {
-          throw new IllegalStateException("No stub for URL: " + url);
-        }
-        try {
-          return MAPPER.readValue(json, type);
-        } catch (IOException e) {
-          throw new IllegalStateException("Bad stub JSON for URL: " + url, e);
-        }
-      }
-    };
+    var downloader = new StubDownloader(CONFIG);
+    stubs.forEach((url, json) -> downloader.put(url, json.getBytes(StandardCharsets.UTF_8)));
+    return new OvertureStac(downloader);
   }
-
-
 
   @Test
   void testLatestLinkByFlag() throws IOException {
@@ -322,8 +311,8 @@ class OvertureStacTest {
     );
 
     var stac1 = stubStac(stubs);
-    assertThrows(IllegalArgumentException.class, () ->
-      stac1.getParquetUrls("https://stac.example.com/catalog.json", "nonexistent", "building", Bounds.WORLD));
+    assertThrows(IllegalArgumentException.class,
+      () -> stac1.getParquetUrls("https://stac.example.com/catalog.json", "nonexistent", "building", Bounds.WORLD));
   }
 
   /**
@@ -343,7 +332,7 @@ class OvertureStacTest {
     );
 
     var stac2 = stubStac(stubs);
-    assertThrows(IllegalArgumentException.class, () ->
-      stac2.getParquetUrls("https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD));
+    assertThrows(IllegalArgumentException.class,
+      () -> stac2.getParquetUrls("https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD));
   }
 }

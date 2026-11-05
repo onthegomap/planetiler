@@ -563,7 +563,7 @@ public class Planetiler {
     String prefix = StringUtils.getCommonPrefix(base.stream().map(Path::toString).toArray(String[]::new))
       .replaceAll(separator + "[^" + separator + "]*$", "");
     for (var path : base) {
-      inputPaths.add(new InputPath(name, path, freeAfterReading));
+      inputPaths.add(new InputPath(name, path, freeAfterReading, true));
     }
     return addStage(name, "Process features in " + prefix,
       ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
@@ -653,8 +653,7 @@ public class Planetiler {
         .getParquetUrls(catalogUrl, theme, type, config.bounds())
         .stream()
         .map(url -> Map.entry(url, localPath.apply(url)))
-        .filter(
-          entry -> CachedRangeFile.deleteIfPartial(entry.getValue()) || refresh || !Files.exists(entry.getValue()))
+        .filter(entry -> needsDownload(entry.getValue(), refresh))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       toDownload.add(new ToDownload(name, true, overtureUrls));
     }
@@ -668,7 +667,7 @@ public class Planetiler {
 
   private synchronized OvertureStac overtureStac() {
     if (overtureStac == null) {
-      overtureStac = OvertureStac.create(config);
+      overtureStac = new OvertureStac(downloader());
     }
     return overtureStac;
   }
@@ -1005,7 +1004,6 @@ public class Planetiler {
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
-    var downloadTimer = toDownload.isEmpty() ? null : stats.startStage("download");
     if (reuseExistingFeatureDb) {
       // no source gets read, and the bounds come from the run that wrote the feature DB
       restoreSourceInfo();
@@ -1017,22 +1015,19 @@ public class Planetiler {
       // fail fast with "Run with --download" error since osm.pbf is needed for osm fallback
       ensureInputFilesExist();
       addOsmBoundsFallback();
-      download(download -> download.needsBounds);
+      download("download-2", download -> download.needsBounds);
     } else {
       // the bounds don't wait for a download: given explicitly, no .osm.pbf, or it is already on disk
       addOsmBoundsFallback();
       download(download -> true);
       ensureInputFilesExist();
     }
-    if (downloadTimer != null) {
-      downloadTimer.stop();
-    }
     if (fetchOsmTileStats) {
-      TopOsmTiles.downloadPrecomputed(config);
+      TopOsmTiles.downloadPrecomputed(downloader());
     }
 
     if (fetchWikidata) {
-      Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats(), wikidataMaxAge,
+      Wikidata.fetch(osmInputFile(), wikidataNamesFile, downloader(), profile(), stats(), wikidataMaxAge,
         wikidataUpdateLimit);
     }
     if (useWikidata) {
@@ -1217,7 +1212,7 @@ public class Planetiler {
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
     addDownload(source);
-    inputPaths.add(new InputPath(name, source.path(), freeAfterReading));
+    inputPaths.add(new InputPath(name, source.path(), freeAfterReading, false));
     return source.path();
   }
 
@@ -1231,25 +1226,34 @@ public class Planetiler {
     return new SourceArgs(name, path, url, mode, refresh);
   }
 
-  /** Queues {@code source} for a full download before the stages run if it is missing or needs a refresh. */
+  /** Queues {@code source} for a full download before the stages run if it is incomplete or needs a refresh. */
   private void addDownload(SourceArgs source) {
-    Path path = source.path();
-    // a partial cache from a cached / streaming run can't be completed by a full download, so it starts over
-    if (source.url() != null &&
-      (CachedRangeFile.deleteIfPartial(path) || !Files.exists(path) || source.refresh())) {
-      toDownload.add(new ToDownload(source.name(), source.url(), path));
+    if (source.url() != null && needsDownload(source.path(), source.refresh())) {
+      toDownload.add(new ToDownload(source.name(), source.url(), source.path()));
     }
   }
 
+  private static boolean needsDownload(Path path, boolean refresh) {
+    return refresh || !Files.exists(path) || CachedRangeFile.isPartial(path);
+  }
+
   private void download(Predicate<ToDownload> filter) {
+    download("download", filter);
+  }
+
+  private void download(String stageName, Predicate<ToDownload> filter) {
+    List<ToDownload> downloads = toDownload.stream()
+      .filter(download -> filter.test(download) && profile.caresAboutSource(download.id))
+      .toList();
+    if (downloads.isEmpty()) {
+      return;
+    }
+    var timer = stats.startStage(stageName);
     Downloader fetcher = downloader();
     // start listing the files of all sources before waiting on any, since a catalog lookup can take a few seconds
     List<Map.Entry<String, CompletableFuture<Map<String, Path>>>> lookups = new ArrayList<>();
-    for (ToDownload download : toDownload) {
-      if (filter.test(download) && profile.caresAboutSource(download.id)) {
-        lookups
-          .add(Map.entry(download.id, CompletableFuture.supplyAsync(download.urlToPath, virtualThreadPoolExecutor)));
-      }
+    for (ToDownload download : downloads) {
+      lookups.add(Map.entry(download.id, CompletableFuture.supplyAsync(download.urlToPath, virtualThreadPoolExecutor)));
     }
     for (var lookup : lookups) {
       for (var file : lookup.getValue().join().entrySet()) {
@@ -1257,15 +1261,20 @@ public class Planetiler {
       }
     }
     fetcher.run();
+    timer.stop();
   }
 
-  /** Returns true if the map bounds come from a {@code .osm.pbf} that isn't on disk yet (missing or downloading). */
+
+  /**
+   * Returns true if the map bounds come from a {@code .osm.pbf} that isn't on disk yet (missing, partial or
+   * downloading).
+   */
   private boolean boundsNeedOsmDownload() {
     if (osmInputFile == null || !config.bounds().isWorld()) {
       return false;
     }
     Path osmPath = osmInputFile.getPath();
-    return !Files.exists(osmPath) ||
+    return !Files.exists(osmPath) || CachedRangeFile.isPartial(osmPath) ||
       toDownload.stream()
         .anyMatch(download -> !download.needsBounds && download.urlToPath.get().containsValue(osmPath));
   }
@@ -1324,6 +1333,10 @@ public class Planetiler {
     for (InputPath inputPath : inputPaths) {
       if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
         throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
+      } else if (profile.caresAboutSource(inputPath.id) && !inputPath.readsPartial &&
+        CachedRangeFile.isPartial(inputPath.path)) {
+        throw new IllegalArgumentException(
+          inputPath.path + " is only partially downloaded. Run with --download to finish downloading it");
       }
     }
   }
@@ -1344,7 +1357,8 @@ public class Planetiler {
   /** Metadata possibly read from OSM input files so we can save/restore as json when reuse_feature_db=true */
   private record SourceInfo(List<Double> bounds, Map<String, String> metadata) {}
 
-  private record InputPath(String id, Path path, boolean freeAfterReading) {}
+  /** An input file; {@code readsPartial} if its reader can read a partially downloaded file. */
+  private record InputPath(String id, Path path, boolean freeAfterReading, boolean readsPartial) {}
 
   private record SourceArgs(String name, Path path, String url, DownloadMode mode, boolean refresh) {}
 

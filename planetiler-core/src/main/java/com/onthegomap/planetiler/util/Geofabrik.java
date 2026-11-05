@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.util;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -39,21 +38,18 @@ public class Geofabrik {
    * The index is only fetched once and cached after that.
    *
    * @param searchQuery the tokens to search for
-   * @param config      planetiler config with user-agent and timeout to use when downloading files
+   * @param downloader  downloader to fetch the index with
    * @return the URL of a {@code .osm.pbf} file with name or ID matching {@code searchQuery}
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
-  public static String getDownloadUrl(String searchQuery, PlanetilerConfig config) {
-    IndexJson index = getAndCacheIndex(config);
+  public static String getDownloadUrl(String searchQuery, Downloader downloader) {
+    IndexJson index = getAndCacheIndex(downloader);
     return searchIndexForDownloadUrl(searchQuery, index);
   }
 
-  private static synchronized IndexJson getAndCacheIndex(PlanetilerConfig config) {
+  private static synchronized IndexJson getAndCacheIndex(Downloader downloader) {
     if (index == null) {
-      try (
-        InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
-          config)
-      ) {
+      try (InputStream inputStream = downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json")) {
         index = parseIndexJson(inputStream);
       } catch (IOException e) {
         throw new IllegalStateException(e);

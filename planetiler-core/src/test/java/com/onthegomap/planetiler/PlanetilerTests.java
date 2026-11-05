@@ -34,6 +34,7 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
@@ -41,7 +42,7 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.OvertureStac;
-import com.onthegomap.planetiler.util.StubRangeDownloader;
+import com.onthegomap.planetiler.util.StubDownloader;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -3114,7 +3115,7 @@ class PlanetilerTests {
   @ValueSource(strings = {"streaming", "cached"})
   void testPlanetilerRunnerRemoteParquet(String mode) throws Exception {
     String url = "http://host/boston.parquet";
-    var downloader = new StubRangeDownloader(PlanetilerConfig.defaults())
+    var downloader = new StubDownloader(PlanetilerConfig.defaults())
       .put(url, Files.readAllBytes(TestUtils.pathToResource("parquet").resolve("boston.parquet")));
     // feature ids come from the file's path, so the local run reads the same path the remote one would cache to
     Path path = tempDir.resolve("sources").resolve("boston.parquet");
@@ -3171,7 +3172,7 @@ class PlanetilerTests {
     List<Envelope> lookups = new CopyOnWriteArrayList<>();
 
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=" + mode))
-      .setDownloader(new StubRangeDownloader(PlanetilerConfig.defaults()).put(osmUrl, Files.readAllBytes(localOsm)))
+      .setDownloader(new StubDownloader(PlanetilerConfig.defaults()).put(osmUrl, Files.readAllBytes(localOsm)))
       .setOvertureStac(recordingOvertureStac(lookups))
       .setProfile(new Profile.NullProfile())
       .addOsmSource("osm", osmPath, osmUrl)
@@ -3183,9 +3184,41 @@ class PlanetilerTests {
     assertEquals(new OsmInputFile(localOsm).getLatLonBounds(), lookups.getFirst());
   }
 
+  @Test
+  void testPartiallyDownloadedInputs() throws Exception {
+    Path parquet = tempDir.resolve("sources").resolve("boston.parquet");
+    markAsPartialDownload(TestUtils.pathToResource("parquet").resolve("boston.parquet"), parquet);
+    Path osm = tempDir.resolve("sources").resolve("monaco.osm.pbf");
+    markAsPartialDownload(TestUtils.pathToResource("monaco-latest.osm.pbf"), osm);
+
+    // parquet sources read the ranges a cached run fetched without --download
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile((SourceFeature source, FeatureCollector features) -> features.polygon("buildings"))
+      .addParquetSource("parquet", parquet, "http://host/boston.parquet")
+      .setOutput(tempDir.resolve("parquet.mbtiles"))
+      .run();
+
+    // other sources can only be read complete
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile())
+      .addOsmSource("osm", osm, "http://host/monaco.osm.pbf")
+      .setOutput(tempDir.resolve("osm.mbtiles"));
+    var exception = assertThrows(IllegalArgumentException.class, planetiler::run);
+    assertTrue(exception.getMessage().contains("only partially downloaded"), exception.getMessage());
+  }
+
+  /** Copies {@code source} to {@code dest} with the files a partial {@code CachedRangeFile} leaves next to it. */
+  private static void markAsPartialDownload(Path source, Path dest) throws IOException {
+    FileUtils.createParentDirectories(dest);
+    Files.copy(source, dest);
+    long length = Files.size(dest);
+    Files.writeString(CachedRangeFile.metaPath(dest), "{\"length\":" + length + "}");
+    Files.writeString(CachedRangeFile.rangesPath(dest), "0 " + length + "\n");
+  }
+
   /** Returns a STAC catalog without files that records the bounds of each lookup in {@code lookups}. */
   private static OvertureStac recordingOvertureStac(List<Envelope> lookups) {
-    return new OvertureStac(PlanetilerConfig.defaults()) {
+    return new OvertureStac(new StubDownloader(PlanetilerConfig.defaults())) {
       @Override
       public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
         // copy since the bounds get updated in place once they are known

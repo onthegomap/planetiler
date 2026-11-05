@@ -94,9 +94,11 @@ public interface Stats extends AutoCloseable {
   /**
    * Records that a long-running task with {@code name} has started and returns a handle to call when finished.
    * <p>
-   * Also sets the "stage" prefix that shows up in the logs to {@code name} if {@code log} is true.
+   * Also sets the "stage" prefix that shows up in the logs to {@code name} if {@code log} is true, until the stage
+   * finishes.
    */
   default Timers.Finishable startStage(String name, boolean log) {
+    String previousStage = LogUtil.getStage();
     if (log) {
       LogUtil.setStage(name);
     }
@@ -105,6 +107,13 @@ public interface Stats extends AutoCloseable {
       @Override
       public void stop() {
         timer.stop();
+        if (log) {
+          if (previousStage == null) {
+            LogUtil.clearStage();
+          } else {
+            LogUtil.setStage(previousStage);
+          }
+        }
       }
 
       @Override
