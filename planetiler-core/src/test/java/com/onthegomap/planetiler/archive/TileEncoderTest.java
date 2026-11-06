@@ -9,14 +9,9 @@ import org.junit.jupiter.api.Test;
 
 class TileEncoderTest {
 
-  private static final List<TileSizeStats.LayerStats> POI_STATS =
-    List.of(new TileSizeStats.LayerStats("poi", 10, 1, 1, 4, 1, 1));
-  private static final List<TileSizeStats.LayerStats> ROAD_STATS =
-    List.of(new TileSizeStats.LayerStats("road", 10, 1, 1, 4, 1, 1));
-
   @Test
   void encodedIsEqualToItself() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
     var sameInstance = encoded;
 
     assertEquals(encoded, sameInstance);
@@ -24,8 +19,8 @@ class TileEncoderTest {
 
   @Test
   void encodedWithEqualBytesAndStatsAreEqual() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
-    var sameContents = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
+    var sameContents = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
 
     assertEquals(encoded, sameContents);
     assertEquals(encoded.hashCode(), sameContents.hashCode());
@@ -33,29 +28,37 @@ class TileEncoderTest {
 
   @Test
   void encodedWithDifferentBytesAreNotEqual() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
+    var otherBytes = new TileEncoder.Encoded(new byte[]{1, 2, 4}, statsForLayer("poi"));
 
-    assertNotEquals(encoded, new TileEncoder.Encoded(new byte[]{1, 2, 4}, POI_STATS));
+    assertNotEquals(encoded, otherBytes);
   }
 
   @Test
   void encodedWithDifferentLayerStatsAreNotEqual() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
+    var otherStats = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("road"));
 
-    assertNotEquals(encoded, new TileEncoder.Encoded(new byte[]{1, 2, 3}, ROAD_STATS));
+    assertNotEquals(encoded, otherStats);
   }
 
   @Test
   void encodedIsNotEqualToOtherTypes() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, statsForLayer("poi"));
 
     assertNotEquals(encoded, new Object());
   }
 
   @Test
   void encodedToStringShowsTheByteCountInsteadOfTheBytes() {
-    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, POI_STATS);
+    var stats = statsForLayer("poi");
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, stats);
 
-    assertEquals("Encoded{bytes=byte[3], layerStats=" + POI_STATS + "}", encoded.toString());
+    assertEquals("Encoded{bytes=byte[3], layerStats=" + stats + "}", encoded.toString());
+  }
+
+  /** Stats of a tile with one layer; only the layer name matters to these tests. */
+  private static List<TileSizeStats.LayerStats> statsForLayer(String layer) {
+    return List.of(new TileSizeStats.LayerStats(layer, 10, 1, 1, 4, 1, 1));
   }
 }

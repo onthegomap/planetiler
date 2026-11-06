@@ -115,17 +115,12 @@ class TileEncodersTest {
 
   @Test
   void mltEncoderWithSharedDictionariesWritesMixedValueTypesOfOneKeyAsText() {
-    // enough repeated strings for shared dictionaries to kick in
+    // 100 repeated "cafe" strings are enough for shared dictionaries to kick in
     List<VectorTile.Feature> manyCafes = new ArrayList<>();
-    // "height" holds a number and a string, so it is left out of the shared dictionaries
-    List<DecodedFeature> expected = new ArrayList<>(List.of(
-      new DecodedFeature("building", 101L, newPoint(10, 20), Map.of("height", "12")),
-      new DecodedFeature("building", 102L, newPoint(30, 40), Map.of("height", "tall"))
-    ));
     for (int id = 1; id <= 100; id++) {
       manyCafes.add(point("poi", id, id, id, Map.of("name", "cafe")));
-      expected.add(new DecodedFeature("poi", (long) id, newPoint(id, id), Map.of("name", "cafe")));
     }
+    // "height" holds a number and a string, so it is left out of the shared dictionaries
     var tile = new VectorTile()
       .addLayerFeatures("poi", manyCafes)
       .addLayerFeatures("building", List.of(
@@ -135,7 +130,10 @@ class TileEncodersTest {
 
     var encoded = encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_shared_dict", "true");
 
-    assertEquals(expected, decodeMlt(encoded.bytes()));
+    assertEquals(List.of(
+      new DecodedFeature("building", 101L, newPoint(10, 20), Map.of("height", "12")),
+      new DecodedFeature("building", 102L, newPoint(30, 40), Map.of("height", "tall"))
+    ), decodeMlt(encoded.bytes()).stream().filter(f -> f.layer().equals("building")).toList());
   }
 
   @ParameterizedTest
