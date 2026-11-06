@@ -11,7 +11,7 @@ import java.util.Objects;
  * {@link TileEncoders#factory}, closes it when done, and must not reuse it after {@link #encode} throws.
  */
 sealed interface TileEncoder extends AutoCloseable
-  permits MvtTileEncoder, JavaMltTileEncoder {
+  permits MvtTileEncoder, JavaMltTileEncoder, NativeMltTileEncoder {
 
   /** The encoding of a tile, and the size and statistics of each of its layers. */
   record Encoded(byte[] bytes, List<TileSizeStats.LayerStats> layerStats) {

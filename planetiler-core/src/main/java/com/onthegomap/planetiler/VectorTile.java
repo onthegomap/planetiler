@@ -38,8 +38,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.jcip.annotations.NotThreadSafe;
@@ -92,8 +94,8 @@ public class VectorTile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
-  // TODO make these configurable
-  private static final int EXTENT = 4096;
+  // TODO make these configurable, tile encoders read EXTENT
+  public static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -455,19 +457,27 @@ public class VectorTile {
    * Returns the number of internal geometries in this feature including points/lines/polygons inside multigeometries.
    */
   public static int countGeometries(VectorTileProto.Tile.Feature feature) {
+    return countGeometries(feature::getGeometry, feature.getGeometryCount());
+  }
+
+  /** Returns the number of internal geometries in the encoded geometry {@code commands}. */
+  public static int countGeometries(int[] commands) {
+    return countGeometries(i -> commands[i], commands.length);
+  }
+
+  private static int countGeometries(IntUnaryOperator commands, int length) {
     int result = 0;
     int idx = 0;
-    int geomCount = feature.getGeometryCount();
-    while (idx < geomCount) {
-      int length = feature.getGeometry(idx);
-      int command = length & ((1 << 3) - 1);
-      length = length >> 3;
+    while (idx < length) {
+      int commandLength = commands.applyAsInt(idx);
+      int command = commandLength & ((1 << 3) - 1);
+      commandLength = commandLength >> 3;
       if (command == Command.MOVE_TO.value) {
-        result += length;
+        result += commandLength;
       }
       idx += 1;
       if (command != Command.CLOSE_PATH.value) {
-        idx += length * 2;
+        idx += commandLength * 2;
       }
     }
     return result;
@@ -530,32 +540,57 @@ public class VectorTile {
     return this;
   }
 
-  /** Passes each layer with features and its features to {@code visitor}, to encode them. */
+  /**
+   * Passes each layer and its features to {@code visitor}, with values converted to the types vector tile formats
+   * store: strings, integers, longs, floats, doubles and booleans, with any other value as its text. Leaves out the
+   * features {@code visitor} does not {@linkplain FeatureVisitor#accept accept}, and layers left without features.
+   */
   public void visitFeatures(FeatureVisitor visitor) {
     for (var entry : layers.entrySet()) {
       var layer = entry.getValue();
-      if (layer.encodedFeatures.isEmpty()) {
-        continue;
-      }
-      visitor.visitLayer(entry.getKey(), layer.keys(), layer.values());
+      List<String> keys = null;
+      List<Object> values = null;
       for (var feature : layer.encodedFeatures) {
+        if (!visitor.accept(feature.geometry)) {
+          continue;
+        }
+        if (keys == null) {
+          keys = List.copyOf(layer.keys.keySet());
+          values = layer.values.keySet().stream().map(VectorTile::toSupportedValue).toList();
+          visitor.visitLayer(entry.getKey(), keys, values);
+        }
         visitor.visitFeature(feature.id, feature.geometry, feature.tags.toArray());
       }
     }
+  }
+
+  private static Object toSupportedValue(Object value) {
+    return switch (value) {
+      case String _, Integer _, Long _, Float _, Double _, Boolean _ -> value;
+      default -> value.toString();
+    };
   }
 
   /** Receives the layers and features of a tile from {@link #visitFeatures(FeatureVisitor)}, to encode them. */
   public interface FeatureVisitor {
 
     /**
-     * Called for each layer with features, before its features, with the keys and values that the tags of its
-     * features point into.
+     * Returns whether to visit the feature with {@code geometry}, called once for each feature before any of its
+     * layer is visited. Formats return false (and log it) for features they cannot store.
+     */
+    default boolean accept(VectorGeometry geometry) {
+      return true;
+    }
+
+    /**
+     * Called for each layer with an accepted feature, before its features, with the keys and values that the tags of
+     * its features point into.
      */
     void visitLayer(String name, List<String> keys, List<Object> values);
 
     /**
-     * Called for each feature of the layer last visited, with {@code tags} holding the index of a key and the index of
-     * its value for each attribute.
+     * Called for each accepted feature of the layer last visited, with {@code tags} holding the index of a key and
+     * the index of its value for each attribute.
      */
     void visitFeature(long id, VectorGeometry geometry, int[] tags);
   }
@@ -611,7 +646,7 @@ public class VectorTile {
         case Float floatValue -> tileValue.setFloatValue(floatValue);
         case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
         case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
-        case Object other -> tileValue.setStringValue(other.toString());
+        default -> throw new IllegalArgumentException("visitFeatures converts " + value.getClass() + " to text");
       }
       return tileValue.build();
     }
@@ -710,28 +745,39 @@ public class VectorTile {
     return layers.isEmpty();
   }
 
+  /** Returns the input for the Java MLT encoder. */
   public MapboxVectorTile toMltInput() {
     return toMltInput(DefaultStats.get());
   }
 
-  /** Returns the input for the Java MLT encoder, leaving out (and logging) features whose geometry cannot be decoded. */
+  /**
+   * Returns the input for the Java MLT encoder, leaving out (and logging to {@code stats}) features that MLT cannot
+   * store and layers left without features.
+   */
   public MapboxVectorTile toMltInput(Stats stats) {
     var builder = new MltInputBuilder(stats);
     visitFeatures(builder);
     return builder.build();
   }
 
-  /** Collects the layers and features passed to it into the input of the Java MLT encoder. */
+  /** Collects the features passed to it into the input of the Java MLT encoder. */
   private static final class MltInputBuilder implements FeatureVisitor {
 
+    private record PendingFeature(long id, VectorGeometry geometry, Map<String, Object> properties) {}
+
     private final Stats stats;
-    private final Map<String, List<org.maplibre.mlt.data.Feature>> layers = new LinkedHashMap<>();
-    private List<org.maplibre.mlt.data.Feature> features;
+    private final Map<String, List<PendingFeature>> layers = new LinkedHashMap<>();
+    private List<PendingFeature> features;
     private List<String> keys;
     private List<Object> values;
 
     MltInputBuilder(Stats stats) {
       this.stats = stats;
+    }
+
+    @Override
+    public boolean accept(VectorGeometry geometry) {
+      return acceptMltGeometry(geometry, stats);
     }
 
     @Override
@@ -748,18 +794,38 @@ public class VectorTile {
       for (int i = 0; i < tags.length; i += 2) {
         properties.put(keys.get(tags[i]), values.get(tags[i + 1]));
       }
-      try {
-        features.add(new org.maplibre.mlt.data.Feature(id, geometry.decodeToExtent(), properties));
-      } catch (GeometryException e) {
-        e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
-      }
+      features.add(new PendingFeature(id, geometry, properties));
     }
 
+    /** Returns the collected layers, leaving out (and logging) features whose geometry cannot be decoded. */
     MapboxVectorTile build() {
-      return new MapboxVectorTile(layers.entrySet().stream()
-        .map(entry -> new org.maplibre.mlt.data.Layer(entry.getKey(), entry.getValue(), EXTENT))
-        .toList());
+      return new MapboxVectorTile(layers.entrySet().stream().map(entry -> {
+        List<org.maplibre.mlt.data.Feature> decoded = entry.getValue().stream().map(this::decode)
+          .filter(Objects::nonNull).toList();
+        return new org.maplibre.mlt.data.Layer(entry.getKey(), decoded, EXTENT);
+      }).filter(layer -> !layer.features().isEmpty()).toList());
     }
+
+    private org.maplibre.mlt.data.Feature decode(PendingFeature feature) {
+      try {
+        return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), feature.properties);
+      } catch (GeometryException e) {
+        e.log(stats, "mlt_feature", "Error converting to MLT " + feature.properties);
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Returns whether MLT can store {@code geometry}, logging to {@code stats} if not, for the
+   * {@link FeatureVisitor#accept accept} method of MLT encoders.
+   */
+  public static boolean acceptMltGeometry(VectorGeometry geometry, Stats stats) {
+    if (geometry.geomType() == GeometryType.UNKNOWN) {
+      stats.dataError("mlt_feature");
+      return false;
+    }
+    return true;
   }
 
   public Integer getNumKeys(String layer) {
