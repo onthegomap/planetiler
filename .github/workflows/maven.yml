@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  # Monaco-only copy of the ocean polygons, so CI does not depend on osmdata.openstreetmap.de being up
+  MONACO_WATER_POLYGONS_URL: https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip
+
 jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
   # is the problem by putting the check into a standalone job
@@ -136,7 +140,7 @@ jobs:
       with:
         max_attempts: 5
         timeout_minutes: 30
-        command: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
+        command: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco --water-polygons-url="$MONACO_WATER_POLYGONS_URL"
 
     - name: Download wikidata (java)
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
@@ -168,7 +172,7 @@ jobs:
         tar -xzf ../dist/planetiler_*_darwin_arm64.tar.gz
         ./planetiler --jvm-args=-version 2>&1 | grep -i openjdk
         ./planetiler --extract-jar && test -s planetiler.jar
-        ./planetiler --download --area=monaco --output=monaco.mbtiles --only-layers=poi
+        ./planetiler --download --area=monaco --water-polygons-url="$MONACO_WATER_POLYGONS_URL" --output=monaco.mbtiles --only-layers=poi
         test -s monaco.mbtiles
 
   smoke-windows:
@@ -190,7 +194,7 @@ jobs:
         mv ../dist/planetiler.exe ./planetiler.exe || unzip ../dist/planetiler_*_windows_amd64.zip
         ./planetiler.exe --jvm-args=-version 2>&1 | grep -i openjdk
         ./planetiler.exe --extract-jar && test -s planetiler.jar
-        ./planetiler.exe --download --area=monaco --output=monaco.mbtiles --only-layers=poi
+        ./planetiler.exe --download --area=monaco --water-polygons-url="$MONACO_WATER_POLYGONS_URL" --output=monaco.mbtiles --only-layers=poi
         test -s monaco.mbtiles
 
   quickstart:
