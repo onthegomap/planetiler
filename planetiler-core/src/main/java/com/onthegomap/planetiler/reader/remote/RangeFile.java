@@ -1,9 +1,12 @@
 package com.onthegomap.planetiler.reader.remote;
 
 import com.onthegomap.planetiler.util.Downloader;
+import com.onthegomap.planetiler.util.Downloader.ByteRange;
+import com.onthegomap.planetiler.util.RequestPlanner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Random access reads from a local file, or a remote one using HTTP range requests.
@@ -53,16 +56,19 @@ public interface RangeFile extends Closeable {
   }
 
   /**
-   * Returns how many bytes reading the {@code length} bytes at {@code offset} would fetch from the remote file right
-   * now; 0 for local files.
+   * Returns true if reading the {@code length} bytes at {@code offset} would fetch them from the remote file or false
+   * for local files and bytes cached already.
    */
-  default long bytesToFetch(long offset, int length) {
-    return 0;
+  default boolean needsFetch(long offset, long length) {
+    return false;
   }
 
-  /** Returns how many requests reading the {@code length} bytes at {@code offset} would make right now. */
-  default long requestsToFetch(long offset, int length) {
-    return 0;
+  /**
+   * Returns the requests {@link #readLater(List)} would make right now to read {@code ranges}, or empty list for local
+   * files.
+   */
+  default RequestPlanner.Plan planFetch(List<ByteRange> ranges) {
+    return RequestPlanner.Plan.EMPTY;
   }
 
   /** Returns the number of bytes fetched from the remote file so far, not counting retries; 0 for local files. */
@@ -70,7 +76,7 @@ public interface RangeFile extends Closeable {
     return 0;
   }
 
-  /** Returns the number of requests to the remote file that succeeded so far, not counting retries. */
+  /** Returns the number of requests made to the remote file so far, not counting retries. */
   default long requestsMade() {
     return 0;
   }
@@ -86,20 +92,27 @@ public interface RangeFile extends Closeable {
   byte[] read(long offset, int length) throws IOException;
 
   /**
-   * Returns a handle to read {@code length} bytes starting at {@code offset} later.
+   * Returns a handle per range in {@code ranges} (which must be in ascending order and must not overlap) to read its
+   * bytes later.
    * <p>
-   * Remote implementations start fetching the bytes right away so that {@link Pending#get()} blocks less, local
-   * implementations read them when {@link Pending#get()} is called.
+   * Remote implementations fetch the ranges with the requests {@link RequestPlanner} plans for them, which can span
+   * several ranges. A request gets sent once the first range it covers {@link Pending#start() starts}, and its bytes
+   * get read off the network only as far as the ranges that started, so callers start ranges in order shortly before
+   * they need them. Local implementations read the bytes when {@link Pending#get()} is called.
    */
-  default Pending readLater(long offset, int length) {
-    return () -> read(offset, length);
+  default List<Pending> readLater(List<ByteRange> ranges) {
+    return ranges.stream().<Pending>map(range -> () -> read(range.offset(), Math.toIntExact(range.length())))
+      .toList();
   }
 
-  /** Bytes requested by {@link #readLater(long, int)}. */
+  /** Bytes requested by {@link #readLater(List)}. */
   @FunctionalInterface
   interface Pending {
 
-    /** Returns the bytes, waiting for them to arrive if necessary. */
+    /** Says {@link #get()} will be called soon, so the bytes can start arriving now. */
+    default void start() {}
+
+    /** Starts these bytes if necessary, and returns when they have all arrived. */
     byte[] get() throws IOException;
   }
 }

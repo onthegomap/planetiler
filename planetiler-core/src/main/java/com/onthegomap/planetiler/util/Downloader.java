@@ -40,8 +40,9 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.LongConsumer;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -81,11 +82,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public class Downloader implements Closeable {
 
-  /**
-   * Reads don't get split into requests smaller than this: below it, the round trip of each request costs more than
-   * parallel requests gain. This is the same as the largest request DuckDB 2 makes to read GeoParquet.
-   */
-  public static final int MIN_REQUEST_BYTES = 2 << 20;
   private static final int MAX_REDIRECTS = 5;
   // read enough of an error response's body to say what went wrong, without filling the log with an HTML error page
   private static final int MAX_ERROR_BODY_BYTES = 500;
@@ -97,7 +93,7 @@ public class Downloader implements Closeable {
   private final PlanetilerConfig config;
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
   private final ExecutorService executor;
-  private final long maxRequestBytes;
+  private final RequestPlanner planner;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
   private final RateLimiter rateLimiter;
   private final Semaphore globalRequestLimiter;
@@ -112,9 +108,9 @@ public class Downloader implements Closeable {
 
   Downloader(PlanetilerConfig config, long maxRequestBytes) {
     this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
-    this.maxRequestBytes = maxRequestBytes;
+    this.planner = new RequestPlanner(config.downloadThreads(), maxRequestBytes);
     this.config = config;
-    this.globalRequestLimiter = new Semaphore(config.downloadMaxRequests());
+    this.globalRequestLimiter = new Semaphore(Math.max(config.downloadMaxRequests(), config.downloadThreads()));
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
   }
 
@@ -356,73 +352,18 @@ public class Downloader implements Closeable {
   }
 
   /**
-   * Starts fetching {@code ranges} of the remote file at {@code url} with range requests, passing the bytes to
-   * {@code sink} as they arrive.
+   * Fetches {@code range} of the remote file at {@code url} with one range request, passing the bytes to {@code sink}
+   * in order as they arrive, on the calling thread. A retry after a dropped connection continues from the next byte not
+   * passed to {@code sink}.
+   *
+   * @throws IOException                if the request fails after all retries
+   * @throws RemoteFileChangedException if the file is no longer {@code expected}
    */
-  public CompletableFuture<Void> fetchRanges(String url, RemoteVersion expected, List<ByteRange> ranges, Sink sink) {
-    Semaphore perFetch = new Semaphore(config.downloadThreads());
-    // once a request fails for good the file can't be completed, so requests that haven't started yet get skipped
-    // instead of each retrying against a server that is likely down; allOf still waits for the ones in flight
-    AtomicBoolean failed = new AtomicBoolean(false);
-    return CompletableFuture.allOf(planRequests(ranges).stream()
-      .map(request -> async(() -> {
-        perFetch.acquire();
-        try {
-          if (!failed.get()) {
-            fetchResumingOnError(url, expected, request, sink);
-          }
-        } catch (IOException | RuntimeException e) {
-          failed.set(true);
-          throw e;
-        } finally {
-          perFetch.release();
-        }
-        return null;
-      }))
-      .toArray(CompletableFuture[]::new));
-  }
-
-  /**
-   * Starts fetching {@code range} of the remote file at {@code url} into memory like {@link #fetchRanges}, telling
-   * {@code progress} how many bytes arrived as they do.
-   */
-  public CompletableFuture<byte[]> fetchBytes(String url, RemoteVersion expected, ByteRange range,
-    LongConsumer progress) {
-    byte[] result = new byte[Math.toIntExact(range.length())];
-    return fetchRanges(url, expected, List.of(range), (position, buffer, offset, length) -> {
-      System.arraycopy(buffer, offset, result, Math.toIntExact(position - range.offset()), length);
-      progress.accept(length);
-    }).thenApply(_ -> result);
-  }
-
-  /**
-   * Returns the requests {@link #fetchRanges} makes to fetch {@code ranges}: ranges larger than
-   * {@link #MIN_REQUEST_BYTES} get split into up to {@code download_threads} requests, more if they would be larger
-   * than {@code download_chunk_size_mb}.
-   */
-  public List<ByteRange> planRequests(List<ByteRange> ranges) {
-    // several ranges share the parallel requests, so resuming a download with a few holes makes one request per hole
-    int threadsPerRange = Math.max(1, config.downloadThreads() / Math.max(1, ranges.size()));
-    List<ByteRange> result = new ArrayList<>();
-    for (var range : ranges) {
-      long count = Math.max(Math.ceilDiv(range.length(), maxRequestBytes),
-        Math.clamp(range.length() / MIN_REQUEST_BYTES, 1, threadsPerRange));
-      long size = Math.ceilDiv(range.length(), count);
-      for (long start = range.offset(); start < range.end(); start += size) {
-        result.add(new ByteRange(start, Math.min(size, range.end() - start)));
-      }
-    }
-    return result;
-  }
-
-  /** Fetches {@code range} with one request, which continues from the next byte not passed to {@code sink} on retry. */
-  private void fetchResumingOnError(String url, RemoteVersion expected, ByteRange range, Sink sink)
-    throws IOException {
-    var done = new Object() {
-      long bytes = 0;
-    };
-    withRetries("fetching " + range + " of " + url, () -> {
-      var remaining = new ByteRange(range.offset() + done.bytes, range.length() - done.bytes);
+  public void fetch(String url, RemoteVersion expected, ByteRange range, Sink sink) throws IOException {
+    // not for thread safety (bytes arrive on this thread), just a counter the lambdas below can update
+    var bytesDone = new AtomicLong();
+    withRetries("fetching " + range + " of " + url, bytesDone::get, () -> {
+      var remaining = new ByteRange(range.offset() + bytesDone.get(), range.length() - bytesDone.get());
       try (
         var response = getFollowingRedirects(url, "bytes=" + remaining.offset() + "-" + (range.end() - 1),
           expected)
@@ -437,7 +378,7 @@ public class Downloader implements Closeable {
         }
         response.readInto(remaining.offset(), remaining.length(), (position, buffer, offset, length) -> {
           sink.accept(position, buffer, offset, length);
-          done.bytes += length;
+          bytesDone.addAndGet(length);
         });
       }
       return null;
@@ -460,6 +401,11 @@ public class Downloader implements Closeable {
    */
   public <T> CompletableFuture<T> async(Callable<T> task) {
     return CompletableFutures.supplyAsync(task, executor);
+  }
+
+  /** Returns the planner that decides which requests to make to fetch parts of a remote file. */
+  public RequestPlanner planner() {
+    return planner;
   }
 
   /** Returns the config this downloader was created with. */
@@ -493,15 +439,31 @@ public class Downloader implements Closeable {
   }
 
   private <T> T withRetries(String what, Callable<T> attempt) throws IOException {
+    return withRetries(what, () -> 0, attempt);
+  }
+
+  /**
+   * Like {@link #withRetries(String, Callable)}, but an attempt that failed after {@code progress} went up gets retried
+   * right away and the retries start over.
+   */
+  private <T> T withRetries(String what, LongSupplier progress, Callable<T> attempt) throws IOException {
     for (int retry = 0;; retry++) {
+      long progressBefore = progress.getAsLong();
       try {
         return attempt.call();
       } catch (IOException e) {
         int retriesRemaining = config.httpRetries() - retry;
-        if (retriesRemaining <= 0 || !isRetryable(e)) {
+        if (!isRetryable(e)) {
           throw e;
+        } else if (progress.getAsLong() > progressBefore) {
+          // if we downloaded some bytes then the initial request succeeded and the server closed the idle connection;
+          // in that case, restart the request where we left off and don't count against our retries
+          retry = -1;
+        } else if (retriesRemaining <= 0) {
+          throw e;
+        } else {
+          waitBeforeRetry(what, retriesRemaining, e);
         }
-        waitBeforeRetry(what, retriesRemaining, e);
       } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
         throw new InterruptedIOException("Interrupted " + what);
