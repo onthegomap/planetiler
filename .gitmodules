@@ -2,3 +2,7 @@
 	path = planetiler-openmaptiles
 	url = https://github.com/openmaptiles/planetiler-openmaptiles.git
 	branch = main
+[submodule "planetiler-shortbread"]
+	path = planetiler-shortbread
+	url = https://github.com/versatiles-org/planetiler-shortbread.git
+	branch = main
