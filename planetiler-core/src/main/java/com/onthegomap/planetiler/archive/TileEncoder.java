@@ -18,8 +18,8 @@ sealed interface TileEncoder extends AutoCloseable
 
     @Override
     public boolean equals(Object o) {
-      return this == o || (o instanceof Encoded other && Arrays.equals(bytes, other.bytes) &&
-        Objects.equals(layerStats, other.layerStats));
+      return this == o || (o instanceof Encoded(var otherBytes, var otherLayerStats) &&
+        Arrays.equals(bytes, otherBytes) && Objects.equals(layerStats, otherLayerStats));
     }
 
     @Override
