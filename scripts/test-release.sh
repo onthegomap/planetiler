@@ -15,8 +15,10 @@ fi
 echo "Test java build"
 echo "::group::OpenMapTiles monaco (java)"
 rm -f data/out*.mbtiles
+# Monaco-only copy of the ocean polygons, so this does not depend on osmdata.openstreetmap.de being up
+water_polygons_url="https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip"
 # vary threads to stress-test determinism check
-java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles  --threads=32
+java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --water-polygons-url="${water_polygons_url}" --output=data/jar-monaco.mbtiles  --threads=32
 ./scripts/check-monaco.sh data/jar-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (java)"
