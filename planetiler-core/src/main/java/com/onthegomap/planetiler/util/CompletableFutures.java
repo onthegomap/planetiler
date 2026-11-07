@@ -18,7 +18,7 @@ import java.util.function.Function;
 /** Utilities for waiting on {@link CompletableFuture CompletableFutures}. */
 public class CompletableFutures {
   /** A future that has already completed with {@code null}. */
-  public static final CompletableFuture<?> NULL = CompletableFuture.completedFuture(null);
+  public static final CompletableFuture<Void> NULL = CompletableFuture.completedFuture(null);
 
   private CompletableFutures() {}
 

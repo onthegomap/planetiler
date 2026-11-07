@@ -138,7 +138,6 @@ public class ParquetInputFile implements Closeable {
     rowGroupsToRead = outOfBounds ? List.of() : IntStream.range(0, blocks.size())
       .filter(i -> mayMatch(blocks.get(i)) && mayIntersect(blocks.get(i), bounds))
       .boxed()
-      // remote reads fetch row groups in file order, which writers almost always use for their index order anyway
       .sorted(Comparator.comparingLong(i -> rowGroupSpan(blocks.get(i)).offset()))
       .toList();
     count = rowGroupsToRead.stream().mapToLong(i -> blocks.get(i).getRowCount()).sum();
@@ -188,8 +187,6 @@ public class ParquetInputFile implements Closeable {
     long fileHash = Hashing.fnv1a64(path.toString().getBytes(StandardCharsets.UTF_8));
     var schema = metadata.getFileMetaData().getSchema();
     var columnIOFactory = new ColumnIOFactory(metadata.getFileMetaData().getCreatedBy(), false);
-    // Bytes already on local disk or in memory get read by parquet straight into its own buffers: copying them into one
-    // array first would only double the memory per row group.
     List<ByteRange> toFetch = rowGroupRangesToFetch();
     Iterator<RangeFile.Pending> fetched = file.readLater(toFetch).iterator();
     Map<ByteRange, RangeFile.Pending> pendingBySpan = new HashMap<>();
@@ -221,7 +218,7 @@ public class ParquetInputFile implements Closeable {
         }
 
         @Override
-        public CompletableFuture<?> whenFetched() {
+        public CompletableFuture<Void> whenFetched() {
           return bytes == null ? CompletableFutures.NULL : bytes.ready();
         }
 
@@ -314,7 +311,7 @@ public class ParquetInputFile implements Closeable {
     return rowGroupsToRead.stream().mapToLong(i -> rowGroupSpan(metadata.getBlocks().get(i)).length()).sum();
   }
 
-  /** Returns the requests reading the row groups will make to a remote server: none if they are all local. */
+  /** Returns the HTTP requests required to read the row groups from the remote server. */
   public RequestPlanner.Plan planFetch() {
     return file.planFetch(rowGroupRangesToFetch());
   }
@@ -363,7 +360,7 @@ public class ParquetInputFile implements Closeable {
     default void startFetchIfNecessary() {}
 
     /** Returns a future that completes when all bytes are available for this range. */
-    default CompletableFuture<?> whenFetched() {
+    default CompletableFuture<Void> whenFetched() {
       return CompletableFutures.NULL;
     }
   }

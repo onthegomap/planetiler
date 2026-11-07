@@ -317,7 +317,7 @@ public class HttpRangeFile implements RangeFile {
     }
 
     @Override
-    public CompletableFuture<?> ready() {
+    public CompletableFuture<Void> ready() {
       return done.copy(); // don't let callers complete it
     }
 

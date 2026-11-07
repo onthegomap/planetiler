@@ -277,11 +277,11 @@ public class CachedRangeFile implements RangeFile {
 
   private Pending readLaterFromDisk(ByteRange range) {
     long offset = range.offset();
-    int length = Math.toIntExact(range.length());
+    int rangeLength = Math.toIntExact(range.length());
     // cached bytes stay cached, so only ranges missing while offline get here without being cached
-    return isCached(offset, length) ? () -> FileUtils.readFully(channel, offset, length) : () -> {
+    return isCached(offset, rangeLength) ? () -> FileUtils.readFully(channel, offset, rangeLength) : () -> {
       throw new IOException(
-        path + " is missing bytes " + offset + "-" + (offset + length) + ", run with --download to fetch them");
+        path + " is missing bytes " + offset + "-" + (offset + rangeLength) + ", run with --download to fetch them");
     };
   }
 

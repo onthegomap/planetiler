@@ -118,7 +118,7 @@ public interface RangeFile extends Closeable {
     byte[] get() throws IOException;
 
     /** Completes after bytes are fetched. */
-    default CompletableFuture<?> ready() {
+    default CompletableFuture<Void> ready() {
       return CompletableFutures.NULL;
     }
   }

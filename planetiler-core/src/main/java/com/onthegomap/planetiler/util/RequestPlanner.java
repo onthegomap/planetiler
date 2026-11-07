@@ -74,7 +74,7 @@ public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
     long neededBytes = neededRanges.stream().mapToLong(ByteRange::length).sum();
     long maxGapBytes = neededBytes / MAX_GAP_DIVISOR;
     int maxInFlight = (int) Math.clamp(
-      (long) threadsPerFile * fileLength / neededBytes,
+      threadsPerFile * fileLength / neededBytes,
       threadsPerFile, (long) threadsPerFile * MAX_SPARSE_THREADS_FACTOR);
     long targetRequestBytes = Math.clamp(
       Math.ceilDiv(neededBytes, maxInFlight),

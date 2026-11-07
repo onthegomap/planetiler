@@ -447,7 +447,8 @@ public class Downloader implements Closeable {
    * right away and the retries start over.
    */
   private <T> T withRetries(String what, LongSupplier progress, Callable<T> attempt) throws IOException {
-    for (int retry = 0;; retry++) {
+    int retry = 0;
+    while (true) {
       long progressBefore = progress.getAsLong();
       try {
         return attempt.call();
@@ -458,11 +459,12 @@ public class Downloader implements Closeable {
         } else if (progress.getAsLong() > progressBefore) {
           // if we downloaded some bytes then the initial request succeeded and the server closed the idle connection;
           // in that case, restart the request where we left off and don't count against our retries
-          retry = -1;
+          retry = 0;
         } else if (retriesRemaining <= 0) {
           throw e;
         } else {
           waitBeforeRetry(what, retriesRemaining, e);
+          retry++;
         }
       } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
