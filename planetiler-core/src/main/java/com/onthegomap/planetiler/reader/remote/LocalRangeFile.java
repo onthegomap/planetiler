@@ -36,4 +36,9 @@ public class LocalRangeFile implements RangeFile {
   public void close() {
     // nothing to release
   }
+
+  @Override
+  public String toString() {
+    return path.toString();
+  }
 }

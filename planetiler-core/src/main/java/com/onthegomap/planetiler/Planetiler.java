@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -551,12 +552,12 @@ public class Planetiler {
    */
   public Planetiler addParquetSource(String name, List<Path> paths, boolean hivePartitioning,
     Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
-    return addParquetSource(name, paths, () -> paths, hivePartitioning, getId, getLayer);
+    return addParquetSource(name, paths, () -> paths, hivePartitioning, getId, getLayer, null);
   }
 
   private Planetiler addParquetSource(String name, List<Path> base, Supplier<List<Path>> paths,
-    boolean hivePartitioning,
-    Function<Map<String, Object>, Object> getId, Function<Map<String, Object>, Object> getLayer) {
+    boolean hivePartitioning, Function<Map<String, Object>, Object> getId,
+    Function<Map<String, Object>, Object> getLayer, String defaultUrl) {
     boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
       "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
     var separator = Pattern.quote(base.isEmpty() ? "/" : base.getFirst().getFileSystem().getSeparator());
@@ -566,8 +567,9 @@ public class Planetiler {
       inputPaths.add(new InputPath(name, path, freeAfterReading, true));
     }
     return addStage(name, "Process features in " + prefix,
-      ifSourceUsed(name, () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
-        .process(paths.get(), featureGroup, config)));
+      ifSourceUsed(name, withDownloadHint(defaultUrl,
+        () -> new ParquetReader(name, profile, stats, getId, getLayer, hivePartitioning)
+          .process(paths.get(), featureGroup, config))));
   }
 
   /**
@@ -609,12 +611,22 @@ public class Planetiler {
     if (source.mode().fetchWhileProcessing() && source.url() != null) {
       return addStage(name, "Process features in " + source.path() + " using " +
         source.mode().name().toLowerCase(Locale.ROOT) + " range requests to " + source.url(),
-        ifSourceUsed(name, () -> new ParquetReader(name, profile, stats)
+        ifSourceUsed(name, withDownloadHint(defaultUrl, () -> new ParquetReader(name, profile, stats)
           .processRemote(Map.of(source.path(), source.url()), source.mode(), source.refresh(), downloader(),
-            featureGroup, config)));
+            featureGroup, config))));
     }
     addDownload(source);
-    return addParquetSource(name, List.of(source.path()));
+    return addParquetSource(name, List.of(source.path()), () -> List.of(source.path()), false, null, null, defaultUrl);
+  }
+
+  private static RunnableThatThrows withDownloadHint(String url, RunnableThatThrows task) {
+    return url == null || !url.endsWith(".parquet") ? task : () -> {
+      try {
+        task.run();
+      } catch (FileFormatException e) {
+        throw new FileFormatException(e.getMessage() + ", download it from " + url);
+      }
+    };
   }
 
   /**
@@ -662,7 +674,7 @@ public class Planetiler {
       () -> Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find(),
       true,
       fields -> fields.get("id"),
-      fields1 -> fields1.get("type"));
+      fields1 -> fields1.get("type"), null);
   }
 
   private synchronized OvertureStac overtureStac() {

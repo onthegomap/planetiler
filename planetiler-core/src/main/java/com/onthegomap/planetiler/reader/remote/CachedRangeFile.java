@@ -399,4 +399,9 @@ public class CachedRangeFile implements RangeFile {
       }
     }
   }
+
+  @Override
+  public String toString() {
+    return remote == null ? path.toString() : remote.toString();
+  }
 }
