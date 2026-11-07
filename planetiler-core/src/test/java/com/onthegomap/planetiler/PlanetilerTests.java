@@ -34,7 +34,6 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
-import com.onthegomap.planetiler.reader.parquet.ParquetInputFile;
 import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
@@ -3685,11 +3684,13 @@ class PlanetilerTests {
   void testParquetSourceOverriddenWithShapefile(boolean overrideUrl) throws IOException {
     Path zip = TestUtils.pathToResource("water-polygons-split-3857.zip");
     String override = overrideUrl ? "--water-url=http://host/water.zip" : "--water-path=" + zip;
-    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", override))
-      .setDownloader(new StubDownloader(PlanetilerConfig.defaults()).put("http://host/water.zip", Files.readAllBytes(zip)))
-      .setProfile(new Profile.NullProfile())
-      .addParquetSource("water", tempDir.resolve("water.parquet"), "http://host/water.parquet")
-      .setOutput(tempDir.resolve("output.mbtiles"));
+    var planetiler =
+      Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", override))
+        .setDownloader(
+          new StubDownloader(PlanetilerConfig.defaults()).put("http://host/water.zip", Files.readAllBytes(zip)))
+        .setProfile(new Profile.NullProfile())
+        .addParquetSource("water", tempDir.resolve("water.parquet"), "http://host/water.parquet")
+        .setOutput(tempDir.resolve("output.mbtiles"));
 
     var exception = assertThrows(Planetiler.PlanetilerException.class, planetiler::run);
     assertEquals((overrideUrl ? "http://host/water.zip" : zip.toString()) +
