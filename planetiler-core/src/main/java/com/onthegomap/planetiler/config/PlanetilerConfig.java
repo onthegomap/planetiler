@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holder for common parameters used by many components in planetiler.
@@ -80,6 +82,8 @@ public record PlanetilerConfig(
   boolean parallelTempIO
 ) {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(PlanetilerConfig.class);
+
   public static final int MIN_MINZOOM = 0;
   public static final int MAX_MAXZOOM = 16;
   private static final int DEFAULT_MAXZOOM = 14;
@@ -105,6 +109,20 @@ public record PlanetilerConfig(
     }
     if (downloadMaxRequests <= 0) {
       throw new IllegalArgumentException("--download-max-requests must be > 0, was " + downloadMaxRequests);
+    }
+    if (tileFormat != TileFormat.MLT &&
+      (mltFsst || mltFastPfor || mltTessellatePolygons || mltPolygonOutline || mltReorderFeature ||
+        mltSharedDictionaries)) {
+      throw new IllegalArgumentException("mlt_* options require tile_format=mlt, was " + tileFormat.id());
+    }
+    // FSST and FastPFOR shrink the uncompressed tile but leave output that gzip cannot compress further
+    if (tileFormat == TileFormat.MLT && tileCompression == TileCompression.GZIP) {
+      if (mltFsst) {
+        LOGGER.warn("mlt_fsst usually makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+      }
+      if (mltFastPfor) {
+        LOGGER.warn("mlt_fastpfor makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+      }
     }
   }
 
@@ -250,8 +268,8 @@ public record PlanetilerConfig(
             TileFormat.availableValues().stream().map(TileFormat::id).toList(),
           "mvt")),
       arguments.getBoolean("exclude_ids", "Exclude feature IDs from generated vector tiles", false),
-      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
+      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_tessellate_polygons",
         "Pre-triangulate polygons when tile format=MLT so that clients do not need to", false),
       arguments.getBoolean("mlt_polygon_outline",
