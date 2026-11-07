@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DynamicNode;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
@@ -80,8 +82,12 @@ import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.maplibre.mlt.decoder.MltDecoder;
+import org.maplibre.mlt.ffi.MltConverter;
+import org.maplibre.mlt.ffi.NativeLibrary;
 
 public class TestUtils {
+
+  public static final boolean NATIVE_MLT_AVAILABLE = loadsNativeMlt();
 
   public static final AffineTransformation TRANSFORM_TO_TILE = AffineTransformation
     .scaleInstance(256d / 4096d, 256d / 4096d);
@@ -289,18 +295,63 @@ public class TestUtils {
         case UNKNOWN -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       List<ComparableFeature> decoded = switch (tileFormat) {
-        case MLT -> MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
-          .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
-            feature.properties(), feature.id())))
-          .toList();
-        case UNKNOWN, MVT -> VectorTile.decode(bytes).stream()
-          .map(
-            feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
-          .toList();
+        case MLT -> decodeMlt(bytes);
+        case UNKNOWN, MVT -> decodeMvt(bytes);
       };
       tiles.put(tile.coord(), decoded);
     }
     return tiles;
+  }
+
+  /** Returns the features of an MVT tile. */
+  public static List<ComparableFeature> decodeMvt(byte[] bytes) {
+    return VectorTile.decode(bytes).stream()
+      .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
+      .toList();
+  }
+
+  /** Returns the features of an MLT tile, decoded natively where possible (the Java decoder only reads Java tiles). */
+  public static List<ComparableFeature> decodeMlt(byte[] bytes) {
+    return NATIVE_MLT_AVAILABLE ? decodeMltWithNativeDecoder(bytes) : decodeMltWithJavaDecoder(bytes);
+  }
+
+  /** Returns the features of an MLT tile from either encoder, decoded by the native decoder. */
+  public static List<ComparableFeature> decodeMltWithNativeDecoder(byte[] bytes) {
+    return decodeMvt(MltConverter.mltToMvt(bytes));
+  }
+
+  /** Returns the features of an MLT tile from the Java encoder, decoded by the Java decoder. */
+  public static List<ComparableFeature> decodeMltWithJavaDecoder(byte[] bytes) {
+    try {
+      return MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
+        .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
+          widenIntegers(feature.properties()), feature.id())))
+        .toList();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** Returns {@code properties} with integers as longs, the way the native decoder returns them. */
+  private static Map<String, Object> widenIntegers(Map<String, Object> properties) {
+    Map<String, Object> result = new HashMap<>(properties);
+    result.replaceAll((key, value) -> value instanceof Integer i ? i.longValue() : value);
+    return result;
+  }
+
+  private static boolean loadsNativeMlt() {
+    try {
+      NativeLibrary.load();
+      return true;
+    } catch (UnsatisfiedLinkError | IllegalCallerException _) {
+      // missing library for this platform, or native access not enabled (like TileEncoders.loadFailure)
+      return false;
+    }
+  }
+
+  /** Skips the calling test on platforms without the native MLT library. */
+  public static void assumeNativeMlt() {
+    Assumptions.assumeTrue(NATIVE_MLT_AVAILABLE, "native MLT library is not available on this platform");
   }
 
   private static Geometry scale(Geometry geometry, double v) {

@@ -308,19 +308,25 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @CsvSource({
-    "false, mvt",
-    "true, mvt",
-    "false, mlt",
-    "true, mlt",
+    "false, mvt,",
+    "true, mvt,",
+    "false, mlt, auto",
+    "true, mlt, auto",
+    "false, mlt, java",
+    "true, mlt, java",
   })
-  void testSinglePoint(boolean anyGeom, String tileType) throws Exception {
+  void testSinglePoint(boolean anyGeom, String tileType, String mltEncoder) throws Exception {
     double x = 0.5 + Z15_WIDTH / 4;
     double y = 0.5 + Z15_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
+    Map<String, String> args = new HashMap<>(Map.of("threads", "1", "maxzoom", "16", "tile-format", tileType));
+    if (mltEncoder != null) {
+      args.put("mlt-encoder", mltEncoder);
+    }
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "16", "tile-format", tileType),
+      args,
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "value"
@@ -368,15 +374,16 @@ class PlanetilerTests {
     );
   }
 
-  @Test
-  void testAttributeTypeCoercion() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"auto", "java"})
+  void testAttributeTypeCoercion(String mltEncoder) throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
     double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "15", "tile-format", "mlt"),
+      Map.of("threads", "1", "maxzoom", "15", "tile-format", "mlt", "mlt-encoder", mltEncoder),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "string"
@@ -2760,6 +2767,9 @@ class PlanetilerTests {
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
     "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
+    "--tile-format=mlt --mlt-encoder=java",
+    "--tile-format=mlt --threads=4",
+    "--tile-format=mlt --mlt-encoder=java --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
     "--exclude-ids",
     "--output-format=pmtiles",
     "--output-format=pmtiles --tile-format=mlt",
