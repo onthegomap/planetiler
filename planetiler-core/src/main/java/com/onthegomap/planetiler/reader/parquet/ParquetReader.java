@@ -20,6 +20,7 @@ import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
+import com.onthegomap.planetiler.util.RequestPlanner;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
@@ -178,27 +179,29 @@ public class ParquetReader {
     }).toList();
     Distributor<ParquetFeature> distributor = Distributor.createWithCapacity(1_000);
 
-    int lookAhead = lookAheadBlocks(blockCount, inputFiles.stream().mapToLong(ParquetInputFile::getBytesToRead).sum(),
-      processThreads, config);
 
     var rangeFiles = inputFiles.stream().map(ParquetInputFile::file).toList();
     // files complete on local disk fetch nothing, and opening a remote one always makes a request
     boolean remote = rangeFiles.stream().anyMatch(file -> file.requestsMade() > 0);
     // before the pipeline starts fetching: progress counts the row group bytes only, not the footers fetched already
-    long bytesToFetch = inputFiles.stream().mapToLong(ParquetInputFile::getBytesToFetch).sum();
-    long requestsToFetch = inputFiles.stream().mapToLong(ParquetInputFile::getRequestsToFetch).sum();
+    var plans = inputFiles.stream().map(ParquetInputFile::planFetch).toList();
+    long bytesToFetch = plans.stream().mapToLong(RequestPlanner.Plan::bytes).sum();
+    long requestsToFetch = plans.stream().mapToLong(plan -> plan.httpRequests().size()).sum();
+    // files get read one after another, so the look-ahead only needs to cover one file's requests in flight
+    long bytesInFlight = plans.stream().mapToLong(RequestPlanner.Plan::bytesInFlight).max().orElse(0);
+    int lookAhead = lookAheadBlocks(blockCount, inputFiles.stream().mapToLong(ParquetInputFile::getBytesToRead).sum(),
+      bytesInFlight, processThreads);
     long bytesFetchedBefore = rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum();
     long requestsMadeBefore = rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum();
 
-    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch", next -> {
-      for (var block : inputBlocks) {
+    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch",
+      // Start processing a block as soon as it's ready, which may not be in file-order. Reading in file-order would
+      // block streaming/cached downloads on a previous slow request
+      next -> CompletableFutures.inCompletionOrder(inputBlocks, lookAhead, block -> {
         block.startFetchIfNecessary();
-        next.accept(block);
-      }
-    })
-      // remote blocks start fetching once they enter this queue, so its size bounds the requests in flight and the
-      // fetched bytes held in memory
-      .addBuffer("blocks", lookAhead, 1)
+        return block.whenFetched();
+      }, next))
+      .addBuffer("blocks", processThreads, 1)
       .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var blocks = blocksRead.counterForThread();
         var elements = featuresRead.counterForThread();
@@ -292,13 +295,13 @@ public class ParquetReader {
   }
 
   /**
-   * Returns how many blocks to fetch ahead of the workers: enough to keep every range request busy twice over (so the
-   * next requests start as soon as some finish) and at least one per worker, but no more than 1/8 of the heap.
+   * Returns how many blocks to fetch ahead of the workers: enough to keep the {@code bytesInFlight} of requests made at
+   * once busy twice over (so the next requests start as soon as some finish) and at least one per worker, but no more
+   * than 1/8 of the heap.
    */
-  static int lookAheadBlocks(long blocks, long bytes, int processThreads, PlanetilerConfig config) {
+  static int lookAheadBlocks(long blocks, long bytes, long bytesInFlight, int processThreads) {
     long averageBlockBytes = blocks == 0 ? 1 : Math.max(1, bytes / blocks);
-    long rangeBytesInFlight = (long) config.downloadMaxRequests() * Downloader.MIN_REQUEST_BYTES;
-    long wanted = Math.max(processThreads, Math.ceilDiv(2 * rangeBytesInFlight, averageBlockBytes));
+    long wanted = Math.max(processThreads, Math.ceilDiv(2 * bytesInFlight, averageBlockBytes));
     long memoryLimit = ProcessInfo.getMaxMemoryBytes() / 8;
     return Math.clamp(Math.min(wanted, memoryLimit / averageBlockBytes), 1, Integer.MAX_VALUE);
   }

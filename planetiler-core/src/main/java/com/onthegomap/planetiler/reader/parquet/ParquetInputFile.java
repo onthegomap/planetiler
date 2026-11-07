@@ -8,23 +8,28 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
+import com.onthegomap.planetiler.util.CompletableFutures;
+import com.onthegomap.planetiler.util.Downloader.ByteRange;
 import com.onthegomap.planetiler.util.Hashing;
+import com.onthegomap.planetiler.util.RequestPlanner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
@@ -133,6 +138,7 @@ public class ParquetInputFile implements Closeable {
     rowGroupsToRead = outOfBounds ? List.of() : IntStream.range(0, blocks.size())
       .filter(i -> mayMatch(blocks.get(i)) && mayIntersect(blocks.get(i), bounds))
       .boxed()
+      .sorted(Comparator.comparingLong(i -> rowGroupSpan(blocks.get(i)).offset()))
       .toList();
     count = rowGroupsToRead.stream().mapToLong(i -> blocks.get(i).getRowCount()).sum();
   }
@@ -181,12 +187,18 @@ public class ParquetInputFile implements Closeable {
     long fileHash = Hashing.fnv1a64(path.toString().getBytes(StandardCharsets.UTF_8));
     var schema = metadata.getFileMetaData().getSchema();
     var columnIOFactory = new ColumnIOFactory(metadata.getFileMetaData().getCreatedBy(), false);
+    List<ByteRange> toFetch = rowGroupRangesToFetch();
+    Iterator<RangeFile.Pending> fetched = file.readLater(toFetch).iterator();
+    Map<ByteRange, RangeFile.Pending> pendingBySpan = new HashMap<>();
+    for (var range : toFetch) {
+      pendingBySpan.put(range, fetched.next());
+    }
     return () -> rowGroupsToRead.stream().map(blockIndex -> {
       var block = metadata.getBlocks().get(blockIndex);
       long blockHash = Hashing.fnv1a64(fileHash, ByteBuffer.allocate(4).putInt(blockIndex).array());
       var span = rowGroupSpan(block);
       return (Block) new Block() {
-        private RangeFile.Pending bytes = null;
+        private RangeFile.Pending bytes = pendingBySpan.get(span);
 
         @Override
         public Path getFileName() {
@@ -200,12 +212,14 @@ public class ParquetInputFile implements Closeable {
 
         @Override
         public void startFetchIfNecessary() {
-          // Bytes already on local disk or in memory get read by parquet straight into its own buffers: copying them
-          // into one array first would only double the memory per row group. Larger row groups get read by parquet in
-          // smaller pieces instead.
-          if (span.length() <= MAX_FETCH_BYTES && file.bytesToFetch(span.start(), (int) span.length()) > 0) {
-            bytes = file.readLater(span.start(), (int) span.length());
+          if (bytes != null) {
+            bytes.start();
           }
+        }
+
+        @Override
+        public CompletableFuture<Void> whenFetched() {
+          return bytes == null ? CompletableFutures.NULL : bytes.ready();
         }
 
         @Override
@@ -214,7 +228,7 @@ public class ParquetInputFile implements Closeable {
           try {
             byte[] prefetched = bytes == null ? null : bytes.get();
             bytes = null;
-            var inputFile = new RangeInputFile(file, file.length(), prefetched, span.start());
+            var inputFile = new RangeInputFile(file, file.length(), prefetched, span.offset());
             // reuse the footer parsed in the constructor instead of reading it again for each row group
             try (
               var reader = ParquetFileReader.open(inputFile,
@@ -297,21 +311,17 @@ public class ParquetInputFile implements Closeable {
     return rowGroupsToRead.stream().mapToLong(i -> rowGroupSpan(metadata.getBlocks().get(i)).length()).sum();
   }
 
-  /** Returns how many bytes reading the row groups will fetch from a remote server: 0 if they are all local. */
-  public long getBytesToFetch() {
-    return rowGroupSpans().mapToLong(span -> file.bytesToFetch(span.start(), Math.toIntExact(span.length()))).sum();
+  /** Returns the HTTP requests required to read the row groups from the remote server. */
+  public RequestPlanner.Plan planFetch() {
+    return file.planFetch(rowGroupRangesToFetch());
   }
 
-  /** Returns how many requests reading the row groups will make to a remote server: 0 if they are all local. */
-  public long getRequestsToFetch() {
-    return rowGroupSpans().mapToLong(span -> file.requestsToFetch(span.start(), Math.toIntExact(span.length()))).sum();
-  }
-
-  // row groups too large for one array get read by parquet in pieces, which these estimates don't cover
-  private Stream<Span> rowGroupSpans() {
+  // row groups too large for one array get read by parquet in pieces instead, which the plan doesn't cover
+  private List<ByteRange> rowGroupRangesToFetch() {
     return rowGroupsToRead.stream()
       .map(i -> rowGroupSpan(metadata.getBlocks().get(i)))
-      .filter(span -> span.length() <= MAX_FETCH_BYTES);
+      .filter(span -> span.length() <= MAX_FETCH_BYTES && file.needsFetch(span.offset(), span.length()))
+      .toList();
   }
 
   /** Returns the file this reads from, to report how much of it got fetched from a remote server. */
@@ -324,17 +334,11 @@ public class ParquetInputFile implements Closeable {
     file.close();
   }
 
-  private record Span(long start, long end) {
-    long length() {
-      return end - start;
-    }
-  }
-
   // the column chunks of a row group are next to each other, so one read gets all of them
-  private static Span rowGroupSpan(BlockMetaData block) {
+  private static ByteRange rowGroupSpan(BlockMetaData block) {
     long start = block.getColumns().stream().mapToLong(ColumnChunkMetaData::getStartingPos).min().orElse(0);
     long end = block.getColumns().stream().mapToLong(c -> c.getStartingPos() + c.getTotalSize()).max().orElse(0);
-    return new Span(start, end);
+    return new ByteRange(start, end - start);
   }
 
   public interface BlockReader extends Iterable<Block>, Closeable {
@@ -354,6 +358,11 @@ public class ParquetInputFile implements Closeable {
      * over it later blocks less. Returns right away, and does nothing when the bytes are already local.
      */
     default void startFetchIfNecessary() {}
+
+    /** Returns a future that completes when all bytes are available for this range. */
+    default CompletableFuture<Void> whenFetched() {
+      return CompletableFutures.NULL;
+    }
   }
 
 }
