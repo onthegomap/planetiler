@@ -353,4 +353,9 @@ public class HttpRangeFile implements RangeFile {
       done.completeExceptionally(error);
     }
   }
+
+  @Override
+  public String toString() {
+    return url;
+  }
 }

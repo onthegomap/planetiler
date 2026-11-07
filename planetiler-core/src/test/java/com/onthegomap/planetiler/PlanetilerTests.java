@@ -3678,4 +3678,22 @@ class PlanetilerTests {
   private interface ReadableTileArchiveFactory {
     ReadableTileArchive create(Path p) throws IOException;
   }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testParquetSourceOverriddenWithShapefile(boolean overrideUrl) throws IOException {
+    Path zip = TestUtils.pathToResource("water-polygons-split-3857.zip");
+    String override = overrideUrl ? "--water-url=http://host/water.zip" : "--water-path=" + zip;
+    var planetiler =
+      Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", override))
+        .setDownloader(
+          new StubDownloader(PlanetilerConfig.defaults()).put("http://host/water.zip", Files.readAllBytes(zip)))
+        .setProfile(new Profile.NullProfile())
+        .addParquetSource("water", tempDir.resolve("water.parquet"), "http://host/water.parquet")
+        .setOutput(tempDir.resolve("output.mbtiles"));
+
+    var exception = assertThrows(Planetiler.PlanetilerException.class, planetiler::run);
+    assertEquals((overrideUrl ? "http://host/water.zip" : zip.toString()) +
+      " is not a valid parquet file, download it from http://host/water.parquet", exception.getCause().getMessage());
+  }
 }
