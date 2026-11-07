@@ -117,7 +117,7 @@ public class HttpRangeFile implements RangeFile {
   @Override
   public Plan planFetch(List<ByteRange> ranges) {
     return downloader.planner()
-      .plan(ranges.stream().filter(range -> needsFetch(range.offset(), range.length())).toList());
+      .plan(ranges.stream().filter(range -> needsFetch(range.offset(), range.length())).toList(), length());
   }
 
   @Override
@@ -149,7 +149,7 @@ public class HttpRangeFile implements RangeFile {
     }
     var dispatcher = new ResultDispatcher(rangesToFetch, byteListener);
     inProgress.add(dispatcher);
-    Plan plan = downloader.planner().plan(rangesToFetch.stream().map(RequestedRange::range).toList());
+    Plan plan = downloader.planner().plan(rangesToFetch.stream().map(RequestedRange::range).toList(), length());
     fetch(plan, dispatcher).whenComplete((_, error) -> {
       inProgress.remove(dispatcher);
       if (error != null) {
@@ -164,7 +164,7 @@ public class HttpRangeFile implements RangeFile {
    * every byte fetched to {@code byteListener} as it arrives, including gaps between ranges.
    */
   CompletableFuture<Void> fetch(List<ByteRange> ranges, Downloader.Sink byteListener) {
-    return fetch(downloader.planner().plan(ranges), new ResultDispatcher(List.of(), byteListener));
+    return fetch(downloader.planner().plan(ranges, length()), new ResultDispatcher(List.of(), byteListener));
   }
 
   /**
@@ -314,6 +314,11 @@ public class HttpRangeFile implements RangeFile {
     @Override
     public void start() {
       started.complete(null);
+    }
+
+    @Override
+    public CompletableFuture<?> ready() {
+      return done.copy(); // don't let callers complete it
     }
 
     @Override

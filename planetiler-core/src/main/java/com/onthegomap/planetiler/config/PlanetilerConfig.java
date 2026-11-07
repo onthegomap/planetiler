@@ -208,7 +208,7 @@ public record PlanetilerConfig(
         "5m"),
       arguments.getLong("download_chunk_size_mb", "Largest HTTP request to make when downloading in megabytes", 100),
       arguments.getInteger("download_threads",
-        "Number of parallel requests to make to each remote file (up to 4x as many for small range reads)", 4),
+        "Number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)", 4),
       Parse.bandwidth(arguments.getString("download_max_bandwidth",
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
       arguments.getInteger("download_max_requests",

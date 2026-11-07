@@ -11,9 +11,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Utilities for waiting on {@link CompletableFuture CompletableFutures}. */
 public class CompletableFutures {
+  /** A future that has already completed with {@code null}. */
+  public static final CompletableFuture<?> NULL = CompletableFuture.completedFuture(null);
+
   private CompletableFutures() {}
 
   /**
@@ -43,8 +49,9 @@ public class CompletableFutures {
   }
 
   /**
-   * Runs {@code task} on {@code executor} like {@link CompletableFuture#supplyAsync(java.util.function.Supplier,
-   * Executor)}, except that {@code task} may throw checked exceptions.
+   * Runs {@code task} on {@code executor} like
+   * {@link CompletableFuture#supplyAsync(java.util.function.Supplier, Executor)}, except that {@code task} may throw
+   * checked exceptions.
    * <p>
    * The future fails with whatever {@code task} throws.
    */
@@ -118,5 +125,38 @@ public class CompletableFutures {
       Exceptions.throwAsIOException(error);
     }
     return result;
+  }
+
+  /**
+   * Passes {@code items} to {@code next} in the order they become ready instead of the order they come in.
+   * <p>
+   * {@code start} gets called on each item in order and returns a future that completes, normally or exceptionally,
+   * once the item is ready. At most {@code window} items are started but not passed to {@code next} yet at once. Items
+   * that are ready right away get passed on in order.
+   */
+  public static <T> void inCompletionOrder(Iterable<T> items, int window, Function<T, CompletableFuture<?>> start,
+    Consumer<T> next) throws InterruptedException {
+    if (window < 1) {
+      throw new IllegalArgumentException("window must be at least 1, was " + window);
+    }
+    var ready = new LinkedBlockingQueue<T>();
+    Consumer<T> startItem = item -> start.apply(item).whenComplete((_, _) -> ready.add(item));
+    var iterator = items.iterator();
+    int inProgress = 0;
+    // initially, start up to `window` futures
+    while (inProgress < window && iterator.hasNext()) {
+      startItem.accept(iterator.next());
+      inProgress++;
+    }
+    // then each time any one finishes, pass it on and start the next one
+    while (iterator.hasNext()) {
+      next.accept(ready.take());
+      startItem.accept(iterator.next());
+    }
+    // then after all started, drain the queue
+    while (inProgress > 0) {
+      next.accept(ready.take());
+      inProgress--;
+    }
   }
 }

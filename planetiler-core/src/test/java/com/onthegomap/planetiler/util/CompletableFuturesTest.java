@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -121,5 +122,38 @@ class CompletableFuturesTest {
     }, Runnable::run);
     var thrown = assertThrows(IllegalStateException.class, () -> CompletableFutures.await(future));
     assertSame(error, thrown);
+  }
+
+  @Test
+  void testInCompletionOrderPassesItemsOnAsTheyBecomeReady() throws InterruptedException {
+    List<CompletableFuture<Void>> futures = List.of(new CompletableFuture<>(), new CompletableFuture<>(),
+      new CompletableFuture<>());
+    List<Integer> passed = new ArrayList<>();
+    CompletableFutures.inCompletionOrder(List.of(0, 1, 2), 3, i -> {
+      if (i == 2) {
+        futures.get(1).completeExceptionally(new IOException("failed items get passed on too"));
+        futures.get(0).complete(null);
+        futures.get(2).complete(null);
+      }
+      return futures.get(i);
+    }, passed::add);
+    assertEquals(List.of(1, 0, 2), passed);
+  }
+
+  @Test
+  void testInCompletionOrderStartsAtMostWindowItemsAhead() throws InterruptedException {
+    List<String> events = new ArrayList<>();
+    CompletableFutures.inCompletionOrder(List.of(0, 1, 2, 3), 2, i -> {
+      events.add("start " + i);
+      return CompletableFuture.completedFuture(null);
+    }, i -> events.add("next " + i));
+    assertEquals(List.of("start 0", "start 1", "next 0", "start 2", "next 1", "start 3", "next 2", "next 3"), events);
+  }
+
+  @Test
+  void testInCompletionOrderRejectsEmptyWindow() {
+    List<Integer> items = List.of(1);
+    assertThrows(IllegalArgumentException.class,
+      () -> CompletableFutures.inCompletionOrder(items, 0, _ -> CompletableFutures.NULL, _ -> {}));
   }
 }

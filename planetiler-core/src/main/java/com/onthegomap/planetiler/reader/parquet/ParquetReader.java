@@ -194,15 +194,14 @@ public class ParquetReader {
     long bytesFetchedBefore = rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum();
     long requestsMadeBefore = rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum();
 
-    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch", next -> {
-      for (var block : inputBlocks) {
+    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch",
+      // Start processing a block as soon as it's ready, which may not be in file-order. Reading in file-order would
+      // block streaming/cached downloads on a previous slow request
+      next -> CompletableFutures.inCompletionOrder(inputBlocks, lookAhead, block -> {
         block.startFetchIfNecessary();
-        next.accept(block);
-      }
-    })
-      // remote blocks start fetching once they enter this queue, so its size bounds the requests in flight and the
-      // fetched bytes held in memory
-      .addBuffer("blocks", lookAhead, 1)
+        return block.whenFetched();
+      }, next))
+      .addBuffer("blocks", processThreads, 1)
       .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
         var blocks = blocksRead.counterForThread();
         var elements = featuresRead.counterForThread();

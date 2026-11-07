@@ -10,17 +10,19 @@ import java.util.List;
  * The same rules serve sparse reads (row groups of a GeoParquet file in the map bounds) and full downloads (the whole
  * file), so the requests ramp from a few small ones toward a full download as more of a file is needed:
  * <ol>
- * <li>HTTP requests aim for {@code 1/threadsPerFile} of the bytes needed, between {@link #MIN_REQUEST_BYTES} and
- * {@code maxRequestBytes}.</li>
+ * <li>{@code threadsPerFile} requests run at once for a whole file. Sparse reads get more, in proportion to how much of
+ * the file they skip, up to 4 times as many: they move a fraction of the file's bytes, so more requests at once still
+ * load the server less than a full download, and they finish sooner on links that cap the speed of each
+ * connection.</li>
+ * <li>HTTP requests aim for the bytes needed divided by the requests to run at once, between {@link #MIN_REQUEST_BYTES}
+ * and {@code maxRequestBytes}, so there are enough of them to run that many at once.</li>
  * <li>Neighboring small requested ranges share an HTTP request up to that size when the gap between them is at most 1%
  * of the bytes needed, fetching the gap rather than making another request. Requests start and end on needed ranges,
  * never in a gap.</li>
  * <li>A range larger than the target request size gets split evenly.</li>
- * <li>{@code threadsPerFile} requests run at once, up to 4 times as many when the needed ranges are spread out in small
- * runs, since each small request moves fewer bytes per round trip.</li>
  * </ol>
  *
- * @param threadsPerFile  requests to make at once for large runs of ranges ({@code download_threads})
+ * @param threadsPerFile  requests to make at once for a whole file ({@code download_threads})
  * @param maxRequestBytes largest request to make ({@code download_chunk_size_mb})
  */
 public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
@@ -30,8 +32,7 @@ public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
    * requests gain. This is the same as the largest request DuckDB 2 makes to read GeoParquet.
    */
   public static final int MIN_REQUEST_BYTES = 2 << 20;
-  private static final long SMALL_SPAN_BYTES_IN_FLIGHT = 16L * MIN_REQUEST_BYTES;
-  private static final int MAX_SMALL_SPAN_THREADS_FACTOR = 4;
+  private static final int MAX_SPARSE_THREADS_FACTOR = 4;
   private static final int MAX_GAP_DIVISOR = 100;
 
   public RequestPlanner {
@@ -57,30 +58,32 @@ public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
   }
 
   /**
-   * Returns the requests that fetch {@code needed}, which must be in ascending order and must not overlap. Empty ranges
-   * get skipped.
+   * Returns the requests that fetch {@code needed} byte ranges of a file that is {@code fileLength} bytes long. The
+   * ranges must be in ascending order, must not overlap and must end within the file. Empty ranges get skipped.
    *
-   * @throws IllegalArgumentException if {@code needed} is out of order or overlaps
+   * @throws IllegalArgumentException if {@code needed} is out of order, overlaps or goes past the end of the file
    */
-  public Plan plan(List<ByteRange> needed) {
+  public Plan plan(List<ByteRange> needed, long fileLength) {
     List<ByteRange> neededRanges = needed.stream().filter(range -> range.length() > 0).toList();
     if (neededRanges.isEmpty()) {
       return Plan.EMPTY;
     }
+    if (neededRanges.getLast().end() > fileLength) {
+      throw new IllegalArgumentException("Ranges must end within the file (" + fileLength + " bytes): " + needed);
+    }
     long neededBytes = neededRanges.stream().mapToLong(ByteRange::length).sum();
     long maxGapBytes = neededBytes / MAX_GAP_DIVISOR;
-    // mike: MA streaming 176 s vs 142 s before: rows are processed in order, so a 30-60 MB request at ~1.3 MB/s stalls
-    // them (10 MB cap: 161 s). Cap sparse-read requests near 2-4 row groups (~8 MB), or keep as is?
+    int maxInFlight = (int) Math.clamp(
+      (long) threadsPerFile * fileLength / neededBytes,
+      threadsPerFile, (long) threadsPerFile * MAX_SPARSE_THREADS_FACTOR);
     long targetRequestBytes = Math.clamp(
-      Math.ceilDiv(neededBytes, threadsPerFile),
+      Math.ceilDiv(neededBytes, maxInFlight),
       Math.min(MIN_REQUEST_BYTES, maxRequestBytes),
       maxRequestBytes);
     List<ByteRange> httpRequests = new ArrayList<>();
     // the HTTP request being built, from requestStart to the end of the last needed range added to it
     long requestStart = neededRanges.getFirst().offset();
     long requestEnd = requestStart;
-    // runs of needed ranges with small gaps between them
-    int spans = 1;
     for (var neededRange : neededRanges) {
       if (neededRange.offset() < requestEnd) {
         throw new IllegalArgumentException("Ranges must be in ascending order and not overlap: " + needed);
@@ -88,9 +91,6 @@ public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
       boolean gapTooBig = neededRange.offset() - requestEnd > maxGapBytes;
       boolean requestWouldBeTooBig =
         neededRange.offset() > requestStart && neededRange.end() - requestStart > targetRequestBytes;
-      if (gapTooBig) {
-        spans++;
-      }
       if (gapTooBig || requestWouldBeTooBig) {
         // close the request and start a new one
         httpRequests.add(new ByteRange(requestStart, requestEnd - requestStart));
@@ -109,12 +109,6 @@ public record RequestPlanner(int threadsPerFile, long maxRequestBytes) {
       requestEnd = neededRange.end();
     }
     httpRequests.add(new ByteRange(requestStart, requestEnd - requestStart));
-    // more requests at once only help when the needed bytes come in many small spans, since a small request spends
-    // most of its time on the round trip. This goes by the average span, not the average request so a whole file is
-    // one big span and gets threadsPerFile requests at once, however small download_chunk_size_mb cuts them
-    long averageSpanBytes = httpRequests.stream().mapToLong(ByteRange::length).sum() / spans;
-    int maxInFlight = (int) Math.clamp(SMALL_SPAN_BYTES_IN_FLIGHT / Math.max(1, averageSpanBytes), threadsPerFile,
-      (long) threadsPerFile * MAX_SMALL_SPAN_THREADS_FACTOR);
     return new Plan(List.copyOf(httpRequests), maxInFlight);
   }
 }

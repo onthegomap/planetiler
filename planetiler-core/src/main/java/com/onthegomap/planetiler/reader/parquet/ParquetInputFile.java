@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
+import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Downloader.ByteRange;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.RequestPlanner;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import java.util.stream.IntStream;
@@ -219,6 +221,11 @@ public class ParquetInputFile implements Closeable {
         }
 
         @Override
+        public CompletableFuture<?> whenFetched() {
+          return bytes == null ? CompletableFutures.NULL : bytes.ready();
+        }
+
+        @Override
         public Iterator<ParquetFeature> iterator() {
           PageReadStore group;
           try {
@@ -354,6 +361,11 @@ public class ParquetInputFile implements Closeable {
      * over it later blocks less. Returns right away, and does nothing when the bytes are already local.
      */
     default void startFetchIfNecessary() {}
+
+    /** Returns a future that completes when all bytes are available for this range. */
+    default CompletableFuture<?> whenFetched() {
+      return CompletableFutures.NULL;
+    }
   }
 
 }

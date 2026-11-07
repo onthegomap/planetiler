@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.reader.remote;
 
+import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Downloader.ByteRange;
 import com.onthegomap.planetiler.util.RequestPlanner;
@@ -7,6 +8,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Random access reads from a local file, or a remote one using HTTP range requests.
@@ -114,5 +116,10 @@ public interface RangeFile extends Closeable {
 
     /** Starts these bytes if necessary, and returns when they have all arrived. */
     byte[] get() throws IOException;
+
+    /** Completes after bytes are fetched. */
+    default CompletableFuture<?> ready() {
+      return CompletableFutures.NULL;
+    }
   }
 }
