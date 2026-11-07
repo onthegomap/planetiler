@@ -1,0 +1,72 @@
+# Converts OSM water polygons (https://osmdata.openstreetmap.de/data/water-polygons.html) and lake centerlines
+# (https://github.com/acalcutt/osm-lakelines) to GeoParquet files hosted in R2 that planetiler can read with range
+# requests, so small extracts only download the parts they need.
+
+# Each day this checks the upstream sources, and when they change, converts, validates, and publishes the result.
+
+name: Publish sources
+
+on:
+  schedule:
+  - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Convert and upload even if the upstream file did not change'
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-sources
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'onthegomap/planetiler'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - source: water
+          url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+          key: water_polygons.parquet
+          # 14,509 in 2026
+          min_features: 14000
+        - source: lakes
+          url: https://github.com/acalcutt/osm-lakelines/releases/download/latest/lake_centerline.shp.zip
+          key: lake_centerline.parquet
+          # 59,592 in 2026
+          min_features: 55000
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: auto
+      BUCKET: ${{ vars.PUBLISH_SOURCES_BUCKET }}
+      KEY: ${{ matrix.key }}
+    steps:
+    - uses: actions/checkout@v7
+    - name: Download if changed
+      run: |
+        # The published file stores the upstream ETag it was made from, so curl skips the download (304) if upstream
+        # hasn't changed since.
+        if [[ "${{ inputs.force }}" != "true" ]]; then
+          aws s3api head-object --bucket "$BUCKET" --key "$KEY" --query Metadata.etag --output text > etag.txt || true
+        fi
+        curl -sSfL --retry 3 --max-time 1800 --etag-compare etag.txt --etag-save etag.txt -o input.zip "${{ matrix.url }}"
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      if: hashFiles('input.zip') != ''
+    - name: Convert and upload
+      if: hashFiles('input.zip') != ''
+      run: |
+        uv run scripts/shp2parquet.py "${{ matrix.source }}" input.zip output.parquet \
+          --min-features ${{ matrix.min_features }}
+        # A single PUT (not multipart) replaces the file atomically and gives it a strong MD5 ETag, which planetiler
+        # uses to detect that the file changed while it was reading it. The quotes keep the ETag's own quotes.
+        aws s3api put-object --bucket "$BUCKET" --key "$KEY" --body output.parquet \
+          --content-type application/vnd.apache.parquet --metadata "etag='$(cat etag.txt)'"
+        echo "Published $KEY from ${{ matrix.url }} (ETag $(cat etag.txt))" >> "$GITHUB_STEP_SUMMARY"
