@@ -43,8 +43,6 @@ public class Main {
     // override default sources to fix download issues with maptiler URLs
     String[] withDefaultArgs = Stream.concat(
       Stream.of(
-        "--" + OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE + "-url",
-        "https://github.com/acalcutt/osm-lakelines/releases/download/v12/lake_centerline.shp.zip",
         "--" + OpenMapTilesProfile.NATURAL_EARTH_SOURCE + "-url",
         "https://naciscdn.org/naturalearth/packages/natural_earth_vector.sqlite.zip"
       ),
