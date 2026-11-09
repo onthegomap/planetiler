@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
+import com.onthegomap.planetiler.reader.ShapefileOptions;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.geojson.GeoJsonReader;
@@ -50,6 +51,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -250,145 +253,221 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile source that will be processed using a projection inferred from the shapefile when
-   * {@link #run()} is called.
+   * Adds a new shapefile source downloaded from a single URL that will be processed when {@link #run()} is called.
    * <p>
-   * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments.
+   * {@code defaultPath} can be:
+   * <ul>
+   * <li>A single {@code roads.shp}, with {@code roads.dbf}, {@code roads.prj}, ... next to it</li>
+   * <li>{@code water-polygons.zip}, containing one shapefile anywhere inside it</li>
+   * <li>a directory or {@code .zip} file with many shapefiles, to read the ones matching
+   * {@link ShapefileOptions#globPattern()} like {@code "ne_10m_*.shp"} (in a directory, also inside each matching
+   * {@code .zip} file)</li>
+   * </ul>
+   * Each feature's {@link SourceFeature#getSourceLayer()} is the name of its {@code .shp} file without the extension,
+   * like {@code roads}.
+   * <p>
+   * If the file does not exist and the {@code download} argument is set, then it gets downloaded from
+   * {@code defaultUrl} first. To override them, set {@code name_path=newpath} and
+   * {@code name_url=http://url/of/shapefile.zip} in the arguments.
    *
    * @param name        string to use in stats and logs to identify this stage
-   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
-   *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
-   *                    containing the shapefile components.
-   * @return this runner instance for chaining
-   * @see ShapefileReader
-   */
-  public Planetiler addShapefileSource(String name, Path defaultPath) {
-    return addShapefileSource(null, name, defaultPath);
-  }
-
-  /**
-   * Adds a new ESRI shapefile source that will be processed using an explicit projection when {@link #run()} is called.
-   * <p>
-   * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments.
-   *
-   * @param projection  the Coordinate Reference System authority code to use, parsed with
-   *                    {@link org.geotools.referencing.CRS#decode(String)}
-   * @param name        string to use in stats and logs to identify this stage
-   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
-   *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
-   *                    containing the shapefile components.
-   * @return this runner instance for chaining
-   * @see ShapefileReader
-   */
-  public Planetiler addShapefileSource(String projection, String name, Path defaultPath) {
-    return addShapefileSource(projection, name, defaultPath, null);
-  }
-
-  /**
-   * Adds a new ESRI shapefile source that will be processed with a projection inferred from the shapefile when
-   * {@link #run()} is called.
-   * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
-   * {@code defaultUrl}.
-   * <p>
-   * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments and
-   * to override the download URL set {@code name_url=http://url/of/shapefile.zip}.
-   *
-   * @param name        string to use in stats and logs to identify this stage
-   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
-   *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
-   *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
+   * @param defaultPath path to the input if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL to download from if {@code download=true} argument is set and {@code name_url}
+   *                    argument is not set, or {@code null} for a local source
+   * @param options     the projection, which files to read, and changes to make to the attributes of each feature
    * @return this runner instance for chaining
    * @see ShapefileReader
    * @see Downloader
    */
-  public Planetiler addShapefileSource(String name, Path defaultPath, String defaultUrl) {
-    return addShapefileSource(null, name, defaultPath, defaultUrl);
+  public Planetiler addShapefileSource(String name, Path defaultPath, String defaultUrl, ShapefileOptions options) {
+    Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
+    return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> ShapefileReader.process(name,
+      findShapefiles(path, options.globPattern()), options, featureGroup, config, profile, stats)));
   }
 
   /**
-   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
-   * {@param globPattern}. {@param basePath} may be a directory or ZIP archive.
+   * Adds a new shapefile source downloaded from multiple URLs that will be processed when {@link #run()} is called.
+   * <p>
+   * {@code defaultDirectory} can be a local directory on disk containing the file names specified in
+   * {@code defaultUrls}. When you run with {@code --download}, it will download those files into that directory.
+   * <p>
+   * {@code defaultDirectory} can also be a zip file containing all of the necessary files (or set
+   * {@code name_path=path/to/shapefiles.zip} in the arguments), and only the shapefiles named like the files in
+   * {@code defaultUrls} get read from it.
+   * <p>
+   * Each feature's {@link SourceFeature#getSourceLayer()} is the name of its {@code .shp} file without the extension.
+   * To override the URLs, set {@code name_urls=http://url/one.zip,http://url/two.zip} in the arguments.
+   * <p>
+   * For example, to read two Natural Earth tables, downloading only their zip files into
+   * {@code data/sources/natural_earth} with {@code --download}:
    *
-   * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory containing shapefiles to process
-   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * {@snippet :
+   * List<String> urls = List.of(
+   *   "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
+   *   "https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip");
+   * planetiler.addShapefileMultiUrlSource("natural_earth", Path.of("data/sources/natural_earth"), urls);
+   * }
+   *
+   * Or to read the same tables from the full Natural Earth package downloaded manually from
+   * <a href="https://naciscdn.org/naturalearth/packages/natural_earth_vector.zip">naciscdn.org</a>:
+   *
+   * {@snippet :
+   * planetiler.addShapefileMultiUrlSource("natural_earth", Path.of("data/sources/natural_earth_vector.zip"), urls);
+   * }
+   *
+   * @param name             string to use in stats and logs to identify this stage
+   * @param defaultDirectory directory to store the files in if {@code name_path} key is not set through arguments
+   * @param defaultUrls      remote URLs of the {@code .zip} files containing the shapefile components (or of
+   *                         {@code .shp} files) if {@code name_urls} argument is not set
+   * @param options          the projection, which files to read within each {@code .zip} file, and changes to make to
+   *                         the attributes of each feature
    * @return this runner instance for chaining
    * @see ShapefileReader
+   * @see Downloader
+   */
+  public Planetiler addShapefileMultiUrlSource(String name, Path defaultDirectory, List<String> defaultUrls,
+    ShapefileOptions options) {
+    String argPrefix = "--" + name.replace('_', '-');
+    Path path = arguments.file(name + "_path",
+      name + " shapefile directory, or a .zip file containing all the shapefiles", defaultDirectory);
+    // the URLs name the local files, so they're needed even when not downloading
+    List<String> urls = arguments.getList(name + "_urls", name + " shapefile urls", defaultUrls);
+    if (arguments.getString(name + "_url", "not supported for " + name + ", use " + name + "_urls", null) != null) {
+      throw new IllegalArgumentException(argPrefix + "-url is not supported since " + name + " reads " + urls.size() +
+        " files, set " + argPrefix + "-urls (comma separated) or " + argPrefix +
+        "-path to a .zip file containing all the shapefiles instead");
+    }
+    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
+      "delete " + name + " input files after reading to make space for output (reduces peak disk usage)", false);
+    if (Files.isRegularFile(path)) {
+      // select the shapefiles now so a file without them fails before any download
+      List<Path> shapefiles = findShapefilesMatchingUrls(path, urls, options.globPattern(), argPrefix);
+      inputPaths.add(new InputPath(name, path, freeAfterReading, false));
+      return addStage(name, "Process features in " + path,
+        ifSourceUsed(name, () -> ShapefileReader.process(name, shapefiles, options, featureGroup, config, profile,
+          stats)));
+    }
+
+    boolean refresh = refreshSource(name);
+    Map<String, Path> urlToPath = new LinkedHashMap<>();
+    for (String url : urls) {
+      Path file = path.resolve(url.substring(url.lastIndexOf('/') + 1));
+      urlToPath.put(url, file);
+      inputPaths.add(new InputPath(name, file, freeAfterReading, false));
+    }
+    if (downloadMode(name).enabled() || refresh) {
+      Map<String, Path> missing = urlToPath.entrySet().stream()
+        .filter(entry -> needsDownload(entry.getValue(), refresh))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      if (!missing.isEmpty()) {
+        toDownload.add(new ToDownload(name, false, () -> missing));
+      }
+    }
+    return addStage(name, "Process features in " + urls.size() + " files in " + path, ifSourceUsed(name, () -> {
+      List<Path> shapefiles = urlToPath.values().stream()
+        .flatMap(file -> findShapefiles(file, options.globPattern()).stream())
+        .toList();
+      ShapefileReader.process(name, shapefiles, options, featureGroup, config, profile, stats);
+    }));
+  }
+
+  private static List<Path> findShapefiles(Path input, String globPattern) {
+    return FileUtils.hasExtension(input, "zip") || Files.isDirectory(input) ?
+      FileUtils.walkPathWithPattern(input, globPattern, zip -> FileUtils.walkPathWithPattern(zip, "*.shp")) :
+      List.of(input);
+  }
+
+  /** Returns the shapefiles in {@code file} named like the files of {@code urls}, in the order of the URLs. */
+  private static List<Path> findShapefilesMatchingUrls(Path file, List<String> urls, String globPattern,
+    String argPrefix) {
+    Map<String, Path> byName = new HashMap<>();
+    for (Path shapefile : findShapefiles(file, globPattern)) {
+      String fileName = shapefile.getFileName().toString();
+      if (byName.put(fileName, shapefile) != null) {
+        throw new FileFormatException(file + " contains more than one " + fileName);
+      }
+    }
+    List<Path> result = new ArrayList<>();
+    List<String> missing = new ArrayList<>();
+    for (String url : urls) {
+      String fileName = url.substring(url.lastIndexOf('/') + 1).replaceFirst("\\.zip$", "");
+      fileName = fileName.endsWith(".shp") ? fileName : fileName + ".shp";
+      Path shapefile = byName.get(fileName);
+      if (shapefile == null) {
+        missing.add(fileName);
+      } else {
+        result.add(shapefile);
+      }
+    }
+    if (!missing.isEmpty()) {
+      throw new FileFormatException(file + " is missing " + missing.size() + " of the " + urls.size() +
+        " shapefiles needed (" + String.join(", ", missing) + "), set " + argPrefix +
+        "-path to a directory to download them into, or a .zip file containing them");
+    }
+    return result;
+  }
+
+  /**
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for a local shapefile with the
+   * projection it defines.
+   */
+  public Planetiler addShapefileSource(String name, Path defaultPath) {
+    return addShapefileSource(name, defaultPath, null, ShapefileOptions.DEFAULT);
+  }
+
+  /**
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for a local shapefile with an
+   * explicit projection, a Coordinate Reference System authority code parsed with
+   * {@link org.geotools.referencing.CRS#decode(String)}.
+   */
+  public Planetiler addShapefileSource(String projection, String name, Path defaultPath) {
+    return addShapefileSource(name, defaultPath, null, ShapefileOptions.DEFAULT.withProjection(projection));
+  }
+
+  /**
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for a shapefile downloaded from
+   * {@code defaultUrl} with the projection it defines.
+   */
+  public Planetiler addShapefileSource(String name, Path defaultPath, String defaultUrl) {
+    return addShapefileSource(name, defaultPath, defaultUrl, ShapefileOptions.DEFAULT);
+  }
+
+  /**
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for a shapefile downloaded from
+   * {@code defaultUrl} with an explicit projection, a Coordinate Reference System authority code parsed with
+   * {@link org.geotools.referencing.CRS#decode(String)}.
+   */
+  public Planetiler addShapefileSource(String projection, String name, Path defaultPath, String defaultUrl) {
+    return addShapefileSource(name, defaultPath, defaultUrl, ShapefileOptions.DEFAULT.withProjection(projection));
+  }
+
+  /**
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for the files matching
+   * {@code globPattern} (as described in {@link FileSystem#getPathMatcher(String)}) in a local directory or ZIP
+   * archive, with the projection each defines.
    */
   public Planetiler addShapefileGlobSource(String sourceName, Path basePath, String globPattern) {
-    return addShapefileGlobSource(null, sourceName, basePath, globPattern, null);
+    return addShapefileSource(sourceName, basePath, null, ShapefileOptions.DEFAULT.withGlobPattern(globPattern));
   }
 
   /**
-   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
-   * {@param globPattern} using an explicit projection. {@param basePath} may be a directory or ZIP archive.
-   * <p>
-   * If {@param globPattern} matches a ZIP archive, all files ending in {@code .shp} within the archive will be used for
-   * this source.
-   * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
-   * {@code defaultUrl}.
-   * <p>
-   *
-   * @param projection  the Coordinate Reference System authority code to use, parsed with
-   *                    {@link org.geotools.referencing.CRS#decode(String)}
-   * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory or zip file containing shapefiles to process
-   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
-   * @return this runner instance for chaining
-   * @see ShapefileReader
+   * Alias for {@link #addShapefileSource(String, Path, String, ShapefileOptions)} for the files matching
+   * {@code globPattern} (as described in {@link FileSystem#getPathMatcher(String)}) in a directory or ZIP archive
+   * downloaded from {@code defaultUrl}, with an explicit projection, a Coordinate Reference System authority code
+   * parsed with {@link org.geotools.referencing.CRS#decode(String)}.
    */
   public Planetiler addShapefileGlobSource(String projection, String sourceName, Path basePath,
     String globPattern, String defaultUrl) {
-    Path dirPath = getPath(sourceName, "shapefile glob", basePath, defaultUrl);
-
-    return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
-      ifSourceUsed(sourceName, () -> {
-        var sourcePaths = FileUtils.walkPathWithPattern(basePath, globPattern,
-          zipPath -> FileUtils.walkPathWithPattern(zipPath, "*.shp"));
-        ShapefileReader.processWithProjection(projection, sourceName, sourcePaths, featureGroup, config,
-          profile, stats);
-      }));
+    return addShapefileSource(sourceName, basePath, defaultUrl,
+      ShapefileOptions.DEFAULT.withProjection(projection).withGlobPattern(globPattern));
   }
 
-
   /**
-   * Adds a new ESRI shapefile source that will be processed with an explicit projection when {@link #run()} is called.
-   * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
-   * {@code defaultUrl}.
-   * <p>
-   * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments and
-   * to override the download URL set {@code name_url=http://url/of/shapefile.zip}.
-   *
-   * @param projection  the Coordinate Reference System authority code to use, parsed with
-   *                    {@link org.geotools.referencing.CRS#decode(String)}
-   * @param name        string to use in stats and logs to identify this stage
-   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
-   *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
-   *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
-   * @return this runner instance for chaining
-   * @see ShapefileReader
-   * @see Downloader
+   * Alias for {@link #addShapefileMultiUrlSource(String, Path, List, ShapefileOptions)} that reads every shapefile with
+   * the projection it defines and its attributes as they are.
    */
-  public Planetiler addShapefileSource(String projection, String name, Path defaultPath, String defaultUrl) {
-    Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
-    return addStage(name, "Process features in " + path,
-      ifSourceUsed(name, () -> {
-        List<Path> sourcePaths = List.of(path);
-        if (FileUtils.hasExtension(path, "zip") || Files.isDirectory(path)) {
-          sourcePaths = FileUtils.walkPathWithPattern(path, "*.shp");
-        }
-
-        ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
-      }));
+  public Planetiler addShapefileMultiUrlSource(String name, Path defaultDirectory, List<String> defaultUrls) {
+    return addShapefileMultiUrlSource(name, defaultDirectory, defaultUrls, ShapefileOptions.DEFAULT);
   }
 
   /**
