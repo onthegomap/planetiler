@@ -36,8 +36,6 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -57,7 +55,6 @@ class ShapefileReaderTest {
 
   @Test
   @Timeout(30)
-  @DisabledOnOs(OS.WINDOWS) // the zip file doesn't fully close, which causes trouble running test on windows
   void testReadShapefileExtracted() throws IOException {
     var extracted = TestUtils.extractPathToResource(tempDir, "shapefile.zip");
     try (var fs = FileSystems.newFileSystem(extracted)) {
@@ -200,6 +197,48 @@ class ShapefileReaderTest {
         var feature = features.get(i - 1);
         assertEquals(i, feature.getTag("value"));
         assertEquals(rectangle(i, i + 0.5).getEnvelopeInternal(), feature.latLonGeometry().getEnvelopeInternal());
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testAttributeOptions(boolean withOptions, @TempDir Path dir) throws IOException, TransformException {
+    var shpPath = dir.resolve("test.shp");
+    var dataStore = (ShapefileDataStore) new ShapefileDataStoreFactory()
+      .createNewDataStore(Map.of("url", shpPath.toUri().toURL()));
+    var builder = new SimpleFeatureTypeBuilder();
+    builder.setName("the_geom");
+    builder.setCRS(DefaultGeographicCRS.WGS84);
+    builder.add("the_geom", Point.class);
+    builder.add("NAME", String.class);
+    builder.add("Rank", Integer.class);
+    builder.setDefaultGeometry("the_geom");
+    var type = builder.buildFeatureType();
+    dataStore.createSchema(type);
+    try (var transaction = new DefaultTransaction("create")) {
+      var featureStore = (SimpleFeatureStore) dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
+      featureStore.setTransaction(transaction);
+      var collection = new ListFeatureCollection(type);
+      collection.add(SimpleFeatureBuilder.build(type, new Object[]{newPoint(1, 2), "a", 1}, null));
+      collection.add(SimpleFeatureBuilder.build(type, new Object[]{newPoint(3, 4), "", 2}, null));
+      featureStore.addFeatures(collection);
+      transaction.commit();
+    }
+    dataStore.dispose();
+
+    var options = withOptions ? ShapefileOptions.DEFAULT.withLowercaseAttributeNames(true).withEmptyStringsAsNull(true) :
+      ShapefileOptions.DEFAULT;
+    try (var reader = new ShapefileReader("test", shpPath, Bounds.WORLD, options)) {
+      List<SimpleFeature> features = new CopyOnWriteArrayList<>();
+      reader.readFeatures(features::add);
+      assertEquals(2, features.size());
+      if (withOptions) {
+        assertEquals(Map.of("name", "a", "rank", 1), features.get(0).tags());
+        assertEquals(Map.of("rank", 2), features.get(1).tags());
+      } else {
+        assertEquals(Map.of("NAME", "a", "Rank", 1), features.get(0).tags());
+        assertEquals(Map.of("NAME", "", "Rank", 2), features.get(1).tags());
       }
     }
   }

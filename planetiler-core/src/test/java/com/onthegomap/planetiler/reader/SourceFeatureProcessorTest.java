@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -23,6 +24,7 @@ class SourceFeatureProcessorTest {
 
     private final Path path;
     private final List<SimpleFeature> emittedFeatures;
+    private boolean closed = false;
 
     public MockReader(List<SimpleFeature> features, Path path, String sourceName) {
       super(sourceName);
@@ -44,25 +46,9 @@ class SourceFeatureProcessorTest {
     }
 
     @Override
-    public void close() {}
-  }
-
-  @Test
-  void testCountFeatures() {
-    var paths = List.of(
-      Path.of("1"),
-      Path.of("22"),
-      Path.of("333")
-    );
-
-    var processor = new SourceFeatureProcessor<>(
-      "sourceName",
-      path -> new MockReader(new ArrayList<>(), path, "sourceName"),
-      new Profile.NullProfile(),
-      Stats.inMemory()
-    );
-
-    assertEquals(6, processor.getFeatureCount(paths));
+    public void close() {
+      closed = true;
+    }
   }
 
   @Test
@@ -92,5 +78,30 @@ class SourceFeatureProcessorTest {
     assertEquals(
       Set.of("a", "b", "c"),
       emittedFeatures.stream().map(SourceFeature::getSourceLayer).collect(Collectors.toSet()));
+  }
+
+  @Test
+  void testUsesOneReaderPerFileToCountAndRead() {
+    var profile = new Profile.NullProfile();
+    var stats = Stats.inMemory();
+    var config = PlanetilerConfig.defaults();
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
+    List<MockReader> readers = new ArrayList<>();
+    var processor = new SourceFeatureProcessor<>(
+      "sourceName",
+      path -> {
+        var reader = new MockReader(new ArrayList<>(), path, "sourceName");
+        readers.add(reader);
+        return reader;
+      },
+      profile,
+      stats
+    );
+
+    processor.processFiles(List.of(Path.of("a"), Path.of("b")), featureGroup, config);
+
+    assertEquals(2, readers.size());
+    assertTrue(readers.stream().allMatch(reader -> reader.closed));
+    assertEquals(List.of(1, 1), readers.stream().map(reader -> reader.emittedFeatures.size()).toList());
   }
 }
