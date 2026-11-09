@@ -516,6 +516,7 @@ Planetiler is made possible by these awesome open source projects:
   minimized by [parquet-floor](https://github.com/strategicblue/parquet-floor))
 - [MapLibre Tile Java](https://github.com/maplibre/maplibre-tile-spec/tree/main/java) for writing tiles using the
   new [MapLibre Tile format](https://maplibre.org/maplibre-tile-spec/specification/).
+- [RecordBuilder](https://github.com/Randgalt/record-builder) for generating builders and withers for Java records
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

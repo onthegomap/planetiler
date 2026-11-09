@@ -3729,7 +3729,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testShapefileSourceFromSeveralUrlsRejectsSingleUrlArgument() throws IOException {
+  void testShapefileSourceFromSeveralUrlsRejectsSingleUrlArgument() {
     List<String> urls = List.of("http://host/a/one.zip", "http://host/b/two.zip");
     var exception = assertThrows(IllegalArgumentException.class,
       () -> shapefileUrlsSource(urls, Set.of(), "--shapes-url=http://host/all.sqlite.zip"));
@@ -3752,7 +3752,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testShapefileSourceFromSeveralUrlsFailsOnZipWithoutThoseShapefiles() throws IOException {
+  void testShapefileSourceFromSeveralUrlsFailsOnZipWithoutThoseShapefiles() {
     Path zip = TestUtils.pathToResource("natural_earth_shapefiles.zip");
     List<String> urls = List.of(
       "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
