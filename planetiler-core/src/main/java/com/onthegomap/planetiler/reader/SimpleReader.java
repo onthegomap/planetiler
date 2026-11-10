@@ -26,6 +26,11 @@ public abstract class SimpleReader<F extends SourceFeature> implements Closeable
   /** Assign feature IDs in the order they are read starting from {@code idOffset}. */
   public void setFeatureIdOffset(long idOffset) {}
 
+  /** Returns true if {@link #readFeatures(Consumer)} omits features outside the bounds */
+  public boolean filtersToBounds() {
+    return false;
+  }
+
   /** Reads all features in this data provider, submitting each to {@code next} for further processing. */
   @SuppressWarnings("java:S112")
   public abstract void readFeatures(Consumer<F> next) throws Exception;
