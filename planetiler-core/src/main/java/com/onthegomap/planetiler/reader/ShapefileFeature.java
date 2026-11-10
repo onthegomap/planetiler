@@ -36,8 +36,7 @@ public class ShapefileFeature extends SourceFeature {
    * @param fileShapeType     the shape type in the file header, which picks the decoder
    * @param transformToLatLon transform from the file's coordinate reference system to lat/lon, or null if it is lat/lon
    */
-  ShapefileFeature(byte[] rawShape, ShapeType fileShapeType, MathTransform transformToLatLon,
-    Map<String, Object> tags,
+  ShapefileFeature(byte[] rawShape, ShapeType fileShapeType, MathTransform transformToLatLon, Map<String, Object> tags,
     String source, String sourceLayer, long id) {
     super(tags, source, sourceLayer, List.of(), id);
     this.rawShape = rawShape;
@@ -49,7 +48,7 @@ public class ShapefileFeature extends SourceFeature {
   public Geometry latLonGeometry() throws GeometryException {
     if (latLonGeometry == null) {
       try {
-        // handlers read the record contents that follow the shape type
+        // first 4 bytes contain the shape type, then geometry content is after that
         Geometry geometry = (Geometry) newHandler().read(contentBuffer().position(4), recordShapeType(), false);
         latLonGeometry = transformToLatLon == null ? geometry : JTS.transform(geometry, transformToLatLon);
       } catch (RuntimeException | IOException | TransformException e) {
