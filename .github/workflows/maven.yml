@@ -136,7 +136,7 @@ jobs:
       with:
         max_attempts: 5
         timeout_minutes: 30
-        command: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
+        command: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --download --area=monaco
 
     - name: Verify build
       run: ./scripts/test-release.sh CI_ONLY
@@ -205,8 +205,10 @@ jobs:
 
     - name: quickstart.sh --build
       run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
+    # --jar and --docker test the latest main snapshot, the code this quickstart.sh comes from (a release can lag
+    # behind it)
     - name: quickstart.sh --jar
-      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --jar --version=latest-main && ./scripts/check-monaco.sh data/output.mbtiles
     # run docker last since it creates temp dirs with root user
     - name: quickstart.sh --docker
-      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --docker --version=snapshot && ./scripts/check-monaco.sh data/output.mbtiles

@@ -122,8 +122,12 @@ case $METHOD in
     run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
     ;;
   jar)
-    echo "Downloading latest planetiler release..."
-    run wget -nc "https://github.com/onthegomap/planetiler/releases/${VERSION}/download/planetiler.jar"
+    echo "Downloading planetiler ${VERSION}..."
+    if [ "$VERSION" == "latest" ]; then
+      run wget -nc "https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar"
+    else
+      run wget -nc "https://github.com/onthegomap/planetiler/releases/download/${VERSION}/planetiler.jar"
+    fi
     check_java_version planetiler.jar
     run "$JAVA" "${JVM_ARGS}" -jar planetiler.jar "${PLANETILER_ARGS[@]}"
     ;;
