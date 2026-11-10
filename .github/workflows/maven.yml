@@ -131,13 +131,6 @@ jobs:
     - uses: actions/upload-artifact@v7
       with: { path: launcher/dist/checksums.txt, archive: false }
 
-    - name: Download data (java)
-      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
-      with:
-        max_attempts: 5
-        timeout_minutes: 30
-        command: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
-
     - name: Download wikidata (java)
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60
       with:

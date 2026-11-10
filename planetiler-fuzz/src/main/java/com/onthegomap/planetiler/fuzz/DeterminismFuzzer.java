@@ -38,8 +38,9 @@ import org.slf4j.LoggerFactory;
  *   [--main_class=org.openmaptiles.OpenMapTilesMain] [-- <arguments for main_class>]
  * }</pre>
  *
- * Without arguments after {@code --}, it runs the OpenMapTiles profile on the small Monaco, Natural Earth and water
- * polygon files in {@code planetiler-core/src/test/resources}. Don't set the options this fuzzer varies there.
+ * Without arguments after {@code --}, it runs the OpenMapTiles profile on the small Monaco, Natural Earth, water
+ * polygon and lake centerline files in {@code planetiler-core/src/test/resources}. Don't set the options this fuzzer
+ * varies there.
  */
 public class DeterminismFuzzer {
 
@@ -87,13 +88,11 @@ public class DeterminismFuzzer {
   }
 
   private static List<String> monacoTestFiles() {
-    Path water = FuzzUtils.testResource("water-polygons-split-3857.zip");
     return List.of(
       "--osm_path=" + FuzzUtils.testResource("monaco-latest.osm.pbf"),
-      "--natural_earth_path=" + FuzzUtils.testResource("natural_earth_vector.sqlite.zip"),
-      "--water_polygons_path=" + water,
-      // no lake centerlines in Monaco, so use any shapefile
-      "--lake_centerlines_path=" + water
+      "--natural_earth_path=" + FuzzUtils.testResource("natural_earth_shapefiles.zip"),
+      "--water_polygons_path=" + FuzzUtils.testResource("water_polygons.parquet"),
+      "--lake_centerlines_path=" + FuzzUtils.testResource("lake_centerline.parquet")
     );
   }
 
