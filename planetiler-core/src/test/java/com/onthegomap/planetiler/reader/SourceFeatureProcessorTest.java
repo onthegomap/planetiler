@@ -131,7 +131,9 @@ class SourceFeatureProcessorTest {
       }
 
       @Override
-      public void close() {}
+      public void close() {
+        // nothing to close
+      }
     }, profile, stats);
 
     processor.processFiles(List.of(Path.of("a")),
@@ -166,7 +168,9 @@ class SourceFeatureProcessorTest {
       }
 
       @Override
-      public void close() {}
+      public void close() {
+        // nothing to close
+      }
     }, profile, stats);
 
     processor.processFiles(List.of(Path.of("a")),
