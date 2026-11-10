@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
@@ -109,6 +110,8 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
     Envelope latLonBounds = config.bounds().latLon();
+    // If all of the readers pre-filter to bounds, we don't need to filter here
+    boolean checkBounds = !readers.stream().allMatch(SimpleReader::filtersToBounds);
     AtomicLong featuresRead = new AtomicLong(0);
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
@@ -122,7 +125,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
           for (SourceFeature sourceFeature : prev) {
             featuresRead.incrementAndGet();
             FeatureCollector features = featureCollectors.get(sourceFeature);
-            if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
+            if (!checkBounds || intersects(sourceFeature, latLonBounds)) {
               try {
                 profile.processFeature(sourceFeature, features);
                 for (FeatureCollector.Feature renderable : features) {
@@ -158,9 +161,23 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     }
   }
 
+  private boolean intersects(SourceFeature feature, Envelope latLonBounds) {
+    try {
+      return feature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds);
+    } catch (GeometryException e) {
+      // features that decode their geometry lazily throw here when it can't be read
+      e.log(stats, sourceName, "Skipping feature");
+      return false;
+    }
+  }
+
   private static int processingCost(SourceFeature feature) {
-    // features with an unknown cost get handed off on their own
-    return feature instanceof SimpleFeature simpleFeature ? simpleFeature.numPoints() : PROCESS_BATCH_MAX_POINTS;
+    return switch (feature) {
+      case SimpleFeature simpleFeature -> simpleFeature.numPoints();
+      case ShapefileFeature shapefileFeature -> shapefileFeature.numPoints();
+      // features with an unknown cost get handed off on their own
+      default -> PROCESS_BATCH_MAX_POINTS;
+    };
   }
 
   private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
