@@ -6,11 +6,18 @@ import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.FileUtils;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 import org.geotools.api.data.FeatureSource;
 import org.geotools.api.feature.simple.SimpleFeatureType;
@@ -24,54 +31,67 @@ import org.geotools.data.shapefile.dbf.DbaseFileReader;
 import org.geotools.data.shapefile.files.ShpFileType;
 import org.geotools.data.shapefile.files.ShpFiles;
 import org.geotools.data.shapefile.shp.IndexFile;
-import org.geotools.geometry.jts.JTS;
+import org.geotools.data.shapefile.shp.ShapeType;
+import org.geotools.data.shapefile.shp.ShapefileHeader;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Utility that reads {@link SourceFeature SourceFeatures} from the geometries contained in an ESRI shapefile.
  * <p>
- * Shapefile processing handled by geotools {@link ShapefileDataStore}.
+ * Reads the {@code .shp} records itself and hands each one off undecoded as a {@link ShapefileFeature}, so geometries
+ * get decoded and reprojected on the processing threads. Attributes, the coordinate reference system and the character
+ * set come from geotools {@link ShapefileDataStore}.
  *
  * @see <a href=
  *      "https://www.esri.com/content/dam/esrisites/sitecore-archive/Files/Pdfs/library/whitepapers/pdfs/shapefile.pdf">ESRI
  *      Shapefile Specification</a>
  */
-public class ShapefileReader extends SimpleReader<SimpleFeature> {
+public class ShapefileReader extends SimpleReader<ShapefileFeature> {
   private static final Logger LOGGER = LoggerFactory.getLogger(ShapefileReader.class);
 
   private final String[] attributeNames;
+  private final boolean emptyStringsAsNull;
   private final ShapefileDataStore dataStore;
   private final ShpFiles shpFiles;
   private final String layer;
   private final Path input;
+  private long idOffset = 0;
   private MathTransform transformToLatLon;
   // bounds in the shapefile's coordinate reference system, or null to read every record
   private Envelope sourceBounds = null;
+  private final boolean filtersToBounds;
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input) {
     this(sourceProjection, sourceName, input, Bounds.WORLD);
   }
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input, Bounds bounds) {
+    this(sourceName, input, bounds, ShapefileOptions.builder().projection(sourceProjection).build());
+  }
+
+  public ShapefileReader(String sourceName, Path input, Bounds bounds, ShapefileOptions options) {
     super(sourceName);
+    this.emptyStringsAsNull = options.emptyStringsAsNull();
     this.layer = input.getFileName().toString().replaceAll("\\.shp$", "");
     this.input = input;
     dataStore = open(input);
     try {
-      shpFiles = new ShpFiles(input.toUri().toURL());
+      // input can be a path inside a zip file, whose jar: URL the JVM never closes, so convert it to a URL that can be
+      // closed
+      shpFiles = new ShpFiles(FileUtils.toUncachedUrl(input));
       String typeName = dataStore.getTypeNames()[0];
       FeatureSource<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> source = dataStore
         .getFeatureSource(typeName);
       CoordinateReferenceSystem sourceCrs = source.getSchema().getCoordinateReferenceSystem();
       CoordinateReferenceSystem src =
-        sourceProjection == null ? sourceCrs : GeoUtils.decodeCRS(sourceProjection, sourceCrs);
-      CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
+        options.projection() == null ? sourceCrs : GeoUtils.decodeCRS(options.projection(), sourceCrs);
+      // same as CRS.decode("EPSG:4326", true) without initializing EPSG database
+      CoordinateReferenceSystem dest = DefaultGeographicCRS.WGS84;
       transformToLatLon = findMathTransform(input, src, dest);
       if (transformToLatLon.isIdentity()) {
         transformToLatLon = null;
@@ -79,7 +99,10 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
 
       var schema = source.getSchema();
       Envelope env = bounds.latLon();
-      if (!bounds.isWorld()) {
+      if (!bounds.isWorld() && transformToLatLon == null) {
+        // reprojecting the bounds would initialize the EPSG database even though the data is already in WGS84
+        sourceBounds = new Envelope(env);
+      } else if (!bounds.isWorld()) {
         var bbox = new ReferencedEnvelope(env.getMinX(), env.getMaxX(), env.getMinY(), env.getMaxY(), dest);
         try {
           sourceBounds =
@@ -88,10 +111,12 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
           // just read every record
         }
       }
+      filtersToBounds = bounds.isWorld() || sourceBounds != null;
 
       attributeNames = new String[schema.getAttributeCount()];
       for (int i = 0; i < attributeNames.length; i++) {
-        attributeNames[i] = schema.getDescriptor(i).getLocalName();
+        String name = schema.getDescriptor(i).getLocalName();
+        attributeNames[i] = options.lowercaseAttributeNames() ? name.toLowerCase(Locale.ROOT) : name;
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -130,17 +155,38 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
    */
   public static void processWithProjection(String sourceProjection, String sourceName, List<Path> sourcePaths,
     FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats) {
+    process(sourceName, sourcePaths, ShapefileOptions.builder().projection(sourceProjection).build(), writer, config,
+      profile, stats);
+  }
+
+  /**
+   * Renders map features for all elements from a list of Shapefiles based on the mapping logic defined in
+   * {@code profile}.
+   *
+   * @param sourceName  string ID for this reader to use in logs and stats
+   * @param sourcePaths paths to the {@code .shp} files on disk, or inside {@code .zip} files
+   * @param options     reader options
+   * @param writer      consumer for rendered features
+   * @param config      user-defined parameters controlling number of threads and log interval
+   * @param profile     logic that defines what map features to emit for each source feature
+   * @param stats       to keep track of counters and timings
+   * @throws IllegalArgumentException if a problem occurs reading the input file
+   */
+  public static void process(String sourceName, List<Path> sourcePaths, ShapefileOptions options, FeatureGroup writer,
+    PlanetilerConfig config, Profile profile, Stats stats) {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new ShapefileReader(sourceProjection, sourceName, path, config.bounds()),
+      path -> new ShapefileReader(sourceName, path, config.bounds(), options),
       writer, config, profile, stats
     );
   }
 
   private ShapefileDataStore open(Path path) {
     try {
-      var store = new ShapefileDataStore(path.toUri().toURL());
+      // input can be a path inside a zip file, whose jar: URL the JVM never closes, so convert it to a URL that can be
+      // closed
+      var store = new ShapefileDataStore(FileUtils.toUncachedUrl(path));
       store.setTryCPGFile(true);
       return store;
     } catch (IOException e) {
@@ -163,6 +209,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       long count = 0;
       try (var shp = openShp()) {
         while (shp.hasNext()) {
+          // compares the bounds without deserializing the entire geometry
           var nextRecord = shp.nextRecord();
           if (sourceBounds == null || sourceBounds.intersects(nextRecord.envelope())) {
             count++;
@@ -176,56 +223,106 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
   }
 
   @Override
-  public void readFeatures(Consumer<SimpleFeature> next) throws IOException, TransformException {
-    boolean hasAttributes = attributeNames.length > 1;
+  public void setFeatureIdOffset(long idOffset) {
+    this.idOffset = idOffset;
+  }
+
+  @Override
+  public boolean filtersToBounds() {
+    return filtersToBounds;
+  }
+
+  @Override
+  public void readFeatures(Consumer<ShapefileFeature> next) throws IOException {
     long id = 0;
     try (
-      var shp = openShp();
-      var dbf = hasAttributes ?
-        new DbaseFileReader(shpFiles, false, dataStore.getCharset(), dataStore.getTimeZone()) : null
+      var shp = new BufferedInputStream(FileUtils.toUncachedUrl(input).openStream(), 1 << 16);
+      var dbf = openDbf()
     ) {
-      while (shp.hasNext()) {
-        // read the .shp and .dbf files in lockstep so if a single feature fails, it advances both to avoid reading
-        // mismatched geometries and attributes
-        var nextRecord = shp.nextRecord();
+      // From spec "Organization of the Main File": a 100 byte header, then each record is the record number and
+      // content length (big endian ints), then the content (little endian, starting with the shape type). Lengths in
+      // the file are in 16-bit words.
+      var header = new ShapefileHeader();
+      header.read(ByteBuffer.wrap(shp.readNBytes(100)), false);
+      long fileBytes = 2L * Integer.toUnsignedLong(header.getFileLength());
+      long positionInFile = 100;
+      while (positionInFile < fileBytes) {
+        var recordHeader = ByteBuffer.wrap(shp.readNBytes(8));
+        int contentBytes = recordHeader.limit() < 8 ? 0 : 2 * recordHeader.getInt(4);
+        byte[] content = shp.readNBytes(Math.max(contentBytes, 0));
+        positionInFile += recordHeader.limit() + content.length;
+        if (recordHeader.limit() < 8 || content.length < contentBytes) {
+          LOGGER.warn("Stopping at byte {} of {} since the file ends in the middle of a record", positionInFile,
+            input.getFileName());
+          break;
+        }
+        // read the .shp and .dbf files in lockstep so that a record that can't be read doesn't shift the attributes
+        // of the ones after it
         var row = dbf == null ? null : dbf.readRow();
         boolean deleted = row != null && row.isDeleted();
-        if (!deleted && (sourceBounds == null || sourceBounds.intersects(nextRecord.envelope()))) {
-          Geometry source = readGeometry(nextRecord);
-          if (source != null) {
-            next.accept(toFeature(source, row, ++id));
-          }
+        if (content.length < 4) {
+          LOGGER.warn("Skipping record {} of {} without a shape type", recordHeader.getInt(0), input.getFileName());
+        } else if (!deleted && intersectsSourceBounds(content)) {
+          next.accept(
+            new ShapefileFeature(content, header.getShapeType(), transformToLatLon, readTags(row), sourceName, layer,
+              idOffset + (++id)));
         }
       }
     }
   }
 
-  private Geometry readGeometry(org.geotools.data.shapefile.shp.ShapefileReader.Record shpRecord) {
-    try {
-      return (Geometry) shpRecord.shape();
-    } catch (RuntimeException e) {
-      LOGGER.warn("Skipping record {} of {} with a geometry that can't be read: {}", shpRecord.number,
-        input.getFileName(), e.toString());
+  private DbaseFileReader openDbf() throws IOException {
+    if (attributeNames.length <= 1) {
       return null;
     }
+    // Use a bigger buffer than default when reading to reduce syscalls while reading the file
+    var channel = shpFiles.getReadChannel(ShpFileType.DBF, () -> sourceName);
+    var buffered = Channels.newChannel(new BufferedInputStream(Channels.newInputStream(channel), 1 << 20)); // NOSONAR
+    return new DbaseFileReader(buffered, false, dataStore.getCharset(), dataStore.getTimeZone());
   }
 
-  private SimpleFeature toFeature(Geometry source, DbaseFileReader.Row row, long id)
-    throws IOException, TransformException {
-    Geometry latLonGeometry = transformToLatLon == null ? source : JTS.transform(source, transformToLatLon);
-    SimpleFeature feature = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
-      sourceName, layer, id);
+  private boolean intersectsSourceBounds(byte[] content) {
+    // check if a record intersects the bounding box without decoding the entire geometry
+    var buffer = ByteBuffer.wrap(content).order(ByteOrder.LITTLE_ENDIAN);
+    var type = ShapeType.forID(buffer.getInt(0));
+    if (type == ShapeType.NULL) {
+      return false;
+    } else if (sourceBounds == null) {
+      return true;
+    }
+    boolean point = type.isPointType();
+    if (content.length < (point ? 20 : 36)) {
+      // the geometry can't be read either, so let decoding report it
+      return true;
+    }
+    // sourceBounds is reprojected to the file's projection, so is safe to compare against bbox in the file
+    double minX = buffer.getDouble(4);
+    double minY = buffer.getDouble(12);
+    double maxX = point ? minX : buffer.getDouble(20);
+    double maxY = point ? minY : buffer.getDouble(28);
+    return sourceBounds.intersects(new Envelope(minX, maxX, minY, maxY));
+  }
+
+  private Map<String, Object> readTags(DbaseFileReader.Row row) throws IOException {
+    Map<String, Object> tags = HashMap.newHashMap(attributeNames.length);
     if (row != null) {
       for (int i = 1; i < attributeNames.length; i++) {
         // the schema lists the geometry first, then the .dbf columns in order
-        feature.setTag(attributeNames[i], row.read(i - 1));
+        Object value = row.read(i - 1);
+        if (!emptyStringsAsNull || !"".equals(value)) {
+          tags.put(attributeNames[i], value);
+        }
       }
     }
-    return feature;
+    return tags;
   }
 
   private org.geotools.data.shapefile.shp.ShapefileReader openShp() throws IOException {
-    return new org.geotools.data.shapefile.shp.ShapefileReader(shpFiles, true, false, new GeometryFactory());
+    var reader = new org.geotools.data.shapefile.shp.ShapefileReader(shpFiles, true, false, GeoUtils.JTS_FACTORY);
+    if (reader.getHeader().getShapeType() == ShapeType.POLYGON) {
+      reader.setHandler(new ShapefilePolygonHandler());
+    }
+    return reader;
   }
 
   @Override

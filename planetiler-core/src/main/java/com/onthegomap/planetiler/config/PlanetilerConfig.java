@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holder for common parameters used by many components in planetiler.
@@ -82,6 +84,8 @@ public record PlanetilerConfig(
   boolean parallelTempIO
 ) {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(PlanetilerConfig.class);
+
   public static final int MIN_MINZOOM = 0;
   public static final int MAX_MAXZOOM = 16;
   private static final int DEFAULT_MAXZOOM = 14;
@@ -107,6 +111,20 @@ public record PlanetilerConfig(
     }
     if (downloadMaxRequests <= 0) {
       throw new IllegalArgumentException("--download-max-requests must be > 0, was " + downloadMaxRequests);
+    }
+    if (tileFormat != TileFormat.MLT &&
+      (mltFsst || mltFastPfor || mltTessellatePolygons || mltPolygonOutline || mltReorderFeature ||
+        mltSharedDictionaries)) {
+      throw new IllegalArgumentException("mlt_* options require tile_format=mlt, was " + tileFormat.id());
+    }
+    // FSST and FastPFOR shrink the uncompressed tile but leave output that gzip cannot compress further
+    if (tileFormat == TileFormat.MLT && tileCompression == TileCompression.GZIP) {
+      if (mltFsst) {
+        LOGGER.warn("mlt_fsst usually makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+      }
+      if (mltFastPfor) {
+        LOGGER.warn("mlt_fastpfor makes gzip-compressed tiles larger, use tile_compression=none or disable it");
+      }
     }
   }
 
@@ -210,11 +228,11 @@ public record PlanetilerConfig(
         "5m"),
       arguments.getLong("download_chunk_size_mb", "Largest HTTP request to make when downloading in megabytes", 100),
       arguments.getInteger("download_threads",
-        "Number of parallel requests to use when downloading each file in full", 4),
+        "Number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)", 4),
       Parse.bandwidth(arguments.getString("download_max_bandwidth",
         "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
       arguments.getInteger("download_max_requests",
-        "Maximum number of HTTP requests in flight at once across all downloads", 16),
+        "Maximum number of HTTP requests in flight at once across all downloads (at least download_threads)", 64),
       arguments.getBoolean("download_fail_if_changed",
         "Fail when the ETag or Last-Modified header of a remote file changes mid-download", true),
       arguments.getDouble("min_feature_size_at_max_zoom",

@@ -5,13 +5,14 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -79,16 +80,43 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
    */
   public final void processFiles(List<Path> sourcePaths, FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage(sourceName);
-    long featureCount = getFeatureCount(sourcePaths);
+    // one reader per file for both counting and reading, so expensive setup like unzipping only happens once
+    List<SimpleReader<F>> readers = new ArrayList<>(sourcePaths.size());
+    try {
+      for (Path path : sourcePaths) {
+        readers.add(readerFactory.apply(path));
+      }
+      processReaders(readers, writer, config);
+    } finally {
+      for (var reader : readers) {
+        try {
+          reader.close();
+        } catch (IOException e) {
+          LOGGER.warn("Error closing reader", e);
+        }
+      }
+    }
+    timer.stop();
+  }
+
+  private void processReaders(List<SimpleReader<F>> readers, FeatureGroup writer, PlanetilerConfig config) {
+    long featureCount = 0;
+    // start each file's IDs where previous one left off so they don't collide
+    for (var reader : readers) {
+      reader.setFeatureIdOffset(featureCount);
+      featureCount += reader.getFeatureCount();
+    }
     int readThreads = config.featureReadThreads();
     int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
     Envelope latLonBounds = config.bounds().latLon();
+    // If all of the readers pre-filter to bounds, we don't need to filter here
+    boolean checkBounds = !readers.stream().allMatch(SimpleReader::filtersToBounds);
     AtomicLong featuresRead = new AtomicLong(0);
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
-      .readFromTiny("source_paths", sourcePaths)
-      .addWorker("read", readThreads, readPaths())
+      .readFromTiny("readers", readers)
+      .addWorker("read", readThreads, readFeatures())
       .addBuffer("process_queue", 1000, PROCESS_BATCH_SIZE, SourceFeatureProcessor::processingCost,
         PROCESS_BATCH_MAX_POINTS)
       .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
@@ -97,7 +125,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
           for (SourceFeature sourceFeature : prev) {
             featuresRead.incrementAndGet();
             FeatureCollector features = featureCollectors.get(sourceFeature);
-            if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
+            if (!checkBounds || intersects(sourceFeature, latLonBounds)) {
               try {
                 profile.processFeature(sourceFeature, features);
                 for (FeatureCollector.Feature renderable : features) {
@@ -131,12 +159,25 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     } catch (IOException e) {
       LOGGER.warn("Error closing writer", e);
     }
-    timer.stop();
+  }
+
+  private boolean intersects(SourceFeature feature, Envelope latLonBounds) {
+    try {
+      return feature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds);
+    } catch (GeometryException e) {
+      // features that decode their geometry lazily throw here when it can't be read
+      e.log(stats, sourceName, "Skipping feature");
+      return false;
+    }
   }
 
   private static int processingCost(SourceFeature feature) {
-    // features with an unknown cost get handed off on their own
-    return feature instanceof SimpleFeature simpleFeature ? simpleFeature.numPoints() : PROCESS_BATCH_MAX_POINTS;
+    return switch (feature) {
+      case SimpleFeature simpleFeature -> simpleFeature.numPoints();
+      case ShapefileFeature shapefileFeature -> shapefileFeature.numPoints();
+      // features with an unknown cost get handed off on their own
+      default -> PROCESS_BATCH_MAX_POINTS;
+    };
   }
 
   private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
@@ -151,26 +192,10 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     );
   }
 
-  protected long getFeatureCount(List<Path> sourcePaths) {
-    long featureCount = 0;
-    for (var path : sourcePaths) {
-      try (var reader = readerFactory.apply(path)) {
-        featureCount += reader.getFeatureCount();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
-
-    return featureCount;
-  }
-
-  /** Returns a source that initiates a {@link WorkerPipeline} with elements from this data provider. */
-  private WorkerPipeline.WorkerStep<Path, F> readPaths() {
-    return (paths, consumer) -> {
-      for (var path : paths) {
-        try (var reader = readerFactory.apply(path)) {
-          reader.readFeatures(consumer);
-        }
+  private WorkerPipeline.WorkerStep<SimpleReader<F>, F> readFeatures() {
+    return (readers, next) -> {
+      for (var reader : readers) {
+        reader.readFeatures(next);
       }
     };
   }

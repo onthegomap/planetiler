@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.remote.LocalRangeFile;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
+import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Glob;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -259,8 +260,8 @@ class ParquetInputFileTest {
     }
 
     @Override
-    public long bytesToFetch(long offset, int length) {
-      return remote ? length : 0;
+    public boolean needsFetch(long offset, long length) {
+      return remote;
     }
 
     @Override
@@ -275,9 +276,11 @@ class ParquetInputFileTest {
     }
 
     @Override
-    public Pending readLater(long offset, int length) {
-      reads.add("readLater " + offset + "+" + length);
-      return delegate.readLater(offset, length);
+    public List<Pending> readLater(List<Downloader.ByteRange> ranges) {
+      if (!ranges.isEmpty()) {
+        reads.add("readLater " + ranges.stream().map(r -> r.offset() + "+" + r.length()).toList());
+      }
+      return delegate.readLater(ranges);
     }
 
     @Override
@@ -311,8 +314,8 @@ class ParquetInputFileTest {
           features++;
         }
       }
-      // the whole row group in one read that starts when the block is handed out, nothing else
-      assertEquals(List.of("readLater 4+" + inside.getBytesToRead()), file.reads);
+      // the whole row group in one read, nothing else
+      assertEquals(List.of("readLater [4+" + inside.getBytesToRead() + "]"), file.reads);
       assertEquals(3, features);
     }
   }

@@ -344,7 +344,7 @@ public class TestUtils {
       NativeLibrary.load();
       return true;
     } catch (UnsatisfiedLinkError | IllegalCallerException _) {
-      // missing library for this platform, or native access not enabled (like TileEncoders.loadFailure)
+      // missing library for this platform, or native access not enabled (like MltEncoderType.loadFailure)
       return false;
     }
   }

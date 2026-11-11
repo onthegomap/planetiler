@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Downloader.ByteRange;
 import com.onthegomap.planetiler.util.Downloader.RemoteVersion;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.RequestPlanner.Plan;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -17,7 +18,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import org.slf4j.Logger;
@@ -226,13 +230,14 @@ public class CachedRangeFile implements RangeFile {
 
   // offline (no remote) nothing gets fetched: reading missing bytes fails instead
   @Override
-  public long bytesToFetch(long offset, int length) {
-    return remote == null || isCached(offset, length) ? 0 : remote.bytesToFetch(offset, length);
+  public boolean needsFetch(long offset, long length) {
+    return remote != null && !isCached(offset, length);
   }
 
   @Override
-  public long requestsToFetch(long offset, int length) {
-    return remote == null || isCached(offset, length) ? 0 : remote.requestsToFetch(offset, length);
+  public Plan planFetch(List<ByteRange> ranges) {
+    return remote == null ? Plan.EMPTY :
+      remote.planFetch(ranges.stream().filter(range -> !isCached(range.offset(), range.length())).toList());
   }
 
   @Override
@@ -252,28 +257,37 @@ public class CachedRangeFile implements RangeFile {
 
   @Override
   public byte[] read(long offset, int length) throws IOException {
-    return readLater(offset, length).get();
+    return readLater(List.of(new ByteRange(offset, length))).getFirst().get();
   }
 
   @Override
-  public Pending readLater(long offset, int length) {
-    if (isCached(offset, length)) {
-      return () -> FileUtils.readFully(channel, offset, length);
-    } else if (remote == null) {
-      return () -> {
-        throw new IOException(
-          path + " is missing bytes " + offset + "-" + (offset + length) + ", run with --download to fetch them");
-      };
+  public List<Pending> readLater(List<ByteRange> ranges) {
+    Map<ByteRange, Pending> fromRemote = new HashMap<>();
+    List<ByteRange> missing = ranges.stream().filter(range -> !isCached(range.offset(), range.length())).toList();
+    if (remote != null && !missing.isEmpty()) {
+      var pending = remote.readLater(missing, this::write);
+      for (int i = 0; i < missing.size(); i++) {
+        fromRemote.put(missing.get(i), pending.get(i));
+      }
     }
-    Pending fromRemote = remote.readLater(offset, length);
-    return () -> {
-      byte[] result = fromRemote.get();
-      write(offset, result, 0, result.length);
-      return result;
+    return ranges.stream()
+      .map(range -> Objects.requireNonNullElseGet(fromRemote.get(range), () -> readLaterFromDisk(range)))
+      .toList();
+  }
+
+  private Pending readLaterFromDisk(ByteRange range) {
+    long offset = range.offset();
+    int rangeLength = Math.toIntExact(range.length());
+    // cached bytes stay cached, so only ranges missing while offline get here without being cached
+    return isCached(offset, rangeLength) ? () -> FileUtils.readFully(channel, offset, rangeLength) : () -> {
+      throw new IOException(
+        path + " is missing bytes " + offset + "-" + (offset + rangeLength) + ", run with --download to fetch them");
     };
   }
 
-  private boolean isCached(long offset, int length) {
+  // known caveat: a partly cached range gets fetched again in full, but that only happens after an interrupted run
+  // since requested ranges and the gaps between them get cached whole
+  private boolean isCached(long offset, long length) {
     synchronized (rangeLock) {
       return cachedByteRanges.encloses(Range.closedOpen(offset, offset + length));
     }
@@ -370,6 +384,9 @@ public class CachedRangeFile implements RangeFile {
 
   @Override
   public void close() throws IOException {
+    if (remote != null) {
+      remote.close();
+    }
     sync();
     synchronized (rangeLock) {
       // an empty file never gets a write that would finish it
@@ -381,5 +398,10 @@ public class CachedRangeFile implements RangeFile {
         rangesFile.close();
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    return remote == null ? path.toString() : remote.toString();
   }
 }

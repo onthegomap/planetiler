@@ -319,10 +319,10 @@
           "description": "Largest HTTP request to make when downloading in megabytes"
         },
         "download_threads": {
-          "description": "Number of parallel requests to use when downloading each file in full"
+          "description": "Number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)"
         },
         "download_max_requests": {
-          "description": "Maximum number of HTTP requests in flight at once across all downloads"
+          "description": "Maximum number of HTTP requests in flight at once across all downloads (at least download_threads)"
         },
         "download_max_bandwidth": {
           "description": "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc."

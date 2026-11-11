@@ -25,6 +25,8 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
+import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.reader.ShapefileOptions;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -57,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -3687,5 +3690,90 @@ class PlanetilerTests {
   @FunctionalInterface
   private interface ReadableTileArchiveFactory {
     ReadableTileArchive create(Path p) throws IOException;
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testParquetSourceOverriddenWithShapefile(boolean overrideUrl) throws IOException {
+    Path zip = TestUtils.pathToResource("water-polygons-split-3857.zip");
+    String override = overrideUrl ? "--water-url=http://host/water.zip" : "--water-path=" + zip;
+    var planetiler =
+      Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", override))
+        .setDownloader(
+          new StubDownloader(PlanetilerConfig.defaults()).put("http://host/water.zip", Files.readAllBytes(zip)))
+        .setProfile(new Profile.NullProfile())
+        .addParquetSource("water", tempDir.resolve("water.parquet"), "http://host/water.parquet")
+        .setOutput(tempDir.resolve("output.mbtiles"));
+
+    var exception = assertThrows(Planetiler.PlanetilerException.class, planetiler::run);
+    assertEquals((overrideUrl ? "http://host/water.zip" : zip.toString()) +
+      " is not a valid parquet file, download it from http://host/water.parquet", exception.getCause().getMessage());
+  }
+
+  private Planetiler shapefileUrlsSource(List<String> urls, Set<Long> featureIds, String... args)
+    throws IOException {
+    byte[] zip = Files.readAllBytes(TestUtils.pathToResource("shapefile.zip"));
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    for (String url : urls) {
+      downloader.put(url, zip);
+    }
+    List<String> allArgs = new ArrayList<>(List.of("--tmpdir=" + tempDir.resolve("data")));
+    allArgs.addAll(List.of(args));
+    return Planetiler.create(Arguments.fromArgs(allArgs.toArray(String[]::new)))
+      .setDownloader(downloader)
+      .setProfile((SourceFeature source, FeatureCollector features) -> featureIds.add(source.id()))
+      .addShapefileMultiUrlSource("shapes", tempDir.resolve("shapes"), urls,
+        ShapefileOptions.DEFAULT.withLowercaseAttributeNames(true))
+      .setOutput(tempDir.resolve("output.mbtiles"));
+  }
+
+  @Test
+  void testShapefileSourceFromSeveralUrls() throws IOException {
+    Set<Long> featureIds = ConcurrentHashMap.newKeySet();
+    shapefileUrlsSource(List.of("http://host/a/one.zip", "http://host/b/two.zip"), featureIds, "--download").run();
+
+    assertTrue(Files.exists(tempDir.resolve("shapes").resolve("one.zip")));
+    assertTrue(Files.exists(tempDir.resolve("shapes").resolve("two.zip")));
+    // each zip holds the same 86 stations, and the second file's ids start after the first file's
+    assertEquals(2 * 86, featureIds.size());
+  }
+
+  @Test
+  void testShapefileSourceFromSeveralUrlsRejectsSingleUrlArgument() {
+    List<String> urls = List.of("http://host/a/one.zip", "http://host/b/two.zip");
+    var exception = assertThrows(IllegalArgumentException.class,
+      () -> shapefileUrlsSource(urls, Set.of(), "--shapes-url=http://host/all.sqlite.zip"));
+    assertEquals("--shapes-url is not supported since shapes reads 2 files, set --shapes-urls (comma separated) or " +
+      "--shapes-path to a .zip file containing all the shapefiles instead", exception.getMessage());
+  }
+
+  @Test
+  void testShapefileSourceFromSeveralUrlsReadsNamedShapefilesFromOneZip() throws IOException {
+    // natural_earth_shapefiles.zip is laid out like Natural Earth's package, with all 22 tables OpenMapTiles reads in
+    // subdirectories, and only the 2 named like the URLs get read: 1 ocean polygon and 8 urban areas
+    Path zip = TestUtils.pathToResource("natural_earth_shapefiles.zip");
+    Set<Long> featureIds = ConcurrentHashMap.newKeySet();
+    shapefileUrlsSource(List.of(
+      "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
+      "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_urban_areas.zip"
+    ), featureIds, "--shapes-path=" + zip).run();
+
+    assertEquals(1 + 8, featureIds.size());
+  }
+
+  @Test
+  void testShapefileSourceFromSeveralUrlsFailsOnZipWithoutThoseShapefiles() {
+    Path zip = TestUtils.pathToResource("natural_earth_shapefiles.zip");
+    List<String> urls = List.of(
+      "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
+      "https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip",
+      "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_roads.zip"
+    );
+
+    var exception = assertThrows(FileFormatException.class,
+      () -> shapefileUrlsSource(urls, Set.of(), "--shapes-path=" + zip));
+    assertEquals(zip + " is missing 2 of the 3 shapefiles needed (ne_10m_rivers_lake_centerlines.shp, " +
+      "ne_10m_roads.shp), set --shapes-path to a directory to download them into, or a .zip file containing them",
+      exception.getMessage());
   }
 }

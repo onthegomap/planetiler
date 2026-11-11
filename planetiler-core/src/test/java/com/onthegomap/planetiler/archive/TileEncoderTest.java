@@ -6,7 +6,7 @@ import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +29,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.maplibre.mlt.decoder.MltDecoder;
 
-class TileEncodersTest {
+class TileEncoderTest {
 
   private static final boolean WITH_IDS = true;
   private static final boolean WITHOUT_IDS = false;
@@ -111,15 +111,25 @@ class TileEncodersTest {
   }
 
   @Test
-  void javaMltEncoderWithSharedDictionariesWritesTheSameFeatures() {
-    // shared dictionaries only kick in once a tile repeats enough strings
+  void javaMltEncoderWithSharedDictionariesWritesMixedValueTypesOfOneKeyAsText() {
+    // 100 repeated "cafe" strings are enough for shared dictionaries to kick in
+    // layers come back in name order, so "building" is expected before "poi"
     List<VectorTile.Feature> manyCafes = new ArrayList<>();
-    List<DecodedFeature> expected = new ArrayList<>();
+    List<DecodedFeature> expected = new ArrayList<>(List.of(
+      new DecodedFeature("building", 101L, newPoint(10, 20), Map.of("height", "12")),
+      new DecodedFeature("building", 102L, newPoint(30, 40), Map.of("height", "tall"))
+    ));
     for (int id = 1; id <= 100; id++) {
-      manyCafes.add(point("poi", id, id, id, Map.of("name", "cafe", "kind", "food")));
-      expected.add(new DecodedFeature("poi", (long) id, newPoint(id, id), Map.of("name", "cafe", "kind", "food")));
+      manyCafes.add(point("poi", id, id, id, Map.of("name", "cafe")));
+      expected.add(new DecodedFeature("poi", (long) id, newPoint(id, id), Map.of("name", "cafe")));
     }
-    var tile = new VectorTile().addLayerFeatures("poi", manyCafes);
+    // "height" holds a number and a string, so it is left out of the shared dictionaries
+    var tile = new VectorTile()
+      .addLayerFeatures("poi", manyCafes)
+      .addLayerFeatures("building", List.of(
+        point("building", 101, 10, 20, Map.of("height", 12)),
+        point("building", 102, 30, 40, Map.of("height", "tall"))
+      ));
 
     var encoded =
       encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_encoder", "java", "mlt_shared_dict", "true");
@@ -145,15 +155,15 @@ class TileEncodersTest {
     );
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"mvt", "mlt"})
-  void factoryGivesEveryThreadItsOwnEncoder(String tileFormat) {
-    var config = config("tile_format", tileFormat, "mlt_encoder", "java");
-    var factory = TileEncoders.factory(config, Stats.inMemory(), MISSING_LIBRARY);
+  @Test
+  void encodedComparesBytesByContent() {
+    var stats = List.of(new TileSizeStats.LayerStats("poi", 10, 1, 1, 4, 1, 1));
+    var encoded = new TileEncoder.Encoded(new byte[]{1, 2, 3}, stats);
 
-    try (var encoderForThread1 = factory.get(); var encoderForThread2 = factory.get()) {
-      assertNotSame(encoderForThread1, encoderForThread2);
-    }
+    assertEquals(new TileEncoder.Encoded(new byte[]{1, 2, 3}, stats), encoded);
+    assertEquals(new TileEncoder.Encoded(new byte[]{1, 2, 3}, stats).hashCode(), encoded.hashCode());
+    assertNotEquals(new TileEncoder.Encoded(new byte[]{1, 2, 4}, stats), encoded);
+    assertEquals("Encoded{bytes=byte[3], layerStats=" + stats + "}", encoded.toString());
   }
 
   @ParameterizedTest
@@ -161,7 +171,7 @@ class TileEncodersTest {
   void createsNativeMltEncoderWhereTheLibraryLoads(String mltEncoder) {
     assumeNativeMlt();
 
-    try (var encoder = TileEncoders.factory(mltConfig(mltEncoder), Stats.inMemory()).get()) {
+    try (var encoder = TileEncoder.factory(mltConfig(mltEncoder), Stats.inMemory()).get()) {
       assertInstanceOf(NativeMltTileEncoder.class, encoder);
     }
   }
@@ -244,7 +254,7 @@ class TileEncodersTest {
   }
 
   private static TileEncoder create(PlanetilerConfig config, Runnable loadNativeLibrary) {
-    return TileEncoders.factory(config, Stats.inMemory(), loadNativeLibrary).get();
+    return TileEncoder.factory(config, Stats.inMemory(), loadNativeLibrary).get();
   }
 
   private static TileEncoder.Encoded encode(VectorTile tile, boolean includeIds, String... configArgs) {

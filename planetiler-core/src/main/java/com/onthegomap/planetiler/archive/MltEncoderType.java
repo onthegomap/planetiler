@@ -2,8 +2,10 @@ package com.onthegomap.planetiler.archive;
 
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Which encoder {@link TileEncoders} uses to write MLT tiles, set by {@code mlt_encoder}. */
+/** Which encoder {@link TileEncoder#factory} uses to write MLT tiles, set by {@code mlt_encoder}. */
 public enum MltEncoderType {
   /** The native encoder where its library loads, and the Java encoder everywhere else. */
   AUTO("auto"),
@@ -11,6 +13,8 @@ public enum MltEncoderType {
   NATIVE("native"),
   /** The pure-Java encoder of {@code org.maplibre:mlt}, which works on every platform. */
   JAVA("java");
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MltEncoderType.class);
 
   private final String id;
 
@@ -34,5 +38,51 @@ public enum MltEncoderType {
 
   public String id() {
     return id;
+  }
+
+  /**
+   * Returns whether to write MLT tiles with the native encoder, falling back to Java for {@link #AUTO} where
+   * {@code loadNativeLibrary} fails, and logs which one it uses.
+   *
+   * @throws IllegalStateException if this is {@link #NATIVE} but the native library does not load on this platform
+   */
+  boolean usesNative(Runnable loadNativeLibrary) {
+    boolean useNative = switch (this) {
+      case JAVA -> false;
+      case NATIVE -> {
+        var failure = loadFailure(loadNativeLibrary);
+        if (failure.isPresent()) {
+          throw new IllegalStateException(describe(failure.get()) + ", use --mlt-encoder=auto or java instead",
+            failure.get());
+        }
+        yield true;
+      }
+      case AUTO -> {
+        var failure = loadFailure(loadNativeLibrary);
+        failure.ifPresent(e -> LOGGER.info("{}, falling back to the Java encoder", describe(e)));
+        yield failure.isEmpty();
+      }
+    };
+    LOGGER.info("Using the {} MLT encoder", useNative ? "native" : "Java");
+    return useNative;
+  }
+
+  /** Returns why {@code loadNativeLibrary} failed, if it failed because the native library cannot be used here. */
+  private static Optional<Throwable> loadFailure(Runnable loadNativeLibrary) {
+    try {
+      loadNativeLibrary.run();
+      return Optional.empty();
+    } catch (UnsatisfiedLinkError | IllegalCallerException e) {
+      return Optional.of(e);
+    }
+  }
+
+  private static String describe(Throwable loadFailure) {
+    return switch (loadFailure) {
+      case IllegalCallerException _ -> "Native MLT encoder needs the JVM option --enable-native-access=ALL-UNNAMED";
+      default -> "Native MLT encoder does not load on " + System.getProperty("os.name") + " " +
+        System.getProperty("os.arch") + " (not a planetiler bug, ask MapLibre to support this platform): " +
+        loadFailure.getMessage();
+    };
   }
 }

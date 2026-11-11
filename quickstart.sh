@@ -76,21 +76,6 @@ case $AREA in
       mmap) MEMORY="${MEMORY:-"-Xmx30g -Xmn15g"}" ;;
     esac
     ;;
-  monaco)
-    echo "$TASK"
-    echo "${PLANETILER_ARGS[*]}"
-    if [ "$TASK" == "openmaptiles" ]; then
-      if [[ "${PLANETILER_ARGS[*]}" =~ ^.*osm[-_](path|url).*$ ]]; then
-        : # don't add monaco args
-      else
-        # Use mini extracts for monaco
-        PLANETILER_ARGS+=("--water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip")
-        PLANETILER_ARGS+=("--water-polygons-path=data/sources/monaco-water.zip")
-        PLANETILER_ARGS+=("--natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip")
-        PLANETILER_ARGS+=("--natural-earth-path=data/sources/monaco-natural_earth_vector.sqlite.zip")
-      fi
-    fi
-    ;;
 esac
 
 JVM_ARGS="-XX:+UseParallelGC $MEMORY"
@@ -137,8 +122,12 @@ case $METHOD in
     run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
     ;;
   jar)
-    echo "Downloading latest planetiler release..."
-    run wget -nc "https://github.com/onthegomap/planetiler/releases/${VERSION}/download/planetiler.jar"
+    echo "Downloading planetiler ${VERSION}..."
+    if [ "$VERSION" == "latest" ]; then
+      run wget -nc "https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar"
+    else
+      run wget -nc "https://github.com/onthegomap/planetiler/releases/download/${VERSION}/planetiler.jar"
+    fi
     check_java_version planetiler.jar
     run "$JAVA" "${JVM_ARGS}" -jar planetiler.jar "${PLANETILER_ARGS[@]}"
     ;;
