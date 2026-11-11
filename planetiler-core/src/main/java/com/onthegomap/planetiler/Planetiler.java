@@ -317,8 +317,8 @@ public class Planetiler {
    *
    * @param name             string to use in stats and logs to identify this stage
    * @param defaultDirectory directory to store the files in if {@code name_path} key is not set through arguments
-   * @param defaultUrls      remote URLs of the {@code .zip} files containing the shapefile components (or of
-   *                         {@code .shp} files) if {@code name_urls} argument is not set
+   * @param defaultUrls      remote URLs of the {@code .zip} files containing the shapefile components if
+   *                         {@code name_urls} argument is not set
    * @param options          the projection, which files to read within each {@code .zip} file, and changes to make to
    *                         the attributes of each feature
    * @return this runner instance for chaining
@@ -791,8 +791,8 @@ public class Planetiler {
     var mode = DownloadMode.parse(arguments.getString("download_" + name,
       "how to download " + name + ": false, cached (same as true), streaming or full",
       downloadMode.name().toLowerCase(Locale.ROOT)));
-    // only_download is for running offline later, which needs whole files
-    return onlyDownloadSources ? DownloadMode.FULL : mode;
+    // only_download is for running offline later, which needs whole files (unless explicitly marked as streaming)
+    return onlyDownloadSources && mode != DownloadMode.STREAMING ? DownloadMode.FULL : mode;
   }
 
   /**
