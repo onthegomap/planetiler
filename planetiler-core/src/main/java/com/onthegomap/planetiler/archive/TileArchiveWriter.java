@@ -73,7 +73,6 @@ public class TileArchiveWriter {
     this.config = config;
     this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
-    // load the native MLT library (or fail) before encoding any tiles
     tileEncoderFactory = TileEncoder.factory(config, stats);
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
