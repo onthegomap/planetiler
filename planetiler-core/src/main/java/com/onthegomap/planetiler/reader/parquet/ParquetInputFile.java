@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
 import com.onthegomap.planetiler.util.CompletableFutures;
@@ -18,6 +19,7 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -107,6 +109,9 @@ public class ParquetInputFile implements Closeable {
     this.path = path;
     this.file = file;
     this.extraFields = extraFields;
+    if (!isValidParquetFile(file)) {
+      throw new FileFormatException(file + " is not a valid parquet file");
+    }
     try (var reader = ParquetFileReader.open(new RangeInputFile(file, file.length()))) {
       metadata = reader.getFooter();
       geoparquet = GeoParquetMetadata.parse(metadata.getFileMetaData());
@@ -141,6 +146,16 @@ public class ParquetInputFile implements Closeable {
       .sorted(Comparator.comparingLong(i -> rowGroupSpan(blocks.get(i)).offset()))
       .toList();
     count = rowGroupsToRead.stream().mapToLong(i -> blocks.get(i).getRowCount()).sum();
+  }
+
+  private static boolean isValidParquetFile(RangeFile file) {
+    try {
+      // The tail is already prefetched so this won't trigger any extra requests
+      long length = file.length();
+      return length >= 8 && Arrays.equals(file.read(length - 4, 4), "PAR1".getBytes(StandardCharsets.US_ASCII));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   private boolean mayMatch(BlockMetaData rowGroup) {
