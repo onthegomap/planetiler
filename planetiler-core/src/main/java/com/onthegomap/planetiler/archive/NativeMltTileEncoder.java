@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ final class NativeMltTileEncoder implements TileEncoder {
 
   @Override
   public Encoded encode(VectorTile tile, boolean includeIds) {
-    var writer = new FeatureWriter(encoder, includeIds, stats);
+    var writer = new FeatureWriter(includeIds);
     tile.visitFeatures(writer);
     byte[] bytes = encoder.toByteArray();
     return new Encoded(bytes, writer.layerStats(tile, bytes));
@@ -54,25 +55,26 @@ final class NativeMltTileEncoder implements TileEncoder {
   }
 
   /** Adds the layers, features and attributes of a tile to a native encoder, counting the features of each layer. */
-  private static final class FeatureWriter implements VectorTile.FeatureVisitor {
+  private final class FeatureWriter implements VectorTile.FeatureVisitor {
 
-    private final MltEncoder encoder;
     private final boolean includeIds;
-    private final Stats stats;
     private final List<LayerCounts> layers = new ArrayList<>();
     private LayerCounts layer;
     private List<String> keys;
     private List<Object> values;
 
-    FeatureWriter(MltEncoder encoder, boolean includeIds, Stats stats) {
-      this.encoder = encoder;
+    FeatureWriter(boolean includeIds) {
       this.includeIds = includeIds;
-      this.stats = stats;
     }
 
+    /** Leaves out (and counts) features of unknown geometry type, which MLT cannot store. */
     @Override
     public boolean accept(VectorTile.VectorGeometry geometry) {
-      return VectorTile.acceptMltGeometry(geometry, stats);
+      if (geometry.geomType() == GeometryType.UNKNOWN) {
+        stats.dataError("mlt_feature");
+        return false;
+      }
+      return true;
     }
 
     @Override

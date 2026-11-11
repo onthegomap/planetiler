@@ -27,8 +27,6 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
-import com.onthegomap.planetiler.stats.DefaultStats;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
@@ -38,7 +36,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.IntUnaryOperator;
@@ -61,7 +58,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -529,7 +525,7 @@ public class VectorTile {
             String key = e.getKey();
             Object value = e.getValue();
             outFeature.tags.add(layer.key(key));
-            outFeature.tags.add(layer.value(value));
+            outFeature.tags.add(layer.value(toSupportedValue(value)));
             statsTracker.accept(key, value);
           }
         }
@@ -541,9 +537,9 @@ public class VectorTile {
   }
 
   /**
-   * Passes each layer and its features to {@code visitor}, with values converted to the types vector tile formats
-   * store: strings, integers, longs, floats, doubles and booleans, with any other value as its text. Leaves out the
-   * features {@code visitor} does not {@linkplain FeatureVisitor#accept accept}, and layers left without features.
+   * Passes each layer and its features to {@code visitor}, with values of the types {@link #toSupportedValue} returns.
+   * Leaves out the features {@code visitor} does not {@linkplain FeatureVisitor#accept accept}, and layers left without
+   * features.
    */
   public void visitFeatures(FeatureVisitor visitor) {
     for (var entry : layers.entrySet()) {
@@ -556,7 +552,7 @@ public class VectorTile {
         }
         if (keys == null) {
           keys = List.copyOf(layer.keys.keySet());
-          values = layer.values.keySet().stream().map(VectorTile::toSupportedValue).toList();
+          values = List.copyOf(layer.values.keySet());
           visitor.visitLayer(entry.getKey(), keys, values);
         }
         visitor.visitFeature(feature.id, feature.geometry, feature.tags.toArray());
@@ -564,6 +560,10 @@ public class VectorTile {
     }
   }
 
+  /**
+   * Returns {@code value} as one of the types vector tile formats store: strings, integers, longs, floats, doubles and
+   * booleans, with any other value as its text.
+   */
   private static Object toSupportedValue(Object value) {
     return switch (value) {
       case String _, Integer _, Long _, Float _, Double _, Boolean _ -> value;
@@ -576,7 +576,7 @@ public class VectorTile {
 
     /**
      * Returns whether to visit the feature with {@code geometry}, called once for each feature before any of its
-     * layer is visited. Formats return false (and log it) for features they cannot store.
+     * layer is visited. Encoders return false (and log it) for features their format cannot store.
      */
     default boolean accept(VectorGeometry geometry) {
       return true;
@@ -646,7 +646,7 @@ public class VectorTile {
         case Float floatValue -> tileValue.setFloatValue(floatValue);
         case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
         case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
-        default -> throw new IllegalArgumentException("visitFeatures converts " + value.getClass() + " to text");
+        default -> throw new IllegalArgumentException(value.getClass() + " is not a type toSupportedValue returns");
       }
       return tileValue.build();
     }
@@ -743,89 +743,6 @@ public class VectorTile {
 
   public boolean isEmpty() {
     return layers.isEmpty();
-  }
-
-  /** Returns the input for the Java MLT encoder. */
-  public MapboxVectorTile toMltInput() {
-    return toMltInput(DefaultStats.get());
-  }
-
-  /**
-   * Returns the input for the Java MLT encoder, leaving out (and logging to {@code stats}) features that MLT cannot
-   * store and layers left without features.
-   */
-  public MapboxVectorTile toMltInput(Stats stats) {
-    var builder = new MltInputBuilder(stats);
-    visitFeatures(builder);
-    return builder.build();
-  }
-
-  /** Collects the features passed to it into the input of the Java MLT encoder. */
-  private static final class MltInputBuilder implements FeatureVisitor {
-
-    private record PendingFeature(long id, VectorGeometry geometry, Map<String, Object> properties) {}
-
-    private final Stats stats;
-    private final Map<String, List<PendingFeature>> layers = new LinkedHashMap<>();
-    private List<PendingFeature> features;
-    private List<String> keys;
-    private List<Object> values;
-
-    MltInputBuilder(Stats stats) {
-      this.stats = stats;
-    }
-
-    @Override
-    public boolean accept(VectorGeometry geometry) {
-      return acceptMltGeometry(geometry, stats);
-    }
-
-    @Override
-    public void visitLayer(String name, List<String> keys, List<Object> values) {
-      this.keys = keys;
-      this.values = values;
-      features = new ArrayList<>();
-      layers.put(name, features);
-    }
-
-    @Override
-    public void visitFeature(long id, VectorGeometry geometry, int[] tags) {
-      Map<String, Object> properties = new LinkedHashMap<>();
-      for (int i = 0; i < tags.length; i += 2) {
-        properties.put(keys.get(tags[i]), values.get(tags[i + 1]));
-      }
-      features.add(new PendingFeature(id, geometry, properties));
-    }
-
-    /** Returns the collected layers, leaving out (and logging) features whose geometry cannot be decoded. */
-    MapboxVectorTile build() {
-      return new MapboxVectorTile(layers.entrySet().stream().map(entry -> {
-        List<org.maplibre.mlt.data.Feature> decoded = entry.getValue().stream().map(this::decode)
-          .filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(entry.getKey(), decoded, EXTENT);
-      }).filter(layer -> !layer.features().isEmpty()).toList());
-    }
-
-    private org.maplibre.mlt.data.Feature decode(PendingFeature feature) {
-      try {
-        return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), feature.properties);
-      } catch (GeometryException e) {
-        e.log(stats, "mlt_feature", "Error converting to MLT " + feature.properties);
-        return null;
-      }
-    }
-  }
-
-  /**
-   * Returns whether MLT can store {@code geometry}, logging to {@code stats} if not, for the
-   * {@link FeatureVisitor#accept accept} method of MLT encoders.
-   */
-  public static boolean acceptMltGeometry(VectorGeometry geometry, Stats stats) {
-    if (geometry.geomType() == GeometryType.UNKNOWN) {
-      stats.dataError("mlt_feature");
-      return false;
-    }
-    return true;
   }
 
   public Integer getNumKeys(String layer) {
@@ -1002,8 +919,8 @@ public class VectorTile {
       return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
     }
 
-    /** Converts an encoded geometry back to a JTS geometry. */
-    private Geometry decodeToExtent() throws GeometryException {
+    /** Converts an encoded geometry back to a JTS geometry in tile coordinates, from 0 to {@link #EXTENT}. */
+    public Geometry decodeToExtent() throws GeometryException {
       return decodeCommands(geomType, commands, 1 << scale);
     }
 

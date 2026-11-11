@@ -30,7 +30,7 @@ sealed interface TileEncoder extends AutoCloseable
   /** Like {@link #factory(PlanetilerConfig, Stats)}, loading the native library with {@code loadNativeLibrary}. */
   static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats, Runnable loadNativeLibrary) {
     return switch (config.tileFormat()) {
-      case MLT -> config.mltEncoder().usesNative(loadNativeLibrary) ?
+      case MLT -> config.mltEncoder().loadNative(loadNativeLibrary) ?
         () -> new NativeMltTileEncoder(config, stats) :
         () -> new JavaMltTileEncoder(config, stats);
       case UNKNOWN, MVT -> MvtTileEncoder::new;

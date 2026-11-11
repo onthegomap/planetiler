@@ -3,11 +3,15 @@ package com.onthegomap.planetiler.archive;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +23,7 @@ import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
 import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.data.Feature;
 import org.maplibre.mlt.data.Layer;
 
 /**
@@ -43,7 +48,7 @@ final class JavaMltTileEncoder implements TileEncoder {
 
   @Override
   public Encoded encode(VectorTile tile, boolean includeIds) {
-    MapboxVectorTile mltInput = tile.toMltInput(stats);
+    MapboxVectorTile mltInput = toMltInput(tile);
     StringColumns stringColumns = config.mltSharedDictionaries() ? StringColumns.find(mltInput) : StringColumns.NONE;
     ColumnMappingConfig columnMappings = stringColumns.all().isEmpty() ? EMPTY_COLUMN_MAPPING :
       ColumnMappingConfig.of(MATCH_ALL, List.of(new ColumnMapping(stringColumns.all(), true)));
@@ -71,6 +76,64 @@ final class JavaMltTileEncoder implements TileEncoder {
       return new Encoded(mlt, TileSizeStats.computeMltTileStats(tile, mltInput, mlt));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Returns the input for the Java MLT encoder, leaving out (and logging) features that MLT cannot store and layers left
+   * without features.
+   */
+  private MapboxVectorTile toMltInput(VectorTile tile) {
+    var builder = new MltInputBuilder();
+    tile.visitFeatures(builder);
+    return builder.build();
+  }
+
+  /** Collects the features of a tile into the input of the Java MLT encoder. */
+  private final class MltInputBuilder implements VectorTile.FeatureVisitor {
+
+    private final Map<String, List<Feature>> layers = new LinkedHashMap<>();
+    private List<Feature> features;
+    private List<String> keys;
+    private List<Object> values;
+
+    /** Leaves out (and counts) features of unknown geometry type, which MLT cannot store. */
+    @Override
+    public boolean accept(VectorTile.VectorGeometry geometry) {
+      if (geometry.geomType() == GeometryType.UNKNOWN) {
+        stats.dataError("mlt_feature");
+        return false;
+      }
+      return true;
+    }
+
+    @Override
+    public void visitLayer(String name, List<String> keys, List<Object> values) {
+      this.keys = keys;
+      this.values = values;
+      features = new ArrayList<>();
+      layers.put(name, features);
+    }
+
+    @Override
+    public void visitFeature(long id, VectorTile.VectorGeometry geometry, int[] tags) {
+      Map<String, Object> properties = new LinkedHashMap<>();
+      for (int i = 0; i < tags.length; i += 2) {
+        properties.put(keys.get(tags[i]), values.get(tags[i + 1]));
+      }
+      try {
+        features.add(new Feature(id, geometry.decodeToExtent(), properties));
+      } catch (GeometryException e) {
+        e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
+      }
+    }
+
+    /** Returns the collected layers, leaving out layers whose features could not be decoded. */
+    MapboxVectorTile build() {
+      return new MapboxVectorTile(layers.entrySet().stream()
+        .filter(entry -> !entry.getValue().isEmpty())
+        .map(entry -> new Layer(entry.getKey(), entry.getValue(), VectorTile.EXTENT))
+        .toList());
     }
   }
 

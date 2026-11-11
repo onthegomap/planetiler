@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.archive;
 
 import java.util.List;
 import java.util.Optional;
+import org.maplibre.mlt.ffi.NativeLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,39 +42,32 @@ public enum MltEncoderType {
   }
 
   /**
-   * Returns whether to write MLT tiles with the native encoder, falling back to Java for {@link #AUTO} where
-   * {@code loadNativeLibrary} fails, and logs which one it uses.
+   * Loads the native library if this type may use it, and returns whether to write MLT tiles with the native encoder.
+   * Falls back to Java for {@link #AUTO} where the library does not load, and logs which encoder it uses.
    *
    * @throws IllegalStateException if this is {@link #NATIVE} but the native library does not load on this platform
    */
-  boolean usesNative(Runnable loadNativeLibrary) {
-    boolean useNative = switch (this) {
-      case JAVA -> false;
-      case NATIVE -> {
-        var failure = loadFailure(loadNativeLibrary);
-        if (failure.isPresent()) {
-          throw new IllegalStateException(describe(failure.get()) + ", use --mlt-encoder=auto or java instead",
-            failure.get());
-        }
-        yield true;
-      }
-      case AUTO -> {
-        var failure = loadFailure(loadNativeLibrary);
-        failure.ifPresent(e -> LOGGER.info("{}, falling back to the Java encoder", describe(e)));
-        yield failure.isEmpty();
-      }
-    };
+  public boolean loadNative() {
+    return loadNative(NativeLibrary::load);
+  }
+
+  /** Like {@link #loadNative()}, loading the native library with {@code loadNativeLibrary}. */
+  boolean loadNative(Runnable loadNativeLibrary) {
+    boolean useNative = this != JAVA && tryLoad(loadNativeLibrary);
     LOGGER.info("Using the {} MLT encoder", useNative ? "native" : "Java");
     return useNative;
   }
 
-  /** Returns why {@code loadNativeLibrary} failed, if it failed because the native library cannot be used here. */
-  private static Optional<Throwable> loadFailure(Runnable loadNativeLibrary) {
+  private boolean tryLoad(Runnable loadNativeLibrary) {
     try {
       loadNativeLibrary.run();
-      return Optional.empty();
+      return true;
     } catch (UnsatisfiedLinkError | IllegalCallerException e) {
-      return Optional.of(e);
+      if (this == NATIVE) {
+        throw new IllegalStateException(describe(e) + ", use --mlt-encoder=auto or java instead", e);
+      }
+      LOGGER.info("{}, falling back to the Java encoder", describe(e));
+      return false;
     }
   }
 

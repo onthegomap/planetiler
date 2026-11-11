@@ -17,6 +17,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.collect.ImmutableMap;
+import com.onthegomap.planetiler.archive.MltEncoderType;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -83,11 +84,10 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.maplibre.mlt.decoder.MltDecoder;
 import org.maplibre.mlt.ffi.MltConverter;
-import org.maplibre.mlt.ffi.NativeLibrary;
 
 public class TestUtils {
 
-  private static final boolean NATIVE_MLT_AVAILABLE = loadsNativeMlt();
+  private static final boolean NATIVE_MLT_AVAILABLE = MltEncoderType.AUTO.loadNative();
 
   public static final AffineTransformation TRANSFORM_TO_TILE = AffineTransformation
     .scaleInstance(256d / 4096d, 256d / 4096d);
@@ -337,16 +337,6 @@ public class TestUtils {
     Map<String, Object> result = new HashMap<>(properties);
     result.replaceAll((key, value) -> value instanceof Integer i ? i.longValue() : value);
     return result;
-  }
-
-  private static boolean loadsNativeMlt() {
-    try {
-      NativeLibrary.load();
-      return true;
-    } catch (UnsatisfiedLinkError | IllegalCallerException _) {
-      // missing library for this platform, or native access not enabled (like MltEncoderType.loadFailure)
-      return false;
-    }
   }
 
   /** Skips the calling test on platforms without the native MLT library. */

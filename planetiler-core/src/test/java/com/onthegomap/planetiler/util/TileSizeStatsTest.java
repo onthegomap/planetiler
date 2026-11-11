@@ -4,12 +4,16 @@ import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.maplibre.mlt.converter.ConversionConfig;
 import org.maplibre.mlt.converter.FeatureTableOptimizations;
@@ -17,6 +21,8 @@ import org.maplibre.mlt.converter.MltConverter;
 import org.maplibre.mlt.converter.mvt.ColumnMapping;
 import org.maplibre.mlt.converter.mvt.ColumnMappingConfig;
 import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
+import org.maplibre.mlt.data.Feature;
+import org.maplibre.mlt.data.Layer;
 import org.maplibre.mlt.decoder.MltDecoder;
 
 class TileSizeStatsTest {
@@ -107,31 +113,29 @@ class TileSizeStatsTest {
   }
 
   @Test
-  void computeStats2FeaturesMlt() throws IOException {
-    VectorTile vectorTile = new VectorTile()
-      .addLayerFeatures("b", List.of(
-        new VectorTile.Feature(
-          "b",
-          1,
-          VectorTile.encodeGeometry(newPoint(0, 0)),
-          Map.of()
-        )
-      ))
-      .addLayerFeatures("a", List.of(
-        new VectorTile.Feature(
-          "a",
-          1,
-          VectorTile.encodeGeometry(newPoint(0, 0)),
-          Map.of("key1", "value1", "key2", 2)
-        ),
-        new VectorTile.Feature(
-          "a",
-          2,
-          VectorTile.encodeGeometry(newPoint(1, 1)),
-          Map.of("key1", "value1", "key2", 3)
-        )
-      ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
+  void computeStats2FeaturesMlt() throws IOException, GeometryException {
+    List<VectorTile.Feature> features = List.of(
+      new VectorTile.Feature(
+        "b",
+        1,
+        VectorTile.encodeGeometry(newPoint(0, 0)),
+        Map.of()
+      ),
+      new VectorTile.Feature(
+        "a",
+        1,
+        VectorTile.encodeGeometry(newPoint(0, 0)),
+        Map.of("key1", "value1", "key2", 2)
+      ),
+      new VectorTile.Feature(
+        "a",
+        2,
+        VectorTile.encodeGeometry(newPoint(1, 1)),
+        Map.of("key1", "value1", "key2", 3)
+      )
+    );
+    VectorTile vectorTile = tileOf(features);
+    MapboxVectorTile mltInput = mltInput(features);
     ColumnMappingConfig columnMappings = new ColumnMappingConfig();
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
     Map<String, FeatureTableOptimizations> optimizations = Map.of();
@@ -174,23 +178,23 @@ class TileSizeStatsTest {
   }
 
   @Test
-  void computeStats2FeaturesNested() throws IOException {
-    VectorTile vectorTile = new VectorTile()
-      .addLayerFeatures("a", List.of(
-        new VectorTile.Feature(
-          "a",
-          1,
-          VectorTile.encodeGeometry(newPoint(0, 0)),
-          Map.of("key:1", "value1", "key:2", "value2")
-        ),
-        new VectorTile.Feature(
-          "a",
-          2,
-          VectorTile.encodeGeometry(newPoint(1, 1)),
-          Map.of("key:1", "value2", "key:2", "value1")
-        )
-      ));
-    MapboxVectorTile mltInput = vectorTile.toMltInput();
+  void computeStats2FeaturesNested() throws IOException, GeometryException {
+    List<VectorTile.Feature> features = List.of(
+      new VectorTile.Feature(
+        "a",
+        1,
+        VectorTile.encodeGeometry(newPoint(0, 0)),
+        Map.of("key:1", "value1", "key:2", "value2")
+      ),
+      new VectorTile.Feature(
+        "a",
+        2,
+        VectorTile.encodeGeometry(newPoint(1, 1)),
+        Map.of("key:1", "value2", "key:2", "value1")
+      )
+    );
+    VectorTile vectorTile = tileOf(features);
+    MapboxVectorTile mltInput = mltInput(features);
     ColumnMappingConfig columnMappings =
       ColumnMappingConfig.of(Pattern.compile(".*"), List.of(new ColumnMapping("key", ":", true)));
     var tilesetMetadata = MltConverter.createTilesetMetadata(mltInput, columnMappings, true);
@@ -220,5 +224,23 @@ class TileSizeStatsTest {
         """
         .trim(),
       (TileSizeStats.headerRow() + String.join("", formatted)).trim());
+  }
+
+  private static VectorTile tileOf(List<VectorTile.Feature> features) {
+    var tile = new VectorTile();
+    features.stream().collect(Collectors.groupingBy(VectorTile.Feature::layer)).forEach(tile::addLayerFeatures);
+    return tile;
+  }
+
+  /** Returns {@code features} as the input of the Java MLT converter, by layer name like {@link VectorTile}. */
+  private static MapboxVectorTile mltInput(List<VectorTile.Feature> features) throws GeometryException {
+    Map<String, List<Feature>> layers = new TreeMap<>();
+    for (var feature : features) {
+      layers.computeIfAbsent(feature.layer(), layer -> new ArrayList<>())
+        .add(new Feature(feature.id(), feature.geometry().decodeToExtent(), feature.tags()));
+    }
+    return new MapboxVectorTile(layers.entrySet().stream()
+      .map(layer -> new Layer(layer.getKey(), layer.getValue(), VectorTile.EXTENT))
+      .toList());
   }
 }
