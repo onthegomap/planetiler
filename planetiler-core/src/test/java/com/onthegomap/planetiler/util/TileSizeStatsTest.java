@@ -232,7 +232,7 @@ class TileSizeStatsTest {
     return tile;
   }
 
-  /** Returns {@code features} as the input of the Java MLT converter, by layer name like {@link VectorTile}. */
+  /** Sorts layers by name, like {@link VectorTile}. */
   private static MapboxVectorTile mltInput(List<VectorTile.Feature> features) throws GeometryException {
     Map<String, List<Feature>> layers = new TreeMap<>();
     for (var feature : features) {

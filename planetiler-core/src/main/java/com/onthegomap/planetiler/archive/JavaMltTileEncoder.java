@@ -79,17 +79,12 @@ final class JavaMltTileEncoder implements TileEncoder {
     }
   }
 
-  /**
-   * Returns the input for the Java MLT encoder, leaving out (and logging) features that MLT cannot store and layers left
-   * without features.
-   */
   private MapboxVectorTile toMltInput(VectorTile tile) {
     var builder = new MltInputBuilder();
     tile.visitFeatures(builder);
     return builder.build();
   }
 
-  /** Collects the features of a tile into the input of the Java MLT encoder. */
   private final class MltInputBuilder implements VectorTile.FeatureVisitor {
 
     private final Map<String, List<Feature>> layers = new LinkedHashMap<>();
@@ -97,7 +92,7 @@ final class JavaMltTileEncoder implements TileEncoder {
     private List<String> keys;
     private List<Object> values;
 
-    /** Leaves out (and counts) features of unknown geometry type, which MLT cannot store. */
+    /** Leaves out unknown geometries, which MLT cannot store. */
     @Override
     public boolean accept(VectorTile.VectorGeometry geometry) {
       if (geometry.geomType() == GeometryType.UNKNOWN) {
@@ -128,7 +123,7 @@ final class JavaMltTileEncoder implements TileEncoder {
       }
     }
 
-    /** Returns the collected layers, leaving out layers whose features could not be decoded. */
+    /** Leaves out layers where none of the features decode. */
     MapboxVectorTile build() {
       return new MapboxVectorTile(layers.entrySet().stream()
         .filter(entry -> !entry.getValue().isEmpty())

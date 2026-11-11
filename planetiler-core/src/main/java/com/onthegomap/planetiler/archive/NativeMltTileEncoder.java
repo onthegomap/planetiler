@@ -25,7 +25,6 @@ final class NativeMltTileEncoder implements TileEncoder {
   private final MltEncoder encoder;
   private final Stats stats;
 
-  /** Creates a native encoder with the {@code mlt_*} settings in {@code config} that logs skipped features to stats. */
   NativeMltTileEncoder(PlanetilerConfig config, Stats stats) {
     this.stats = stats;
     // native defaults enable FSST, FastPFOR and shared dicts; v1 has no other options and always keeps polygon outlines
@@ -54,7 +53,7 @@ final class NativeMltTileEncoder implements TileEncoder {
     encoder.close();
   }
 
-  /** Adds the layers, features and attributes of a tile to a native encoder, counting the features of each layer. */
+  /** Writes a tile to the native encoder, counting the features of each layer. */
   private final class FeatureWriter implements VectorTile.FeatureVisitor {
 
     private final boolean includeIds;
@@ -67,7 +66,7 @@ final class NativeMltTileEncoder implements TileEncoder {
       this.includeIds = includeIds;
     }
 
-    /** Leaves out (and counts) features of unknown geometry type, which MLT cannot store. */
+    /** Leaves out unknown geometries, which MLT cannot store. */
     @Override
     public boolean accept(VectorTile.VectorGeometry geometry) {
       if (geometry.geomType() == GeometryType.UNKNOWN) {
@@ -106,7 +105,6 @@ final class NativeMltTileEncoder implements TileEncoder {
       }
     }
 
-    /** Returns the stats of each layer written to {@code bytes}, the MLT encoding of {@code tile}, in name order. */
     List<TileSizeStats.LayerStats> layerStats(VectorTile tile, byte[] bytes) {
       Map<String, MltLayerStats> sizes = MltLayerStats.of(bytes).stream()
         .collect(Collectors.toMap(MltLayerStats::name, Function.identity()));

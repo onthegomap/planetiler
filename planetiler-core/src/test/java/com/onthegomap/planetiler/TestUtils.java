@@ -303,7 +303,6 @@ public class TestUtils {
     return tiles;
   }
 
-  /** Returns the features of an MVT tile. */
   public static List<ComparableFeature> decodeMvt(byte[] bytes) {
     return VectorTile.decode(bytes).stream()
       .map(feature -> feature(decodeSilently(feature.geometry()), feature.layer(), feature.tags(), feature.id()))
@@ -315,12 +314,12 @@ public class TestUtils {
     return NATIVE_MLT_AVAILABLE ? decodeMltWithNativeDecoder(bytes) : decodeMltWithJavaDecoder(bytes);
   }
 
-  /** Returns the features of an MLT tile from either encoder, decoded by the native decoder. */
+  /** Reads tiles from either encoder. */
   public static List<ComparableFeature> decodeMltWithNativeDecoder(byte[] bytes) {
     return decodeMvt(MltConverter.mltToMvt(bytes));
   }
 
-  /** Returns the features of an MLT tile from the Java encoder, decoded by the Java decoder. */
+  /** Only reads tiles from the Java encoder. */
   private static List<ComparableFeature> decodeMltWithJavaDecoder(byte[] bytes) {
     try {
       return MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
@@ -339,7 +338,6 @@ public class TestUtils {
     return result;
   }
 
-  /** Skips the calling test on platforms without the native MLT library. */
   public static void assumeNativeMlt() {
     Assumptions.assumeTrue(NATIVE_MLT_AVAILABLE, "native MLT library is not available on this platform");
   }

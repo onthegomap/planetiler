@@ -90,7 +90,7 @@ public class VectorTile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
-  // TODO make these configurable, tile encoders read EXTENT
+  // TODO make these configurable
   public static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
@@ -536,11 +536,7 @@ public class VectorTile {
     return this;
   }
 
-  /**
-   * Passes each layer and its features to {@code visitor}, with values of the types {@link #toSupportedValue} returns.
-   * Leaves out the features {@code visitor} does not {@linkplain FeatureVisitor#accept accept}, and layers left without
-   * features.
-   */
+  /** Passes the features {@code visitor} accepts, and the layers that have any, to {@code visitor}. */
   public void visitFeatures(FeatureVisitor visitor) {
     for (var entry : layers.entrySet()) {
       var layer = entry.getValue();
@@ -560,10 +556,7 @@ public class VectorTile {
     }
   }
 
-  /**
-   * Returns {@code value} as one of the types vector tile formats store: strings, integers, longs, floats, doubles and
-   * booleans, with any other value as its text.
-   */
+  /** Returns {@code value} if vector tiles can store its type, otherwise its text. */
   private static Object toSupportedValue(Object value) {
     return switch (value) {
       case String _, Integer _, Long _, Float _, Double _, Boolean _ -> value;
@@ -574,24 +567,13 @@ public class VectorTile {
   /** Receives the layers and features of a tile from {@link #visitFeatures(FeatureVisitor)}, to encode them. */
   public interface FeatureVisitor {
 
-    /**
-     * Returns whether to visit the feature with {@code geometry}, called once for each feature before any of its
-     * layer is visited. Encoders return false (and log it) for features their format cannot store.
-     */
-    default boolean accept(VectorGeometry geometry) {
-      return true;
-    }
+    /** Returns false to leave out a feature, such as one the format cannot store. */
+    boolean accept(VectorGeometry geometry);
 
-    /**
-     * Called for each layer with an accepted feature, before its features, with the keys and values that the tags of
-     * its features point into.
-     */
+    /** Called before the features of each layer, with the keys and values their tags index into. */
     void visitLayer(String name, List<String> keys, List<Object> values);
 
-    /**
-     * Called for each accepted feature of the layer last visited, with {@code tags} holding the index of a key and
-     * the index of its value for each attribute.
-     */
+    /** Called for each accepted feature, with {@code tags} as alternating key and value indexes. */
     void visitFeature(long id, VectorGeometry geometry, int[] tags);
   }
 
@@ -622,6 +604,12 @@ public class VectorTile {
 
     ProtoBuilder(boolean includeIds) {
       this.includeIds = includeIds;
+    }
+
+    /** Keeps every feature, since MVT can store unknown geometries. */
+    @Override
+    public boolean accept(VectorGeometry geometry) {
+      return true;
     }
 
     @Override
@@ -919,7 +907,7 @@ public class VectorTile {
       return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
     }
 
-    /** Converts an encoded geometry back to a JTS geometry in tile coordinates, from 0 to {@link #EXTENT}. */
+    /** Converts an encoded geometry back to a JTS geometry in tile coordinates (0 to {@link #EXTENT}). */
     public Geometry decodeToExtent() throws GeometryException {
       return decodeCommands(geomType, commands, 1 << scale);
     }

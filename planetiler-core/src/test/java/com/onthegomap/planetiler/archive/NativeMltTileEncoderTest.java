@@ -79,7 +79,7 @@ class NativeMltTileEncoderTest {
     return decodeMltWithNativeDecoder(encode("", tile, true).bytes());
   }
 
-  /** Returns a square with a square hole, wound like MVT expects: the hole in the opposite direction of the shell. */
+  /** Wound like MVT expects, with the hole opposite the shell. */
   private static Geometry squareWithSquareHole() {
     return newPolygon(rectangleCoordList(0, 100), List.of(rectangleCoordList(20, 40))).norm().reverse();
   }

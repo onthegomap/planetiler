@@ -42,10 +42,9 @@ public enum MltEncoderType {
   }
 
   /**
-   * Loads the native library if this type may use it, and returns whether to write MLT tiles with the native encoder.
-   * Falls back to Java for {@link #AUTO} where the library does not load, and logs which encoder it uses.
+   * Returns whether to use the native encoder, loading its library unless this is {@link #JAVA}.
    *
-   * @throws IllegalStateException if this is {@link #NATIVE} but the native library does not load on this platform
+   * @throws IllegalStateException if this is {@link #NATIVE} and the library does not load
    */
   public boolean loadNative() {
     return loadNative(NativeLibrary::load);
