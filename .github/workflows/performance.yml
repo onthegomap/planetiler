@@ -59,6 +59,9 @@ jobs:
       run: ./scripts/build.sh
       working-directory: base
 
+    - name: 'Download data'
+      run: java -jar branch/planetiler-dist/target/*with-deps.jar --only-download --download=streaming --area="${{ env.AREA }}"
+
     - name: 'Store build info'
       run: |
         mkdir build-info
