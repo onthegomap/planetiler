@@ -46,16 +46,6 @@ planetiler --download --area=monaco --output=monaco.pmtiles
 
 View it by dragging `monaco.pmtiles` onto [pmtiles.io](https://pmtiles.io/).
 
-:warning: The first run downloads about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles profile,
-including ~750MB for ocean polygons and ~240MB for [Natural Earth Data](https://www.naturalearthdata.com/). To try it
-out with much smaller downloads, add these arguments (they only work for Monaco):
-
-```bash
-planetiler --download --area=monaco --output=monaco.pmtiles \
-  --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
-  --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip
-```
-
 ## Install
 
 |                    Method                     | Needs Java? |                   Good for                    |                 Command to run                 |

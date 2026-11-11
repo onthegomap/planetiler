@@ -16,7 +16,7 @@ echo "Test java build"
 echo "::group::OpenMapTiles monaco (java)"
 rm -f data/out*.mbtiles
 # vary threads to stress-test determinism check
-java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles  --threads=32 --water-polygons-url=https://ftp.fau.de/mirrors/openstreetmapdata.com-archive/2026-10-31/water-polygons-split-3857.zip
+java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles  --threads=32
 ./scripts/check-monaco.sh data/jar-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (java)"
