@@ -21,7 +21,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
-import org.openmaptiles.OpenMapTilesProfile;
 import org.openmaptiles.util.VerifyMonaco;
 
 /**
@@ -39,19 +38,7 @@ public class Main {
     }
   }
 
-  private static final EntryPoint OPENMAPTILES = args -> {
-    // override default sources to fix download issues with maptiler URLs
-    String[] withDefaultArgs = Stream.concat(
-      Stream.of(
-        "--" + OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE + "-url",
-        "https://github.com/acalcutt/osm-lakelines/releases/download/v12/lake_centerline.shp.zip",
-        "--" + OpenMapTilesProfile.NATURAL_EARTH_SOURCE + "-url",
-        "https://naciscdn.org/naturalearth/packages/natural_earth_vector.sqlite.zip"
-      ),
-      Stream.of(args)
-    ).toArray(String[]::new);
-    OpenMapTilesMain.main(withDefaultArgs);
-  };
+  private static final EntryPoint OPENMAPTILES = OpenMapTilesMain::main;
   private static final EntryPoint DEFAULT_TASK = OPENMAPTILES;
   private static final Map<String, EntryPoint> ENTRY_POINTS = Map.ofEntries(
     entry("generate-openmaptiles", OPENMAPTILES),

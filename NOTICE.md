@@ -32,6 +32,7 @@ The `planetiler-core` module includes the following software:
   - org.tukaani:xz (BSD 0-Clause License)
   - blue.strategic.parquet:parquet-floor (Apache license)
   - org.maplibre:mlt (Apache license)
+  - io.soabase.record-builder:record-builder (Apache license, build time only)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -74,7 +75,7 @@ The single-file launcher binaries (`launcher/`, distributed on the releases page
 |----------------------------|------------------------------------------------------------------------------------------------------------------------|-----------------|------------------|
 | OpenStreetMap (OSM) data   | [ODBL](https://www.openstreetmap.org/copyright)                                                                        | yes             | yes              |
 | Natural Earth              | [public domain](https://www.naturalearthdata.com/about/terms-of-use/)                                                  | yes             | yes              |
-| OSM Lakelines              | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes             | no               |
+| OSM Lakelines              | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes             | yes              |
 | OSM Water Polygons         | acknowledgement, data from OSM [ODBL](https://www.openstreetmap.org/copyright)                                         | yes             | yes              |
 | Wikidata name translations | [CCO](https://www.wikidata.org/wiki/Wikidata:Licensing)                                                                | no              | no               |
 | Overture Maps              | [Various](https://docs.overturemaps.org/attribution)                                                                   | no              | yes              |

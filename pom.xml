@@ -21,6 +21,7 @@
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.22.4</jackson.version>
     <junit.version>6.1.3</junit.version>
+    <record-builder.version>44</record-builder.version>
     <!-- 1.21 has some critical bug fixes but hasn't been release yet -->
     <jts.version>1.21.0-20261003.185626-121</jts.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -144,6 +145,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.soabase.record-builder</groupId>
+      <artifactId>record-builder-core</artifactId>
+      <version>${record-builder.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
@@ -183,7 +190,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.10.4</version>
         <configuration>
           <java>
             <includes>
@@ -282,9 +289,13 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.15.0</version>
         <configuration>
-          <compilerArgs>
-            <arg>-proc:full</arg>
-          </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>io.soabase.record-builder</groupId>
+              <artifactId>record-builder-processor</artifactId>
+              <version>${record-builder.version}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>

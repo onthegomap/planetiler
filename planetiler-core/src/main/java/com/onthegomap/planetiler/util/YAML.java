@@ -26,7 +26,8 @@ public class YAML {
 
   private YAML() {}
 
-  private static final Load snakeYaml = new Load(LoadSettings.builder().setCodePointLimit(Integer.MAX_VALUE).setMaxAliasesForCollections(Integer.MAX_VALUE).build());
+  private static final LoadSettings snakeYamlSettings = LoadSettings.builder().setCodePointLimit(Integer.MAX_VALUE)
+    .setMaxAliasesForCollections(Integer.MAX_VALUE).build();
   public static final ObjectMapper jackson = new ObjectMapper();
 
   public static <T> T load(Path file, Class<T> clazz) {
@@ -39,7 +40,8 @@ public class YAML {
 
   public static <T> T load(InputStream stream, Class<T> clazz) {
     try (stream) {
-      Object parsed = snakeYaml.loadFromInputStream(stream);
+      // snakeyaml's Load is not thread-safe, so each call gets its own.
+      Object parsed = new Load(snakeYamlSettings).loadFromInputStream(stream);
       handleMergeOperator(parsed);
       return convertValue(parsed, clazz);
     } catch (IOException e) {

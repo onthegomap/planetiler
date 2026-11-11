@@ -46,16 +46,6 @@ planetiler --download --area=monaco --output=monaco.pmtiles
 
 View it by dragging `monaco.pmtiles` onto [pmtiles.io](https://pmtiles.io/).
 
-:warning: The first run downloads about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles profile,
-including ~750MB for ocean polygons and ~240MB for [Natural Earth Data](https://www.naturalearthdata.com/). To try it
-out with much smaller downloads, add these arguments (they only work for Monaco):
-
-```bash
-planetiler --download --area=monaco --output=monaco.pmtiles \
-  --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
-  --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip
-```
-
 ## Install
 
 |                    Method                     | Needs Java? |                   Good for                    |                 Command to run                 |
@@ -516,6 +506,7 @@ Planetiler is made possible by these awesome open source projects:
   minimized by [parquet-floor](https://github.com/strategicblue/parquet-floor))
 - [MapLibre Tile Java](https://github.com/maplibre/maplibre-tile-spec/tree/main/java) for writing tiles using the
   new [MapLibre Tile format](https://maplibre.org/maplibre-tile-spec/specification/).
+- [RecordBuilder](https://github.com/Randgalt/record-builder) for generating builders and withers for Java records
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

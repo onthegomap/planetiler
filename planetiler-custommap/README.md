@@ -170,8 +170,8 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `http_user_agent` - User-Agent header to set when downloading files over HTTP
 - `http_retries` - Retries to use when downloading files over HTTP
 - `download_chunk_size_mb` - Largest HTTP request to make when downloading in megabytes
-- `download_threads` - Number of parallel requests to use when downloading each file in full
-- `download_max_requests` - Maximum number of HTTP requests in flight at once across all downloads
+- `download_threads` - Number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)
+- `download_max_requests` - Maximum number of HTTP requests in flight at once across all downloads (at least download_threads)
 - `min_feature_size_at_max_zoom` - Default value for the minimum size in tile pixels of features to emit at the maximum
   zoom level to allow for overzooming
 - `min_feature_size` - Default value for the minimum size in tile pixels of features to emit below the maximum zoom

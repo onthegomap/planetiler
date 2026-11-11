@@ -32,6 +32,7 @@ import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.geometry.jts.WKBReader;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,7 +135,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
-    var destCrs = CRS.decode("EPSG:4326", true);
+    CoordinateReferenceSystem destCrs = DefaultGeographicCRS.WGS84;
     long id = 0;
     boolean loggedMissingGeometry = false;
 

@@ -151,9 +151,8 @@ class DownloaderTest {
 
   private static void fetch(Downloader downloader, Downloader.RemoteVersion version, long offset, byte[] result)
     throws Exception {
-    byte[] bytes = downloader.fetchBytes("http://url", version, new Downloader.ByteRange(offset, result.length), _ -> {
-    }).get();
-    System.arraycopy(bytes, 0, result, 0, bytes.length);
+    downloader.fetch("http://url", version, new Downloader.ByteRange(offset, result.length),
+      (position, buffer, from, length) -> System.arraycopy(buffer, from, result, (int) (position - offset), length));
   }
 
   @Test
@@ -171,8 +170,8 @@ class DownloaderTest {
     var downloader = new StubDownloader(config).put("http://url", RANGE_BYTES, "W/\"weak\"", "date1");
     var version = downloader.fetchTail("http://url", 1).version();
     fetch(downloader, version, 0, new byte[1]);
-    assertThrows(ExecutionException.class,
-      () -> fetch(downloader, new Downloader.RemoteVersion(10, "\"strong\"", "date1"), 0, new byte[1]));
+    var changed = new Downloader.RemoteVersion(10, "\"strong\"", "date1");
+    assertThrows(Downloader.RemoteFileChangedException.class, () -> fetch(downloader, changed, 0, new byte[1]));
 
     var requests = downloader.requests();
     // If-Match only works with strong ETags, so a weak one falls back to Last-Modified
@@ -186,10 +185,9 @@ class DownloaderTest {
     var version = downloader.fetchTail("http://url", 1).version();
     downloader.put("http://url", RANGE_BYTES, "\"v2\"", null);
 
-    var exception = assertThrows(ExecutionException.class, () -> fetch(downloader, version, 0, new byte[1]));
-    assertInstanceOf(Downloader.RemoteFileChangedException.class, exception.getCause());
-    assertTrue(exception.getCause().getMessage().contains("--download-fail-if-changed=false"),
-      exception.getCause().getMessage());
+    var exception =
+      assertThrows(Downloader.RemoteFileChangedException.class, () -> fetch(downloader, version, 0, new byte[1]));
+    assertTrue(exception.getMessage().contains("--download-fail-if-changed=false"), exception.getMessage());
   }
 
   @Test
@@ -251,24 +249,20 @@ class DownloaderTest {
   }
 
   @Test
-  void testSplitsLargeFetches() {
-    var threeThreads = PlanetilerConfig.from(Arguments.of("download_threads", "3"));
-    // requests can't be larger than the largest request size
-    assertEquals(
-      List.of(new Downloader.ByteRange(0, 4), new Downloader.ByteRange(4, 4), new Downloader.ByteRange(8, 2)),
-      new StubDownloader(threeThreads, 4).planRequests(List.of(new Downloader.ByteRange(0, 10))));
+  void testFetchContinuesRightAwayWhileMakingProgress() throws Exception {
+    // a streaming read can wait mid-body long enough for the server to close the connection as idle, which is no
+    // reason to wait or give up
+    var downloader = new StubDownloader(PlanetilerConfig.from(Arguments.of(Map.of("http_retries", "1"))))
+      .put("http://url", RANGE_BYTES);
+    var version = downloader.fetchTail("http://url", 1).version();
+    downloader.clearRequests();
+    downloader.truncateNext(3, 2);
 
-    // otherwise reads get split into download_threads requests, but none smaller than the minimum
-    var downloader = new StubDownloader(threeThreads, Long.MAX_VALUE);
-    long min = Downloader.MIN_REQUEST_BYTES;
-    assertEquals(List.of(new Downloader.ByteRange(5, 10)),
-      downloader.planRequests(List.of(new Downloader.ByteRange(5, 10))));
-    assertEquals(2, downloader.planRequests(List.of(new Downloader.ByteRange(0, 2 * min))).size());
-    assertEquals(3, downloader.planRequests(List.of(new Downloader.ByteRange(0, 10 * min))).size());
-
-    // several ranges share download_threads
-    assertEquals(3, downloader.planRequests(List.of(new Downloader.ByteRange(0, 10 * min),
-      new Downloader.ByteRange(20 * min, 10 * min), new Downloader.ByteRange(40 * min, 10 * min))).size());
+    byte[] result = new byte[8];
+    fetch(downloader, version, 1, result);
+    assertEquals("12345678", new String(result, StandardCharsets.UTF_8));
+    assertEquals(List.of("bytes=1-8", "bytes=3-8", "bytes=5-8", "bytes=7-8"), ranges(downloader));
+    assertEquals(List.of(), downloader.retryWaits());
   }
 
   @Test
@@ -473,18 +467,5 @@ class DownloaderTest {
 
     assertEquals(0, Files.size(dest));
     assertFalse(CachedRangeFile.isPartial(dest));
-  }
-
-  @Test
-  void testFetchSkipsRemainingRequestsAfterOneFails() {
-    var oneThreadNoRetries =
-      PlanetilerConfig.from(Arguments.of(Map.of("download_threads", "1", "http_retries", "0")));
-    var downloader = new StubDownloader(oneThreadNoRetries, 4).put("http://url", RANGE_BYTES).failNext(1, 503);
-    var version = new Downloader.RemoteVersion(RANGE_BYTES.length, null, null);
-    var result = new byte[10];
-
-    assertThrows(ExecutionException.class, () -> fetch(downloader, version, 0, result));
-    // 3 requests planned, the 2 after the failed one never get sent
-    assertEquals(1, downloader.requests().size());
   }
 }
