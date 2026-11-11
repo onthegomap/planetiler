@@ -24,8 +24,8 @@ permissions:
 
 jobs:
   publish:
+    name: publish ${{ matrix.source }}
     if: github.repository == 'onthegomap/planetiler'
-    # R2 credentials are secrets of this environment, which only runs from main.
     environment: publish-sources
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -33,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - source: water
+        - source: water_polygons
           url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
           key: water_polygons.parquet
           # 14,509 in 2026
           min_features: 14000
-        - source: lakes
+        - source: lake_centerlines
           url: https://github.com/acalcutt/osm-lakelines/releases/download/latest/lake_centerline.shp.zip
           key: lake_centerline.parquet
           # 59,592 in 2026

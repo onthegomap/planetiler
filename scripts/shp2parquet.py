@@ -7,7 +7,7 @@ Converts the OSM water polygons (https://osmdata.openstreetmap.de/data/water-pol
 (https://github.com/acalcutt/osm-lakelines) shapefile zip to a GeoParquet file that planetiler can read with range
 requests, fetching only the parts that overlap the area being generated.
 
-usage: uv run scripts/shp2parquet.py water|lakes <input.zip> <output.parquet> [--min-features N]
+usage: uv run scripts/shp2parquet.py water_polygons|lake_centerlines <input.zip> <output.parquet> [--min-features N]
 
 Exits with a non-zero status if the output fails sanity checks, so a broken input never gets published.
 """
@@ -29,9 +29,9 @@ class Source:
 
 
 SOURCES = {
-  "water": Source(shapefile="water-polygons-split-3857/water_polygons.shp", columns=[]),
+  "water_polygons": Source(shapefile="water-polygons-split-3857/water_polygons.shp", columns=[]),
   # OpenMapTiles matches lake centerlines to lakes by OSM_ID
-  "lakes": Source(shapefile="lake_centerline.shp", columns=["OSM_ID"]),
+  "lake_centerlines": Source(shapefile="lake_centerline.shp", columns=["OSM_ID"]),
 }
 # Small row groups let planetiler fetch only what's near the area it generates. They are split by geometry size, not
 # row count, since some polygons are 1000x larger than others.
