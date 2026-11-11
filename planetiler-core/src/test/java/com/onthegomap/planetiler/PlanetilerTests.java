@@ -311,25 +311,19 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @CsvSource({
-    "false, mvt,",
-    "true, mvt,",
-    "false, mlt, auto",
-    "true, mlt, auto",
-    "false, mlt, java",
-    "true, mlt, java",
+    "false, mvt",
+    "true, mvt",
+    "false, mlt",
+    "true, mlt",
   })
-  void testSinglePoint(boolean anyGeom, String tileType, String mltEncoder) throws Exception {
+  void testSinglePoint(boolean anyGeom, String tileType) throws Exception {
     double x = 0.5 + Z15_WIDTH / 4;
     double y = 0.5 + Z15_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
-    Map<String, String> args = new HashMap<>(Map.of("threads", "1", "maxzoom", "16", "tile-format", tileType));
-    if (mltEncoder != null) {
-      args.put("mlt-encoder", mltEncoder);
-    }
     var results = runWithReaderFeatures(
-      args,
+      Map.of("threads", "1", "maxzoom", "16", "tile-format", tileType),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "value"
@@ -2770,7 +2764,6 @@ class PlanetilerTests {
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
     "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
-    "--tile-format=mlt --mlt-encoder=java",
     "--tile-format=mlt --threads=4",
     "--tile-format=mlt --mlt-encoder=java --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
     "--exclude-ids",

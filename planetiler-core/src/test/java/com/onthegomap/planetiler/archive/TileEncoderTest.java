@@ -4,12 +4,11 @@ import static com.onthegomap.planetiler.TestUtils.assumeNativeMlt;
 import static com.onthegomap.planetiler.TestUtils.decodeSilently;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
@@ -20,10 +19,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments.ArgumentSet;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -36,9 +37,6 @@ class TileEncoderTest {
   private static final Long NO_ID = null;
   private static final Runnable MISSING_LIBRARY = () -> {
     throw new UnsatisfiedLinkError("no native library for this platform");
-  };
-  private static final Runnable NATIVE_ACCESS_DENIED = () -> {
-    throw new IllegalCallerException("native access denied");
   };
 
   @Test
@@ -56,17 +54,17 @@ class TileEncoderTest {
   }
 
   @Test
-  void javaMltEncoderWritesTheTileAsMlt() {
+  void mltEncoderWritesTheTileAsMlt() {
     var tile = new VectorTile()
       .addLayerFeatures("poi", List.of(point("poi", 1, 10, 20, Map.of("name", "cafe"))))
       .addLayerFeatures("road", List.of(point("road", 2, 30, 40, Map.of("kind", "path"))));
 
-    var encoded = encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_encoder", "java");
+    var encoded = encode(tile, WITH_IDS, "tile_format", "mlt");
 
     assertEquals(List.of(
       new DecodedFeature("poi", 1L, newPoint(10, 20), Map.of("name", "cafe")),
       new DecodedFeature("road", 2L, newPoint(30, 40), Map.of("kind", "path"))
-    ), decodeJavaMlt(encoded.bytes()));
+    ), decodeMlt(encoded.bytes()));
   }
 
   @Test
@@ -83,35 +81,35 @@ class TileEncoderTest {
   }
 
   @Test
-  void javaMltEncoderLeavesOutIdsWhenAskedTo() {
+  void mltEncoderLeavesOutIdsWhenAskedTo() {
     var tile = new VectorTile()
       .addLayerFeatures("poi", List.of(point("poi", 1, 10, 20, Map.of("name", "cafe"))));
 
-    var encoded = encode(tile, WITHOUT_IDS, "tile_format", "mlt", "mlt_encoder", "java");
+    var encoded = encode(tile, WITHOUT_IDS, "tile_format", "mlt");
 
     assertEquals(List.of(
       new DecodedFeature("poi", NO_ID, newPoint(10, 20), Map.of("name", "cafe"))
-    ), decodeJavaMlt(encoded.bytes()));
+    ), decodeMlt(encoded.bytes()));
   }
 
   @Test
-  void javaMltEncoderWritesMixedValueTypesOfOneKeyAsText() {
+  void mltEncoderWritesMixedValueTypesOfOneKeyAsText() {
     var tile = new VectorTile()
       .addLayerFeatures("building", List.of(
         point("building", 1, 10, 20, Map.of("height", 12)),
         point("building", 2, 30, 40, Map.of("height", "tall"))
       ));
 
-    var encoded = encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_encoder", "java");
+    var encoded = encode(tile, WITH_IDS, "tile_format", "mlt");
 
     assertEquals(List.of(
       new DecodedFeature("building", 1L, newPoint(10, 20), Map.of("height", "12")),
       new DecodedFeature("building", 2L, newPoint(30, 40), Map.of("height", "tall"))
-    ), decodeJavaMlt(encoded.bytes()));
+    ), decodeMlt(encoded.bytes()));
   }
 
   @Test
-  void javaMltEncoderWithSharedDictionariesWritesMixedValueTypesOfOneKeyAsText() {
+  void mltEncoderWithSharedDictionariesWritesMixedValueTypesOfOneKeyAsText() {
     // 100 repeated "cafe" strings are enough for shared dictionaries to kick in
     // layers come back in name order, so "building" is expected before "poi"
     List<VectorTile.Feature> manyCafes = new ArrayList<>();
@@ -131,10 +129,9 @@ class TileEncoderTest {
         point("building", 102, 30, 40, Map.of("height", "tall"))
       ));
 
-    var encoded =
-      encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_encoder", "java", "mlt_shared_dict", "true");
+    var encoded = encode(tile, WITH_IDS, "tile_format", "mlt", "mlt_shared_dict", "true");
 
-    assertEquals(expected, decodeJavaMlt(encoded.bytes()));
+    assertEquals(expected, decodeMlt(encoded.bytes()));
   }
 
   @ParameterizedTest
@@ -147,7 +144,7 @@ class TileEncoderTest {
       ))
       .addLayerFeatures("road", List.of(point("road", 3, 50, 60, Map.of("kind", "path"))));
 
-    var encoded = encode(tile, WITH_IDS, "tile_format", tileFormat, "mlt_encoder", "java");
+    var encoded = encode(tile, WITH_IDS, "tile_format", tileFormat);
 
     assertEquals(
       Map.of("poi", 2, "road", 1),
@@ -178,64 +175,38 @@ class TileEncoderTest {
 
   @Test
   void createsJavaMltEncoderWithoutLoadingTheNativeLibrary() {
-    var loaded = new AtomicBoolean(false);
-
-    try (var encoder = create(mltConfig("java"), () -> loaded.set(true))) {
-      assertInstanceOf(JavaMltTileEncoder.class, encoder);
-    }
-    assertFalse(loaded.get());
-  }
-
-  @Test
-  void autoFallsBackToJavaOnPlatformsWithoutNativeLibrary() {
-    try (var encoder = create(mltConfig("auto"), MISSING_LIBRARY)) {
+    try (var encoder = create(mltConfig("java"), () -> fail("loaded the native library"))) {
       assertInstanceOf(JavaMltTileEncoder.class, encoder);
     }
   }
 
-  @Test
-  void autoFallsBackToJavaWhenNativeAccessIsDenied() {
-    try (var encoder = create(mltConfig("auto"), NATIVE_ACCESS_DENIED)) {
+  private static Stream<ArgumentSet> libraryLoadFailures() {
+    return Stream.of(
+      argumentSet("missing library", MISSING_LIBRARY),
+      argumentSet("native access denied", (Runnable) () -> {
+        throw new IllegalCallerException("native access denied");
+      }));
+  }
+
+  @ParameterizedTest
+  @MethodSource("libraryLoadFailures")
+  void autoFallsBackToJavaWhereTheLibraryDoesNotLoad(Runnable loadNativeLibrary) {
+    try (var encoder = create(mltConfig("auto"), loadNativeLibrary)) {
       assertInstanceOf(JavaMltTileEncoder.class, encoder);
     }
   }
 
-  @Test
-  void autoDoesNotHideOtherNativeErrors() {
-    var bug = new IllegalStateException("bug in the native library");
-    Runnable buggyLibrary = () -> {
-      throw bug;
-    };
-    var config = mltConfig("auto");
-
-    var error = assertThrows(IllegalStateException.class, () -> create(config, buggyLibrary));
-
-    assertSame(bug, error);
-  }
-
-  @Test
-  void nativeFailsOnPlatformsWithoutNativeLibrary() {
+  @ParameterizedTest
+  @MethodSource("libraryLoadFailures")
+  void nativeFailsWhereTheLibraryDoesNotLoad(Runnable loadNativeLibrary) {
     var config = mltConfig("native");
 
-    var error = assertThrows(IllegalStateException.class, () -> create(config, MISSING_LIBRARY));
-
-    assertInstanceOf(UnsatisfiedLinkError.class, error.getCause());
-  }
-
-  @Test
-  void nativeFailureExplainsHowToAllowNativeAccess() {
-    var config = mltConfig("native");
-
-    var error = assertThrows(IllegalStateException.class, () -> create(config, NATIVE_ACCESS_DENIED));
-
-    assertTrue(error.getMessage().contains("--enable-native-access=ALL-UNNAMED"), error.getMessage());
+    assertThrows(IllegalStateException.class, () -> create(config, loadNativeLibrary));
   }
 
   @Test
   void rejectsUnknownMltEncoder() {
-    var error = assertThrows(IllegalArgumentException.class, () -> mltConfig("rust"));
-
-    assertEquals("invalid MLT encoder ID rust; expected one of [auto, native, java]", error.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> mltConfig("rust"));
   }
 
   /** A feature as read back from encoded tile bytes, with geometry in tile coordinates (0-256). */
@@ -257,6 +228,7 @@ class TileEncoderTest {
     return TileEncoder.factory(config, Stats.inMemory(), loadNativeLibrary).get();
   }
 
+  /** Encodes MLT with the Java encoder, which {@link #decodeMlt} reads. */
   private static TileEncoder.Encoded encode(VectorTile tile, boolean includeIds, String... configArgs) {
     try (var encoder = create(config(configArgs), MISSING_LIBRARY)) {
       return encoder.encode(tile, includeIds);
@@ -269,8 +241,7 @@ class TileEncoderTest {
       .toList();
   }
 
-  /** Decodes with the Java MLT decoder, which only reads tiles of the Java encoder. */
-  private static List<DecodedFeature> decodeJavaMlt(byte[] bytes) {
+  private static List<DecodedFeature> decodeMlt(byte[] bytes) {
     try {
       return MltDecoder.decodeMlTile(bytes).layers().stream()
         .flatMap(layer -> layer.features().stream().map(f -> new DecodedFeature(

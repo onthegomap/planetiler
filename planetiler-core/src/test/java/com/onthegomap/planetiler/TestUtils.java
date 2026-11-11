@@ -87,7 +87,7 @@ import org.maplibre.mlt.ffi.NativeLibrary;
 
 public class TestUtils {
 
-  public static final boolean NATIVE_MLT_AVAILABLE = loadsNativeMlt();
+  private static final boolean NATIVE_MLT_AVAILABLE = loadsNativeMlt();
 
   public static final AffineTransformation TRANSFORM_TO_TILE = AffineTransformation
     .scaleInstance(256d / 4096d, 256d / 4096d);
@@ -321,7 +321,7 @@ public class TestUtils {
   }
 
   /** Returns the features of an MLT tile from the Java encoder, decoded by the Java decoder. */
-  public static List<ComparableFeature> decodeMltWithJavaDecoder(byte[] bytes) {
+  private static List<ComparableFeature> decodeMltWithJavaDecoder(byte[] bytes) {
     try {
       return MltDecoder.decodeMlTile(bytes).layers().stream().flatMap(layer -> layer.features().stream()
         .map(feature -> feature(scale(feature.geometry(), 256.0 / layer.tileExtent()), layer.name(),
