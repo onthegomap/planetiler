@@ -791,8 +791,8 @@ public class Planetiler {
     var mode = DownloadMode.parse(arguments.getString("download_" + name,
       "how to download " + name + ": false, cached (same as true), streaming or full",
       downloadMode.name().toLowerCase(Locale.ROOT)));
-    // only_download is for running offline later, which needs whole files
-    return onlyDownloadSources ? DownloadMode.FULL : mode;
+    // only_download is for running offline later, which needs whole files (unless explicitly marked as streaming)
+    return onlyDownloadSources && mode != DownloadMode.STREAMING ? DownloadMode.FULL : mode;
   }
 
   /**
