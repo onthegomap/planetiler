@@ -25,6 +25,8 @@ permissions:
 jobs:
   publish:
     if: github.repository == 'onthegomap/planetiler'
+    # R2 credentials are secrets of this environment, which only runs from main.
+    environment: publish-sources
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
