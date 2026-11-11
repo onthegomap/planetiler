@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -531,6 +530,36 @@ public class VectorTile {
     return this;
   }
 
+  /** Passes each layer with features and its features to {@code visitor}, to encode them. */
+  public void visitFeatures(FeatureVisitor visitor) {
+    for (var entry : layers.entrySet()) {
+      var layer = entry.getValue();
+      if (layer.encodedFeatures.isEmpty()) {
+        continue;
+      }
+      visitor.visitLayer(entry.getKey(), layer.keys(), layer.values());
+      for (var feature : layer.encodedFeatures) {
+        visitor.visitFeature(feature.id, feature.geometry, feature.tags.toArray());
+      }
+    }
+  }
+
+  /** Receives the layers and features of a tile from {@link #visitFeatures(FeatureVisitor)}, to encode them. */
+  public interface FeatureVisitor {
+
+    /**
+     * Called for each layer with features, before its features, with the keys and values that the tags of its
+     * features point into.
+     */
+    void visitLayer(String name, List<String> keys, List<Object> values);
+
+    /**
+     * Called for each feature of the layer last visited, with {@code tags} holding the index of a key and the index of
+     * its value for each attribute.
+     */
+    void visitFeature(long id, VectorGeometry geometry, int[] tags);
+  }
+
   /**
    * Alias for {@link #toProto(boolean)} where {@code includeIds=true}
    */
@@ -544,51 +573,73 @@ public class VectorTile {
    * @param includeIds True to set IDs on each feature, false to exclude
    */
   public VectorTileProto.Tile toProto(boolean includeIds) {
-    VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
-    for (Map.Entry<String, Layer> e : layers.entrySet()) {
-      if (e.getValue().encodedFeatures.isEmpty()) {
-        continue;
-      }
+    var builder = new ProtoBuilder(includeIds);
+    visitFeatures(builder);
+    return builder.build();
+  }
 
-      String layerName = e.getKey();
-      Layer layer = e.getValue();
+  /** Collects the layers and features passed to it into a vector tile protobuf. */
+  private static final class ProtoBuilder implements FeatureVisitor {
 
-      VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
-        .setVersion(2)
-        .setName(layerName)
-        .setExtent(EXTENT)
-        .addAllKeys(layer.keys());
+    private final boolean includeIds;
+    private final VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
+    private VectorTileProto.Tile.Layer.Builder layer;
 
-      for (Object value : layer.values()) {
-        VectorTileProto.Tile.Value.Builder tileValue = VectorTileProto.Tile.Value.newBuilder();
-        switch (value) {
-          case String stringValue -> tileValue.setStringValue(stringValue);
-          case Integer intValue -> tileValue.setSintValue(intValue);
-          case Long longValue -> tileValue.setSintValue(longValue);
-          case Float floatValue -> tileValue.setFloatValue(floatValue);
-          case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
-          case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
-          case Object other -> tileValue.setStringValue(other.toString());
-        }
-        tileLayer.addValues(tileValue.build());
-      }
-
-      for (EncodedFeature feature : layer.encodedFeatures) {
-        VectorTileProto.Tile.Feature.Builder featureBuilder = VectorTileProto.Tile.Feature.newBuilder()
-          .addAllTags(Ints.asList(feature.tags.toArray()))
-          .setType(feature.geometry().geomType().asProtobufType())
-          .addAllGeometry(Ints.asList(feature.geometry().commands()));
-
-        if (includeIds && feature.id != NO_FEATURE_ID) {
-          featureBuilder.setId(feature.id);
-        }
-
-        tileLayer.addFeatures(featureBuilder.build());
-      }
-
-      tile.addLayers(tileLayer.build());
+    ProtoBuilder(boolean includeIds) {
+      this.includeIds = includeIds;
     }
-    return tile.build();
+
+    @Override
+    public void visitLayer(String name, List<String> keys, List<Object> values) {
+      addLayer();
+      layer = VectorTileProto.Tile.Layer.newBuilder()
+        .setVersion(2)
+        .setName(name)
+        .setExtent(EXTENT)
+        .addAllKeys(keys);
+      for (Object value : values) {
+        layer.addValues(toProtoValue(value));
+      }
+    }
+
+    private static VectorTileProto.Tile.Value toProtoValue(Object value) {
+      var tileValue = VectorTileProto.Tile.Value.newBuilder();
+      switch (value) {
+        case String stringValue -> tileValue.setStringValue(stringValue);
+        case Integer intValue -> tileValue.setSintValue(intValue);
+        case Long longValue -> tileValue.setSintValue(longValue);
+        case Float floatValue -> tileValue.setFloatValue(floatValue);
+        case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
+        case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
+        case Object other -> tileValue.setStringValue(other.toString());
+      }
+      return tileValue.build();
+    }
+
+    @Override
+    public void visitFeature(long id, VectorGeometry geometry, int[] tags) {
+      var feature = VectorTileProto.Tile.Feature.newBuilder()
+        .addAllTags(Ints.asList(tags))
+        .setType(geometry.geomType().asProtobufType())
+        .addAllGeometry(Ints.asList(geometry.commands()));
+      if (includeIds && id != NO_FEATURE_ID) {
+        feature.setId(id);
+      }
+      layer.addFeatures(feature.build());
+    }
+
+    /** Returns the protobuf of the layers and features visited. */
+    VectorTileProto.Tile build() {
+      addLayer();
+      return tile.build();
+    }
+
+    private void addLayer() {
+      if (layer != null) {
+        tile.addLayers(layer.build());
+        layer = null;
+      }
+    }
   }
 
   /**
@@ -663,27 +714,52 @@ public class VectorTile {
     return toMltInput(DefaultStats.get());
   }
 
+  /** Returns the input for the Java MLT encoder, leaving out (and logging) features whose geometry cannot be decoded. */
   public MapboxVectorTile toMltInput(Stats stats) {
-    return new MapboxVectorTile(
-      layers.entrySet().stream().filter(e -> !e.getValue().encodedFeatures.isEmpty()).map(entry -> {
-        String name = entry.getKey();
-        Layer layer = entry.getValue();
-        var keys = layer.keys();
-        var values = layer.values();
-        List<org.maplibre.mlt.data.Feature> features = layer.encodedFeatures.stream().map(feature -> {
-          Map<String, Object> properties = new LinkedHashMap<>();
-          for (int i = 0; i < feature.tags.size(); i += 2) {
-            properties.put(keys.get(feature.tags.get(i)), values.get(feature.tags.get(i + 1)));
-          }
-          try {
-            return new org.maplibre.mlt.data.Feature(feature.id, feature.geometry.decodeToExtent(), properties);
-          } catch (GeometryException e) {
-            e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
-            return null;
-          }
-        }).filter(Objects::nonNull).toList();
-        return new org.maplibre.mlt.data.Layer(name, features, EXTENT);
-      }).toList());
+    var builder = new MltInputBuilder(stats);
+    visitFeatures(builder);
+    return builder.build();
+  }
+
+  /** Collects the layers and features passed to it into the input of the Java MLT encoder. */
+  private static final class MltInputBuilder implements FeatureVisitor {
+
+    private final Stats stats;
+    private final Map<String, List<org.maplibre.mlt.data.Feature>> layers = new LinkedHashMap<>();
+    private List<org.maplibre.mlt.data.Feature> features;
+    private List<String> keys;
+    private List<Object> values;
+
+    MltInputBuilder(Stats stats) {
+      this.stats = stats;
+    }
+
+    @Override
+    public void visitLayer(String name, List<String> keys, List<Object> values) {
+      this.keys = keys;
+      this.values = values;
+      features = new ArrayList<>();
+      layers.put(name, features);
+    }
+
+    @Override
+    public void visitFeature(long id, VectorGeometry geometry, int[] tags) {
+      Map<String, Object> properties = new LinkedHashMap<>();
+      for (int i = 0; i < tags.length; i += 2) {
+        properties.put(keys.get(tags[i]), values.get(tags[i + 1]));
+      }
+      try {
+        features.add(new org.maplibre.mlt.data.Feature(id, geometry.decodeToExtent(), properties));
+      } catch (GeometryException e) {
+        e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
+      }
+    }
+
+    MapboxVectorTile build() {
+      return new MapboxVectorTile(layers.entrySet().stream()
+        .map(entry -> new org.maplibre.mlt.data.Layer(entry.getKey(), entry.getValue(), EXTENT))
+        .toList());
+    }
   }
 
   public Integer getNumKeys(String layer) {
