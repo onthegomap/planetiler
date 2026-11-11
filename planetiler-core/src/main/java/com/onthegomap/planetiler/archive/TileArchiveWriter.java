@@ -73,7 +73,7 @@ public class TileArchiveWriter {
     this.config = config;
     this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
-    tileEncoderFactory = TileEncoders.factory(config, stats);
+    tileEncoderFactory = TileEncoder.factory(config, stats);
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);
