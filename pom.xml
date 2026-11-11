@@ -61,6 +61,14 @@
   </developers>
 
   <repositories>
+    <!-- check central before osgeo -->
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
     <repository>
       <id>osgeo</id>
       <name>OSGeo Release Repository</name>
