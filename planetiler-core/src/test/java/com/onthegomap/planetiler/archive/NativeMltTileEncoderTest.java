@@ -20,8 +20,6 @@ import com.onthegomap.planetiler.TestUtils.ComparableFeature;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeometryType;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -70,7 +68,7 @@ class NativeMltTileEncoderTest {
   }
 
   private static TileEncoder.Encoded encode(String mltOptions, VectorTile tile, boolean includeIds) {
-    try (var encoder = new NativeMltTileEncoder(config(mltOptions), Stats.inMemory())) {
+    try (var encoder = new NativeMltTileEncoder(config(mltOptions))) {
       return encoder.encode(tile, includeIds);
     }
   }
@@ -159,7 +157,7 @@ class NativeMltTileEncoderTest {
 
   @Test
   void reusedEncoderDoesNotCarryFeaturesIntoTheNextTile() {
-    try (var encoder = new NativeMltTileEncoder(PlanetilerConfig.defaults(), Stats.inMemory())) {
+    try (var encoder = new NativeMltTileEncoder(PlanetilerConfig.defaults())) {
       encoder.encode(tileWith(feature("first", 1, newPoint(1, 2), Map.of("name", "first"))), true);
 
       var second = encoder.encode(tileWith(feature("second", 2, newPoint(3, 4), Map.of("ref", 2))), true);
@@ -167,29 +165,6 @@ class NativeMltTileEncoderTest {
       assertEquals(List.of(TestUtils.feature(newPoint(3, 4), "second", Map.of("ref", 2L), 2)),
         decodeMltWithNativeDecoder(second.bytes()));
     }
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"java", "native"})
-  void skipsFeaturesOfUnknownGeometryType(String mltEncoder) {
-    var unknown = new VectorTile.VectorGeometry(VectorTile.encodeGeometry(newPoint(1, 2)).commands(),
-      GeometryType.UNKNOWN, 0);
-    var tile = new VectorTile()
-      .addLayerFeatures("layer", List.of(
-        new VectorTile.Feature("layer", 1, unknown, Map.of("name", "skipped")),
-        feature("layer", 2, newPoint(3, 4), Map.of("name", "kept"))))
-      .addLayerFeatures("onlyUnknown", List.of(new VectorTile.Feature("onlyUnknown", 3, unknown, Map.of())));
-    var stats = Stats.inMemory();
-
-    TileEncoder.Encoded encoded;
-    try (var encoder = TileEncoder.factory(config("--mlt-encoder=" + mltEncoder), stats).get()) {
-      encoded = encoder.encode(tile, true);
-    }
-
-    assertEquals(List.of(TestUtils.feature(newPoint(3, 4), "layer", Map.of("name", "kept"), 2)),
-      decodeMltWithNativeDecoder(encoded.bytes()));
-    assertEquals(List.of("layer"), encoded.layerStats().stream().map(TileSizeStats.LayerStats::layer).toList());
-    assertEquals(Map.of("mlt_feature", 2L), stats.dataErrors());
   }
 
   @ParameterizedTest

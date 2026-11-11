@@ -536,21 +536,15 @@ public class VectorTile {
     return this;
   }
 
-  /** Passes the features {@code visitor} accepts, and the layers that have any, to {@code visitor}. */
+  /** Passes each layer with features and its features to {@code visitor}, to encode them. */
   public void visitFeatures(FeatureVisitor visitor) {
     for (var entry : layers.entrySet()) {
       var layer = entry.getValue();
-      List<String> keys = null;
-      List<Object> values = null;
+      if (layer.encodedFeatures.isEmpty()) {
+        continue;
+      }
+      visitor.visitLayer(entry.getKey(), layer.keys(), layer.values());
       for (var feature : layer.encodedFeatures) {
-        if (!visitor.accept(feature.geometry)) {
-          continue;
-        }
-        if (keys == null) {
-          keys = List.copyOf(layer.keys.keySet());
-          values = List.copyOf(layer.values.keySet());
-          visitor.visitLayer(entry.getKey(), keys, values);
-        }
         visitor.visitFeature(feature.id, feature.geometry, feature.tags.toArray());
       }
     }
@@ -567,13 +561,16 @@ public class VectorTile {
   /** Receives the layers and features of a tile from {@link #visitFeatures(FeatureVisitor)}, to encode them. */
   public interface FeatureVisitor {
 
-    /** Returns false to leave out a feature, such as one the format cannot store. */
-    boolean accept(VectorGeometry geometry);
-
-    /** Called before the features of each layer, with the keys and values their tags index into. */
+    /**
+     * Called for each layer with features, before its features, with the keys and values that the tags of its
+     * features point into.
+     */
     void visitLayer(String name, List<String> keys, List<Object> values);
 
-    /** Called for each accepted feature, with {@code tags} as alternating key and value indexes. */
+    /**
+     * Called for each feature of the layer last visited, with {@code tags} holding the index of a key and the index of
+     * its value for each attribute.
+     */
     void visitFeature(long id, VectorGeometry geometry, int[] tags);
   }
 
@@ -604,12 +601,6 @@ public class VectorTile {
 
     ProtoBuilder(boolean includeIds) {
       this.includeIds = includeIds;
-    }
-
-    /** Keeps every feature, since MVT can store unknown geometries. */
-    @Override
-    public boolean accept(VectorGeometry geometry) {
-      return true;
     }
 
     @Override

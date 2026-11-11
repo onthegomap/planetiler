@@ -2,8 +2,6 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeometryType;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,10 +21,8 @@ import org.maplibre.mlt.ffi.MvtGeometryType;
 final class NativeMltTileEncoder implements TileEncoder {
 
   private final MltEncoder encoder;
-  private final Stats stats;
 
-  NativeMltTileEncoder(PlanetilerConfig config, Stats stats) {
-    this.stats = stats;
+  NativeMltTileEncoder(PlanetilerConfig config) {
     // native defaults enable FSST, FastPFOR and shared dicts; v1 has no other options and always keeps polygon outlines
     encoder = MltEncoder.builder()
       .wireVersion(MltWireVersion.V1)
@@ -66,16 +62,6 @@ final class NativeMltTileEncoder implements TileEncoder {
       this.includeIds = includeIds;
     }
 
-    /** Leaves out unknown geometries, which MLT cannot store. */
-    @Override
-    public boolean accept(VectorTile.VectorGeometry geometry) {
-      if (geometry.geomType() == GeometryType.UNKNOWN) {
-        stats.dataError("mlt_feature");
-        return false;
-      }
-      return true;
-    }
-
     @Override
     public void visitLayer(String name, List<String> keys, List<Object> values) {
       this.keys = keys;
@@ -91,7 +77,7 @@ final class NativeMltTileEncoder implements TileEncoder {
         case POINT -> MvtGeometryType.POINT;
         case LINE -> MvtGeometryType.LINE_STRING;
         case POLYGON -> MvtGeometryType.POLYGON;
-        case UNKNOWN -> throw new IllegalArgumentException("accept leaves out unknown geometries");
+        case UNKNOWN -> throw new IllegalArgumentException("MLT cannot store unknown geometries");
       };
       if (includeIds && id != VectorTile.NO_FEATURE_ID) {
         encoder.beginFeature(geometryType, geometry.commands(), id);

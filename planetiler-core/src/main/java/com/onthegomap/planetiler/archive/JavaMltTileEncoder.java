@@ -4,7 +4,6 @@ import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -92,16 +91,6 @@ final class JavaMltTileEncoder implements TileEncoder {
     private List<String> keys;
     private List<Object> values;
 
-    /** Leaves out unknown geometries, which MLT cannot store. */
-    @Override
-    public boolean accept(VectorTile.VectorGeometry geometry) {
-      if (geometry.geomType() == GeometryType.UNKNOWN) {
-        stats.dataError("mlt_feature");
-        return false;
-      }
-      return true;
-    }
-
     @Override
     public void visitLayer(String name, List<String> keys, List<Object> values) {
       this.keys = keys;
@@ -123,10 +112,8 @@ final class JavaMltTileEncoder implements TileEncoder {
       }
     }
 
-    /** Leaves out layers where none of the features decode. */
     MapboxVectorTile build() {
       return new MapboxVectorTile(layers.entrySet().stream()
-        .filter(entry -> !entry.getValue().isEmpty())
         .map(entry -> new Layer(entry.getKey(), entry.getValue(), VectorTile.EXTENT))
         .toList());
     }
