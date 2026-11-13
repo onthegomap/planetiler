@@ -78,12 +78,14 @@ final class JavaMltTileEncoder implements TileEncoder {
     }
   }
 
+  /** Returns the input for the Java MLT encoder, leaving out (and logging) features whose geometry cannot be decoded. */
   private MapboxVectorTile toMltInput(VectorTile tile) {
     var builder = new MltInputBuilder();
     tile.visitFeatures(builder);
     return builder.build();
   }
 
+  /** Collects the layers and features passed to it into the input of the Java MLT encoder. */
   private final class MltInputBuilder implements VectorTile.FeatureVisitor {
 
     private final Map<String, List<Feature>> layers = new LinkedHashMap<>();
