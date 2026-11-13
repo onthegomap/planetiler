@@ -27,8 +27,6 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.reader.WithTags;
-import com.onthegomap.planetiler.stats.DefaultStats;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
@@ -59,7 +57,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.maplibre.mlt.converter.mvt.MapboxVectorTile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -93,7 +90,7 @@ public class VectorTile {
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
   // TODO make these configurable
-  private static final int EXTENT = 4096;
+  public static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
@@ -710,58 +707,6 @@ public class VectorTile {
     return layers.isEmpty();
   }
 
-  public MapboxVectorTile toMltInput() {
-    return toMltInput(DefaultStats.get());
-  }
-
-  /** Returns the input for the Java MLT encoder, leaving out (and logging) features whose geometry cannot be decoded. */
-  public MapboxVectorTile toMltInput(Stats stats) {
-    var builder = new MltInputBuilder(stats);
-    visitFeatures(builder);
-    return builder.build();
-  }
-
-  /** Collects the layers and features passed to it into the input of the Java MLT encoder. */
-  private static final class MltInputBuilder implements FeatureVisitor {
-
-    private final Stats stats;
-    private final Map<String, List<org.maplibre.mlt.data.Feature>> layers = new LinkedHashMap<>();
-    private List<org.maplibre.mlt.data.Feature> features;
-    private List<String> keys;
-    private List<Object> values;
-
-    MltInputBuilder(Stats stats) {
-      this.stats = stats;
-    }
-
-    @Override
-    public void visitLayer(String name, List<String> keys, List<Object> values) {
-      this.keys = keys;
-      this.values = values;
-      features = new ArrayList<>();
-      layers.put(name, features);
-    }
-
-    @Override
-    public void visitFeature(long id, VectorGeometry geometry, int[] tags) {
-      Map<String, Object> properties = new LinkedHashMap<>();
-      for (int i = 0; i < tags.length; i += 2) {
-        properties.put(keys.get(tags[i]), values.get(tags[i + 1]));
-      }
-      try {
-        features.add(new org.maplibre.mlt.data.Feature(id, geometry.decodeToExtent(), properties));
-      } catch (GeometryException e) {
-        e.log(stats, "mlt_feature", "Error converting to MLT " + properties);
-      }
-    }
-
-    MapboxVectorTile build() {
-      return new MapboxVectorTile(layers.entrySet().stream()
-        .map(entry -> new org.maplibre.mlt.data.Layer(entry.getKey(), entry.getValue(), EXTENT))
-        .toList());
-    }
-  }
-
   public Integer getNumKeys(String layer) {
     return layers.get(layer).keys().size();
   }
@@ -936,8 +881,8 @@ public class VectorTile {
       return decodeCommands(geomType, commands, (EXTENT << scale) / SIZE);
     }
 
-    /** Converts an encoded geometry back to a JTS geometry. */
-    private Geometry decodeToExtent() throws GeometryException {
+    /** Converts an encoded geometry back to a JTS geometry in tile coordinates (0 to {@link #EXTENT}). */
+    public Geometry decodeToExtent() throws GeometryException {
       return decodeCommands(geomType, commands, 1 << scale);
     }
 
