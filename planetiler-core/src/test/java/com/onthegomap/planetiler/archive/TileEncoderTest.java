@@ -1,9 +1,14 @@
 package com.onthegomap.planetiler.archive;
 
+import static com.onthegomap.planetiler.TestUtils.assumeNativeMlt;
 import static com.onthegomap.planetiler.TestUtils.decodeSilently;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
@@ -15,8 +20,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments.ArgumentSet;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -27,6 +35,9 @@ class TileEncoderTest {
   private static final boolean WITH_IDS = true;
   private static final boolean WITHOUT_IDS = false;
   private static final Long NO_ID = null;
+  private static final Runnable MISSING_LIBRARY = () -> {
+    throw new UnsatisfiedLinkError("no native library for this platform");
+  };
 
   @Test
   void mvtEncoderWritesTheTileAsMvt() {
@@ -152,6 +163,52 @@ class TileEncoderTest {
     assertEquals("Encoded{bytes=byte[3], layerStats=" + stats + "}", encoded.toString());
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"auto", "native"})
+  void createsNativeMltEncoderWhereTheLibraryLoads(String mltEncoder) {
+    assumeNativeMlt();
+
+    try (var encoder = TileEncoder.factory(mltConfig(mltEncoder), Stats.inMemory()).get()) {
+      assertInstanceOf(NativeMltTileEncoder.class, encoder);
+    }
+  }
+
+  @Test
+  void createsJavaMltEncoderWithoutLoadingTheNativeLibrary() {
+    try (var encoder = create(mltConfig("java"), () -> fail("loaded the native library"))) {
+      assertInstanceOf(JavaMltTileEncoder.class, encoder);
+    }
+  }
+
+  private static Stream<ArgumentSet> libraryLoadFailures() {
+    return Stream.of(
+      argumentSet("missing library", MISSING_LIBRARY),
+      argumentSet("native access denied", (Runnable) () -> {
+        throw new IllegalCallerException("native access denied");
+      }));
+  }
+
+  @ParameterizedTest
+  @MethodSource("libraryLoadFailures")
+  void autoFallsBackToJavaWhereTheLibraryDoesNotLoad(Runnable loadNativeLibrary) {
+    try (var encoder = create(mltConfig("auto"), loadNativeLibrary)) {
+      assertInstanceOf(JavaMltTileEncoder.class, encoder);
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("libraryLoadFailures")
+  void nativeFailsWhereTheLibraryDoesNotLoad(Runnable loadNativeLibrary) {
+    var config = mltConfig("native");
+
+    assertThrows(IllegalStateException.class, () -> create(config, loadNativeLibrary));
+  }
+
+  @Test
+  void rejectsUnknownMltEncoder() {
+    assertThrows(IllegalArgumentException.class, () -> mltConfig("rust"));
+  }
+
   /** A feature as read back from encoded tile bytes, with geometry in tile coordinates (0-256). */
   private record DecodedFeature(String layer, Long id, Geometry geometry, Map<String, Object> tags) {}
 
@@ -163,8 +220,17 @@ class TileEncoderTest {
     return PlanetilerConfig.from(Arguments.of((Object[]) args));
   }
 
+  private static PlanetilerConfig mltConfig(String mltEncoder) {
+    return config("tile_format", "mlt", "mlt_encoder", mltEncoder);
+  }
+
+  private static TileEncoder create(PlanetilerConfig config, Runnable loadNativeLibrary) {
+    return TileEncoder.factory(config, Stats.inMemory(), loadNativeLibrary).get();
+  }
+
+  /** Encodes MLT with the Java encoder, which {@link #decodeMlt} reads. */
   private static TileEncoder.Encoded encode(VectorTile tile, boolean includeIds, String... configArgs) {
-    try (var encoder = TileEncoder.factory(config(configArgs), Stats.inMemory()).get()) {
+    try (var encoder = create(config(configArgs), MISSING_LIBRARY)) {
       return encoder.encode(tile, includeIds);
     }
   }

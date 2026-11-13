@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
+import com.onthegomap.planetiler.archive.MltEncoderType;
 import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -64,6 +65,7 @@ public record PlanetilerConfig(
   TileCompression tileCompression,
   TileFormat tileFormat,
   boolean excludeIds,
+  MltEncoderType mltEncoder,
   boolean mltFsst,
   boolean mltFastPfor,
   boolean mltTessellatePolygons,
@@ -268,12 +270,22 @@ public record PlanetilerConfig(
             TileFormat.availableValues().stream().map(TileFormat::id).toList(),
           "mvt")),
       arguments.getBoolean("exclude_ids", "Exclude feature IDs from generated vector tiles", false),
+      MltEncoderType
+        .fromId(arguments.getString("mlt_encoder",
+          "the encoder to use when tile format=MLT, one of " +
+            MltEncoderType.availableValues().stream().map(MltEncoderType::id).toList() +
+            ", auto uses native (Rust) where available and java elsewhere",
+          MltEncoderType.AUTO.id())),
       arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_tessellate_polygons",
-        "Pre-triangulate polygons when tile format=MLT so that clients do not need to", false),
+        "Pre-triangulate polygons when tile format=MLT so that clients do not need to, " +
+          "the java encoder also needs mlt_polygon_outline for valid tiles",
+        false),
       arguments.getBoolean("mlt_polygon_outline",
-        "Store polygon outlines together with pre-triangulated polygons", false),
+        "Store polygon outlines together with pre-triangulated polygons when tile format=MLT, " +
+          "only used by the java encoder since the native encoder always stores them",
+        false),
       arguments.getBoolean("mlt_reorder_features",
         "Allow re-ordering output features within each layer when tile format=MLT to reduce tile sizes", false),
       arguments.getBoolean("mlt_shared_dict", "Share dictionaries between string fields when tile format=MLT", false),

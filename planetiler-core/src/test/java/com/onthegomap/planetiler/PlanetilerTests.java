@@ -371,15 +371,16 @@ class PlanetilerTests {
     );
   }
 
-  @Test
-  void testAttributeTypeCoercion() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"auto", "java"})
+  void testAttributeTypeCoercion(String mltEncoder) throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
     double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1", "maxzoom", "15", "tile-format", "mlt"),
+      Map.of("threads", "1", "maxzoom", "15", "tile-format", "mlt", "mlt-encoder", mltEncoder),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "string"
@@ -2763,6 +2764,8 @@ class PlanetilerTests {
     "--osm-parse-node-bounds",
     "--tile-format=mlt",
     "--tile-format=mlt --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
+    "--tile-format=mlt --threads=4",
+    "--tile-format=mlt --mlt-encoder=java --mlt-fastpfor --mlt-fsst --mlt-reorder-features --mlt-shared-dict --exclude-ids --mlt-tessellate-polygons --mlt-polygon-outline",
     "--exclude-ids",
     "--output-format=pmtiles",
     "--output-format=pmtiles --tile-format=mlt",

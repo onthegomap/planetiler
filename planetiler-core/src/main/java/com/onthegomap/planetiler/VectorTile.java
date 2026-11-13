@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.jcip.annotations.NotThreadSafe;
@@ -452,19 +453,27 @@ public class VectorTile {
    * Returns the number of internal geometries in this feature including points/lines/polygons inside multigeometries.
    */
   public static int countGeometries(VectorTileProto.Tile.Feature feature) {
+    return countGeometries(feature::getGeometry, feature.getGeometryCount());
+  }
+
+  /** Returns the number of internal geometries in the encoded geometry {@code commands}. */
+  public static int countGeometries(int[] commands) {
+    return countGeometries(i -> commands[i], commands.length);
+  }
+
+  private static int countGeometries(IntUnaryOperator commands, int length) {
     int result = 0;
     int idx = 0;
-    int geomCount = feature.getGeometryCount();
-    while (idx < geomCount) {
-      int length = feature.getGeometry(idx);
-      int command = length & ((1 << 3) - 1);
-      length = length >> 3;
+    while (idx < length) {
+      int commandLength = commands.applyAsInt(idx);
+      int command = commandLength & ((1 << 3) - 1);
+      commandLength = commandLength >> 3;
       if (command == Command.MOVE_TO.value) {
-        result += length;
+        result += commandLength;
       }
       idx += 1;
       if (command != Command.CLOSE_PATH.value) {
-        idx += length * 2;
+        idx += commandLength * 2;
       }
     }
     return result;
@@ -516,7 +525,7 @@ public class VectorTile {
             String key = e.getKey();
             Object value = e.getValue();
             outFeature.tags.add(layer.key(key));
-            outFeature.tags.add(layer.value(value));
+            outFeature.tags.add(layer.value(toSupportedValue(value)));
             statsTracker.accept(key, value);
           }
         }
@@ -539,6 +548,14 @@ public class VectorTile {
         visitor.visitFeature(feature.id, feature.geometry, feature.tags.toArray());
       }
     }
+  }
+
+  /** Returns {@code value} if vector tiles can store its type, otherwise its text. */
+  private static Object toSupportedValue(Object value) {
+    return switch (value) {
+      case String _, Integer _, Long _, Float _, Double _, Boolean _ -> value;
+      default -> value.toString();
+    };
   }
 
   /** Receives the layers and features of a tile from {@link #visitFeatures(FeatureVisitor)}, to encode them. */
@@ -608,7 +625,7 @@ public class VectorTile {
         case Float floatValue -> tileValue.setFloatValue(floatValue);
         case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
         case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
-        case Object other -> tileValue.setStringValue(other.toString());
+        default -> throw new IllegalArgumentException(value.getClass() + " is not a type toSupportedValue returns");
       }
       return tileValue.build();
     }
