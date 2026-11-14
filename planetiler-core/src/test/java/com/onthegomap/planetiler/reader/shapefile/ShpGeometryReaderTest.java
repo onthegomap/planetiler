@@ -6,9 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -313,5 +317,28 @@ class ShpGeometryReaderTest {
       flat,
       hole(1, 1, 2, 2)
     ));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "POLYGON, 36, 2147483647",
+    "POLYGON, 36, -1",
+    "POLYGON, 40, 2147483647",
+    "POLYGON, 40, -1",
+    "POLYGON, 44, 2147483647",
+    "POLYGON, 44, -1",
+    "POLYLINE, 36, 2147483647",
+    "POLYLINE, 40, 2147483647",
+    "POLYLINE, 44, 2147483647",
+    "MULTIPOINT, 36, 2147483647",
+    "MULTIPOINT, 36, -1",
+  })
+  void testCorruptCountThrows(ShapeType type, int offset, int value) {
+    // offset 36 is numParts (numPoints for multipoints), 40 numPoints, 44 the first part's first point
+    var points = JTS_FACTORY.getCoordinateSequenceFactory()
+      .create(shell(0, 0, 1, 1).toArray(Coordinate[]::new));
+    byte[] content = TestShapefileWriter.partsRecord(type, List.of(points));
+    ByteBuffer.wrap(content).order(ByteOrder.LITTLE_ENDIAN).putInt(offset, value);
+    assertThrows(IllegalArgumentException.class, () -> ShpGeometryReader.read(content));
   }
 }

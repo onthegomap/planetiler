@@ -310,7 +310,10 @@ public class ShapefileReader extends SimpleReader<ShapefileFeature> {
   @Override
   public void readFeatures(Consumer<ShapefileFeature> next) throws IOException {
     Path dbfPath = sibling("dbf");
-    try (var dbf = dbfPath == null ? null : new DbfReader(buffered(dbfPath, 1 << 20), charset)) {
+    try (
+      var dbfStream = dbfPath == null ? null : buffered(dbfPath, 1 << 20);
+      var dbf = dbfStream == null ? null : new DbfReader(dbfStream, charset)
+    ) {
       String[] attributeNames = dbf == null ? new String[0] : dbf.fieldNames().stream()
         .map(name -> lowercaseAttributeNames ? name.toLowerCase(Locale.ROOT) : name)
         .toArray(String[]::new);

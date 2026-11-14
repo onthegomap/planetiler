@@ -86,11 +86,13 @@ final class ShpRecord {
     } else if (type.isMultiPointType()) {
       numParts = 0;
       numPoints = buffer.getInt(36);
+      checkPartsAndPoints(buffer, 0, numPoints, 40);
       pointsStart = 40;
       zStart = hasZ ? 56 + 16 * numPoints : -1;
     } else if (type.isLineType() || type.isPolygonType()) {
       numParts = buffer.getInt(36);
       numPoints = buffer.getInt(40);
+      checkPartsAndPoints(buffer, numParts, numPoints, 44);
       pointsStart = 44 + 4 * numParts;
       zStart = hasZ ? pointsStart + 16 + 16 * numPoints : -1;
     } else {
@@ -103,10 +105,27 @@ final class ShpRecord {
     mStart = hasM ? mValuesStart : -1;
   }
 
+  private static void checkPartsAndPoints(ByteBuffer buffer, int numParts, int numPoints, int partsStart) {
+    // Make sure a corrupt count or part index doesn't try to read past the end of the buffer. Otherwise we would
+    // allocate an array that could crash the JVM instead of failing on this one feature.
+    long pointsEnd = partsStart + 4L * numParts + 16L * numPoints;
+    if (numParts < 0 || numPoints < 0 || pointsEnd > buffer.capacity()) {
+      throw new IllegalArgumentException("Invalid " + numParts + " parts and " + numPoints +
+        " points for a record of only " + buffer.capacity() + " bytes");
+    }
+    for (int part = 0; part < numParts; part++) {
+      int firstPoint = buffer.getInt(partsStart + 4 * part);
+      if (firstPoint < 0 || firstPoint > numPoints) {
+        throw new IllegalArgumentException("Invalid point " + firstPoint + ", expected " + numPoints);
+      }
+    }
+  }
+
   /**
    * Returns the record in {@code content}, which must have a point, multipoint, polyline or polygon shape type.
    *
-   * @throws IllegalArgumentException if the shape type is unknown, null or multipatch
+   * @throws IllegalArgumentException if the shape type is unknown, null or multipatch, or the record is too short for
+   *                                  its parts and points
    */
   static ShpRecord of(byte[] content) {
     return new ShpRecord(content);
