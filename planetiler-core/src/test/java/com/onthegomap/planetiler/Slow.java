@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Tag;
 
 /**
  * Add to any junit test classes or methods to exclude when run with {@code scripts/fasttests.sh --skip-slow} or with
- * extra {@code -Dgroups=!slow} argument.
+ * extra {@code -Dgroups=!slow} maven argument.
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("slow")
