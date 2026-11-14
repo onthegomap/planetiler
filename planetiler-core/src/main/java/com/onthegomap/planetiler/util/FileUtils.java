@@ -7,11 +7,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.ClosedFileSystemException;
@@ -50,17 +45,6 @@ public class FileUtils {
   private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
-  private static final URLStreamHandler UNCACHED_JAR_URLS = new URLStreamHandler() {
-    @Override
-    protected URLConnection openConnection(URL url) throws IOException {
-      // the JDK's jar: handler opens a fresh zip file for each connection and closes it with its stream once caching
-      // is off
-      URLConnection connection = URI.create(url.toExternalForm()).toURL().openConnection();
-      connection.setUseCaches(false);
-      return connection;
-    }
-  };
-
   private FileUtils() {}
 
   /** Returns a stream that lists all files in {@code fileSystem}. */
@@ -367,17 +351,6 @@ public class FileUtils {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-  }
-
-  /**
-   * If {@code path} is inside a zip file (i.e. it came from a {@link FileSystem} opened with
-   * {@link FileSystems#newFileSystem(Path)}), then {@link Path#toUri()} gives a {@code jar:} URL and the JVM will keep
-   * the zip file open forever even after the input stream is closed. This function creates a URL that points to the
-   * same file that allows the JVM to close it when done reading.
-   */
-  public static URL toUncachedUrl(Path path) throws MalformedURLException {
-    URI uri = path.toUri();
-    return "jar".equals(uri.getScheme()) ? URL.of(uri, UNCACHED_JAR_URLS) : uri.toURL();
   }
 
   public static long getLastModifiedTime(Path path) throws IOException {

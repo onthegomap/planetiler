@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.reader.shapefile.TestShapefileWriter;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
@@ -18,7 +19,6 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.geotools.data.shapefile.shp.ShapeType;
 import org.junit.jupiter.api.Test;
 
 class SourceFeatureProcessorTest {
@@ -115,8 +115,7 @@ class SourceFeatureProcessorTest {
     List<String> processed = new CopyOnWriteArrayList<>();
     Profile profile = (SourceFeature source, FeatureCollector features) -> processed.add(source.getSourceLayer());
     // a polygon record that ends right after its shape type
-    var unreadable =
-      new ShapefileFeature(new byte[]{5, 0, 0, 0}, ShapeType.POLYGON, null, Map.of(), "sourceName", "unreadable", 1);
+    var unreadable = TestShapefileWriter.unreadableFeature("unreadable", 1);
     var readable = SimpleFeature.create(GeoUtils.point(1, 2), Map.of(), "sourceName", "readable", 2);
     var processor = new SourceFeatureProcessor<SourceFeature>("sourceName", path -> new SimpleReader<>("sourceName") {
       @Override
@@ -149,8 +148,7 @@ class SourceFeatureProcessorTest {
     List<String> processed = new CopyOnWriteArrayList<>();
     Profile profile = (SourceFeature source, FeatureCollector features) -> processed.add(source.getSourceLayer());
     // the check would throw reading this geometry, so the profile only sees it if the check is skipped
-    var unreadable =
-      new ShapefileFeature(new byte[]{5, 0, 0, 0}, ShapeType.POLYGON, null, Map.of(), "sourceName", "unreadable", 1);
+    var unreadable = TestShapefileWriter.unreadableFeature("unreadable", 1);
     var processor = new SourceFeatureProcessor<SourceFeature>("sourceName", path -> new SimpleReader<>("sourceName") {
       @Override
       public long getFeatureCount() {

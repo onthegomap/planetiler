@@ -15,7 +15,7 @@ import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileOptions;
-import com.onthegomap.planetiler.reader.ShapefileReader;
+import com.onthegomap.planetiler.reader.shapefile.ShapefileReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.geojson.GeoJsonReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;

@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.shapefile.ShapefileFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
