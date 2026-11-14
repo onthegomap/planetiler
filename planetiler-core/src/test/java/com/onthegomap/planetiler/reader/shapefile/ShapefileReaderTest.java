@@ -353,6 +353,7 @@ class ShapefileReaderTest {
   @ParameterizedTest
   @CsvSource(value = {
     "UTF-8, é",
+    "'UTF-8\nsecond line', é",
     "65001, é",
     "utf8, é",
     "1252, Ã©",

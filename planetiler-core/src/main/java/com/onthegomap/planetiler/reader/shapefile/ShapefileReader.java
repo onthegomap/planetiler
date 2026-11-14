@@ -257,6 +257,7 @@ public class ShapefileReader extends SimpleReader<ShapefileFeature> {
     if (cpg == null || cpg.isBlank()) {
       return null;
     }
+    cpg = cpg.lines().findFirst().orElseThrow().strip();
     try {
       // .cpg files aren't in the shapefile spec, they're an ESRI convention. ESRI tools write either a charset name or
       // a Windows code page number, where 65001 means UTF-8, so map the numbers to Java charset names. See

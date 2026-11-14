@@ -9,14 +9,17 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.JulianFields;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads the attribute rows of a shapefile from its dBase {@code .dbf} file, one at a time.
@@ -31,6 +34,7 @@ final class DbfReader implements Closeable {
   // - fixed length records: a deletion flag, then each field's value as text
   // - optional 0x1A end of file byte
 
+  private static final long MILLIS_PER_DAY = Duration.ofDays(1).toMillis();
   private final InputStream input;
   private final Charset charset;
   private final List<Field> fields = new ArrayList<>();
@@ -46,16 +50,18 @@ final class DbfReader implements Closeable {
     byte[] descriptors = readFully(header.headerBytes() - Header.BYTES);
     // the deletion flag comes before the first field
     int offsetInRecord = 1;
-    Map<String, Integer> timesSeen = new HashMap<>();
+    Set<String> names = new HashSet<>();
     FieldDescriptor descriptor;
     for (int pos = 0; (descriptor = FieldDescriptor.parse(descriptors, pos, this.charset)) != null; pos +=
       FieldDescriptor.BYTES) {
+      if (descriptor.length() == 0) {
+        // a field without bytes in the records never has a value, so leave it out
+        continue;
+      }
+      // when names conflict, append the first number that makes it unique to match legacy GeoTools behavior
       String name = descriptor.name();
-      // Writers truncate field names to 10 characters, so a name can repeat. Number the repeats (NAME, NAME1, NAME2)
-      // to keep every value, matching GeoTools.
-      int earlier = timesSeen.merge(name, 1, Integer::sum) - 1;
-      if (earlier > 0) {
-        name += earlier;
+      for (int n = 1; !names.add(name); n++) {
+        name = descriptor.name() + n;
       }
       fields.add(new Field(name, descriptor.type(), offsetInRecord, descriptor.length(), descriptor.decimals()));
       offsetInRecord += descriptor.length();
@@ -93,16 +99,20 @@ final class DbfReader implements Closeable {
       case 'N', 'F' -> parseNumber(field, start, end);
       case 'L' -> parseLogical(start, end);
       case 'D' -> parseDate(start, end);
+      case '@', 'T' -> parseTimestamp(start, end);
+      case 'I', '+' -> field.length == 4 ? littleEndian().getInt(start) : null;
+      case 'O' -> field.length == 8 ? littleEndian().getDouble(start) : null;
+      case 'B' -> null;
       default -> new String(currentRow, start, field.length, charset).strip();
     };
   }
 
+  private ByteBuffer littleEndian() {
+    return ByteBuffer.wrap(currentRow).order(ByteOrder.LITTLE_ENDIAN);
+  }
+
   private String parseText(int start, int end) {
-    boolean allZero = true;
-    for (int i = start; i < end && allZero; i++) {
-      allZero = currentRow[i] == 0;
-    }
-    if (allZero) {
+    if (currentRow[start] == 0) {
       return null;
     }
     // From spec "Data types": text is padded with spaces. Some writers pad with null bytes instead, and values
@@ -166,6 +176,23 @@ final class DbfReader implements Closeable {
     } catch (NumberFormatException | DateTimeException _) {
       return null;
     }
+  }
+
+  private Date parseTimestamp(int start, int end) {
+    // From spec "Data types": a FoxPro DateTime (T) is the Julian day number, then the milliseconds since midnight,
+    // both 32-bit little endian. A dBase 7 timestamp (@) holds the same two numbers but the spec doesn't give a byte
+    // order, so read it like T. Blank and all-zero values have no value. The time is in UTC.
+    if (end - start != 8) {
+      return null;
+    }
+    var buffer = littleEndian();
+    int julianDay = buffer.getInt(start);
+    int millisOfDay = buffer.getInt(start + 4);
+    if (julianDay <= 0 || millisOfDay < 0 || millisOfDay >= MILLIS_PER_DAY) {
+      return null;
+    }
+    var date = LocalDate.EPOCH.with(JulianFields.JULIAN_DAY, julianDay);
+    return Date.from(date.atStartOfDay(ZoneOffset.UTC).toInstant().plusMillis(millisOfDay));
   }
 
   private byte[] readFully(int length) throws IOException {
