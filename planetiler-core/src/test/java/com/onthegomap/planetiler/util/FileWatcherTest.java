@@ -12,12 +12,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class FileWatcherTest {
-  @TempDir
-  static Path tempDir;
-  Path a = normalize(tempDir.resolve("a"));
-  Path b = normalize(tempDir.resolve("b"));
-  Path c = normalize(tempDir.resolve("c"));
-  long time = 1;
+  private final Path a;
+  private final Path b;
+  private final Path c;
+  private long time = 1;
+
+  FileWatcherTest(@TempDir Path tempDir) {
+    a = normalize(tempDir.resolve("a"));
+    b = normalize(tempDir.resolve("b"));
+    c = normalize(tempDir.resolve("c"));
+  }
 
   private void touch(Path... paths) throws IOException {
     for (var path : paths) {
