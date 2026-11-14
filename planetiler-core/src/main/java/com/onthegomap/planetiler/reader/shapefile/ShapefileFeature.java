@@ -1,18 +1,12 @@
-package com.onthegomap.planetiler.reader;
-
-import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
+package com.onthegomap.planetiler.reader.shapefile;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.List;
 import java.util.Map;
 import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.api.referencing.operation.TransformException;
-import org.geotools.data.shapefile.shp.ShapeHandler;
-import org.geotools.data.shapefile.shp.ShapeType;
 import org.geotools.geometry.jts.JTS;
 import org.locationtech.jts.geom.Geometry;
 
@@ -25,7 +19,6 @@ import org.locationtech.jts.geom.Geometry;
 public class ShapefileFeature extends SourceFeature {
 
   private final byte[] rawShape;
-  private final ShapeType fileShapeType;
   private final MathTransform transformToLatLon;
   private Geometry latLonGeometry;
   private Geometry worldGeometry;
@@ -33,14 +26,12 @@ public class ShapefileFeature extends SourceFeature {
 
   /**
    * @param rawShape          the record contents from the {@code .shp} file, starting with the shape type
-   * @param fileShapeType     the shape type in the file header, which picks the decoder
    * @param transformToLatLon transform from the file's coordinate reference system to lat/lon, or null if it is lat/lon
    */
-  ShapefileFeature(byte[] rawShape, ShapeType fileShapeType, MathTransform transformToLatLon, Map<String, Object> tags,
-    String source, String sourceLayer, long id) {
+  ShapefileFeature(byte[] rawShape, MathTransform transformToLatLon, Map<String, Object> tags, String source,
+    String sourceLayer, long id) {
     super(tags, source, sourceLayer, List.of(), id);
     this.rawShape = rawShape;
-    this.fileShapeType = fileShapeType;
     this.transformToLatLon = transformToLatLon;
   }
 
@@ -48,10 +39,9 @@ public class ShapefileFeature extends SourceFeature {
   public Geometry latLonGeometry() throws GeometryException {
     if (latLonGeometry == null) {
       try {
-        // first 4 bytes contain the shape type, then geometry content is after that
-        Geometry geometry = (Geometry) newHandler().read(contentBuffer().position(4), recordShapeType(), false);
+        Geometry geometry = ShpGeometryReader.read(rawShape);
         latLonGeometry = transformToLatLon == null ? geometry : JTS.transform(geometry, transformToLatLon);
-      } catch (RuntimeException | IOException | TransformException e) {
+      } catch (RuntimeException | TransformException e) {
         // a broken record in the input isn't a bug, so it's non-fatal
         var exception = new GeometryException("shapefile_read_geometry", "Can't read geometry of " + this + ": " + e,
           true);
@@ -60,12 +50,6 @@ public class ShapefileFeature extends SourceFeature {
       }
     }
     return latLonGeometry;
-  }
-
-  private ShapeHandler newHandler() throws IOException {
-    // GeoTools' handlers are not thread safe, so each decode gets its own
-    return fileShapeType == ShapeType.POLYGON ? new ShapefilePolygonHandler() :
-      fileShapeType.getShapeHandler(JTS_FACTORY);
   }
 
   @Override
@@ -93,20 +77,14 @@ public class ShapefileFeature extends SourceFeature {
 
   /** Returns the number of points in this record without decoding its geometry. */
   public int numPoints() {
-    var type = recordShapeType();
-    // from spec "Shape Types in X, Y Space": a point has X and Y; a multipoint has a 32 byte box then NumPoints; a
-    // polyline or polygon has the box, NumParts, then NumPoints. Z and M types add their values after the same fields.
-    int numPointsOffset = type.isPointType() ? -1 : type.isMultiPointType() ? 36 : 40;
-    return numPointsOffset < 0 || rawShape.length < numPointsOffset + 4 ? 1 :
-      Math.max(1, contentBuffer().getInt(numPointsOffset));
+    return ShpRecord.parseNumPoints(rawShape);
   }
 
   private ShapeType recordShapeType() {
-    return shapeType != null ? shapeType : (shapeType = ShapeType.forID(contentBuffer().getInt(0)));
-  }
-
-  private ByteBuffer contentBuffer() {
-    // from spec "Organization of the Main File": record contents are little endian
-    return ByteBuffer.wrap(rawShape).order(ByteOrder.LITTLE_ENDIAN);
+    if (shapeType == null) {
+      // unknown shape types count as null shapes here, decoding reports them
+      shapeType = ShpRecord.parseShapeType(rawShape);
+    }
+    return shapeType;
   }
 }

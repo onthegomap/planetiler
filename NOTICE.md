@@ -12,7 +12,7 @@ The `planetiler-core` module includes the following software:
   - SLF4j (MIT license)
   - log4j (Apache license)
   - org.locationtech.jts:jts-core (Eclipse Distribution License)
-  - org.geotools:gt-shapefile (LGPL)
+  - org.geotools:gt-main (LGPL)
   - org.geotools:gt-epsg-hsql
     (LGPL, [BSD for HSQL](https://github.com/geotools/geotools/blob/main/licenses/HSQL.md)
     , [EPSG](https://github.com/geotools/geotools/blob/main/licenses/EPSG.md))

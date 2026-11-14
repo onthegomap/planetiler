@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.shapefile.ShapefileReader;
 import java.io.Closeable;
 import java.util.function.Consumer;
 

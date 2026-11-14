@@ -10,7 +10,6 @@ import com.onthegomap.planetiler.TestUtils;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -21,8 +20,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -193,39 +190,5 @@ class FileUtilsTest {
       assertArrayEquals(new byte[0], FileUtils.readFully(channel, 5, 0));
       assertThrows(EOFException.class, () -> FileUtils.readFully(channel, 3, 3));
     }
-  }
-
-  private static void writeZip(Path zip, String... namesAndContents) throws IOException {
-    try (var out = new ZipOutputStream(Files.newOutputStream(zip))) {
-      for (int i = 0; i < namesAndContents.length; i += 2) {
-        out.putNextEntry(new ZipEntry(namesAndContents[i]));
-        out.write(namesAndContents[i + 1].getBytes(StandardCharsets.UTF_8));
-      }
-    }
-  }
-
-  private static String read(URL url) throws IOException {
-    try (var in = url.openStream()) {
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
-  }
-
-  @Test
-  @SuppressWarnings("deprecation") // new URL(context, spec) is how GeoTools finds a shapefile's other files
-  void testUncachedUrlReadsTheCurrentZipFile() throws IOException {
-    Path zip = tmpDir.resolve("file.zip");
-    writeZip(zip, "a.txt", "one", "b.txt", "two");
-    Path pathInZip;
-    try (var fs = FileSystems.newFileSystem(zip)) {
-      pathInZip = fs.getPath("a.txt");
-    }
-    URL url = FileUtils.toUncachedUrl(pathInZip);
-    assertEquals("one", read(url));
-
-    // a cached jar: URL keeps the old zip file open and would read from it, and Windows can't replace it at all
-    writeZip(zip, "a.txt", "three", "b.txt", "four");
-    assertEquals("three", read(url));
-    assertEquals("four", read(new URL(url, "b.txt")));
-    assertEquals(zip.toUri().toURL(), FileUtils.toUncachedUrl(zip));
   }
 }
