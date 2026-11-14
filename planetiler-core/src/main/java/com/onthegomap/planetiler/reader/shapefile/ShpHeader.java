@@ -38,6 +38,12 @@ record ShpHeader(long fileBytes, int shapeTypeId, Envelope bounds) {
   //    +------------------+----------+
 
   static final int BYTES = 100;
+  private static final int FILE_CODE = 9994;
+
+  /** Returns whether {@code bytes} are long enough for a header and start with the shapefile file code. */
+  static boolean isHeader(byte[] bytes) {
+    return bytes.length >= BYTES && ByteBuffer.wrap(bytes).getInt(0) == FILE_CODE;
+  }
 
   /** Returns the header in the first {@link #BYTES} of {@code bytes}. */
   static ShpHeader parse(byte[] bytes) {

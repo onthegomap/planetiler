@@ -356,6 +356,9 @@ class ShapefileReaderTest {
     "65001, é",
     "utf8, é",
     "1252, Ã©",
+    // DOS code pages, like the 852 in QGIS's test_852.shp
+    "852, ├ę",
+    "437, ├⌐",
     "unknown-charset, Ã©",
     "NONE, Ã©",
   })
@@ -571,6 +574,17 @@ class ShapefileReaderTest {
   void testFailsWithoutShpHeader(@TempDir Path dir) throws IOException {
     var shpPath = writePoints(dir.resolve("test.shp"), 1);
     Files.write(shpPath, Arrays.copyOf(Files.readAllBytes(shpPath), 50));
+    try (var reader = new ShapefileReader(null, "test", shpPath)) {
+      assertThrows(FileFormatException.class, () -> reader.readFeatures(feature -> {
+      }));
+    }
+  }
+
+  @Test
+  void testFailsWithoutShpFileCode(@TempDir Path dir) throws IOException {
+    // like shapefile-js's test/data/bad.shp, which is a .dbf file renamed to .shp (long enough to have a header)
+    var shpPath = writePoints(dir.resolve("test.shp"), 10);
+    Files.copy(dir.resolve("test.dbf"), shpPath, StandardCopyOption.REPLACE_EXISTING);
     try (var reader = new ShapefileReader(null, "test", shpPath)) {
       assertThrows(FileFormatException.class, () -> reader.readFeatures(feature -> {
       }));

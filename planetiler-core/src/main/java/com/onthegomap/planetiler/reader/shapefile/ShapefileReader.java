@@ -261,13 +261,22 @@ public class ShapefileReader extends SimpleReader<ShapefileFeature> {
       // .cpg files aren't in the shapefile spec, they're an ESRI convention. ESRI tools write either a charset name or
       // a Windows code page number, where 65001 means UTF-8, so map the numbers to Java charset names. See
       // https://support.esri.com/en-us/knowledge-base/read-and-write-shapefile-and-dbase-files-encoded-in-var-000013192
-      return Charset.forName(cpg.matches("\\d+") ? (cpg.equals("65001") ? "UTF-8" : "windows-" + cpg) : cpg);
+      return cpg.matches("\\d+") ? codePageCharset(cpg) : Charset.forName(cpg);
     } catch (IllegalArgumentException _) {
       LOGGER.warn("Ignoring unknown charset \"{}\" in .cpg file of {}", cpg, input.getFileName());
       return null;
     }
   }
 
+  private static Charset codePageCharset(String number) {
+    if (number.equals("65001")) {
+      return StandardCharsets.UTF_8;
+    }
+    // Java names Windows code pages (1252, 874, 932, ...) windows-N, and only knows DOS code pages (850, 852, 866, ...)
+    // as cpN. cpN doesn't work for all Windows code pages either (cp932 is an IBM variant of Shift-JIS).
+    String windows = "windows-" + number;
+    return Charset.isSupported(windows) ? Charset.forName(windows) : Charset.forName("cp" + number);
+  }
 
   @Override
   public long getFeatureCount() {
@@ -335,7 +344,7 @@ public class ShapefileReader extends SimpleReader<ShapefileFeature> {
   private void forEachRecord(RecordConsumer consumer) throws IOException {
     try (var shp = buffered(input, 1 << 16)) {
       byte[] header = shp.readNBytes(ShpHeader.BYTES);
-      if (header.length < ShpHeader.BYTES) {
+      if (!ShpHeader.isHeader(header)) {
         throw new FileFormatException("Missing .shp header in " + input.getFileName());
       }
       long fileBytes = ShpHeader.parse(header).fileBytes();
