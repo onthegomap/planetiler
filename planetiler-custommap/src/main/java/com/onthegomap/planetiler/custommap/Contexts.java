@@ -101,7 +101,7 @@ public class Contexts {
           }
         } else {
           defaultValueObject = value;
-          description = "no description provided";
+          description = builtin ? root.builtInArgs.getString(key, description, null) : "no description provided";
         }
         argDescriptions.put(key, description);
         Try<Object> defaultValue = ConfigExpressionParser.tryStaticEvaluate(root, defaultValueObject, Object.class);
