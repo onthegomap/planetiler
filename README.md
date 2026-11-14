@@ -483,7 +483,7 @@ Planetiler is made possible by these awesome open source projects:
   is based on
 - [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
-- [Geotools](https://github.com/geotools/geotools) for shapefile processing
+- [Geotools](https://github.com/geotools/geotools) for coordinate reference systems and reprojection
 - [SQLite JDBC Driver](https://github.com/xerial/sqlite-jdbc) for reading Natural Earth data and writing MBTiles files
 - [MessagePack](https://msgpack.org/) for compact binary encoding of intermediate map features
 - [geojson-vt](https://github.com/mapbox/geojson-vt) for the basis of
