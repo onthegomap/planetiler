@@ -175,6 +175,7 @@ class PlanetilerTests {
     Profile profile
   ) throws Exception {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.of(args));
+    TestUtils.assumeNativeMlt(config);
     FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
@@ -372,7 +373,7 @@ class PlanetilerTests {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"auto", "java"})
+  @ValueSource(strings = {"native", "java"})
   void testAttributeTypeCoercion(String mltEncoder) throws Exception {
     double x = 0.5 + Z14_WIDTH / 4;
     double y = 0.5 + Z14_WIDTH / 4;
@@ -2786,6 +2787,7 @@ class PlanetilerTests {
   })
   void testPlanetilerRunner(String args) throws Exception {
     var argParsed = Arguments.fromArgs(args.split(" "));
+    TestUtils.assumeNativeMlt(PlanetilerConfig.from(argParsed));
     Path originalOsm =
       TestUtils.pathToResource(argParsed.getString("osm-test-path", "osm-test-path", "monaco-latest.osm.pbf"));
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");

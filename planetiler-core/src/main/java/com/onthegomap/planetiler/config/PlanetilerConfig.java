@@ -274,8 +274,8 @@ public record PlanetilerConfig(
         .fromId(arguments.getString("mlt_encoder",
           "the encoder to use when tile format=MLT, one of " +
             MltEncoderType.availableValues().stream().map(MltEncoderType::id).toList() +
-            ", auto uses native (Rust) where available and java elsewhere",
-          MltEncoderType.AUTO.id())),
+            ", native (Rust) is faster but only works on common platforms",
+          MltEncoderType.NATIVE.id())),
       arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
       arguments.getBoolean("mlt_tessellate_polygons",

@@ -276,7 +276,7 @@
           <includes>
             <include>**/*.java</include>
           </includes>
-          <!-- mlt-ffi-java calls native code through the FFM API -->
+          <!-- mlt-ffi-java, jffi, sqlite-jdbc, zstd-jni, lz4-java and snappy-java all load native code -->
           <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
         </configuration>
       </plugin>

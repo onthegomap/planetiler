@@ -84,10 +84,13 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.maplibre.mlt.decoder.MltDecoder;
 import org.maplibre.mlt.ffi.MltConverter;
+import org.maplibre.mlt.ffi.NativeLibrary;
 
 public class TestUtils {
 
-  private static final boolean NATIVE_MLT_AVAILABLE = MltEncoderType.AUTO.loadNative();
+  /** System property that skips the native MLT tests where its library does not load, instead of failing them. */
+  private static final String SKIP_NATIVE_MLT = "planetiler.skipNativeMlt";
+  private static final Throwable NATIVE_MLT_LOAD_FAILURE = loadNativeMlt();
 
   public static final AffineTransformation TRANSFORM_TO_TILE = AffineTransformation
     .scaleInstance(256d / 4096d, 256d / 4096d);
@@ -311,7 +314,7 @@ public class TestUtils {
 
   /** Returns the features of an MLT tile, decoded natively where possible (the Java decoder only reads Java tiles). */
   public static List<ComparableFeature> decodeMlt(byte[] bytes) {
-    return NATIVE_MLT_AVAILABLE ? decodeMltWithNativeDecoder(bytes) : decodeMltWithJavaDecoder(bytes);
+    return NATIVE_MLT_LOAD_FAILURE == null ? decodeMltWithNativeDecoder(bytes) : decodeMltWithJavaDecoder(bytes);
   }
 
   /** Reads tiles from either encoder. */
@@ -338,8 +341,29 @@ public class TestUtils {
     return result;
   }
 
+  private static Throwable loadNativeMlt() {
+    try {
+      NativeLibrary.load();
+      return null;
+    } catch (UnsatisfiedLinkError | IllegalCallerException e) {
+      return e;
+    }
+  }
+
+  /** Fails if the native MLT library does not load, or skips the test if {@value #SKIP_NATIVE_MLT} is set. */
   public static void assumeNativeMlt() {
-    Assumptions.assumeTrue(NATIVE_MLT_AVAILABLE, "native MLT library is not available on this platform");
+    if (NATIVE_MLT_LOAD_FAILURE != null) {
+      Assumptions.assumeFalse(Boolean.getBoolean(SKIP_NATIVE_MLT), "native MLT library does not load");
+      throw new AssertionError("native MLT library does not load, set -D" + SKIP_NATIVE_MLT + "=true to skip its tests",
+        NATIVE_MLT_LOAD_FAILURE);
+    }
+  }
+
+  /** Like {@link #assumeNativeMlt()} when {@code config} writes MLT tiles with the native encoder. */
+  public static void assumeNativeMlt(PlanetilerConfig config) {
+    if (config.tileFormat() == TileFormat.MLT && config.mltEncoder() == MltEncoderType.NATIVE) {
+      assumeNativeMlt();
+    }
   }
 
   private static Geometry scale(Geometry geometry, double v) {

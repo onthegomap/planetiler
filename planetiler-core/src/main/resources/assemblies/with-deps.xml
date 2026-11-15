@@ -35,6 +35,9 @@
         <excludes>
           <!-- Exclude cached log4j2 plugins https://stackoverflow.com/questions/48033792/log4j2-error-statuslogger-unrecognized-conversion-specifier -->
           <exclude>**/Log4j2Plugins.dat</exclude>
+          <!-- tradeoff: would inclrease the platforms native code works on, but also increase size.. -->
+          <exclude>org/maplibre/mlt/ffi/native/freebsd-*/**</exclude>
+          <exclude>org/maplibre/mlt/ffi/native/*-musl/**</exclude>
         </excludes>
       </unpackOptions>
     </dependencySet>

@@ -86,6 +86,16 @@ public class TileArchiveWriter {
     stats.counter("archive_tiles_written", "zoom", () -> countsByZoom);
   }
 
+  /**
+   * Fails if tiles cannot be encoded with the settings of {@code config}, to call at startup instead of finding out once
+   * the archive stage begins.
+   *
+   * @throws IllegalStateException if {@code mlt_encoder=native} but the native encoder does not work on this platform
+   */
+  public static void checkTileEncoder(PlanetilerConfig config, Stats stats) {
+    TileEncoder.factory(config, stats);
+  }
+
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
   public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
     TileArchiveMetadata tileArchiveMetadata, Path layerStatsPath, PlanetilerConfig config, Stats stats) {

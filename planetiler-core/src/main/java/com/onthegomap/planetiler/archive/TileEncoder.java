@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
-import org.maplibre.mlt.ffi.NativeLibrary;
 
 /**
  * Encodes vector tiles to the bytes stored in a tile archive. Not thread-safe: each thread gets its own instance from
@@ -21,17 +20,17 @@ sealed interface TileEncoder extends AutoCloseable
    * Returns a factory of encoders for the tile format of {@code config}, to call once per encoding thread. The native
    * MLT encoder needs the JVM option {@code --enable-native-access=ALL-UNNAMED}, which planetiler's jar and image set.
    *
-   * @throws IllegalStateException if {@code mlt_encoder=native} but the native library does not load on this platform
+   * @throws IllegalStateException if {@code mlt_encoder=native} but the native encoder does not work on this platform
    */
   static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats) {
-    return factory(config, stats, NativeLibrary::load);
+    return factory(config, stats, () -> NativeMltTileEncoder.check(config));
   }
 
-  /** Like {@link #factory(PlanetilerConfig, Stats)}, loading the native library with {@code loadNativeLibrary}. */
-  static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats, Runnable loadNativeLibrary) {
+  /** Like {@link #factory(PlanetilerConfig, Stats)}, checking the native encoder with {@code checkNativeEncoder}. */
+  static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats, Runnable checkNativeEncoder) {
     return switch (config.tileFormat()) {
-      case MLT -> config.mltEncoder().loadNative(loadNativeLibrary) ?
-        () -> new NativeMltTileEncoder(config) :
+      case MLT -> config.mltEncoder().useNative(checkNativeEncoder) ?
+        () -> new NativeMltTileEncoder(config, stats) :
         () -> new JavaMltTileEncoder(config, stats);
       case UNKNOWN, MVT -> MvtTileEncoder::new;
     };

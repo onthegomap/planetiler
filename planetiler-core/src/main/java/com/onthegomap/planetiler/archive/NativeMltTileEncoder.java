@@ -2,6 +2,8 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +12,13 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.maplibre.mlt.ffi.MltEncoder;
+import org.maplibre.mlt.ffi.MltException;
 import org.maplibre.mlt.ffi.MltLayerStats;
 import org.maplibre.mlt.ffi.MltWireVersion;
 import org.maplibre.mlt.ffi.MvtGeometryType;
+import org.maplibre.mlt.ffi.NativeLibrary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Encodes tiles to MLT with the native (Rust) encoder of {@code mlt-ffi-java}, which only the creating thread may use.
@@ -20,9 +26,13 @@ import org.maplibre.mlt.ffi.MvtGeometryType;
  */
 final class NativeMltTileEncoder implements TileEncoder {
 
-  private final MltEncoder encoder;
+  private static final Logger LOGGER = LoggerFactory.getLogger(NativeMltTileEncoder.class);
 
-  NativeMltTileEncoder(PlanetilerConfig config) {
+  private final MltEncoder encoder;
+  private final Stats stats;
+
+  NativeMltTileEncoder(PlanetilerConfig config, Stats stats) {
+    this.stats = stats;
     // native defaults enable FSST, FastPFOR and shared dicts; v1 has no other options and always keeps polygon outlines
     encoder = MltEncoder.builder()
       .wireVersion(MltWireVersion.V1)
@@ -34,6 +44,24 @@ final class NativeMltTileEncoder implements TileEncoder {
       .attemptIdSort(config.mltReorderFeature())
       .allowSharedDict(config.mltSharedDictionaries())
       .build();
+  }
+
+  /**
+   * Loads the native library and encodes a tile with the options of {@code config}, to find out at startup rather than
+   * hours into a run that the native encoder does not work on this platform.
+   *
+   * @throws UnsatisfiedLinkError if the native library does not load
+   * @throws IllegalCallerException if the JVM does not allow native access
+   * @throws MltException if the native encoder fails
+   */
+  static void check(PlanetilerConfig config) {
+    // load explicitly, since a failure inside MltEncoder's static initializer surfaces as an ExceptionInInitializerError
+    NativeLibrary.load();
+    var tile = new VectorTile().addLayerFeatures("check", List.of(
+      new VectorTile.Feature("check", 1, VectorTile.encodeGeometry(GeoUtils.point(1, 2)), Map.of("key", "value"))));
+    try (var encoder = new NativeMltTileEncoder(config, Stats.inMemory())) {
+      encoder.encode(tile, true);
+    }
   }
 
   @Override
@@ -79,10 +107,17 @@ final class NativeMltTileEncoder implements TileEncoder {
         case POLYGON -> MvtGeometryType.POLYGON;
         case UNKNOWN -> throw new IllegalArgumentException("MLT cannot store unknown geometries");
       };
-      if (includeIds && id != VectorTile.NO_FEATURE_ID) {
-        encoder.beginFeature(geometryType, geometry.commands(), id);
-      } else {
-        encoder.beginFeature(geometryType, geometry.commands());
+      try {
+        if (includeIds && id != VectorTile.NO_FEATURE_ID) {
+          encoder.beginFeature(geometryType, geometry.commands(), id);
+        } else {
+          encoder.beginFeature(geometryType, geometry.commands());
+        }
+      } catch (MltException e) {
+        // the encoder did not begin this feature, so its properties would land on the previous one
+        stats.dataError("mlt_feature_native_encode");
+        LOGGER.warn("Error converting feature {} of layer {} to MLT: {}", id, layer.name, e.getMessage());
+        return;
       }
       layer.features++;
       layer.geometries += VectorTile.countGeometries(geometry.commands());
