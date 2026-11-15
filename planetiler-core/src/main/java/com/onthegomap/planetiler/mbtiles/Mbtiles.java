@@ -410,7 +410,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public byte[] getTile(int x, int y, int z) {
+  public synchronized byte[] getTile(int x, int y, int z) {
     try {
       PreparedStatement stmt = getTileStatement();
       stmt.setInt(1, x);

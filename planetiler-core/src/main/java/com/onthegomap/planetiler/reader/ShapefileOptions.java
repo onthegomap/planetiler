@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
 import io.soabase.recordbuilder.core.RecordBuilder;
+import java.nio.charset.Charset;
 
 /**
  * Options to control how shapefiles are read.
@@ -14,12 +15,14 @@ import io.soabase.recordbuilder.core.RecordBuilder;
  *                                uppercase or mixed case
  * @param emptyStringsAsNull      leave out attributes with an empty string value so they read as {@code null}, since a
  *                                {@code .dbf} file can't store {@code null} text
+ * @param charset                 charset of {@code .dbf} text, overriding the one a shapefile's {@code .cpg} file
+ *                                names, or {@code null} to use the {@code .cpg} file (ISO-8859-1 without one)
  */
 @RecordBuilder
 public record ShapefileOptions(String projection, String globPattern, boolean lowercaseAttributeNames,
-  boolean emptyStringsAsNull) implements ShapefileOptionsBuilder.With {
+  boolean emptyStringsAsNull, Charset charset) implements ShapefileOptionsBuilder.With {
 
-  public static final ShapefileOptions DEFAULT = new ShapefileOptions(null, "*.shp", false, false);
+  public static final ShapefileOptions DEFAULT = new ShapefileOptions(null, "*.shp", false, false, null);
 
   /** Returns a builder that starts from {@link #DEFAULT}. */
   public static ShapefileOptionsBuilder builder() {

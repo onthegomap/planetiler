@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import com.onthegomap.planetiler.util.LogUtil;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
+// Stats.inMemory() replaces the global default stats, so other tests must not run alongside testDefaultStats.
+@Isolated
 class StatsTest {
   @Test
   void testDefaultStats() {

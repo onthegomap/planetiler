@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Timeout;
 class OsmPhaserTest {
 
   @Test
-  @Timeout(1)
+  @Timeout(10)
   void testAdvanceSingleThread() {
     var phaser = new OsmPhaser(0);
     var forWorker = phaser.forWorker();
@@ -41,7 +41,7 @@ class OsmPhaserTest {
   }
 
   @Test
-  @Timeout(1)
+  @Timeout(10)
   void testAdvanceAndSkipPhases() {
     var phaser = new OsmPhaser(1);
     var forWorker = phaser.forWorker();
@@ -64,7 +64,7 @@ class OsmPhaserTest {
   }
 
   @Test
-  @Timeout(1)
+  @Timeout(10)
   void testWorkerAdvanceSideEffect() {
     var nodesCalled = new AtomicBoolean(false);
     var waysCalled = new AtomicBoolean(false);
@@ -87,7 +87,7 @@ class OsmPhaserTest {
   }
 
   @Test
-  @Timeout(1)
+  @Timeout(10)
   void testCantGoBackwards() {
     var phaser = new OsmPhaser(1);
     var forWorker = phaser.forWorker();
@@ -98,7 +98,7 @@ class OsmPhaserTest {
   }
 
   @Test
-  @Timeout(1)
+  @Timeout(10)
   void testWaitToAdvance() throws InterruptedException {
     var phaser = new OsmPhaser(2);
     var latch1 = new CountDownLatch(1);

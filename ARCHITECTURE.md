@@ -20,7 +20,7 @@ from each input source:
 
 - For "simple
   sources" [NaturalEarthReader](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/NaturalEarthReader.java)
-  or [ShapefileReader](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/ShapefileReader.java) can get the
+  or [ShapefileReader](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/shapefile/ShapefileReader.java) can get the
   latitude/longitude geometry directly from each feature
 - For OpenStreetMap `.osm.pbf` files,
   [OsmReader](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/osm/OsmReader.java)
