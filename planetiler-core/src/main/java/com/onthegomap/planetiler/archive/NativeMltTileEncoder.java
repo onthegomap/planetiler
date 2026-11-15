@@ -7,10 +7,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.maplibre.mlt.ffi.MltEncoder;
 import org.maplibre.mlt.ffi.MltException;
 import org.maplibre.mlt.ffi.MltLayerStats;
@@ -27,12 +24,16 @@ import org.slf4j.LoggerFactory;
 final class NativeMltTileEncoder implements TileEncoder {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NativeMltTileEncoder.class);
+  private static boolean checked;
 
   private final MltEncoder encoder;
   private final Stats stats;
+  /** Whether to fill in the layer stats that only {@code output_layerstats} uses, which costs a parse of each tile. */
+  private final boolean detailedStats;
 
   NativeMltTileEncoder(PlanetilerConfig config, Stats stats) {
     this.stats = stats;
+    this.detailedStats = config.outputLayerStats();
     // native defaults enable FSST, FastPFOR and shared dicts; v1 has no other options and always keeps polygon outlines
     encoder = MltEncoder.builder()
       .wireVersion(MltWireVersion.V1)
@@ -47,20 +48,39 @@ final class NativeMltTileEncoder implements TileEncoder {
   }
 
   /**
-   * Loads the native library and encodes a tile with the options of {@code config}, to find out at startup rather than
-   * hours into a run that the native encoder does not work on this platform.
+   * Encodes a tile once per JVM, to find out at startup rather than hours into a run that the native encoder does not
+   * work on this platform.
    *
-   * @throws UnsatisfiedLinkError if the native library does not load
-   * @throws IllegalCallerException if the JVM does not allow native access
-   * @throws MltException if the native encoder fails
+   * @throws IllegalStateException if the native encoder does not work, saying what to do instead
    */
-  static void check(PlanetilerConfig config) {
+  static synchronized void check() {
+    if (!checked) {
+      check(NativeMltTileEncoder::encodeOneTile);
+      checked = true;
+    }
+  }
+
+  /** Runs {@code encodeOneTile}, turning its failure into an {@link IllegalStateException} that says what to do. */
+  static void check(Runnable encodeOneTile) {
+    try {
+      encodeOneTile.run();
+    } catch (IllegalCallerException e) {
+      throw new IllegalStateException(
+        "Native MLT encoder needs the JVM option --enable-native-access=ALL-UNNAMED, or use --mlt-encoder=java", e);
+    } catch (UnsatisfiedLinkError | MltException e) {
+      throw new IllegalStateException("Native MLT encoder is not available on " + System.getProperty("os.name") + " " +
+        System.getProperty("os.arch") + " (" + e.getMessage() + "), use --mlt-encoder=java instead", e);
+    }
+  }
+
+  private static void encodeOneTile() {
     // load explicitly, since a failure inside MltEncoder's static initializer surfaces as an ExceptionInInitializerError
     NativeLibrary.load();
-    var tile = new VectorTile().addLayerFeatures("check", List.of(
-      new VectorTile.Feature("check", 1, VectorTile.encodeGeometry(GeoUtils.point(1, 2)), Map.of("key", "value"))));
-    try (var encoder = new NativeMltTileEncoder(config, Stats.inMemory())) {
-      encoder.encode(tile, true);
+    try (var encoder = MltEncoder.builder().build()) {
+      encoder.beginLayer("check", VectorTile.EXTENT);
+      encoder.beginFeature(MvtGeometryType.POINT, VectorTile.encodeGeometry(GeoUtils.point(1, 2)).commands());
+      encoder.setProperty("key", "value");
+      encoder.toByteArray();
     }
   }
 
@@ -69,7 +89,7 @@ final class NativeMltTileEncoder implements TileEncoder {
     var writer = new FeatureWriter(includeIds);
     tile.visitFeatures(writer);
     byte[] bytes = encoder.toByteArray();
-    return new Encoded(bytes, writer.layerStats(tile, bytes));
+    return new Encoded(bytes, writer.layerStats(bytes));
   }
 
   @Override
@@ -95,7 +115,7 @@ final class NativeMltTileEncoder implements TileEncoder {
       this.keys = keys;
       this.values = values;
       encoder.beginLayer(name, VectorTile.EXTENT);
-      layer = new LayerCounts(name);
+      layer = new LayerCounts(name, keys.size(), values.size());
       layers.add(layer);
     }
 
@@ -120,30 +140,39 @@ final class NativeMltTileEncoder implements TileEncoder {
         return;
       }
       layer.features++;
-      layer.geometries += VectorTile.countGeometries(geometry.commands());
+      if (detailedStats) {
+        layer.geometries += VectorTile.countGeometries(geometry.commands());
+      }
       for (int i = 0; i < tags.length; i += 2) {
         encoder.setProperty(keys.get(tags[i]), values.get(tags[i + 1]));
       }
     }
 
-    List<TileSizeStats.LayerStats> layerStats(VectorTile tile, byte[] bytes) {
-      Map<String, MltLayerStats> sizes = MltLayerStats.of(bytes).stream()
-        .collect(Collectors.toMap(MltLayerStats::name, Function.identity()));
-      return layers.stream().map(counts -> {
-        var size = Objects.requireNonNull(sizes.get(counts.name), () -> "no layer " + counts.name + " in MLT output");
-        return new TileSizeStats.LayerStats(counts.name, size.bytes(), counts.features, counts.geometries,
-          size.propertyBytes(), tile.getNumKeys(counts.name), tile.getNumValues(counts.name));
+    /** Returns the stats of each layer of {@code bytes}, the tile the encoder just wrote. */
+    List<TileSizeStats.LayerStats> layerStats(byte[] bytes) {
+      // like the encoder's layer sizes, leave out layers without features as the tile does not hold them
+      var written = layers.stream().filter(counts -> counts.features > 0).toList();
+      var sizes = encoder.lastLayerSizes();
+      var details = detailedStats ? MltLayerStats.of(bytes) : null;
+      return IntStream.range(0, written.size()).mapToObj(i -> {
+        var counts = written.get(i);
+        return new TileSizeStats.LayerStats(counts.name, sizes.get(i).bytes(), counts.features, counts.geometries,
+          details == null ? 0 : details.get(i).propertyBytes(), counts.keys, counts.values);
       }).toList();
     }
   }
 
   private static final class LayerCounts {
     final String name;
+    final int keys;
+    final int values;
     int features;
     int geometries;
 
-    LayerCounts(String name) {
+    LayerCounts(String name, int keys, int values) {
       this.name = name;
+      this.keys = keys;
+      this.values = values;
     }
   }
 }

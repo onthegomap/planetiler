@@ -1,12 +1,12 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.MltEncoderType;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
-import com.onthegomap.planetiler.archive.MltEncoderType;
 import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -273,7 +273,7 @@ public record PlanetilerConfig(
       MltEncoderType
         .fromId(arguments.getString("mlt_encoder",
           "the encoder to use when tile format=MLT, one of " +
-            MltEncoderType.availableValues().stream().map(MltEncoderType::id).toList() +
+            MltEncoderType.ids() +
             ", native (Rust) is faster but only works on common platforms",
           MltEncoderType.NATIVE.id())),
       arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),

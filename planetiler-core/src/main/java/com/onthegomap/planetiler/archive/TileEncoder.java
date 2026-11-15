@@ -23,15 +23,14 @@ sealed interface TileEncoder extends AutoCloseable
    * @throws IllegalStateException if {@code mlt_encoder=native} but the native encoder does not work on this platform
    */
   static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats) {
-    return factory(config, stats, () -> NativeMltTileEncoder.check(config));
-  }
-
-  /** Like {@link #factory(PlanetilerConfig, Stats)}, checking the native encoder with {@code checkNativeEncoder}. */
-  static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats, Runnable checkNativeEncoder) {
     return switch (config.tileFormat()) {
-      case MLT -> config.mltEncoder().useNative(checkNativeEncoder) ?
-        () -> new NativeMltTileEncoder(config, stats) :
-        () -> new JavaMltTileEncoder(config, stats);
+      case MLT -> switch (config.mltEncoder()) {
+        case NATIVE -> {
+          NativeMltTileEncoder.check();
+          yield () -> new NativeMltTileEncoder(config, stats);
+        }
+        case JAVA -> () -> new JavaMltTileEncoder(config, stats);
+      };
       case UNKNOWN, MVT -> MvtTileEncoder::new;
     };
   }

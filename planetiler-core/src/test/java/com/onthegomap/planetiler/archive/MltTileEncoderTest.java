@@ -200,7 +200,7 @@ abstract class MltTileEncoderTest {
       feature("pois", 1, newPoint(1, 2), Map.of("name:en", "a", "name:de", "b")),
       feature("roads", 2, newMultiLineString(newLineString(0, 0, 5, 5), newLineString(7, 7, 9, 12)), Map.of()));
 
-    var layerStats = encode(tile, sharedDictOption).layerStats();
+    var layerStats = encode(tile, "--output-layerstats", sharedDictOption).layerStats();
 
     assertEquals(2, layerStats.size());
     var pois = layerStats.get(0);

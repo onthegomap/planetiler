@@ -318,7 +318,7 @@ public class TestUtils {
   }
 
   /** Reads tiles from either encoder. */
-  public static List<ComparableFeature> decodeMltWithNativeDecoder(byte[] bytes) {
+  private static List<ComparableFeature> decodeMltWithNativeDecoder(byte[] bytes) {
     return decodeMvt(MltConverter.mltToMvt(bytes));
   }
 

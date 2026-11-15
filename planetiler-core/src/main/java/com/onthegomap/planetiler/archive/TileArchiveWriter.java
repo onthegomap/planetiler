@@ -74,6 +74,9 @@ public class TileArchiveWriter {
     this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
     tileEncoderFactory = TileEncoder.factory(config, stats);
+    if (config.tileFormat() == TileFormat.MLT) {
+      LOGGER.info("Using the {} MLT encoder", config.mltEncoder().id());
+    }
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);

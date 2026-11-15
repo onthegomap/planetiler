@@ -1,13 +1,14 @@
 package com.onthegomap.planetiler.archive;
 
 import static com.onthegomap.planetiler.TestUtils.assumeNativeMlt;
-import static com.onthegomap.planetiler.TestUtils.decodeSilently;
+import static com.onthegomap.planetiler.TestUtils.decodeMvt;
+import static com.onthegomap.planetiler.TestUtils.feature;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.onthegomap.planetiler.VectorTile;
@@ -23,13 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments.ArgumentSet;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.locationtech.jts.geom.Geometry;
 
 /** Tests the MVT encoder and which encoder {@link TileEncoder#factory} picks, see {@link MltTileEncoderTest} for MLT. */
 class TileEncoderTest {
-
-  private static final boolean WITH_IDS = true;
-  private static final boolean WITHOUT_IDS = false;
 
   @Test
   void mvtEncoderWritesTheTileAsMvt() {
@@ -37,11 +34,11 @@ class TileEncoderTest {
       .addLayerFeatures("poi", List.of(point("poi", 1, 10, 20, Map.of("name", "cafe"))))
       .addLayerFeatures("road", List.of(point("road", 2, 30, 40, Map.of("kind", "path"))));
 
-    var encoded = encodeMvt(tile, WITH_IDS);
+    var encoded = encodeMvt(tile, true);
 
     assertEquals(List.of(
-      new DecodedFeature("poi", 1L, newPoint(10, 20), Map.of("name", "cafe")),
-      new DecodedFeature("road", 2L, newPoint(30, 40), Map.of("kind", "path"))
+      feature(newPoint(10, 20), "poi", Map.of("name", "cafe"), 1),
+      feature(newPoint(30, 40), "road", Map.of("kind", "path"), 2)
     ), decodeMvt(encoded.bytes()));
   }
 
@@ -50,12 +47,10 @@ class TileEncoderTest {
     var tile = new VectorTile()
       .addLayerFeatures("poi", List.of(point("poi", 1, 10, 20, Map.of("name", "cafe"))));
 
-    var encoded = encodeMvt(tile, WITHOUT_IDS);
+    var encoded = encodeMvt(tile, false);
 
     // MVT has no "missing id": a feature without one decodes with id 0
-    assertEquals(List.of(
-      new DecodedFeature("poi", 0L, newPoint(10, 20), Map.of("name", "cafe"))
-    ), decodeMvt(encoded.bytes()));
+    assertEquals(List.of(feature(newPoint(10, 20), "poi", Map.of("name", "cafe"), 0)), decodeMvt(encoded.bytes()));
   }
 
   @Test
@@ -67,12 +62,10 @@ class TileEncoderTest {
       ))
       .addLayerFeatures("road", List.of(point("road", 3, 50, 60, Map.of("kind", "path"))));
 
-    var encoded = encodeMvt(tile, WITH_IDS);
+    var encoded = encodeMvt(tile, true);
 
-    assertEquals(
-      Map.of("poi", 2, "road", 1),
-      featureCountByLayer(encoded.layerStats())
-    );
+    assertEquals(Map.of("poi", 2, "road", 1), encoded.layerStats().stream()
+      .collect(Collectors.toMap(TileSizeStats.LayerStats::layer, TileSizeStats.LayerStats::layerFeatures)));
   }
 
   @Test
@@ -90,14 +83,14 @@ class TileEncoderTest {
   void createsNativeMltEncoderByDefault() {
     assumeNativeMlt();
 
-    try (var encoder = TileEncoder.factory(config("tile_format", "mlt"), Stats.inMemory()).get()) {
+    try (var encoder = create(config("tile_format", "mlt"))) {
       assertInstanceOf(NativeMltTileEncoder.class, encoder);
     }
   }
 
   @Test
-  void createsJavaMltEncoderWithoutCheckingTheNativeEncoder() {
-    try (var encoder = create(mltConfig("java"), () -> fail("checked the native encoder"))) {
+  void createsJavaMltEncoderWhenAskedTo() {
+    try (var encoder = create(config("tile_format", "mlt", "mlt_encoder", "java"))) {
       assertInstanceOf(JavaMltTileEncoder.class, encoder);
     }
   }
@@ -114,19 +107,16 @@ class TileEncoderTest {
 
   @ParameterizedTest
   @MethodSource("nativeEncoderFailures")
-  void nativeFailsWhereTheNativeEncoderDoesNotWork(Runnable checkNativeEncoder) {
-    var config = mltConfig("native");
+  void nativeCheckSuggestsTheJavaEncoderWhereTheNativeOneDoesNotWork(Runnable encodeOneTile) {
+    var error = assertThrows(IllegalStateException.class, () -> NativeMltTileEncoder.check(encodeOneTile));
 
-    assertThrows(IllegalStateException.class, () -> create(config, checkNativeEncoder));
+    assertTrue(error.getMessage().contains("--mlt-encoder=java"), error.getMessage());
   }
 
   @Test
   void rejectsUnknownMltEncoder() {
-    assertThrows(IllegalArgumentException.class, () -> mltConfig("auto"));
+    assertThrows(IllegalArgumentException.class, () -> config("tile_format", "mlt", "mlt_encoder", "auto"));
   }
-
-  /** A feature as read back from encoded tile bytes, with geometry in tile coordinates (0-256). */
-  private record DecodedFeature(String layer, Long id, Geometry geometry, Map<String, Object> tags) {}
 
   private static VectorTile.Feature point(String layer, long id, double x, double y, Map<String, Object> tags) {
     return new VectorTile.Feature(layer, id, VectorTile.encodeGeometry(newPoint(x, y)), tags);
@@ -136,29 +126,13 @@ class TileEncoderTest {
     return PlanetilerConfig.from(Arguments.of((Object[]) args));
   }
 
-  private static PlanetilerConfig mltConfig(String mltEncoder) {
-    return config("tile_format", "mlt", "mlt_encoder", mltEncoder);
-  }
-
-  private static TileEncoder create(PlanetilerConfig config, Runnable checkNativeEncoder) {
-    return TileEncoder.factory(config, Stats.inMemory(), checkNativeEncoder).get();
+  private static TileEncoder create(PlanetilerConfig config) {
+    return TileEncoder.factory(config, Stats.inMemory()).get();
   }
 
   private static TileEncoder.Encoded encodeMvt(VectorTile tile, boolean includeIds) {
-    try (var encoder = create(config("tile_format", "mvt"), () -> fail("checked the native encoder"))) {
+    try (var encoder = create(config("tile_format", "mvt"))) {
       return encoder.encode(tile, includeIds);
     }
-  }
-
-  private static List<DecodedFeature> decodeMvt(byte[] bytes) {
-    return VectorTile.decode(bytes).stream()
-      .map(f -> new DecodedFeature(f.layer(), f.id(), decodeSilently(f.geometry()), f.tags()))
-      .toList();
-  }
-
-  private static Map<String, Integer> featureCountByLayer(List<TileSizeStats.LayerStats> layerStats) {
-    return layerStats.stream()
-      .collect(Collectors.toMap(TileSizeStats.LayerStats::layer,
-        TileSizeStats.LayerStats::layerFeatures));
   }
 }
