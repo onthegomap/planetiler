@@ -211,6 +211,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.maplibre</groupId>
+      <artifactId>mlt-ffi-java</artifactId>
+      <version>${mlt-ffi.version}</version>
+    </dependency>
 
   </dependencies>
 

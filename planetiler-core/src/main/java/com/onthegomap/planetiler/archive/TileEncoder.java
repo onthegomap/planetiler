@@ -14,12 +14,23 @@ import java.util.function.Supplier;
  * {@link #factory}, closes it when done, and must not reuse it after {@link #encode} throws.
  */
 sealed interface TileEncoder extends AutoCloseable
-  permits MvtTileEncoder, JavaMltTileEncoder {
+  permits MvtTileEncoder, JavaMltTileEncoder, NativeMltTileEncoder {
 
-  /** Returns a factory of encoders for the tile format of {@code config}, to call once per encoding thread. */
+  /**
+   * Returns a factory of encoders for the tile format of {@code config}, to call once per encoding thread. The native
+   * MLT encoder needs the JVM option {@code --enable-native-access=ALL-UNNAMED}, which planetiler's jar and image set.
+   *
+   * @throws IllegalStateException if {@code mlt_encoder=native} but the native encoder does not work on this platform
+   */
   static Supplier<TileEncoder> factory(PlanetilerConfig config, Stats stats) {
     return switch (config.tileFormat()) {
-      case MLT -> () -> new JavaMltTileEncoder(config, stats);
+      case MLT -> switch (config.mltEncoder()) {
+        case NATIVE -> {
+          NativeMltTileEncoder.check();
+          yield () -> new NativeMltTileEncoder(config, stats);
+        }
+        case JAVA -> () -> new JavaMltTileEncoder(config, stats);
+      };
       case UNKNOWN, MVT -> MvtTileEncoder::new;
     };
   }

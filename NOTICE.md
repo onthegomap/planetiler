@@ -32,6 +32,7 @@ The `planetiler-core` module includes the following software:
   - org.tukaani:xz (BSD 0-Clause License)
   - blue.strategic.parquet:parquet-floor (Apache license)
   - org.maplibre:mlt (Apache license)
+  - org.maplibre:mlt-ffi-java (MIT OR Apache license)
   - io.soabase.record-builder:record-builder (Apache license, build time only)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)

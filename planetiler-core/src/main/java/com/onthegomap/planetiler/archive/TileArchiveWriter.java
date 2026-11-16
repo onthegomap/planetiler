@@ -74,6 +74,9 @@ public class TileArchiveWriter {
     this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
     tileEncoderFactory = TileEncoder.factory(config, stats);
+    if (config.tileFormat() == TileFormat.MLT) {
+      LOGGER.info("Using the {} MLT encoder", config.mltEncoder().id());
+    }
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);
@@ -84,6 +87,16 @@ public class TileArchiveWriter {
       countsByZoom.put(Integer.toString(zoom), tilesByZoom[zoom]);
     }
     stats.counter("archive_tiles_written", "zoom", () -> countsByZoom);
+  }
+
+  /**
+   * Fails if tiles cannot be encoded with the settings of {@code config}, to call at startup instead of finding out once
+   * the archive stage begins.
+   *
+   * @throws IllegalStateException if {@code mlt_encoder=native} but the native encoder does not work on this platform
+   */
+  public static void checkTileEncoder(PlanetilerConfig config, Stats stats) {
+    TileEncoder.factory(config, stats);
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */

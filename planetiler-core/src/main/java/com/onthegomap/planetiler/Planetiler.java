@@ -1019,6 +1019,9 @@ public class Planetiler {
       throw new IllegalArgumentException(
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
+    if (!onlyDownloadSources) {
+      TileArchiveWriter.checkTileEncoder(config, stats);
+    }
 
     Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
       // default to <output file>.layerstats.tsv.gz
