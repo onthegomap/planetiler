@@ -21,7 +21,7 @@
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.23.0</jackson.version>
     <junit.version>6.1.3</junit.version>
-    <mlt-ffi.version>0.2.3</mlt-ffi.version>
+    <mlt-ffi.version>0.2.4</mlt-ffi.version>
     <!-- set by jacoco in the coverage profile, extended by surefire with late @{argLine} replacement -->
     <argLine/>
     <record-builder.version>44</record-builder.version>
