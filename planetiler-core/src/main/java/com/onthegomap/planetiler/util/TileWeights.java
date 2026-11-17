@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -89,9 +90,18 @@ public class TileWeights {
    * tiles.
    */
   public static TileWeights readFromFile(Path path) {
+    return readFromFile(path, tile -> true);
+  }
+
+  /**
+   * Like {@link #readFromFile(Path)} but only keeps the weights of individual tiles that match {@code tilesToKeep}.
+   * <p>
+   * {@link #getZoomWeight(int)} still sums every tile in the file.
+   */
+  public static TileWeights readFromFile(Path path, Predicate<TileCoord> tilesToKeep) {
     try (var fileStream = new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
-      var result = readFrom(fileStream);
-      if (!result.weights.isEmpty()) {
+      var result = readFrom(fileStream, tilesToKeep);
+      if (!result.isEmpty()) {
         return result;
       }
     } catch (IOException | RuntimeJsonMappingException e) {
@@ -99,14 +109,14 @@ public class TileWeights {
     }
 
     try (var resourceStream = TileWeights.class.getResourceAsStream("/top_50k_osm_tiles.tsv")) {
-      return readFrom(resourceStream);
+      return readFrom(resourceStream, tilesToKeep);
     } catch (IOException e) {
       LOGGER.warn("Unable to load top 100k tile weights, falling back to unweighted average", e);
       return new TileWeights();
     }
   }
 
-  private static TileWeights readFrom(InputStream input) throws IOException {
+  private static TileWeights readFrom(InputStream input, Predicate<TileCoord> tilesToKeep) throws IOException {
     if (input == null) {
       throw new IOException("No input provided");
     }
@@ -117,7 +127,14 @@ public class TileWeights {
         if (row.z >= PlanetilerConfig.MIN_MINZOOM && row.z <= PlanetilerConfig.MAX_MAXZOOM) {
           int x = row.x % (1 << row.z);
           int y = row.y % (1 << row.z);
-          result.put(TileCoord.ofXYZ(x, y, row.z()), row.loads());
+          var coord = TileCoord.ofXYZ(x, y, row.z());
+          // Only store tile weights we will actually generate
+          if (tilesToKeep.test(coord)) {
+            result.put(coord, row.loads());
+          } else {
+            // but still include in global zoom counts so we don't overweight low zooms
+            result.byZoom.merge(coord.z(), row.loads(), Long::sum);
+          }
         }
       }
     }
