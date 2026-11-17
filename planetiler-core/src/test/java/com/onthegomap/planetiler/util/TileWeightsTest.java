@@ -94,4 +94,26 @@ class TileWeightsTest {
       """.getBytes(StandardCharsets.UTF_8)));
     assertEquals(4, TileWeights.readFromFile(file).getWeight(TileCoord.ofXYZ(0, 1, 1)));
   }
+
+  @Test
+  void testReadFromFileOnlyKeepsMatchingTiles(@TempDir Path path) throws IOException {
+    Path file = path.resolve("test.tsv.gz");
+    new TileWeights()
+      .put(TileCoord.ofXYZ(0, 0, 0), 1)
+      .put(TileCoord.ofXYZ(0, 0, 1), 2)
+      .put(TileCoord.ofXYZ(1, 0, 1), 3)
+      .writeToFile(file);
+
+    var read = TileWeights.readFromFile(file, tile -> tile.equals(TileCoord.ofXYZ(1, 0, 1)));
+    assertEquals(0, read.getWeight(TileCoord.ofXYZ(0, 0, 0)));
+    assertEquals(0, read.getWeight(TileCoord.ofXYZ(0, 0, 1)));
+    assertEquals(3, read.getWeight(TileCoord.ofXYZ(1, 0, 1)));
+    assertEquals(1, read.getZoomWeight(0));
+    assertEquals(5, read.getZoomWeight(1));
+
+    // no fallback to the embedded weights when every tile in the file gets filtered out
+    var noneKept = TileWeights.readFromFile(file, tile -> false);
+    assertEquals(0, noneKept.getWeight(TileCoord.ofXYZ(0, 0, 0)));
+    assertEquals(5, noneKept.getZoomWeight(1));
+  }
 }

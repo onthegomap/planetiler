@@ -67,7 +67,9 @@ public class TileArchiveWriter {
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
-    this.tileStats = new TilesetSummaryStatistics(TileWeights.readFromFile(config.tileWeights()));
+    this.tileStats = new TilesetSummaryStatistics(
+      TileWeights.readFromFile(config.tileWeights(), tile -> tile.z() <= config.maxzoom() &&
+        config.bounds().tileExtents().test(tile)));
     this.inputTiles = inputTiles;
     this.archive = archive;
     this.config = config;
