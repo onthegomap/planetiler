@@ -126,7 +126,7 @@ public class FileUtils {
   public static long fileSize(Path path) {
     try {
       return Files.size(path);
-    } catch (IOException e) {
+    } catch (IOException _) {
       return 0;
     }
   }
@@ -138,7 +138,7 @@ public class FileUtils {
         .filter(Files::isRegularFile)
         .mapToLong(FileUtils::fileSize)
         .sum();
-    } catch (IOException e) {
+    } catch (IOException _) {
       return 0;
     }
   }
@@ -163,7 +163,7 @@ public class FileUtils {
       walker
         .sorted(Comparator.reverseOrder())
         .forEach(FileUtils::deleteFile);
-    } catch (NoSuchFileException e) {
+    } catch (NoSuchFileException _) {
       // this is OK, file doesn't exist, so can't walk
     } catch (IOException e) {
       LOGGER.error("Unable to delete " + path, e);
@@ -372,7 +372,7 @@ public class FileUtils {
   public static boolean isNewer(Path src, Path dest) {
     try {
       return Files.notExists(dest) || getLastModifiedTime(src) > getLastModifiedTime(dest);
-    } catch (IOException e) {
+    } catch (IOException _) {
       return true;
     }
   }

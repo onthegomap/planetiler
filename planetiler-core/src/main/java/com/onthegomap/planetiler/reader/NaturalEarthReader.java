@@ -49,7 +49,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
     // make sure sqlite driver loaded
     try {
       Class.forName("org.sqlite.JDBC");
-    } catch (ClassNotFoundException e) {
+    } catch (ClassNotFoundException _) {
       throw new IllegalStateException("sqlite JDBC driver not found");
     }
   }
@@ -154,7 +154,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
         var result = stmt.executeQuery("SELECT COUNT(*) FROM %S WHERE GEOMETRY IS NOT NULL;".formatted(table))
       ) {
         numFeatures += result.getLong(1);
-      } catch (SQLException e) {
+      } catch (SQLException _) {
         // maybe no GEOMETRY column?
       }
     }

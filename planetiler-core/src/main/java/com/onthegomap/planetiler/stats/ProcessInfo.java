@@ -68,7 +68,7 @@ public class ProcessInfo {
     Object obj = ManagementFactory.getOperatingSystemMXBean();
     try {
       result = callGetter(obj.getClass().getMethod("getProcessCpuTime"), obj, Long.class);
-    } catch (NoSuchMethodException | InvocationTargetException e) {
+    } catch (NoSuchMethodException | InvocationTargetException _) {
       result = null;
     }
     return Optional
@@ -85,9 +85,9 @@ public class ProcessInfo {
   private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
     try {
       return resultClazz.cast(method.invoke(obj));
-    } catch (IllegalAccessException e) {
+    } catch (IllegalAccessException _) {
       // Expected, the declaring class or interface might not be public.
-    } catch (ClassCastException e) {
+    } catch (ClassCastException _) {
       return null;
     }
 
@@ -100,7 +100,7 @@ public class ProcessInfo {
         if (result != null) {
           return result;
         }
-      } catch (NoSuchMethodException e) {
+      } catch (NoSuchMethodException _) {
         // Expected, class might implement multiple, unrelated interfaces.
       }
     }
@@ -173,7 +173,7 @@ public class ProcessInfo {
     private static long zeroIfUnsupported(LongSupplier supplier) {
       try {
         return supplier.getAsLong();
-      } catch (UnsupportedOperationException e) {
+      } catch (UnsupportedOperationException _) {
         return 0;
       }
     }

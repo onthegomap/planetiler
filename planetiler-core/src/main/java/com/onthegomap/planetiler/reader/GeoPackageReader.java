@@ -55,19 +55,18 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
   GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped,
     Bounds bounds) {
-
+    if (sourceProjection != null) {
+      try {
+        GeoUtils.decodeCRS(sourceProjection);
+      } catch (FactoryException _) {
+        throw new IllegalArgumentException("Invalid CRS: " + sourceProjection);
+      }
+    }
     super(sourceName);
     this.keepUnzipped = keepUnzipped;
     this.bounds = bounds;
     this.sourceProjection = sourceProjection;
     this.input = input;
-    if (sourceProjection != null) {
-      try {
-        GeoUtils.decodeCRS(sourceProjection);
-      } catch (FactoryException e) {
-        throw new IllegalArgumentException("Invalid CRS: " + sourceProjection);
-      }
-    }
 
     try {
       geoPackage = openGeopackage(input, tmpDir);
@@ -167,7 +166,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         if (wkt != null && !wkt.isBlank()) {
           try {
             sourceCrs = CRS.parseWKT(wkt);
-          } catch (FactoryException e) {
+          } catch (FactoryException _) {
             // sourceCrs is null
           }
         }

@@ -165,7 +165,7 @@ public class ProgressLoggers {
       String bytes;
       try {
         bytes = format.storage(Files.size(file), false);
-      } catch (IOException e) {
+      } catch (IOException _) {
         bytes = "-";
       }
       return " " + padRight(bytes, 5);
@@ -270,7 +270,7 @@ public class ProgressLoggers {
         lastThreads.putAll(newThreads);
         return (first ? " " : " -> ") + name + percents;
       }));
-    } catch (Exception ignored) {
+    } catch (Exception _) {
       // can't get CPU stats per-thread
     }
     return this;
@@ -348,7 +348,7 @@ public class ProgressLoggers {
       return throwFatalException(e);
     } catch (ExecutionException e) {
       return throwFatalException(e);
-    } catch (TimeoutException e) {
+    } catch (TimeoutException _) {
       return false;
     }
   }

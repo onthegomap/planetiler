@@ -177,8 +177,6 @@ public class ParquetReader {
     private final Runnable onClose;
     private final PlanetilerConfig config;
     private final SourceProgress progress = new SourceProgress(sourceName);
-    // process workers count these from the iterators of the blocks they work on, with no per-worker state to keep a
-    // counter for each thread in
     private final LongAdder featuresRead = new LongAdder();
     private final LongAdder blocksRead = new LongAdder();
     private boolean readStarted = false;

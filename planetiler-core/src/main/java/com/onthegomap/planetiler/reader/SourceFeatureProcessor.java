@@ -182,7 +182,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
         loggers.addSourceProgress(sources.getFirst().progress());
       } else {
         loggers.addPercentCounter("sources read", sources.size(), sourcesRead)
-          .addRateCounter("write", writer::numFeaturesWritten);
+          .addRateCounter("features written", writer::numFeaturesWritten);
         sources.forEach(source -> rows.add(source.progress()));
       }
       rows.addAll(alsoRunning);
