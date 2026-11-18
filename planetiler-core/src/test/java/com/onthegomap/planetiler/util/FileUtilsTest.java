@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.TestUtils;
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -185,5 +187,19 @@ class FileUtilsTest {
       assertArrayEquals(new byte[0], FileUtils.readFully(channel, 5, 0));
       assertThrows(EOFException.class, () -> FileUtils.readFully(channel, 3, 3));
     }
+  }
+
+  @Test
+  void testCloseAllClosesTheOthersWhenOneFails() {
+    List<String> closed = new ArrayList<>();
+    Closeable a = () -> {
+      closed.add("a");
+      throw new IOException("failed to close a");
+    };
+    Closeable b = () -> closed.add("b");
+
+    FileUtils.closeAll(List.of(a, b));
+
+    assertEquals(List.of("a", "b"), closed);
   }
 }

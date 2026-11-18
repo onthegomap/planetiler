@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 
 class ExceptionsTest {
@@ -21,5 +23,17 @@ class ExceptionsTest {
     var checked = new Exception("checked");
     assertSame(checked, assertThrows(Exceptions.FatalPlanetilerException.class,
       () -> Exceptions.throwAsIOException(checked)).getCause());
+  }
+
+  @Test
+  void testUnwrap() {
+    var cause = new IllegalStateException("cause");
+    assertSame(cause, Exceptions.unwrap(cause));
+    assertSame(cause, Exceptions.unwrap(new CompletionException(new ExecutionException(cause))));
+    assertSame(cause, Exceptions.unwrap(new Exceptions.FatalPlanetilerException(new ExecutionException(cause))));
+    var withoutCause = new CompletionException("no cause", null);
+    assertSame(withoutCause, Exceptions.unwrap(withoutCause));
+    var notAWrapper = new UncheckedIOException(new IOException("io"));
+    assertSame(notAWrapper, Exceptions.unwrap(notAWrapper));
   }
 }

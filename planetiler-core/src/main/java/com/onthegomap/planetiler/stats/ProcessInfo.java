@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 public class ProcessInfo {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessInfo.class);
+  private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
 
   // listen on GC events to track memory pool sizes after each GC
   private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
@@ -73,6 +74,11 @@ public class ProcessInfo {
     return Optional
       .ofNullable(result)
       .map(Duration::ofNanos);
+  }
+
+  /** Returns the CPU time the current thread has used in nanoseconds, or -1 if the JVM does not measure it. */
+  public static long getCurrentThreadCpuNanos() {
+    return THREAD_MX_BEAN.getCurrentThreadCpuTime();
   }
 
   // reflection helper

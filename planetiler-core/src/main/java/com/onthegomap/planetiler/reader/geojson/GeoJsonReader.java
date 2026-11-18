@@ -1,5 +1,8 @@
 package com.onthegomap.planetiler.reader.geojson;
 
+import com.onthegomap.planetiler.reader.SourceReader;
+import java.util.function.Supplier;
+import java.util.concurrent.CompletableFuture;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -31,6 +34,16 @@ public class GeoJsonReader extends SimpleReader<SimpleFeature> {
     super(sourceName);
     this.file = GeoJson.from(input);
     layer = input.getFileName().toString().replaceFirst("\\.[^.]+$", ""); // remove file extention.
+  }
+
+  /**
+   * Returns {@code sourcePaths} as a source to process together with other sources in {@link SourceFeatureProcessor},
+   * which lists and reads the files once {@code ready} completes.
+   */
+  public static SourceReader source(String sourceName, Supplier<List<Path>> sourcePaths, PlanetilerConfig config,
+    CompletableFuture<Void> ready) {
+    return SourceReader.ofFiles(sourceName, sourcePaths, path -> new GeoJsonReader(sourceName, path), ready,
+      config.bounds());
   }
 
   /**

@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.FeatureCollector;
@@ -8,14 +9,18 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
-import com.onthegomap.planetiler.reader.shapefile.TestShapefileWriter;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.reader.shapefile.TestShapefileWriter;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CompletableFutures;
+import com.onthegomap.planetiler.util.Exceptions;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -175,5 +180,57 @@ class SourceFeatureProcessorTest {
       FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats), config);
 
     assertEquals(List.of("unreadable"), processed);
+  }
+
+  @Test
+  void testCountsWhatEachSourceReadAndWrote() {
+    var stats = Stats.inMemory();
+    var config = PlanetilerConfig.defaults();
+    Profile profile = (SourceFeature source, FeatureCollector features) -> features.point("points").setZoomRange(0, 0);
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
+    var a = pointsSource("a", 2, CompletableFutures.NULL, config);
+    var b = pointsSource("b", 3, CompletableFutures.NULL, config);
+
+    SourceFeatureProcessor.process("sources", List.of(a, b), List.of(), featureGroup, config, profile, stats);
+
+    assertTrue(a.progress().summary().matches("read: 2 in .*  process cpu:.*  written: 2"), a.progress()::summary);
+    assertTrue(b.progress().summary().matches("read: 3 in .*  process cpu:.*  written: 3"), b.progress()::summary);
+  }
+
+  @Test
+  void testRethrowsDownloadFailure() {
+    var stats = Stats.inMemory();
+    var config = PlanetilerConfig.defaults();
+    var profile = new Profile.NullProfile();
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
+    var ready = pointsSource("ready", 1, CompletableFutures.NULL, config);
+    var failed = pointsSource("failed", 1, CompletableFuture.failedFuture(new IOException("download failed")), config);
+    var sources = List.of(ready, failed);
+
+    var exception = assertThrows(RuntimeException.class,
+      () -> SourceFeatureProcessor.process("sources", sources, List.of(), featureGroup, config, profile, stats));
+    assertEquals("download failed", Exceptions.unwrap(exception).getMessage());
+  }
+
+  private static SourceReader pointsSource(String name, int count, CompletableFuture<Void> ready,
+    PlanetilerConfig config) {
+    return SourceReader.ofFiles(name, () -> List.of(Path.of(name)), path -> new SimpleReader<SourceFeature>(name) {
+      @Override
+      public long getFeatureCount() {
+        return count;
+      }
+
+      @Override
+      public void readFeatures(Consumer<SourceFeature> next) {
+        for (int i = 0; i < count; i++) {
+          next.accept(SimpleFeature.create(GeoUtils.point(0, 0), Map.of(), name, null, i));
+        }
+      }
+
+      @Override
+      public void close() {
+        // nothing to close
+      }
+    }, ready, config.bounds());
   }
 }

@@ -6,10 +6,14 @@ import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -165,5 +169,22 @@ class OsmInputFileTest {
         assertEquals(new OsmElement.Info(0, 1647347498, 0, 8, ""), node.get().info());
       }
     }
+  }
+
+  @Test
+  void testParseHeaderFromStartOfFile() throws IOException {
+    byte[] file = Files.readAllBytes(path);
+    var fromFile = new OsmInputFile(path).getHeader();
+
+    assertEquals(Optional.of(fromFile), OsmInputFile.parseHeader(Arrays.copyOf(file, 64 * 1024)));
+    assertEquals(fromFile.bounds(), OsmInputFile.parseHeader(file).orElseThrow().bounds());
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 3, 4, 20, 100})
+  void testParseHeaderFromTooFewBytes(int bytes) throws IOException {
+    byte[] prefix = Arrays.copyOf(Files.readAllBytes(path), bytes);
+
+    assertEquals(Optional.empty(), OsmInputFile.parseHeader(prefix));
   }
 }

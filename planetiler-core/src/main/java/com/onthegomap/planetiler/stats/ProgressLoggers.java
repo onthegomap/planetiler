@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.stats;
 
 import static com.onthegomap.planetiler.util.AnsiColors.blue;
-import static com.onthegomap.planetiler.util.AnsiColors.green;
 import static com.onthegomap.planetiler.util.AnsiColors.red;
 import static com.onthegomap.planetiler.util.AnsiColors.yellow;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
@@ -73,22 +72,8 @@ public class ProgressLoggers {
    * Adds "name: [ numCompleted rate/s ]" to the logger, colored green if {@code color=true} and rate > 0.
    */
   public ProgressLoggers addRateCounter(String name, LongSupplier getValue, boolean color) {
-    AtomicLong last = new AtomicLong(getValue.getAsLong());
-    AtomicLong lastTime = new AtomicLong(System.nanoTime());
-    loggers.add(new ProgressLogger(name, () -> {
-      long now = System.nanoTime();
-      long valueNow = getValue.getAsLong();
-      double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
-      long valueDiff = valueNow - last.get();
-      if (valueDiff < 0) {
-        valueDiff = valueNow;
-      }
-      last.set(valueNow);
-      lastTime.set(now);
-      String result =
-        "[ " + format.numeric(valueNow, true) + " " + format.numeric(valueDiff / timeDiff, true) + "/s ]";
-      return color && valueDiff > 0 ? green(result) : result;
-    }));
+    var cell = new RateCell(format, getValue, null, n -> format.numeric(n, true), color);
+    loggers.add(new ProgressLogger(name, cell::render));
     return this;
   }
 
@@ -133,23 +118,8 @@ public class ProgressLoggers {
     if (total == 0) {
       return addRateCounter(name, getValue, color);
     }
-    AtomicLong last = new AtomicLong(getValue.getAsLong());
-    AtomicLong lastTime = new AtomicLong(System.nanoTime());
-    loggers.add(new ProgressLogger(name, () -> {
-      long now = System.nanoTime();
-      long valueNow = getValue.getAsLong();
-      double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
-      long valueDiff = valueNow - last.get();
-      if (valueDiff < 0) {
-        valueDiff = valueNow;
-      }
-      last.set(valueNow);
-      lastTime.set(now);
-      String result =
-        "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4) + " " +
-          formatter.apply(valueDiff / timeDiff) + "/s ]";
-      return (color && valueDiff > 0) ? green(result) : result;
-    }));
+    var cell = new RateCell(format, getValue, value -> 1d * value / total, formatter, color);
+    loggers.add(new ProgressLogger(name, cell::render));
     return this;
   }
 
@@ -340,6 +310,19 @@ public class ProgressLoggers {
       }
     }
     return this;
+  }
+
+  /**
+   * Adds {@code in progress:} and one row per source in {@code sources} that is downloading or has features left to
+   * read or process, or nothing when there are none (see {@link SourceProgressLogger}).
+   */
+  public ProgressLoggers addSourceProgress(List<SourceProgress> sources) {
+    return add(new SourceProgressLogger(format, sources)::table);
+  }
+
+  /** Adds how far along {@code source} is in downloading, reading and writing, for a stage that reads only it. */
+  public ProgressLoggers addSourceProgress(SourceProgress source) {
+    return add(new SourceProgressLogger(format, List.of(source))::cells);
   }
 
   /** Adds a linebreak to the output. */

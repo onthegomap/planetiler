@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.SourceProgress;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
@@ -27,18 +28,16 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -47,6 +46,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 /**
  * A utility for making external HTTP requests and downloading remote HTTP files to disk.
@@ -160,15 +160,48 @@ public class Downloader implements Closeable {
    * @return {@code this} for chaining
    */
   public Downloader add(String id, String url, Path output) {
-    if (url.startsWith("geofabrik:")) {
-      url = Geofabrik.getDownloadUrl(url.replaceFirst("^geofabrik:", ""), this);
-    } else if (url.startsWith("aws:")) {
-      url = AwsOsm.OSM_PDS.getDownloadUrl(url.replaceFirst("^aws:", ""), this);
-    } else if (url.startsWith("overture:")) {
-      url = AwsOsm.OVERTURE.getDownloadUrl(url.replaceFirst("^overture:", ""), this);
-    }
-    toDownloadList.add(new ResourceToDownload(id, url, output));
+    toDownloadList.add(new ResourceToDownload(id, resolve(url), output));
     return this;
+  }
+
+  /**
+   * Returns the URL that the {@code geofabrik:}, {@code aws:} or {@code overture:} shortcut {@code url} stands for, or
+   * {@code url} itself if it is not a shortcut.
+   */
+  public String resolve(String url) {
+    if (url.startsWith("geofabrik:")) {
+      return Geofabrik.getDownloadUrl(url.replaceFirst("^geofabrik:", ""), this);
+    } else if (url.startsWith("aws:")) {
+      return AwsOsm.OSM_PDS.getDownloadUrl(url.replaceFirst("^aws:", ""), this);
+    } else if (url.startsWith("overture:")) {
+      return AwsOsm.OVERTURE.getDownloadUrl(url.replaceFirst("^overture:", ""), this);
+    }
+    return url;
+  }
+
+  /**
+   * Starts downloading each URL in {@code urlToOutput} to its path for {@code id} in the background, and returns a
+   * handle per file to follow its progress.
+   * <p>
+   * Only fetches the files, or the parts of them, that haven't been fetched yet. {@code id} and each URL are as in
+   * {@link #add(String, String, Path)}. With more than one file, logs when they start and when all of them have
+   * finished instead of once per file.
+   */
+  public List<Download> startAll(String id, Map<String, Path> urlToOutput) {
+    if (urlToOutput.size() == 1) {
+      var only = urlToOutput.entrySet().iterator().next();
+      var resource = new ResourceToDownload(id, resolve(only.getKey()), only.getValue());
+      return List.of(new Download(resource, downloadIfNecessary(resource)));
+    }
+    LOGGER.info("Downloading {} files for {}", urlToOutput.size(), id);
+    List<Download> result = urlToOutput.entrySet().stream().map(entry -> {
+      var resource = new ResourceToDownload(id, resolve(entry.getKey()), entry.getValue(), false);
+      return new Download(resource, downloadIfNecessary(resource));
+    }).toList();
+    CompletableFuture.allOf(result.stream().map(Download::done).toArray(CompletableFuture[]::new))
+      .thenRun(() -> LOGGER.info("Finished downloading {} files for {} ({}B)", result.size(), id,
+        FORMAT.storage(result.stream().mapToLong(Download::bytesDownloaded).sum())));
+    return result;
   }
 
   /**
@@ -178,38 +211,26 @@ public class Downloader implements Closeable {
    *                               finish
    */
   public void run() {
-    if (toDownloadList.isEmpty()) {
+    var batch = toDownloadList.stream().map(resource -> new Download(resource, downloadIfNecessary(resource))).toList();
+    toDownloadList.clear();
+    awaitAndLog(batch);
+  }
+
+  /** Waits for all of {@code downloads} to finish, logging the progress of each {@link Download#id()} meanwhile. */
+  public void awaitAndLog(List<Download> downloads) {
+    if (downloads.stream().allMatch(download -> download.done().isDone() &&
+      !download.done().isCompletedExceptionally())) {
       return;
     }
-    var batch = List.copyOf(toDownloadList);
-    toDownloadList.clear();
-    var downloads = CompletableFuture
-      .allOf(batch.stream()
-        .map(this::downloadIfNecessary)
-        .toArray(CompletableFuture[]::new)
-      );
-
-    ProgressLoggers loggers = ProgressLoggers.create();
-
-    var groupedById = batch.stream().collect(Collectors.groupingBy(ResourceToDownload::id));
-
-    for (var group : groupedById.entrySet()) {
-      long size = 0;
-      for (var item : group.getValue()) {
-        try {
-          size += item.length.get(config.maxHttpRequestDuration().toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException("Error getting size of " + item.url, e);
-        } catch (ExecutionException | TimeoutException e) {
-          throw new IllegalStateException("Error getting size of " + item.url, e);
-        }
-      }
-      loggers.addStorageRatePercentCounter(group.getKey(), size,
-        () -> group.getValue().stream().mapToLong(ResourceToDownload::bytesDownloaded).sum(), true);
-    }
-    loggers.add(" ").addProcessStats()
-      .awaitAndLog(downloads, config.logInterval());
+    List<SourceProgress> rows = new ArrayList<>();
+    downloads.stream().collect(Collectors.groupingBy(Download::id, LinkedHashMap::new, Collectors.toList()))
+      .forEach((id, group) -> rows.add(Download.progress(id, group)));
+    var done = CompletableFuture.allOf(downloads.stream().map(Download::done).toArray(CompletableFuture[]::new));
+    ProgressLoggers.create()
+      .addSourceProgress(rows)
+      .newLine()
+      .addProcessStats()
+      .awaitAndLog(done, config.logInterval());
   }
 
   /** Stops the threads this downloader uses once requests in progress finish. */
@@ -235,7 +256,7 @@ public class Downloader implements Closeable {
     Path output = resource.output;
     try {
       if (CachedRangeFile.isCompleteCopy(output, resource.url, true, this)) {
-        LOGGER.info("Skipping {}: {} already up-to-date", resource.id, output);
+        LOGGER.atLevel(resource.fileLogLevel()).log("Skipping {}: {} already up-to-date", resource.id, output);
         resource.length.complete(0L);
         return;
       }
@@ -245,14 +266,15 @@ public class Downloader implements Closeable {
       // 2) switching from cached to full download skips bytes already downloaded (and vice versa if full was canceled)
       try (var file = CachedRangeFile.open(output, resource.url, 0, this)) {
         long missing = file.bytesMissing();
-        // progress of a resumed download continues from what previous runs fetched
-        resource.progress.add(file.length() - missing);
+        // progress of a resumed download only counts what is left to fetch
+        resource.bytesToFetch.set(missing);
         resource.length.complete(file.length());
         String redirectInfo = file.url().equals(resource.url) ? "" : " (redirected to " + file.url() + ")";
         String resumeInfo =
           resuming ? " (resuming, " + FORMAT.storage(missing) + "B of " + FORMAT.storage(file.length()) + "B left)" :
             "";
-        LOGGER.info("Downloading {}{} to {}{}", resource.url, redirectInfo, output, resumeInfo);
+        LOGGER.atLevel(resource.fileLogLevel())
+          .log("Downloading {}{} to {}{}", resource.url, redirectInfo, output, resumeInfo);
         diskSpaceCheck.addDisk(output, missing, resource.id);
         diskSpaceCheck.checkAgainstLimits(config.force(), false);
         file.fetchMissing(resource.progress::add);
@@ -260,7 +282,7 @@ public class Downloader implements Closeable {
     } catch (RangesNotSupportedException _) {
       downloadWhole(resource);
     }
-    LOGGER.info("Finished downloading {} to {}", resource.url, output);
+    LOGGER.atLevel(resource.fileLogLevel()).log("Finished downloading {} to {}", resource.url, output);
   }
 
   /**
@@ -285,6 +307,7 @@ public class Downloader implements Closeable {
         var version = response.version();
         // servers that stream generated content may not send a Content-Length, so progress gets logged without a total
         resource.length.complete(Math.max(0, version.length()));
+        resource.bytesToFetch.set(Math.max(0, version.length()));
         try (var file = CachedRangeFile.create(resource.output, version)) {
           Sink sink = (position, buffer, offset, length) -> {
             file.write(position, buffer, offset, length);
@@ -871,12 +894,72 @@ public class Downloader implements Closeable {
     Thread.sleep(wait);
   }
 
+  /** A download started with {@link #startAll(String, Map)}. */
+  public static final class Download {
+
+    private final ResourceToDownload resource;
+    private final CompletableFuture<Void> done;
+
+    private Download(ResourceToDownload resource, CompletableFuture<Void> done) {
+      this.resource = resource;
+      this.done = done;
+    }
+
+    /** Returns a future that completes when the file is downloaded, or fails if it can't be. */
+    public CompletableFuture<Void> done() {
+      return done;
+    }
+
+    /** Returns the short name of what this download is for, usually a source. */
+    public String id() {
+      return resource.id;
+    }
+
+    /** Returns where this download gets written to. */
+    public Path output() {
+      return resource.output;
+    }
+
+    /** Returns how many bytes this run needs to fetch, without what earlier runs fetched, or 0 while not known. */
+    public long bytesToFetch() {
+      return resource.bytesToFetch.get();
+    }
+
+    /** Returns a future with the size of the file in bytes, which completes soon after the download starts. */
+    public CompletableFuture<Long> whenSizeKnown() {
+      return resource.length;
+    }
+
+    /** Returns how many bytes of the file this run has fetched so far. */
+    public long bytesDownloaded() {
+      return resource.bytesDownloaded();
+    }
+
+    /** Returns one progress row named {@code id} that sums up {@code downloads}. */
+    public static SourceProgress progress(String id, List<Download> downloads) {
+      return new SourceProgress(id).setDownload(
+        () -> downloads.stream().mapToLong(Download::bytesDownloaded).sum(),
+        () -> downloads.stream().mapToLong(Download::bytesToFetch).sum(),
+        () -> downloads.stream().allMatch(download -> download.done().isDone()));
+    }
+  }
+
   record ResourceToDownload(
-    String id, String url, Path output, CompletableFuture<Long> length, LongAdder progress
+    String id, String url, Path output, boolean logEachFile, CompletableFuture<Long> length, AtomicLong bytesToFetch,
+    LongAdder progress
   ) {
 
     ResourceToDownload(String id, String url, Path output) {
-      this(id, url, output, new CompletableFuture<>(), new LongAdder());
+      this(id, url, output, true);
+    }
+
+    ResourceToDownload(String id, String url, Path output, boolean logEachFile) {
+      this(id, url, output, logEachFile, new CompletableFuture<>(), new AtomicLong(), new LongAdder());
+    }
+
+    // log files that are part of a bigger download at trace
+    Level fileLogLevel() {
+      return logEachFile ? Level.INFO : Level.TRACE;
     }
 
     public long bytesDownloaded() {

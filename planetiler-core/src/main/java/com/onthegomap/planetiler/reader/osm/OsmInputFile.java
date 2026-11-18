@@ -13,6 +13,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.locationtech.jts.geom.Envelope;
@@ -120,6 +121,32 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
     } catch (IOException e) {
       throw new IllegalArgumentException(e);
     }
+  }
+
+  /**
+   * Returns the header block parsed from {@code filePrefix}, the first bytes of an {@code .osm.pbf} file, or empty if
+   * it does not hold the whole header block.
+   */
+  public static Optional<OsmHeader> parseHeader(byte[] filePrefix) throws IOException {
+    var buffer = ByteBuffer.wrap(filePrefix);
+    if (buffer.remaining() < 4) {
+      return Optional.empty();
+    }
+    int headerSize = buffer.getInt();
+    if (headerSize > 64 * 1024) {
+      throw new IllegalArgumentException("Header longer than 64 KiB");
+    } else if (buffer.remaining() < headerSize) {
+      return Optional.empty();
+    }
+    byte[] headerBytes = new byte[headerSize];
+    buffer.get(headerBytes);
+    int blobSize = BlobHeader.parseFrom(headerBytes).getDatasize();
+    if (buffer.remaining() < blobSize) {
+      return Optional.empty();
+    }
+    byte[] blobBytes = new byte[blobSize];
+    buffer.get(blobBytes);
+    return Optional.of(PbfDecoder.decodeHeader(blobBytes));
   }
 
   @Override

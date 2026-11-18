@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -402,5 +403,16 @@ public class FileUtils {
       }
     }
     return result;
+  }
+
+  /** Closes each of {@code resources}, logging the ones that fail to close instead of stopping at them. */
+  public static void closeAll(Iterable<? extends Closeable> resources) {
+    for (var resource : resources) {
+      try {
+        resource.close();
+      } catch (IOException e) {
+        LOGGER.warn("Error closing {}", resource, e);
+      }
+    }
   }
 }

@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.reader.ShapefileOptions;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
+import com.onthegomap.planetiler.reader.SourceReader;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -26,8 +27,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.referencing.operation.MathTransform;
@@ -203,6 +206,16 @@ public class ShapefileReader extends SimpleReader<ShapefileFeature> {
     FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats) {
     process(sourceName, sourcePaths, ShapefileOptions.builder().projection(sourceProjection).build(), writer, config,
       profile, stats);
+  }
+
+  /**
+   * Returns {@code sourcePaths} as a source to process together with other sources in {@link SourceFeatureProcessor},
+   * which lists and reads the files once {@code ready} completes.
+   */
+  public static SourceReader source(String sourceName, Supplier<List<Path>> sourcePaths, ShapefileOptions options,
+    PlanetilerConfig config, CompletableFuture<Void> ready) {
+    return SourceReader.ofFiles(sourceName, sourcePaths,
+      path -> new ShapefileReader(sourceName, path, config.bounds(), options), ready, config.bounds());
   }
 
   /**

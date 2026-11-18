@@ -1,42 +1,35 @@
 package com.onthegomap.planetiler.reader.parquet;
 
-import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
-
-import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
-import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
+import com.onthegomap.planetiler.reader.SourceReader;
 import com.onthegomap.planetiler.reader.remote.DownloadMode;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
-import com.onthegomap.planetiler.render.FeatureRenderer;
-import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProcessInfo;
-import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.SourceProgress;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.stats.Timers;
 import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Downloader;
-import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.RequestPlanner;
-import com.onthegomap.planetiler.worker.Distributor;
-import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * Reads {@link SourceFeature SourceFeatures} from one or more
@@ -48,7 +41,6 @@ import org.slf4j.LoggerFactory;
 public class ParquetReader {
   public static final String DEFAULT_LAYER = "features";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ParquetReader.class);
   // parquet files keep their metadata in a footer, so fetching a generous chunk of the end of a remote file with the
   // request that opens it avoids a round trip per metadata read
   private static final int FOOTER_PREFETCH_BYTES = 1 << 20;
@@ -96,18 +88,7 @@ public class ParquetReader {
   }
 
   public void process(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) {
-    try {
-      processLocal(sourcePath, writer, config);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  private void processLocal(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) throws IOException {
-    var paths = sourcePath.stream().filter(path -> !"_SUCCESS".equals(path.getFileName().toString())).toList();
-    // local files open quickly, so open them on this thread
-    processAll(paths, RangeFile::openLocal, task -> CompletableFutures.supplyAsync(task, Runnable::run), writer,
-      config);
+    process(source(() -> sourcePath, CompletableFutures.NULL, config), writer, config);
   }
 
   /**
@@ -118,24 +99,63 @@ public class ParquetReader {
    * {@link RangeFile#open(Path, String, int, DownloadMode, boolean, Downloader)}).
    */
   public void processRemote(Map<Path, String> pathToUrl, DownloadMode mode, boolean refresh, Downloader downloader,
-    FeatureGroup writer, PlanetilerConfig config) throws IOException {
-    // opening a remote file and reading its footer take a round trip or two each, so open them all at once
-    processAll(pathToUrl.keySet().stream().sorted().toList(),
-      path -> RangeFile.open(path, pathToUrl.get(path), FOOTER_PREFETCH_BYTES, mode, refresh, downloader),
-      downloader::async, writer, config);
+    FeatureGroup writer, PlanetilerConfig config) {
+    SourceReader source = remoteSource(CompletableFuture.completedFuture(pathToUrl), mode, refresh, downloader, config);
+    process(source, writer, config);
   }
 
-  private void processAll(List<Path> paths, FunctionThatThrows<Path, RangeFile> open,
-    Function<Callable<ParquetInputFile>, CompletableFuture<ParquetInputFile>> start, FeatureGroup writer,
-    PlanetilerConfig config) throws IOException {
-    var timer = stats.startStage(sourceName);
-    var opening = paths.stream().map(path -> start.apply(() -> newInputFile(path, open.apply(path), config))).toList();
-    var inputFiles = CompletableFutures.joinAllOrClose(opening);
-    try {
-      process(inputFiles, writer, config, timer);
-    } finally {
-      closeAll(inputFiles);
-    }
+  private void process(SourceReader source, FeatureGroup writer, PlanetilerConfig config) {
+    SourceFeatureProcessor.process(sourceName, List.of(source), List.of(), writer, config, profile, stats);
+  }
+
+  /**
+   * Returns a source that reads the local files listed by {@code paths} once {@code downloaded} completes, to process
+   * together with other sources in {@link SourceFeatureProcessor}.
+   */
+  public SourceReader source(Supplier<List<Path>> paths, CompletableFuture<Void> downloaded, PlanetilerConfig config) {
+    // local files open quickly, so the read worker opens them when it gets to this source
+    Callable<List<ParquetInputFile>> open = () -> {
+      // opens them one after another on this thread, and closes the ones that opened if one fails
+      var opening = paths.get().stream()
+        .filter(path -> !"_SUCCESS".equals(path.getFileName().toString()))
+        .map(path -> CompletableFutures.supplyAsync(() -> newInputFile(path, RangeFile.openLocal(path), config),
+          Runnable::run))
+        .toList();
+      return CompletableFutures.joinAllOrClose(opening);
+    };
+    Runnable closeUnread = () -> {
+    };
+    return new Source(downloaded, open, closeUnread, config);
+  }
+
+  /**
+   * Returns a source that reads local or remote files like {@link #processRemote}, to process together with other
+   * sources in {@link SourceFeatureProcessor}.
+   * <p>
+   * Starts opening the files as soon as {@code pathToUrl} completes, so they are usually open long before a read worker
+   * gets to this source.
+   */
+  public SourceReader remoteSource(CompletableFuture<Map<Path, String>> pathToUrl, DownloadMode mode, boolean refresh,
+    Downloader downloader, PlanetilerConfig config) {
+    var paths = pathToUrl.thenApply(files -> files.keySet().stream().sorted().toList());
+    return remoteSource(paths,
+      path -> RangeFile.open(path, pathToUrl.join().get(path), FOOTER_PREFETCH_BYTES, mode, refresh, downloader),
+      downloader, config);
+  }
+
+  /** Returns a source that opens each of {@code paths} with {@code openFile} on {@code downloader}'s threads. */
+  SourceReader remoteSource(CompletableFuture<List<Path>> paths, FunctionThatThrows<Path, RangeFile> openFile,
+    Downloader downloader, PlanetilerConfig config) {
+    // opening a remote file and reading its footer take a round trip or two each, so open them all at once
+    var opening = paths.thenApply(files -> files.stream()
+      .map(path -> downloader.async(() -> newInputFile(path, openFile.apply(path), config)))
+      .toList());
+    var opened = opening.thenCompose(files -> CompletableFuture.allOf(files.toArray(CompletableFuture[]::new)));
+    return new Source(
+      opened,
+      () -> CompletableFutures.joinAllOrClose(opening.join()),
+      () -> opening.thenAccept(CompletableFutures::closeWhenDone),
+      config);
   }
 
   private ParquetInputFile newInputFile(Path path, RangeFile file, PlanetilerConfig config) throws IOException {
@@ -149,149 +169,124 @@ public class ParquetReader {
     }
   }
 
-  private static void closeAll(List<ParquetInputFile> files) throws IOException {
-    for (var file : files) {
-      file.close();
+  /** The files of this reader as one source in the shared source pipeline. */
+  private class Source implements SourceReader {
+
+    private final CompletableFuture<Void> ready;
+    private final Callable<List<ParquetInputFile>> open;
+    private final Runnable onClose;
+    private final PlanetilerConfig config;
+    private final SourceProgress progress = new SourceProgress(sourceName);
+    // process workers count these from the iterators of the blocks they work on, with no per-worker state to keep a
+    // counter for each thread in
+    private final LongAdder featuresRead = new LongAdder();
+    private final LongAdder blocksRead = new LongAdder();
+    private boolean readStarted = false;
+    private List<ParquetInputFile> files = List.of();
+
+    Source(CompletableFuture<Void> ready, Callable<List<ParquetInputFile>> open, Runnable onClose,
+      PlanetilerConfig config) {
+      this.ready = ready;
+      this.open = open;
+      this.onClose = onClose;
+      this.config = config;
     }
-  }
 
-  private void process(List<ParquetInputFile> files, FeatureGroup writer, PlanetilerConfig config,
-    Timers.Finishable timer) {
-    var inputFiles = files.stream().filter(file -> !file.shouldSkip(profile)).toList();
-    // don't show % complete on features when a filter is present because to determine total # elements would
-    // take an expensive initial query, and % complete on blocks gives a good enough proxy
-    long featureCount = inputFiles.stream().anyMatch(ParquetInputFile::hasFilter) ? 0 :
-      inputFiles.stream().mapToLong(ParquetInputFile::getCount).sum();
-    long blockCount = inputFiles.stream().mapToLong(ParquetInputFile::getBlockCount).sum();
-    int processThreads = config.featureProcessThreads();
-    int writeThreads = config.featureWriteThreads();
-    var blocksRead = Counter.newMultiThreadCounter();
-    var featuresRead = Counter.newMultiThreadCounter();
-    Map<String, Integer> workingOn = new ConcurrentHashMap<>();
-    var inputBlocks = inputFiles.stream().<ParquetInputFile.Block>mapMulti((file, next) -> {
-      try (var blockReader = file.get()) {
-        for (var block : blockReader) {
-          next.accept(block);
+    @Override
+    public String name() {
+      return sourceName;
+    }
+
+    @Override
+    public CompletableFuture<Void> whenReady() {
+      return ready;
+    }
+
+    @Override
+    public SourceProgress progress() {
+      return progress;
+    }
+
+    @Override
+    public void read(Consumer<Iterable<? extends SourceFeature>> next) throws Exception {
+      readStarted = true;
+      files = open.call();
+      var inputFiles = files.stream().filter(file -> !file.shouldSkip(profile)).toList();
+      // don't show % complete on features when a filter is present because to determine total # elements would
+      // take an expensive initial query, and % complete on blocks gives a good enough proxy
+      boolean readingWithFilter = inputFiles.stream().anyMatch(ParquetInputFile::hasFilter);
+      long featureCount = readingWithFilter ? 0 : inputFiles.stream().mapToLong(ParquetInputFile::getCount).sum();
+      long blockCount = inputFiles.stream().mapToLong(ParquetInputFile::getBlockCount).sum();
+      List<ParquetInputFile.Block> inputBlocks = new ArrayList<>();
+      for (var file : inputFiles) {
+        try (var blockReader = file.get()) {
+          blockReader.forEach(inputBlocks::add);
         }
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
       }
-    }).toList();
-    Distributor<ParquetFeature> distributor = Distributor.createWithCapacity(1_000);
 
+      var rangeFiles = inputFiles.stream().map(ParquetInputFile::file).toList();
+      // files complete on local disk fetch nothing, and opening a remote one always makes a request
+      boolean requiresAnyFetch = rangeFiles.stream().anyMatch(file -> file.requestsMade() > 0);
+      var plans = inputFiles.stream().map(ParquetInputFile::planFetch).toList();
+      long bytesToFetch = plans.stream().mapToLong(RequestPlanner.Plan::bytes).sum();
+      long bytesInFlight = plans.stream().mapToLong(RequestPlanner.Plan::bytesInFlight).max().orElse(0);
+      long bytesToRead = inputFiles.stream().mapToLong(ParquetInputFile::getBytesToRead).sum();
+      int lookAhead = lookAheadBlocks(blockCount, bytesToRead, bytesInFlight, config.featureProcessThreads());
+      long bytesFetchedBefore = rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum();
 
-    var rangeFiles = inputFiles.stream().map(ParquetInputFile::file).toList();
-    // files complete on local disk fetch nothing, and opening a remote one always makes a request
-    boolean remote = rangeFiles.stream().anyMatch(file -> file.requestsMade() > 0);
-    // before the pipeline starts fetching: progress counts the row group bytes only, not the footers fetched already
-    var plans = inputFiles.stream().map(ParquetInputFile::planFetch).toList();
-    long bytesToFetch = plans.stream().mapToLong(RequestPlanner.Plan::bytes).sum();
-    long requestsToFetch = plans.stream().mapToLong(plan -> plan.httpRequests().size()).sum();
-    // files get read one after another, so the look-ahead only needs to cover one file's requests in flight
-    long bytesInFlight = plans.stream().mapToLong(RequestPlanner.Plan::bytesInFlight).max().orElse(0);
-    int lookAhead = lookAheadBlocks(blockCount, inputFiles.stream().mapToLong(ParquetInputFile::getBytesToRead).sum(),
-      bytesInFlight, processThreads);
-    long bytesFetchedBefore = rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum();
-    long requestsMadeBefore = rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum();
+      if (readingWithFilter) {
+        // use block % complete as a proxy when using a filter since we skipped getting the full count upfront
+        progress.setRead(featuresRead::sum, () -> blockCount > 0 ? 1d * blocksRead.sum() / blockCount : Double.NaN);
+      } else {
+        progress.setRead(featuresRead::sum, featureCount);
+      }
+      if (requiresAnyFetch) {
+        LongSupplier fetched = () -> rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum() - bytesFetchedBefore;
+        progress.setDownload(fetched, () -> bytesToFetch, () -> fetched.getAsLong() >= bytesToFetch);
+      }
 
-    var pipeline = WorkerPipeline.start(sourceName, stats).<ParquetInputFile.Block>fromGenerator("fetch",
-      // Start processing a block as soon as it's ready, which may not be in file-order. Reading in file-order would
+      // Pass on a block as soon as it's fetched, which may not be in file-order. Reading in file-order would
       // block streaming/cached downloads on a previous slow request
-      next -> CompletableFutures.inCompletionOrder(inputBlocks, lookAhead, block -> {
+      CompletableFutures.inCompletionOrder(inputBlocks, lookAhead, block -> {
         block.startFetchIfNecessary();
         return block.whenFetched();
-      }, next))
-      .addBuffer("blocks", processThreads, 1)
-      .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
-        var blocks = blocksRead.counterForThread();
-        var elements = featuresRead.counterForThread();
-        var featureCollectors = new FeatureCollector.Factory(config, stats);
-        try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
-          var consumer = distributor.forThread(sourceFeature -> {
-            FeatureCollector features = featureCollectors.get(sourceFeature);
-            try {
-              profile.processFeature(sourceFeature, features);
-              for (FeatureCollector.Feature renderable : features) {
-                renderer.accept(renderable);
-              }
-            } catch (Exception e) {
-              LOGGER.error("Error processing {}", sourceFeature, e);
-            }
-            elements.inc();
-          });
-          for (var block : prev) {
-            String layer = block.layer();
-            workingOn.merge(layer, 1, Integer::sum);
-            for (var sourceFeature : block) {
-              consumer.accept(sourceFeature);
-            }
-            blocks.inc();
-            workingOn.merge(layer, -1, Integer::sum);
+      }, block -> next.accept(counted(block)));
+    }
+
+    /**
+     * Returns {@code block} as a batch that decodes its features, and counts them from the worker that processes it.
+     */
+    private Iterable<ParquetFeature> counted(ParquetInputFile.Block block) {
+      return () -> new Iterator<>() {
+        private final Iterator<ParquetFeature> features = block.iterator();
+        private boolean done = false;
+
+        @Override
+        public boolean hasNext() {
+          boolean hasNext = features.hasNext();
+          if (!hasNext && !done) {
+            done = true;
+            blocksRead.increment();
           }
-          consumer.close();
+          return hasNext;
         }
-      });
 
-    var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("read", featureCount, featuresRead, true)
-      .addRatePercentCounter("blocks", blockCount, blocksRead, false);
-
-    if (remote) {
-      var format = loggers.getFormat();
-      loggers = loggers
-        .addStorageRatePercentCounter("download", bytesToFetch,
-          () -> rangeFiles.stream().mapToLong(RangeFile::bytesFetched).sum() - bytesFetchedBefore, false)
-        .add(() -> " (" +
-          format.numeric(rangeFiles.stream().mapToLong(RangeFile::requestsMade).sum() - requestsMadeBefore) + "/" +
-          format.numeric(requestsToFetch) + ")");
+        @Override
+        public ParquetFeature next() {
+          featuresRead.increment();
+          return features.next();
+        }
+      };
     }
 
-    loggers = loggers
-      .addRateCounter("write", writer::numFeaturesWritten)
-      .addFileSize(writer)
-      .newLine()
-      .add(() -> workingOn.entrySet().stream()
-        .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-        .filter(d -> d.getValue() > 0)
-        .map(d -> d.getKey() + ": " + d.getValue())
-        .collect(Collectors.joining(", ")))
-      .newLine()
-      .addProcessStats()
-      .newLine()
-      .addPipelineStats(pipeline);
-
-    pipeline.awaitAndLog(loggers, config.logInterval());
-
-    if (LOGGER.isInfoEnabled()) {
-      var format = Format.defaultInstance();
-      long count = featuresRead.get();
-      var elapsed = timer.elapsed();
-      LOGGER.info("Processed {} parquet features ({}/s, {} blocks, {} files{}) in {}",
-        format.integer(count),
-        format.numeric(count * NANOSECONDS_PER_SECOND / elapsed.wall().toNanos()),
-        format.integer(blocksRead.get()),
-        format.integer(inputFiles.size()),
-        remote ? ", downloaded " + fetched(rangeFiles) : "",
-        elapsed
-      );
+    @Override
+    public void close() {
+      if (!readStarted) {
+        onClose.run();
+      }
+      // process workers read blocks from the files until the pipeline is done, so they stay open until here
+      FileUtils.closeAll(files);
     }
-    timer.stop();
-
-    // hook for profile to do any post-processing after this source is read
-    try (
-      var threadLocalWriter = writer.writerForThread();
-      var featureRenderer = newFeatureRenderer(writer, config, threadLocalWriter)
-    ) {
-      profile.finish(sourceName, new FeatureCollector.Factory(config, stats), featureRenderer);
-    } catch (IOException e) {
-      LOGGER.warn("Error closing writer", e);
-    }
-  }
-
-  private static String fetched(List<RangeFile> files) {
-    var format = Format.defaultInstance();
-    return format.storage(files.stream().mapToLong(RangeFile::bytesFetched).sum(), false) + "B in " +
-      format.integer(files.stream().mapToLong(RangeFile::requestsMade).sum()) + " requests";
   }
 
   /**
@@ -313,17 +308,5 @@ public class ParquetReader {
       layer = layerGenerator.apply(fields == null ? Map.of() : fields) instanceof Object o ? o.toString() : layer;
     }
     return layer;
-  }
-
-  private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
-    Consumer<SortableFeature> next) {
-    @SuppressWarnings("java:S2095") // closed by FeatureRenderer
-    var encoder = writer.newRenderedFeatureEncoder();
-    return new FeatureRenderer(
-      config,
-      rendered -> next.accept(encoder.apply(rendered)),
-      stats,
-      encoder
-    );
   }
 }

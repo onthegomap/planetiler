@@ -5,38 +5,42 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.reader.shapefile.ShapefileFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
+import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.SourceProgress;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CompletableFutures;
+import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.locationtech.jts.geom.Envelope;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class coordinates reading and processing of one or more Path objects that are grouped under a single source
- * name.
+ * Coordinates reading and processing of one or more sources that can be read in one pass (ie. anything but
+ * OpenStreetMap data) in one shared pipeline where a features from each source are sent into a pool of shared workers
+ * as soon as they are ready.
  * <p>
- * The paths will be processed in parallel according to the {@link #profile} using {@link SimpleReader} objects
- * constructed by {@link #readerFactory}.
+ * {@link #process} reads several {@link SourceReader sources} together. An instance reads the files of one source with
+ * {@link SimpleReader} objects constructed by {@link #readerFactory}.
  */
 public class SourceFeatureProcessor<F extends SourceFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFeatureProcessor.class);
-  // Hand features off from reader to workers in batches of up to 16 features to improve throughput for many small
-  // features, but pass big features off in their own batch, capping total points across all features in a batch to ~1k
-  private static final int PROCESS_BATCH_SIZE = 16;
-  private static final int PROCESS_BATCH_MAX_POINTS = 1_000;
-
   private final Profile profile;
   private final Stats stats;
   private final String sourceName;
@@ -73,115 +77,211 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
 
 
   /**
-   * Renders map features for all elements from this data source based on the mapping logic defined in {@code profile}.
+   * Renders map features for all elements from this data source based on the mapping logic defined in {@code profile},
+   * in a stage of its own. To read it together with other sources, use {@link #process} with a
+   * {@link SourceReader#ofFiles} source instead.
    *
    * @param sourcePaths list of paths associated with this source
    * @param writer      consumer for rendered features
    * @param config      user-defined parameters controlling number of threads and log interval
    */
   public final void processFiles(List<Path> sourcePaths, FeatureGroup writer, PlanetilerConfig config) {
-    var timer = stats.startStage(sourceName);
-    // one reader per file for both counting and reading, so expensive setup like unzipping only happens once
-    List<SimpleReader<F>> readers = new ArrayList<>(sourcePaths.size());
+    var source = SourceReader.ofFiles(sourceName, () -> sourcePaths, readerFactory,
+      CompletableFutures.NULL, config.bounds());
+    process(sourceName, List.of(source), List.of(), writer, config, profile, stats);
+  }
+
+  /**
+   * Renders map features for all elements of {@code sources} in one shared pipeline, based on the mapping logic defined
+   * in {@code profile}, then closes the sources.
+   * <p>
+   * Each source gets read once it is ready, in the order they become ready, so a source that is still downloading does
+   * not hold up the others. {@link Profile#finish} runs for each source in the order of {@code sources} after all of
+   * them have been processed.
+   *
+   * @param stageName   string ID for this group of sources to use in logs and stats
+   * @param sources     the sources to read
+   * @param alsoRunning progress of other work going on meanwhile to show in the logs, like downloads for later stages
+   * @param writer      consumer for rendered features
+   * @param config      user-defined parameters controlling number of threads and log interval
+   * @param profile     logic that defines what map features to emit for each source feature
+   * @param stats       to keep track of counters and timings
+   */
+  public static void process(String stageName, List<SourceReader> sources, List<SourceProgress> alsoRunning,
+    FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats) {
+    var timer = stats.startStage(stageName);
     try {
-      for (Path path : sourcePaths) {
-        readers.add(readerFactory.apply(path));
+      // Use one reader per source so that a source that waits on range requests doesn't hold up other ones.
+      int readThreads = Math.min(sources.size(), config.threads());
+      AtomicLong sourcesRead = new AtomicLong();
+      // lets finished workers divvy up any remaining work from busy ones
+      Distributor<SourceFeature> distributor = Distributor.createWithCapacity(1_000);
+      Map<String, SourceProgress> progressBySource =
+        sources.stream().collect(Collectors.toMap(SourceReader::name, source -> source.progress().setTrackWritten()));
+
+      var pipeline = WorkerPipeline.start(stageName, stats)
+        .<SourceReader>fromGenerator("wait",
+          next -> CompletableFutures.inCompletionOrder(sources, sources.size(), SourceReader::whenReady, next))
+        .addBuffer("ready", sources.size())
+        .<SourceBatch>addWorker("read", readThreads, (ready, next) -> {
+          for (SourceReader source : ready) {
+            // rethrow failed downloads
+            source.whenReady().join();
+            var progress = source.progress();
+            var workLeft = progress.workLeftCounterForThread();
+            progress.start();
+            source.read(features -> {
+              workLeft.inc();
+              next.accept(new SourceBatch(progress, features));
+            });
+            progress.finish();
+            sourcesRead.incrementAndGet();
+          }
+        })
+        .addBuffer("process_queue", 100)
+        .processAndWrite(config.parallelTempIO(), config.featureProcessThreads(), config.featureWriteThreads(), writer,
+          (batches, next) -> {
+            var featureCollectors = new FeatureCollector.Factory(config, stats);
+            var sourceStats = new ProcessStatsBySource(progressBySource);
+            try (
+              FeatureRenderer renderer = newFeatureRenderer(writer, config, stats, rendered -> {
+                sourceStats.featureWritten();
+                next.accept(rendered);
+              });
+              var features = distributor.forThread(sourceFeature -> {
+                sourceStats.startFeature(sourceFeature.getSource());
+                FeatureCollector collector = featureCollectors.get(sourceFeature);
+                try {
+                  profile.processFeature(sourceFeature, collector);
+                  for (FeatureCollector.Feature renderable : collector) {
+                    renderer.accept(renderable);
+                  }
+                } catch (Exception e) {
+                  LOGGER.error("Error processing {}", sourceFeature, e);
+                }
+                sourceStats.featureProcessed();
+              })
+            ) {
+              for (var batch : batches) {
+                var workLeft = sourceStats.workLeftCounter(batch.progress());
+                for (SourceFeature sourceFeature : batch.features()) {
+                  // counted before handing it off, since another worker may take it from the distributor
+                  workLeft.inc();
+                  features.accept(sourceFeature);
+                }
+                workLeft.incBy(-1);
+              }
+            }
+            sourceStats.finish();
+          });
+
+      var loggers = ProgressLoggers.create();
+      List<SourceProgress> rows = new ArrayList<>();
+      if (sources.size() == 1) {
+        // a source that has the stage to itself gets its cells on the first line, like other stages' logs
+        loggers.addSourceProgress(sources.getFirst().progress());
+      } else {
+        loggers.addPercentCounter("sources read", sources.size(), sourcesRead)
+          .addRateCounter("write", writer::numFeaturesWritten);
+        sources.forEach(source -> rows.add(source.progress()));
       }
-      processReaders(readers, writer, config);
-    } finally {
-      for (var reader : readers) {
-        try {
-          reader.close();
+      rows.addAll(alsoRunning);
+      loggers.addFileSize(writer).newLine()
+        .addSourceProgress(rows).newLine()
+        .addProcessStats().newLine()
+        .addPipelineStats(pipeline);
+
+      pipeline.awaitAndLog(loggers, config.logInterval());
+
+      for (SourceReader source : sources) {
+        if (!source.name().equals(stageName)) {
+          LogUtil.setStage(stageName, source.name());
+        }
+        LOGGER.atInfo().setMessage("Finished {}").addArgument(source.progress()::summary).log();
+        // hook for profile to do any post-processing after this source is read
+        try (
+          var threadLocalWriter = writer.writerForThread();
+          var featureRenderer = newFeatureRenderer(writer, config, stats, threadLocalWriter)
+        ) {
+          profile.finish(source.name(), new FeatureCollector.Factory(config, stats), featureRenderer);
         } catch (IOException e) {
-          LOGGER.warn("Error closing reader", e);
+          LOGGER.warn("Error closing writer", e);
         }
       }
+      LogUtil.setStage(stageName);
+    } finally {
+      FileUtils.closeAll(sources);
     }
     timer.stop();
   }
 
-  private void processReaders(List<SimpleReader<F>> readers, FeatureGroup writer, PlanetilerConfig config) {
-    long featureCount = 0;
-    // start each file's IDs where previous one left off so they don't collide
-    for (var reader : readers) {
-      reader.setFeatureIdOffset(featureCount);
-      featureCount += reader.getFeatureCount();
-    }
-    int readThreads = config.featureReadThreads();
-    int writeThreads = config.featureWriteThreads();
-    int processThreads = config.featureProcessThreads();
-    Envelope latLonBounds = config.bounds().latLon();
-    // If all of the readers pre-filter to bounds, we don't need to filter here
-    boolean checkBounds = !readers.stream().allMatch(SimpleReader::filtersToBounds);
-    AtomicLong featuresRead = new AtomicLong(0);
+  /** Features from one source, which the read workers hand to the process workers. */
+  private record SourceBatch(SourceProgress progress, Iterable<? extends SourceFeature> features) {}
 
-    var pipeline = WorkerPipeline.start(sourceName, stats)
-      .readFromTiny("readers", readers)
-      .addWorker("read", readThreads, readFeatures())
-      .addBuffer("process_queue", 1000, PROCESS_BATCH_SIZE, SourceFeatureProcessor::processingCost,
-        PROCESS_BATCH_MAX_POINTS)
-      .processAndWrite(config.parallelTempIO(), processThreads, writeThreads, writer, (prev, next) -> {
-        var featureCollectors = new FeatureCollector.Factory(config, stats);
-        try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
-          for (SourceFeature sourceFeature : prev) {
-            featuresRead.incrementAndGet();
-            FeatureCollector features = featureCollectors.get(sourceFeature);
-            if (!checkBounds || intersects(sourceFeature, latLonBounds)) {
-              try {
-                profile.processFeature(sourceFeature, features);
-                for (FeatureCollector.Feature renderable : features) {
-                  renderer.accept(renderable);
-                }
-              } catch (Exception e) {
-                LOGGER.error("Error processing " + sourceFeature, e);
-              }
-            }
-          }
+  // tracks CPU time used in process threads by source to report at the end of a run
+  private static class ProcessStatsBySource {
+    private final Map<String, SourceProgress> progressBySource;
+    private final Map<String, ForSource> seen = new HashMap<>();
+    private String currentSource;
+    private ForSource current;
+    private long currentSourceStartCpuNanos;
+
+    ProcessStatsBySource(Map<String, SourceProgress> progressBySource) {
+      this.progressBySource = progressBySource;
+    }
+
+    void startFeature(String source) {
+      if (!Objects.equals(source, currentSource)) {
+        long now = ProcessInfo.getCurrentThreadCpuNanos();
+        if (current != null) {
+          current.cpuNanos += now - currentSourceStartCpuNanos;
         }
-      });
+        currentSource = source;
+        current = source == null ? null : forSource(progressBySource.get(source));
+        currentSourceStartCpuNanos = now;
+      }
+    }
 
-    var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("read", featureCount, featuresRead, true)
-      .addRateCounter("write", writer::numFeaturesWritten)
-      .addFileSize(writer)
-      .newLine()
-      .addProcessStats()
-      .newLine()
-      .addPipelineStats(pipeline);
+    Counter workLeftCounter(SourceProgress progress) {
+      return forSource(progress).workLeft;
+    }
 
-    pipeline.awaitAndLog(loggers, config.logInterval());
+    private ForSource forSource(SourceProgress progress) {
+      return seen.computeIfAbsent(progress.name(), name -> new ForSource(progress));
+    }
 
-    // hook for profile to do any post-processing after this source is read
-    try (
-      var threadLocalWriter = writer.writerForThread();
-      var featureRenderer = newFeatureRenderer(writer, config, threadLocalWriter)
-    ) {
-      profile.finish(sourceName, new FeatureCollector.Factory(config, stats), featureRenderer);
-    } catch (IOException e) {
-      LOGGER.warn("Error closing writer", e);
+    void featureProcessed() {
+      if (current != null) {
+        current.workLeft.incBy(-1);
+      }
+    }
+
+    void featureWritten() {
+      if (current != null) {
+        current.written.inc();
+      }
+    }
+
+    void finish() {
+      startFeature(null);
+      seen.values().forEach(forSource -> forSource.progress.addProcessCpu(forSource.cpuNanos));
+    }
+
+    private static final class ForSource {
+      private final SourceProgress progress;
+      private final Counter written;
+      private final Counter workLeft;
+      private long cpuNanos = 0;
+
+      ForSource(SourceProgress progress) {
+        this.progress = progress;
+        this.written = progress.writtenCounterForThread();
+        this.workLeft = progress.workLeftCounterForThread();
+      }
     }
   }
 
-  private boolean intersects(SourceFeature feature, Envelope latLonBounds) {
-    try {
-      return feature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds);
-    } catch (GeometryException e) {
-      // features that decode their geometry lazily throw here when it can't be read
-      e.log(stats, sourceName, "Skipping feature");
-      return false;
-    }
-  }
-
-  private static int processingCost(SourceFeature feature) {
-    return switch (feature) {
-      case SimpleFeature simpleFeature -> simpleFeature.numPoints();
-      case ShapefileFeature shapefileFeature -> shapefileFeature.numPoints();
-      // features with an unknown cost get handed off on their own
-      default -> PROCESS_BATCH_MAX_POINTS;
-    };
-  }
-
-  private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
+  private static FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config, Stats stats,
     Consumer<SortableFeature> next) {
     @SuppressWarnings("java:S2095") // closed by FeatureRenderer
     var encoder = writer.newRenderedFeatureEncoder();
@@ -191,13 +291,5 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
       stats,
       encoder
     );
-  }
-
-  private WorkerPipeline.WorkerStep<SimpleReader<F>, F> readFeatures() {
-    return (readers, next) -> {
-      for (var reader : readers) {
-        reader.readFeatures(next);
-      }
-    };
   }
 }

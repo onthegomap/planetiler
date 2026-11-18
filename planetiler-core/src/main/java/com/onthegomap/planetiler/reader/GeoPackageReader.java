@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
+import java.util.function.Supplier;
+import java.util.concurrent.CompletableFuture;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.Bounds;
@@ -95,6 +97,17 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     return GeoPackageManager.open(false, input.toFile());
   }
 
+
+  /**
+   * Returns {@code sourcePaths} as a source to process together with other sources in {@link SourceFeatureProcessor},
+   * which lists and reads the files once {@code ready} completes.
+   */
+  public static SourceReader source(String sourceProjection, String sourceName, Supplier<List<Path>> sourcePaths,
+    Path tmpDir, PlanetilerConfig config, boolean keepUnzipped, CompletableFuture<Void> ready) {
+    return SourceReader.ofFiles(sourceName, sourcePaths,
+      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped, config.bounds()), ready,
+      config.bounds());
+  }
 
   /**
    * Renders map features for all elements from an OGC GeoPackage based on the mapping logic defined in {@code

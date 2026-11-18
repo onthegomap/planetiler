@@ -888,4 +888,8 @@ public class TestUtils {
       }
     }));
   }
+
+  public static String withoutColors(String text) {
+    return text.replaceAll("\u001B\\[[;\\d]*m", "");
+  }
 }

@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.reader;
 
+import java.util.concurrent.CompletableFuture;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
 import com.onthegomap.planetiler.Profile;
@@ -63,6 +64,16 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
     } catch (IOException | SQLException e) {
       throw new IllegalArgumentException(e);
     }
+  }
+
+  /**
+   * Returns {@code sourcePath} as a source to process together with other sources in {@link SourceFeatureProcessor},
+   * which lists and reads the files once {@code ready} completes.
+   */
+  public static SourceReader source(String sourceName, Path sourcePath, Path tmpDir, PlanetilerConfig config,
+    boolean keepUnzipped, CompletableFuture<Void> ready) {
+    return SourceReader.ofFiles(sourceName, () -> List.of(sourcePath),
+      path -> new NaturalEarthReader(sourceName, path, tmpDir, keepUnzipped), ready, config.bounds());
   }
 
   /**
