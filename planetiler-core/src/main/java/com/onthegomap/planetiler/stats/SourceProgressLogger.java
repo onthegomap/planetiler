@@ -3,15 +3,15 @@ package com.onthegomap.planetiler.stats;
 import com.onthegomap.planetiler.util.Format;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Shows how far along each in-progress {@link SourceProgress} is in the logs:
  *
  * <pre>
- * in progress:
- * - water_polygons   download: [ 1.4M  67% 1.9M/s ] read: [    9  64%    4/s ] write: [  23k 9.1k/s ]
- * - natural_earth    download: [  31M  79%   1M/s ]
- * - lake_centerlines download:                      read: [  120  12%   80/s ] write: [   1k  700/s ]
+ * water_polygons   download: [ 1.4M  67% 1.9M/s ] read: [    9  64%    4/s ] write: [  23k 9.1k/s ]
+ * natural_earth    download: [  31M  79%   1M/s ]
+ * lake_centerlines download:                      read: [  120  12%   80/s ] write: [   1k  700/s ]
  * </pre>
  *
  * <p>
@@ -29,19 +29,14 @@ final class SourceProgressLogger {
     this.nameWidth = sources.stream().mapToInt(source -> source.name().length()).max().orElse(0);
   }
 
-  /** Returns {@code in progress:} followed by the rows to show, or an empty string when there are none. */
+  /** Returns one line per row to show, or an empty string when there are none. */
   String table() {
     var shown = rows.stream().filter(Row::isShown).toList();
     shown.forEach(Row::initCells);
     // keeps the other columns lined up when only some of the sources download anything
     int downloadWidth = shown.stream().filter(row -> row.download != null)
       .mapToInt(row -> row.download.width()).max().orElse(0);
-    StringBuilder result = new StringBuilder();
-    for (var row : shown) {
-      result.append(System.lineSeparator())
-        .append("- ").append(row.render(downloadWidth));
-    }
-    return result.isEmpty() ? "" : "  in progress:" + result;
+    return shown.stream().map(row -> row.render(downloadWidth)).collect(Collectors.joining(System.lineSeparator()));
   }
 
   /** Returns the cells of the first source, with an empty {@code read:} until its reader has opened it. */

@@ -193,8 +193,12 @@ class SourceFeatureProcessorTest {
 
     SourceFeatureProcessor.process("sources", List.of(a, b), List.of(), featureGroup, config, profile, stats);
 
-    assertTrue(a.progress().summary().matches("read: 2 in .*  process cpu:.*  written: 2"), a.progress()::summary);
-    assertTrue(b.progress().summary().matches("read: 3 in .*  process cpu:.*  written: 3"), b.progress()::summary);
+    String aSummary = a.progress().summary();
+    assertTrue(aSummary.startsWith("read: 2 in ") && aSummary.contains("  process cpu:") &&
+      aSummary.endsWith("  written: 2"), aSummary);
+    String bSummary = b.progress().summary();
+    assertTrue(bSummary.startsWith("read: 3 in ") && bSummary.contains("  process cpu:") &&
+      bSummary.endsWith("  written: 3"), bSummary);
   }
 
   @Test
@@ -210,6 +214,35 @@ class SourceFeatureProcessorTest {
     var exception = assertThrows(RuntimeException.class,
       () -> SourceFeatureProcessor.process("sources", sources, List.of(), featureGroup, config, profile, stats));
     assertEquals("download failed", Exceptions.unwrap(exception).getMessage());
+  }
+
+  @Test
+  void testProcessesFeaturesThatNameAnotherSource() {
+    var stats = Stats.inMemory();
+    var config = PlanetilerConfig.defaults();
+    List<String> processed = new CopyOnWriteArrayList<>();
+    Profile profile = (SourceFeature source, FeatureCollector features) -> processed.add(source.getSource());
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
+
+    // a custom reader can name its features after any source
+    SourceFeatureProcessor.processFiles("source", List.of(Path.of("a")), path -> new SimpleReader<SimpleFeature>("source") {
+      @Override
+      public long getFeatureCount() {
+        return 1;
+      }
+
+      @Override
+      public void readFeatures(Consumer<SimpleFeature> next) {
+        next.accept(SimpleFeature.create(GeoUtils.point(0, 0), Map.of(), "other", null, 0));
+      }
+
+      @Override
+      public void close() {
+        // nothing to close
+      }
+    }, featureGroup, config, profile, stats);
+
+    assertEquals(List.of("other"), processed);
   }
 
   private static SourceReader pointsSource(String name, int count, CompletableFuture<Void> ready,

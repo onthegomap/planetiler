@@ -237,7 +237,9 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
           current.cpuNanos += now - currentSourceStartCpuNanos;
         }
         currentSource = source;
-        current = source == null ? null : forSource(progressBySource.get(source));
+        var progress = source == null ? null : progressBySource.get(source);
+        // features that a custom reader names after some other source don't count toward any source
+        current = progress == null ? null : forSource(progress);
         currentSourceStartCpuNanos = now;
       }
     }

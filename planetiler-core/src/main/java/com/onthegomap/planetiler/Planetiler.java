@@ -773,7 +773,7 @@ public class Planetiler {
       true,
       fields -> fields.get("id"),
       fields1 -> fields1.get("type"),
-      () -> !download ? CompletableFutures.NULL : lookup.get().thenCompose(urls -> {
+      () -> download ? lookup.get().thenCompose(urls -> {
         Map<String, Path> urlToPath = new LinkedHashMap<>();
         for (String url : urls) {
           if (needsDownload(localPath.apply(url), refresh)) {
@@ -782,7 +782,7 @@ public class Planetiler {
         }
         startDownloads(name, urlToPath);
         return whenDownloaded(name);
-      }),
+      }) : CompletableFutures.NULL,
       null);
   }
 
@@ -1228,15 +1228,16 @@ public class Planetiler {
           List<SourceReader> readTogether = new ArrayList<>();
           for (Stage stage : stages) {
             switch (stage) {
-              case ParallelStage source -> {
-                if (sources.containsKey(source.id)) {
-                  if (!readSourcesTogether || readSourcesSequentially || source.waitsForPrevious) {
-                    processSources(readTogether);
-                    readTogether.clear();
-                  }
-                  // the stage that reads a source closes it
-                  readTogether.add(sources.remove(source.id));
+              case ParallelStage source when sources.containsKey(source.id) -> {
+                if (!readSourcesTogether || readSourcesSequentially || source.waitsForPrevious) {
+                  processSources(readTogether);
+                  readTogether.clear();
                 }
+                // the stage that reads a source closes it
+                readTogether.add(sources.remove(source.id));
+              }
+              case ParallelStage _ -> {
+                // the profile doesn't use this source, so it never got opened
               }
               case SequentialStage task -> {
                 processSources(readTogether);
@@ -1519,7 +1520,9 @@ public class Planetiler {
     });
     var done = CompletableFutures.joinFutures(waitingFor);
     if (!done.isDone()) {
-      LogUtil.runInStage(stage, () -> ProgressLoggers.create().addSourceProgress(rows).newLine().addProcessStats()
+      LogUtil.runInStage(stage, () -> ProgressLoggers.create().add("in progress:").newLine()
+        .addSourceProgress(rows).newLine()
+        .addProcessStats()
         .awaitAndLog(done, config.logInterval()));
     }
     CompletableFutures.await(done);

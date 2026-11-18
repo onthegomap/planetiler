@@ -313,8 +313,8 @@ public class ProgressLoggers {
   }
 
   /**
-   * Adds {@code in progress:} and one row per source in {@code sources} that is downloading or has features left to
-   * read or process, or nothing when there are none (see {@link SourceProgressLogger}).
+   * Adds one line per source in {@code sources} that is downloading or has features left to read or process, or nothing
+   * when there are none (see {@link SourceProgressLogger}).
    */
   public ProgressLoggers addSourceProgress(List<SourceProgress> sources) {
     return add(new SourceProgressLogger(format, sources)::table);

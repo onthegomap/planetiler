@@ -227,6 +227,8 @@ public class Downloader implements Closeable {
       .forEach((id, group) -> rows.add(Download.progress(id, group)));
     var done = CompletableFuture.allOf(downloads.stream().map(Download::done).toArray(CompletableFuture[]::new));
     ProgressLoggers.create()
+      .add("in progress:")
+      .newLine()
       .addSourceProgress(rows)
       .newLine()
       .addProcessStats()

@@ -48,9 +48,8 @@ class SourceProgressLoggerTest {
     var logger = logger(downloading("a"), reading("long_name"));
 
     assertEquals(lines("""
-        in progress:
-      - a         download: [   50  50%    0/s ]
-      - long_name download:                      read: [    7  39%    0/s ] write: [    0    0/s ]"""),
+      a         download: [   50  50%    0/s ]
+      long_name download:                      read: [    7  39%    0/s ] write: [    0    0/s ]"""),
       TestUtils.withoutColors(logger.table()));
   }
 
@@ -61,9 +60,7 @@ class SourceProgressLoggerTest {
     logger.table();
     source.finish();
 
-    assertEquals(lines("""
-        in progress:
-      - a read: [    7  39%    0/s ] write: [    0    0/s ]"""), logger.table());
+    assertEquals("a read: [    7  39%    0/s ] write: [    0    0/s ]", logger.table());
     assertEquals("", logger.table());
   }
 
@@ -75,13 +72,9 @@ class SourceProgressLoggerTest {
     source.finish();
     var logger = logger(source);
 
-    assertEquals(lines("""
-        in progress:
-      - a read: %s write: [    0    0/s ]""".formatted(AnsiColors.green("[    7  39%    0/s ]"))), logger.table());
+    assertEquals("a read: " + AnsiColors.green("[    7  39%    0/s ]") + " write: [    0    0/s ]", logger.table());
     workLeft.incBy(-1);
-    assertEquals(lines("""
-        in progress:
-      - a read: [    7  39%    0/s ] write: [    0    0/s ]"""), logger.table());
+    assertEquals("a read: [    7  39%    0/s ] write: [    0    0/s ]", logger.table());
     assertEquals("", logger.table());
   }
 
@@ -92,9 +85,7 @@ class SourceProgressLoggerTest {
     downloadFinished.set(true);
 
     String table = TestUtils.withoutColors(logger.table());
-    assertTrue(table.startsWith(lines("""
-        in progress:
-      - a download: [  100 100%\s""")), table);
+    assertTrue(table.startsWith("a download: [  100 100% "), table);
     assertEquals("", logger.table());
   }
 

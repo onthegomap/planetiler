@@ -1,7 +1,5 @@
 package com.onthegomap.planetiler.reader;
 
-import java.util.function.Supplier;
-import java.util.concurrent.CompletableFuture;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.Bounds;
@@ -17,7 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import mil.nga.geopackage.GeoPackage;
 import mil.nga.geopackage.GeoPackageManager;
 import mil.nga.geopackage.features.index.FeatureIndexManager;
@@ -87,7 +87,10 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         Files.createTempFile(unzippedDir, "", ".gpkg");
       FileUtils.createParentDirectories(extractedPath);
       if (!keepUnzipped || FileUtils.isNewer(input, extractedPath)) {
-        try (var inputStream = inputUri.toURL().openStream()) {
+        var connection = inputUri.toURL().openConnection();
+        // jar sources are cached by default which keep the connection open until the JVM exits and windows can't delete
+        connection.setUseCaches(false);
+        try (var inputStream = connection.getInputStream()) {
           FileUtils.safeCopy(inputStream, extractedPath);
         }
       }
