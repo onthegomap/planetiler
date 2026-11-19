@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.round;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
@@ -15,12 +16,20 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
+import com.onthegomap.planetiler.reader.remote.RangeFile;
+import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.Parse;
+import com.onthegomap.planetiler.util.StubDownloader;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -103,5 +112,58 @@ class ParquetReaderTest {
     reader.process(List.of(), featureGroup, outsideBoston);
 
     assertEquals(List.of(), ids);
+  }
+
+  @Test
+  @Timeout(30)
+  void testReadPercentComesFromBlocksWhenFilteredToBounds() {
+    // the bounds filter leaves the number of features to read unknown until they have all been read
+    var aroundBoston = PlanetilerConfig.from(Arguments.of("bounds", "-71.1,42.3,-71.0,42.4"));
+    Profile profile = (SourceFeature source, FeatureCollector features) -> features.point("points");
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, aroundBoston, stats);
+    var source = new ParquetReader("source", profile, stats)
+      .source(() -> List.of(bostons().getFirst()), CompletableFutures.NULL, aroundBoston);
+
+    SourceFeatureProcessor.process("source", List.of(source), List.of(), featureGroup, aroundBoston, profile, stats);
+
+    String log = TestUtils.withoutColors(ProgressLoggers.create().addSourceProgress(source.progress()).getLog());
+    assertTrue(log.startsWith(" read: [    3 100% "), log);
+  }
+
+  @Test
+  @Timeout(30)
+  void testClosesFilesOpenedAheadThatNeverGetRead() throws IOException {
+    var files = bostons();
+    List<Path> closed = new CopyOnWriteArrayList<>();
+    var source = new ParquetReader("source", new Profile.NullProfile(), stats).remoteSource(
+      CompletableFuture.completedFuture(files),
+      path -> recordingClose(RangeFile.openLocal(path), () -> closed.add(path)),
+      new StubDownloader(config), config);
+    source.whenReady().join();
+
+    // like when a stage before this source fails
+    source.close();
+
+    assertEquals(Set.copyOf(files), Set.copyOf(closed));
+  }
+
+  private static RangeFile recordingClose(RangeFile file, Runnable onClose) {
+    return new RangeFile() {
+      @Override
+      public long length() throws IOException {
+        return file.length();
+      }
+
+      @Override
+      public byte[] read(long offset, int length) throws IOException {
+        return file.read(offset, length);
+      }
+
+      @Override
+      public void close() throws IOException {
+        onClose.run();
+        file.close();
+      }
+    };
   }
 }

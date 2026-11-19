@@ -18,7 +18,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -287,9 +289,11 @@ class DownloaderTest {
     assertArrayEquals(contents, Files.readAllBytes(dest));
     long tailStart = contents.length - (1 << 20);
     assertEquals(List.of("bytes=0-0", "bytes=1000-" + (tailStart - 1)), ranges(downloader));
-    // progress counts the whole file, starting from the bytes fetched before
+    // progress counts only the bytes this run fetches, not the ones fetched before
     assertEquals(contents.length, resource.length().get());
-    assertEquals(contents.length, resource.bytesDownloaded());
+    long fetchedNow = tailStart - 1000;
+    assertEquals(fetchedNow, resource.bytesToFetch().get());
+    assertEquals(fetchedNow, resource.bytesDownloaded());
   }
 
   @Test
@@ -467,5 +471,24 @@ class DownloaderTest {
 
     assertEquals(0, Files.size(dest));
     assertFalse(CachedRangeFile.isPartial(dest));
+  }
+
+  @Test
+  void testStartAllCountsOnlyWhatIsMissing() throws Exception {
+    var downloader = new StubDownloader(config).put("http://a", bytes("0123456789")).put("http://b", bytes("abcde"));
+    Path a = path.resolve("a");
+    Path b = path.resolve("b");
+    download(downloader, "http://b", b);
+
+    var downloads = downloader.startAll("id", Map.of("http://a", a, "http://b", b));
+    CompletableFuture.allOf(downloads.stream().map(Downloader.Download::done).toArray(CompletableFuture[]::new)).get();
+
+    var byPath = downloads.stream().collect(Collectors.toMap(Downloader.Download::output, download -> download));
+    assertEquals(0, byPath.get(b).bytesToFetch());
+    // opening a file fetches its first byte to learn its length, so 9 are left to fetch
+    assertEquals(9, byPath.get(a).bytesToFetch());
+    assertEquals(9, byPath.get(a).bytesDownloaded());
+    assertArrayEquals(bytes("0123456789"), Files.readAllBytes(a));
+    assertArrayEquals(bytes("abcde"), Files.readAllBytes(b));
   }
 }

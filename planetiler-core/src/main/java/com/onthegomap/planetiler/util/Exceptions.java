@@ -3,6 +3,8 @@ package com.onthegomap.planetiler.util;
 import com.onthegomap.planetiler.geo.GeometryException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Exception-handling utilities.
@@ -47,6 +49,19 @@ public class Exceptions {
         return throwFatalException(exception);
       }
     }
+  }
+
+  /**
+   * Returns the exception that {@code exception} carries over from another thread, like the cause of an
+   * {@link ExecutionException} from a future, or {@code exception} itself when it doesn't wrap one.
+   */
+  public static Throwable unwrap(Throwable exception) {
+    Throwable result = exception;
+    while ((result instanceof ExecutionException || result instanceof CompletionException ||
+      result instanceof FatalPlanetilerException) && result.getCause() != null) {
+      result = result.getCause();
+    }
+    return result;
   }
 
   /**

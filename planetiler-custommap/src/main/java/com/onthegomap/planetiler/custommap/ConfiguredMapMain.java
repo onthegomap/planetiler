@@ -49,7 +49,7 @@ public class ConfiguredMapMain {
 
     var planetiler = Planetiler.create(rootContext.arguments());
     var profile = new ConfiguredProfile(schema, rootContext);
-    planetiler.setProfile(profile);
+    planetiler.setProfile(profile).readSourcesTogether();
 
     for (var source : profile.sources()) {
       configureSource(planetiler, sourcesDir, source);
