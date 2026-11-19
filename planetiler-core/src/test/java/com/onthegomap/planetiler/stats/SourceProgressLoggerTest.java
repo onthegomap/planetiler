@@ -98,4 +98,16 @@ class SourceProgressLoggerTest {
     source.setRead(read::get, 0).setTrackWritten();
     assertEquals(" read: [    7    -    0/s ] write: [    0    0/s ]", logger.cells());
   }
+
+  @Test
+  void testShowsSourceReadBetweenTwoLogs() {
+    var source = new SourceProgress("a");
+    var logger = logger(source);
+    source.setRead(read::get, 18).setTrackWritten();
+    source.start();
+    source.finish();
+
+    assertEquals("a read: [    7  39%    0/s ] write: [    0    0/s ]", logger.table());
+    assertEquals("", logger.table());
+  }
 }

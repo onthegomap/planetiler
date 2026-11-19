@@ -51,6 +51,7 @@ final class SourceProgressLogger {
     private Cell read;
     private Cell written;
     private boolean wasInProgress;
+    private boolean shownWhenDone = false;
 
     Row(SourceProgress source) {
       this.source = source;
@@ -58,10 +59,13 @@ final class SourceProgressLogger {
       this.wasInProgress = source.isInProgress();
     }
 
-    // A row that stops being in progress shows once more on next log then disappears
+    // Show rows for sources one more time after they finish
     boolean isShown() {
       boolean inProgress = source.isInProgress();
-      boolean shown = inProgress || wasInProgress;
+      boolean shown = inProgress || (!shownWhenDone && (wasInProgress || source.isFinishedReading()));
+      if (shown && !inProgress) {
+        shownWhenDone = true;
+      }
       wasInProgress = inProgress;
       return shown;
     }

@@ -27,6 +27,12 @@ import org.slf4j.LoggerFactory;
  */
 public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, DiskBacked {
 
+  /**
+   * How many bytes from the start of an {@code .osm.pbf} file to read for {@link #parseHeader}: header blocks are a few
+   * KB, so this is plenty for any file planetiler has seen.
+   */
+  public static final int FILE_PREFIX_BYTES = 64 * 1024;
+
   private static final Logger LOGGER = LoggerFactory.getLogger(OsmInputFile.class);
 
   private final Path path;

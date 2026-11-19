@@ -117,6 +117,10 @@ public class SourceProgress {
     return workLeft.get() > 0;
   }
 
+  boolean isFinishedReading() {
+    return endNanos >= 0;
+  }
+
   /**
    * Returns true while this source is downloading or has features left to read or process. Readers set the read count
    * once they have opened the source, so until then only a download counts.

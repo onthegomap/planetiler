@@ -226,13 +226,7 @@ public class Downloader implements Closeable {
     downloads.stream().collect(Collectors.groupingBy(Download::id, LinkedHashMap::new, Collectors.toList()))
       .forEach((id, group) -> rows.add(Download.progress(id, group)));
     var done = CompletableFuture.allOf(downloads.stream().map(Download::done).toArray(CompletableFuture[]::new));
-    ProgressLoggers.create()
-      .add("in progress:")
-      .newLine()
-      .addSourceProgress(rows)
-      .newLine()
-      .addProcessStats()
-      .awaitAndLog(done, config.logInterval());
+    ProgressLoggers.awaitSourceProgress(rows, done, config.logInterval());
   }
 
   /** Stops the threads this downloader uses once requests in progress finish. */

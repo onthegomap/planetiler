@@ -114,7 +114,7 @@ public class Planetiler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final int OSM_HEADER_PREFIX_BYTES = 64 * 1024;
+  private static final String OSM_BOUNDS_STAGE = "osm_bounds";
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
   private final Map<String, List<Download>> downloadsBySource = new ConcurrentHashMap<>();
@@ -645,7 +645,7 @@ public class Planetiler {
    * Adds a new <a href="https://github.com/opengeospatial/geoparquet">geoparquet</a> source that will be processed when
    * {@link #run()} is called.
    * <p>
-   * GeoParquet sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
+   * Parquet sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
    *
    * @param name             string to use in stats and logs to identify this stage
    * @param paths            paths to the geoparquet files to read.
@@ -709,7 +709,7 @@ public class Planetiler {
    * To override the location of the file, set {@code name_path=newpath.parquet} in the arguments and to override the
    * download URL set {@code name_url=http://url/of/file.parquet}.
    * <p>
-   * GeoParquet sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
+   * Parquet sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
@@ -1168,8 +1168,6 @@ public class Planetiler {
     FileUtils.createDirectory(tmpDir);
     FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
-    // One flow for every run: resolve the map bounds, start every download, then open the sources so their catalog
-    // lookups and remote files get going. After that each stage only waits for its own inputs.
     if (reuseExistingFeatureDb) {
       // no source gets read, and the bounds come from the run that wrote the feature DB
       restoreSourceInfo();
@@ -1177,7 +1175,7 @@ public class Planetiler {
       ensureInputFilesExist();
       addOsmBoundsFallback();
     }
-    startDownloads();
+    startPendingDownloads();
     // A reused feature DB, --only-download and --only-fetch-wikidata don't read the sources, but their downloads
     // still run, so only open the sources that need downloading.
     Map<String, SourceReader> sources = openSources(onlyDownloadSources || onlyFetchWikidata || reuseExistingFeatureDb);
@@ -1187,7 +1185,8 @@ public class Planetiler {
       }
 
       if (fetchWikidata) {
-        awaitDownloads("wikidata", stages.stream().map(Stage::id).toList());
+        List<Download> allDownloads = stages.stream().map(Stage::id).flatMap(this::downloadsOf).toList();
+        awaitDownloads("wikidata", allDownloads);
         Wikidata.fetch(osmInputFile(), wikidataNamesFile, downloader(), profile(), stats(), wikidataMaxAge,
           wikidataUpdateLimit);
       }
@@ -1195,7 +1194,13 @@ public class Planetiler {
         translations().addFallbackTranslationProvider(Wikidata.load(wikidataNamesFile));
       }
       if (onlyDownloadSources || onlyFetchWikidata || reuseExistingFeatureDb) {
-        awaitSourcesAndDownloads("download", sources);
+        // A source whose files come from a catalog lookup (Overture) only starts its downloads once the lookup
+        // returns, so wait for the sources to be ready rather than for their downloads started so far.
+        List<Download> otherDownloads = downloadsBySource.entrySet().stream()
+          .filter(entry -> !sources.containsKey(entry.getKey()))
+          .flatMap(entry -> entry.getValue().stream())
+          .toList();
+        awaitSourcesAndDownloads("download", sources.values(), otherDownloads);
         FileUtils.closeAll(sources.values());
         sources.clear();
         if (onlyDownloadSources || onlyFetchWikidata) {
@@ -1243,7 +1248,7 @@ public class Planetiler {
                 processSources(readTogether);
                 readTogether.clear();
                 try {
-                  awaitDownloads(task.id, List.of(task.id));
+                  awaitDownloads(task.id, downloadsOf(task.id).toList());
                   task.task.run();
                 } catch (Exception e) {
                   throw new PlanetilerException("Error occurred during stage " + task.id, e);
@@ -1461,7 +1466,7 @@ public class Planetiler {
   }
 
   /** Starts downloading every file queued by the sources the profile uses, without waiting for any of them. */
-  private void startDownloads() {
+  private void startPendingDownloads() {
     Map<String, Map<String, Path>> bySource = new LinkedHashMap<>();
     for (ToDownload download : toDownload) {
       if (profile.caresAboutSource(download.id)) {
@@ -1488,42 +1493,27 @@ public class Planetiler {
     return downloadsBySource.getOrDefault(name, List.of()).stream();
   }
 
-  /** Waits for the downloads of the sources in {@code names}, logging their progress under {@code stage} meanwhile. */
-  private void awaitDownloads(String stage, Collection<String> names) {
-    awaitDownloads(stage, names.stream().flatMap(this::downloadsOf).toList());
-  }
-
-  private void awaitDownloads(String stage, List<Download> waitingFor) {
-    if (!waitingFor.isEmpty()) {
-      LogUtil.runInStage(stage, () -> downloader().awaitAndLog(waitingFor));
-    }
+  private void awaitDownloads(String stage, List<Download> downloads) {
+    awaitSourcesAndDownloads(stage, List.of(), downloads);
   }
 
   /**
-   * Waits for {@code sources} to be ready and for every other download to finish, logging their progress under
+   * Waits for {@code sources} to be ready and for {@code downloads} to finish, logging their progress under
    * {@code stage} meanwhile.
    */
-  private void awaitSourcesAndDownloads(String stage, Map<String, SourceReader> sources) {
-    // A source whose files come from a catalog lookup (Overture) only starts its downloads once the lookup returns, so
-    // wait for the source to be ready rather than for the downloads started so far.
+  private void awaitSourcesAndDownloads(String stage, Collection<SourceReader> sources, List<Download> downloads) {
     List<SourceProgress> rows = new ArrayList<>();
     List<CompletableFuture<Void>> waitingFor = new ArrayList<>();
-    sources.values().forEach(source -> {
+    for (SourceReader source : sources) {
       rows.add(source.progress());
       waitingFor.add(source.whenReady());
-    });
-    downloadsBySource.forEach((name, ofSource) -> {
-      if (!sources.containsKey(name)) {
-        rows.add(Download.progress(name, ofSource));
-        ofSource.forEach(download -> waitingFor.add(download.done()));
-      }
-    });
+    }
+    downloads.stream().collect(Collectors.groupingBy(Download::id, LinkedHashMap::new, Collectors.toList()))
+      .forEach((id, ofSource) -> rows.add(Download.progress(id, ofSource)));
+    downloads.forEach(download -> waitingFor.add(download.done()));
     var done = CompletableFutures.joinFutures(waitingFor);
     if (!done.isDone()) {
-      LogUtil.runInStage(stage, () -> ProgressLoggers.create().add("in progress:").newLine()
-        .addSourceProgress(rows).newLine()
-        .addProcessStats()
-        .awaitAndLog(done, config.logInterval()));
+      LogUtil.runInStage(stage, () -> ProgressLoggers.awaitSourceProgress(rows, done, config.logInterval()));
     }
     CompletableFutures.await(done);
   }
@@ -1583,8 +1573,8 @@ public class Planetiler {
       }
       bounds.addFallbackProvider(() -> {
         // only a scan through the nodes can tell, which needs the whole file
-        startDownloads();
-        awaitDownloads("osm_bounds", osmDownloads());
+        startPendingDownloads();
+        awaitDownloads(OSM_BOUNDS_STAGE, osmDownloads());
         return new OsmNodeBoundsProvider(osmInputFile, config, stats).getLatLonBounds();
       });
     }
@@ -1602,13 +1592,14 @@ public class Planetiler {
         // remember the resolved URL so the download doesn't look up a geofabrik: or aws: shortcut a second time
         toDownload.set(i, new ToDownload(download.id, url, path));
         try {
-          byte[] prefix = downloader().fetchRange(url, new Downloader.ByteRange(0, OSM_HEADER_PREFIX_BYTES)).bytes();
+          byte[] prefix =
+            downloader().fetchRange(url, new Downloader.ByteRange(0, OsmInputFile.FILE_PREFIX_BYTES)).bytes();
           return OsmInputFile.parseHeader(prefix).map(OsmHeader::bounds).orElse(null);
         } catch (IOException e) {
           // If the server doesn't support range requests, for example, read the header once the whole file is here.
           LOGGER.debug("Unable to read the header of {} before downloading it", url, e);
-          startDownloads();
-          awaitDownloads("osm_bounds", osmDownloads());
+          startPendingDownloads();
+          awaitDownloads(OSM_BOUNDS_STAGE, osmDownloads());
           return osmInputFile.getLatLonBounds();
         }
       }

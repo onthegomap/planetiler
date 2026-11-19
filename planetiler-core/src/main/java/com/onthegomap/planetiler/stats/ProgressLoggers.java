@@ -320,6 +320,18 @@ public class ProgressLoggers {
     return add(new SourceProgressLogger(format, sources)::table);
   }
 
+  /**
+   * Logs a row for each of {@code sources} that is in progress and the process stats every {@code logInterval} until
+   * {@code future} completes, for waiting on sources and downloads while nothing else runs.
+   */
+  public static void awaitSourceProgress(List<SourceProgress> sources, Future<?> future, Duration logInterval) {
+    // the rows go on lines of their own under a header, since nothing else goes on the first line
+    create().add("in progress:").newLine()
+      .addSourceProgress(sources).newLine()
+      .addProcessStats()
+      .awaitAndLog(future, logInterval);
+  }
+
   /** Adds how far along {@code source} is in downloading, reading and writing, for a stage that reads only it. */
   public ProgressLoggers addSourceProgress(SourceProgress source) {
     return add(new SourceProgressLogger(format, List.of(source))::cells);
