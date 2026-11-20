@@ -24,6 +24,9 @@ import net.jcip.annotations.ThreadSafe;
 @ThreadSafe
 public class Geofabrik {
 
+  // Geofabrik's Monaco extract, copied nightly by .github/workflows/publish-sources.yml. Monaco is the default area, so
+  // most first runs download it, and Geofabrik is often down.
+  private static final String MONACO_MIRROR_URL = "https://planetiler.onthegomap.com/monaco.osm.pbf";
   private static volatile IndexJson index = null;
   private static final ObjectMapper objectMapper = new ObjectMapper()
     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -35,7 +38,8 @@ public class Geofabrik {
    * If an exact match is found, returns that. Otherwise, looks for a resource that contains {@code searchQuery} as a
    * substring.
    * <p>
-   * The index is only fetched once and cached after that.
+   * The index is only fetched once and cached after that. {@code "monaco"} resolves to a nightly copy of Geofabrik's
+   * extract on {@code planetiler.onthegomap.com} without fetching the index.
    *
    * @param searchQuery the tokens to search for
    * @param downloader  downloader to fetch the index with
@@ -43,6 +47,9 @@ public class Geofabrik {
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
   public static String getDownloadUrl(String searchQuery, Downloader downloader) {
+    if (tokenize(searchQuery).equals(Set.of("monaco"))) {
+      return MONACO_MIRROR_URL;
+    }
     IndexJson index = getAndCacheIndex(downloader);
     return searchIndexForDownloadUrl(searchQuery, index);
   }
