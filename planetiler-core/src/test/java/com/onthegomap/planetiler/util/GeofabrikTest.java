@@ -3,9 +3,11 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -171,5 +173,14 @@ class GeofabrikTest {
     var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
     assertThrows(IllegalArgumentException.class,
       () -> Geofabrik.searchIndexForDownloadUrl("georgia", index));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"monaco", "Monaco"})
+  void testMonacoComesFromMirrorWithoutFetchingIndex(String search) {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+
+    assertEquals("https://planetiler.onthegomap.com/monaco.osm.pbf", Geofabrik.getDownloadUrl(search, downloader));
+    assertEquals(List.of(), downloader.requests());
   }
 }
