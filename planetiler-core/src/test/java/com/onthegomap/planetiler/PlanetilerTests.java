@@ -3902,8 +3902,9 @@ class PlanetilerTests {
       .setDownloader(downloader)
       .setProfile(new Profile.NullProfile());
 
+    var sources = tempDir.resolve("sources");
     var exception = assertThrows(IllegalArgumentException.class,
-      () -> planetiler.addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco"));
+      () -> planetiler.addOsmSourceForArea("osm", sources, "monaco"));
     assertTrue(exception.getMessage().contains(typo + " does not exist. Set --area or --osm-url"),
       exception.getMessage());
     assertEquals(List.of(), downloader.requests());
