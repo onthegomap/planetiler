@@ -272,6 +272,11 @@ public class Arguments {
     return result;
   }
 
+  /** Returns true if {@code key} is set, for defaults that depend on whether the user set something explicitly. */
+  public boolean contains(String key) {
+    return get(key) != null;
+  }
+
   String getArg(String key) {
     String value = get(key);
     return value == null ? null : value.trim();

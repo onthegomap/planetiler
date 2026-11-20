@@ -3233,7 +3233,8 @@ class PlanetilerTests {
   private static OvertureStac recordingOvertureStac(List<Envelope> lookups) {
     return new OvertureStac(new StubDownloader(PlanetilerConfig.defaults())) {
       @Override
-      public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
+      public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds, Path savedList,
+        boolean refresh) {
         // copy since the bounds get updated in place once they are known
         lookups.add(new Envelope(bounds.latLon()));
         return List.of();
@@ -3835,8 +3836,8 @@ class PlanetilerTests {
       .setDownloader(downloader)
       .setOvertureStac(new OvertureStac(downloader) {
         @Override
-        public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
-          return List.of("http://host/overture/theme=buildings/type=building/boston.parquet");
+        public List<ParquetFile> listParquetFiles(String catalogUrl, String theme, String type) {
+          return List.of(new ParquetFile("http://host/overture/theme=buildings/type=building/boston.parquet", null));
         }
       })
       .setProfile((SourceFeature source, FeatureCollector features) -> {
@@ -3890,5 +3891,47 @@ class PlanetilerTests {
     } else {
       assertTrue(events.indexOf("finish a") < events.indexOf("process b"), events::toString);
     }
+  }
+
+  @Test
+  void testExplicitOsmPathDoesNotGetDefaultAreaDownloadedIntoIt() {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    Path typo = tempDir.resolve("typo.osm.pbf");
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download",
+      "--osm-path=" + typo))
+      .setDownloader(downloader)
+      .setProfile(new Profile.NullProfile());
+
+    var exception = assertThrows(IllegalArgumentException.class,
+      () -> planetiler.addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco"));
+    assertTrue(exception.getMessage().contains(typo + " does not exist. Set --area or --osm-url"),
+      exception.getMessage());
+    assertEquals(List.of(), downloader.requests());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"--area=monaco", "--osm-url=http://host/monaco.osm.pbf"})
+  void testExplicitOsmPathCanBeDownloadedIntoWithExplicitSource(String arg) {
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download",
+      "--osm-path=" + tempDir.resolve("custom.osm.pbf"), arg))
+      .setProfile(new Profile.NullProfile());
+
+    assertDoesNotThrow(() -> planetiler.addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco"));
+  }
+
+  @Test
+  void testOsmSourceForArea() throws IOException {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults())
+      .put("http://host/monaco.osm.pbf", Files.readAllBytes(TestUtils.pathToResource("monaco-latest.osm.pbf")));
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", "--area=rhode island",
+      "--osm-url=http://host/monaco.osm.pbf"))
+      .setDownloader(downloader)
+      .setProfile(new Profile.NullProfile())
+      .addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco")
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
   }
 }

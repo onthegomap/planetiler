@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
+import com.onthegomap.planetiler.reader.remote.DownloadMode;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
@@ -25,6 +26,7 @@ import com.onthegomap.planetiler.util.Glob;
 import com.onthegomap.planetiler.util.Parse;
 import com.onthegomap.planetiler.util.StubDownloader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +35,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 
 class ParquetReaderTest {
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
+  private static final String URL = "http://host/boston.parquet";
   private final Stats stats = Stats.inMemory();
 
   static List<Path> bostons() {
@@ -145,6 +150,43 @@ class ParquetReaderTest {
     source.close();
 
     assertEquals(Set.copyOf(files), Set.copyOf(closed));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  @Timeout(30)
+  void testRerunFetchesRangesMissingFromCache(boolean changedOnServer, @TempDir Path tempDir) throws IOException {
+    byte[] bytes = Files.readAllBytes(bostons().getFirst());
+    Path path = tempDir.resolve("boston.parquet");
+    // bounds that miss the file leave only its footer in the cache
+    var outsideBoston = PlanetilerConfig.from(Arguments.of("bounds", "7.40,43.72,7.44,43.75"));
+    var firstRun = new StubDownloader(config).put(URL, bytes, "\"v1\"", null);
+    assertEquals(List.of(), readCached(path, firstRun, outsideBoston));
+    var downloader = new StubDownloader(config).put(URL, bytes, changedOnServer ? "\"v2\"" : "\"v1\"", null);
+
+    var ids = readCached(path, downloader, config);
+
+    assertEquals(3, ids.size());
+    // starting over fetches the footer again with the request that opens the file
+    var ranges = downloader.requests().stream().map(StubDownloader.Request::range).toList();
+    assertEquals(changedOnServer, ranges.stream().anyMatch(range -> range.startsWith("bytes=-")), ranges::toString);
+    // the next run has every range it needs, so it makes no requests
+    var offline = new StubDownloader(config);
+    assertEquals(ids, readCached(path, offline, config));
+    assertEquals(List.of(), offline.requests());
+  }
+
+  private List<String> readCached(Path path, StubDownloader downloader, PlanetilerConfig config) {
+    List<String> ids = new CopyOnWriteArrayList<>();
+    Profile profile = (SourceFeature source, FeatureCollector features) -> ids.add(source.getString("id"));
+    // The test files are smaller than the footer prefetch, so prefetch only the last 8 bytes to leave the row groups
+    // out of the cache when bounds skip them.
+    var source = new ParquetReader("source", profile, stats).remoteSource(
+      CompletableFuture.completedFuture(List.of(path)),
+      file -> RangeFile.open(file, URL, 8, DownloadMode.CACHED, false, downloader), downloader, config);
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
+    SourceFeatureProcessor.process("source", List.of(source), List.of(), featureGroup, config, profile, stats);
+    return ids.stream().sorted().toList();
   }
 
   private static RangeFile recordingClose(RangeFile file, Runnable onClose) {

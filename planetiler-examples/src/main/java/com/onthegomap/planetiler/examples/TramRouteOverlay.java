@@ -128,11 +128,10 @@ public class TramRouteOverlay implements Profile {
   }
 
   static void run(Arguments args) {
-    String area = args.getString("area", "geofabrik area to download", "bremen");
     Planetiler.create(args)
       .setProfile(new TramRouteOverlay())
       // if the argument osm_path="path/to/data.osm.pbf" is not given, download Bremen from Geofabrik
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "bremen")
       .overwriteOutput(Path.of("data", "tramroutes.mbtiles"))
       .run();
   }

@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.reader.SourceReader;
+import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.reader.remote.DownloadMode;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
 import com.onthegomap.planetiler.stats.ProcessInfo;
@@ -148,7 +149,7 @@ public class ParquetReader {
     Downloader downloader, PlanetilerConfig config) {
     // opening a remote file and reading its footer take a round trip or two each, so open them all at once
     var opening = paths.thenApply(files -> files.stream()
-      .map(path -> downloader.async(() -> newInputFile(path, openFile.apply(path), config)))
+      .map(path -> downloader.async(() -> openRemoteInputFile(path, openFile, config)))
       .toList());
     var opened = opening.thenCompose(files -> CompletableFuture.allOf(files.toArray(CompletableFuture[]::new)));
     return new Source(
@@ -156,6 +157,18 @@ public class ParquetReader {
       () -> CompletableFutures.joinAllOrClose(opening.join()),
       () -> opening.thenAccept(CompletableFutures::closeWhenDone),
       config);
+  }
+
+  private ParquetInputFile openRemoteInputFile(Path path, FunctionThatThrows<Path, RangeFile> openFile,
+    PlanetilerConfig config) throws Exception {
+    var inputFile = newInputFile(path, openFile.apply(path), config);
+    // Use the local cached file if it contains all bytes necessary without any network request,
+    // otherwise check if the remote version changed and if so then create a new file
+    if (inputFile.file() instanceof CachedRangeFile cached && inputFile.needsFetch() && !cached.connectIfUnchanged()) {
+      inputFile.close();
+      inputFile = newInputFile(path, openFile.apply(path), config);
+    }
+    return inputFile;
   }
 
   private ParquetInputFile newInputFile(Path path, RangeFile file, PlanetilerConfig config) throws IOException {
@@ -223,7 +236,8 @@ public class ParquetReader {
       }
 
       var rangeFiles = inputFiles.stream().map(ParquetInputFile::file).toList();
-      // files complete on local disk fetch nothing, and opening a remote one always makes a request
+      // files complete on local disk and caches with every range needed fetch nothing, the others made a request to
+      // open the remote file by now
       boolean requiresAnyFetch = rangeFiles.stream().anyMatch(file -> file.requestsMade() > 0);
       var plans = inputFiles.stream().map(ParquetInputFile::planFetch).toList();
       long bytesToFetch = plans.stream().mapToLong(RequestPlanner.Plan::bytes).sum();

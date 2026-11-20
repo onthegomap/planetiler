@@ -326,6 +326,13 @@ public class ParquetInputFile implements Closeable {
     return rowGroupsToRead.stream().mapToLong(i -> rowGroupSpan(metadata.getBlocks().get(i)).length()).sum();
   }
 
+  /** Returns true if reading the row groups needs bytes from the remote server. */
+  public boolean needsFetch() {
+    return rowGroupsToRead.stream()
+      .map(i -> rowGroupSpan(metadata.getBlocks().get(i)))
+      .anyMatch(span -> file.needsFetch(span.offset(), span.length()));
+  }
+
   /** Returns the HTTP requests required to read the row groups from the remote server. */
   public RequestPlanner.Plan planFetch() {
     return file.planFetch(rowGroupRangesToFetch());

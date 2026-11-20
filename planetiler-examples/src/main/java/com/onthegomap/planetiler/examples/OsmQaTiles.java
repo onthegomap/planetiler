@@ -47,13 +47,9 @@ public class OsmQaTiles implements Profile {
       "maxzoom", zoom,
       "tile_warning_size_mb", 100
     ));
-    String area = args.getString("area", "geofabrik area to download", "monaco");
     Planetiler.create(args)
       .setProfile(new OsmQaTiles())
-      .addOsmSource("osm",
-        Path.of("data", "sources", area + ".osm.pbf"),
-        "planet".equalsIgnoreCase(area) ? "aws:latest" : ("geofabrik:" + area)
-      )
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
       .overwriteOutput(Path.of("data", "qa.mbtiles"))
       .run();
   }

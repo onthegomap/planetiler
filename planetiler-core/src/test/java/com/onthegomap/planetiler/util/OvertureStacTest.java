@@ -11,9 +11,12 @@ import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -119,32 +122,24 @@ class OvertureStacTest {
 
 
   @Test
-  void testBboxIntersectsOverlap() throws IOException {
+  void testBboxIntersectsOverlap() {
     // Item covers western hemisphere; filter covers Monaco area — no overlap
-    var item = MAPPER.readValue("""
-      {"bbox": [-179.9, -84.3, -2.8, -22.5]}
-      """, OvertureStac.StacItem.class);
-    Envelope monacoFilter = new Envelope(7.3, 7.5, 43.7, 43.8);
-    assertFalse(OvertureStac.itemBboxIntersects(item, monacoFilter));
+    var file = new OvertureStac.ParquetFile("https://host/a.parquet", List.of(-179.9, -84.3, -2.8, -22.5));
+    assertFalse(file.intersects(new Envelope(7.3, 7.5, 43.7, 43.8)));
   }
 
   @Test
-  void testBboxIntersectsMatch() throws IOException {
+  void testBboxIntersectsMatch() {
     // Item covers Europe; filter is Monaco — they intersect
-    var item = MAPPER.readValue("""
-      {"bbox": [-10.0, 35.0, 30.0, 70.0]}
-      """, OvertureStac.StacItem.class);
-    Envelope monacoFilter = new Envelope(7.3, 7.5, 43.7, 43.8);
-    assertTrue(OvertureStac.itemBboxIntersects(item, monacoFilter));
+    var file = new OvertureStac.ParquetFile("https://host/a.parquet", List.of(-10.0, 35.0, 30.0, 70.0));
+    assertTrue(file.intersects(new Envelope(7.3, 7.5, 43.7, 43.8)));
   }
 
   @Test
-  void testBboxMissingIsInclusive() throws IOException {
+  void testBboxMissingIsInclusive() {
     // No bbox → include the item conservatively
-    var item = MAPPER.readValue("""
-      {"id": "some-item"}
-      """, OvertureStac.StacItem.class);
-    assertTrue(OvertureStac.itemBboxIntersects(item, new Envelope(7.3, 7.5, 43.7, 43.8)));
+    var file = new OvertureStac.ParquetFile("https://host/a.parquet", null);
+    assertTrue(file.intersects(new Envelope(7.3, 7.5, 43.7, 43.8)));
   }
 
 
@@ -334,5 +329,36 @@ class OvertureStacTest {
     var stac2 = stubStac(stubs);
     assertThrows(IllegalArgumentException.class,
       () -> stac2.getParquetUrls("https://stac.example.com/catalog.json", "buildings", "nonexistent", Bounds.WORLD));
+  }
+
+  @Test
+  void testReusesSavedListForAnyBounds(@TempDir Path tmp) {
+    AtomicInteger lookups = new AtomicInteger();
+    var stac = new OvertureStac(new StubDownloader(CONFIG)) {
+      @Override
+      public List<ParquetFile> listParquetFiles(String catalogUrl, String theme, String type) {
+        int lookup = lookups.incrementAndGet();
+        return List.of(
+          new ParquetFile("https://host/" + lookup + "-boston.parquet", List.of(-72.0, 42.0, -71.0, 43.0)),
+          new ParquetFile("https://host/" + lookup + "-monaco.parquet", List.of(7.0, 43.0, 8.0, 44.0)));
+      }
+    };
+    Path saved = tmp.resolve("type=building").resolve("stac-lookup.json");
+    var boston = new Bounds(new Envelope(-71.1, -71.0, 42.3, 42.4));
+    var monaco = new Bounds(new Envelope(7.3, 7.5, 43.7, 43.8));
+
+    assertEquals(List.of("https://host/1-boston.parquet"),
+      stac.getParquetUrls("https://catalog", "buildings", "building", boston, saved, false));
+    assertEquals(List.of("https://host/1-monaco.parquet"),
+      stac.getParquetUrls("https://catalog", "buildings", "building", monaco, saved, false));
+    assertEquals(List.of("https://host/1-boston.parquet", "https://host/1-monaco.parquet"),
+      stac.getParquetUrls("https://catalog", "buildings", "building", Bounds.WORLD, saved, false));
+    assertEquals(1, lookups.get());
+
+    assertEquals(List.of("https://host/2-monaco.parquet"),
+      stac.getParquetUrls("https://other-catalog", "buildings", "building", monaco, saved, false));
+    assertEquals(List.of("https://host/3-monaco.parquet"),
+      stac.getParquetUrls("https://other-catalog", "buildings", "building", monaco, saved, true));
+    assertEquals(3, lookups.get());
   }
 }

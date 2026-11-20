@@ -213,6 +213,29 @@ public class Planetiler {
   }
 
   /**
+   * Adds a new {@code .osm.pbf} source for the extract named by the {@code area} argument (default
+   * {@code defaultArea}), like {@link #addOsmSource(String, Path, String)}: {@code downloadDir/<area>.osm.pbf} downloaded
+   * from <a href="https://download.geofabrik.de/">Geofabrik</a>, or the latest planet from the
+   * <a href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a> for {@code area=planet}.
+   * <p>
+   * A {@code name_path} that doesn't exist only gets the extract downloaded into it if {@code area} is set too, and
+   * fails with an error otherwise, since filling it with {@code defaultArea} usually hides a typo in the path.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param downloadDir directory for the downloaded extract if {@code name_path} argument is not set
+   * @param defaultArea Geofabrik extract to use if {@code area} argument is not set, e.g. "monaco" or "rhode island"
+   * @return this runner instance for chaining
+   */
+  public Planetiler addOsmSourceForArea(String name, Path downloadDir, String defaultArea) {
+    boolean areaIsExplicit = arguments.contains("area");
+    String area = arguments.getString("area", "name of the extract to download if " + name + "_path or " + name +
+      "_url are not set (e.g. 'monaco', 'rhode island', 'australia' or 'planet')", defaultArea);
+    Path path = downloadDir.resolve(area.replaceAll("[^a-zA-Z]+", "_") + ".osm.pbf");
+    String url = "planet".equalsIgnoreCase(area) ? "aws:latest" : "geofabrik:" + area;
+    return addOsmSource(name, path, url, areaIsExplicit);
+  }
+
+  /**
    * Adds a new {@code .osm.pbf} source that will be processed when {@link #run()} is called.
    * <p>
    * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
@@ -238,11 +261,20 @@ public class Planetiler {
    * @see Geofabrik
    */
   public Planetiler addOsmSource(String name, Path defaultPath, String defaultUrl) {
+    return addOsmSource(name, defaultPath, defaultUrl, true);
+  }
+
+  private Planetiler addOsmSource(String name, Path defaultPath, String defaultUrl, boolean defaultUrlFillsPath) {
     if (osmInputFile != null) {
       // TODO: support more than one input OSM file
       throw new IllegalArgumentException("Currently only one OSM input file is supported");
     }
-    Path path = getPath(name, "OSM input file", defaultPath, defaultUrl);
+    boolean canFillPath = defaultUrlFillsPath || !arguments.contains(name + "_path");
+    Path path = getPath(name, "OSM input file", defaultPath, canFillPath ? defaultUrl : null);
+    if (!canFillPath && !arguments.contains(name + "_url") && !Files.exists(path)) {
+      throw new IllegalArgumentException(path + " does not exist. Set --area or --" + name.replace('_', '-') +
+        "-url (with --download) to download it");
+    }
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
     // fail fast if there is some issue with madvise on this system
@@ -753,7 +785,8 @@ public class Planetiler {
 
     // sources get opened once the map bounds are known, so each one's catalog lookup starts then, all at once
     Supplier<CompletableFuture<List<String>>> lookup = Suppliers.memoize(() -> downloader()
-      .async(() -> overtureStac().getParquetUrls(catalogUrl, theme, type, config.bounds())));
+      .async(() -> overtureStac().getParquetUrls(catalogUrl, theme, type, config.bounds(),
+        typeDir.resolve("stac-lookup.json"), refresh)));
 
     if (mode.fetchWhileProcessing()) {
       return addSource(name, "Process features in " + typeDir + " using " + mode.name().toLowerCase(Locale.ROOT) +
