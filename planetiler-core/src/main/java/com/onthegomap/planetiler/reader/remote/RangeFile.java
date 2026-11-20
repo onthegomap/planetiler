@@ -34,8 +34,9 @@ public interface RangeFile extends Closeable {
    * is complete, or from {@code url} with range requests according to {@code mode} otherwise, fetching its last
    * {@code tailBytes} bytes with the request that opens it (see {@link HttpRangeFile#open(Downloader, String, int)}).
    * <p>
-   * With {@code refresh}, a complete local copy that a previous {@link DownloadMode#CACHED} run fetched gets replaced
-   * if the remote file changed since then. If the server does not support range requests, the whole file gets
+   * A partial local copy that a previous {@link DownloadMode#CACHED} run fetched opens without a request (see
+   * {@link CachedRangeFile#openRefreshingOnlyIfNeeded}). With {@code refresh}, it and a complete local copy get
+   * replaced if the remote file changed since then. If the server does not support range requests, the whole file gets
    * downloaded to {@code path} first.
    *
    * @throws IOException if the remote file can't be opened
@@ -48,9 +49,15 @@ public interface RangeFile extends Closeable {
     try {
       if (CachedRangeFile.isCompleteCopy(path, url, refresh, downloader)) {
         return new LocalRangeFile(path);
+      } else if (mode == DownloadMode.STREAMING) {
+        return HttpRangeFile.open(downloader, url, tailBytes);
+      } else if (refresh) {
+        // check the remote version against local upfront and download a new version if changed
+        return CachedRangeFile.open(path, url, tailBytes, downloader);
+      } else {
+        // check the remote version later, only if more bytes are needed
+        return CachedRangeFile.openRefreshingOnlyIfNeeded(path, url, tailBytes, downloader);
       }
-      return mode == DownloadMode.STREAMING ? HttpRangeFile.open(downloader, url, tailBytes) :
-        CachedRangeFile.open(path, url, tailBytes, downloader);
     } catch (Downloader.RangesNotSupportedException _) {
       downloader.downloadWhole(url, path);
       return new LocalRangeFile(path);

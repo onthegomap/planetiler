@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.util.Downloader.RemoteVersion;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.RequestPlanner.Plan;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
  * byte has been fetched the {@code .ranges} file is deleted, leaving a complete copy of the remote file at
  * {@code path}; {@code .meta} stays so a later refresh can tell whether the remote file changed.
  */
+@SuppressWarnings("java:S3077")
 public class CachedRangeFile implements RangeFile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CachedRangeFile.class);
@@ -46,7 +48,16 @@ public class CachedRangeFile implements RangeFile {
   private static final long SYNC_BYTES = 64L << 20;
   private final Path path;
   private final Path rangesPath;
-  private final HttpRangeFile remote;
+  // null for a cache opened offline
+  private final String url;
+  private final Downloader downloader;
+  private final RemoteVersion cachedVersion;
+  // A cache reused from an earlier run may connect only once a missing range gets read, see
+  // openRefreshingOnlyIfNeeded.
+  private volatile HttpRangeFile remote;
+  private final Object connectLock = new Object();
+  // set once the remote file turned out to have changed, so close() deletes the stale cache
+  private volatile boolean stale = false;
   // can be set later, for example after a full download of a file with no content-length
   private long length;
   private final FileChannel channel;
@@ -57,12 +68,15 @@ public class CachedRangeFile implements RangeFile {
   private final AtomicBoolean syncing = new AtomicBoolean(false);
   private FileChannel rangesFile;
 
-  private CachedRangeFile(Path path, HttpRangeFile remote, long length, List<Range<Long>> ranges, boolean newFile)
-    throws IOException {
+  private CachedRangeFile(Path path, HttpRangeFile remote, String url, Downloader downloader, RemoteVersion version,
+    List<Range<Long>> ranges, boolean newFile) throws IOException {
     this.path = path;
     this.rangesPath = rangesPath(path);
     this.remote = remote;
-    this.length = length;
+    this.url = url;
+    this.downloader = downloader;
+    this.cachedVersion = version;
+    this.length = version.length();
     cachedByteRanges.addAll(ranges);
     // SPARSE only matters on Windows (other platforms leave holes in files written at far offsets anyway), where the JDK
     // only applies it together with CREATE_NEW; a file created sparse stays sparse when reopened
@@ -89,16 +103,18 @@ public class CachedRangeFile implements RangeFile {
   }
 
   /**
-   * Opens a cache of the remote file at {@code url} at {@code path}, reusing what a previous run fetched if the remote
-   * file has not changed since then, or starting over if it has. A complete file at {@code path} gets replaced.
-   * Starting over fetches the last {@code tailBytes} bytes along the way (see
-   * {@link HttpRangeFile#open(Downloader, String, int)}).
+   * Opens a cache of the remote file at {@code url} at {@code path}, checking the remote file's version right away:
+   * reuses what a previous run fetched if the remote file has not changed since then, or starts over if it has. A
+   * complete file at {@code path} gets replaced. Starting over fetches the last {@code tailBytes} bytes along the way
+   * (see {@link HttpRangeFile#open(Downloader, String, int)}). {@link #openRefreshingOnlyIfNeeded} checks only once a
+   * range that isn't cached gets read, {@link #openOffline} never.
    *
    * @throws IOException                            if the cache can't be read or created, or the remote file can't be
    *                                                opened
    * @throws Downloader.RangesNotSupportedException if the server does not support range requests
    */
-  public static CachedRangeFile open(Path path, String url, int tailBytes, Downloader downloader) throws IOException {
+  public static CachedRangeFile open(Path path, String url, int tailBytes, Downloader downloader)
+    throws IOException {
     if (!isPartial(path)) {
       return createNew(path, HttpRangeFile.open(downloader, url, tailBytes));
     }
@@ -106,10 +122,62 @@ public class CachedRangeFile implements RangeFile {
     var remote = HttpRangeFile.open(downloader, url); // NOSONAR
     var previous = readMeta(path);
     if (previous != null && Files.exists(path) && remote.isSameVersion(previous)) {
-      return new CachedRangeFile(path, remote, previous.length(), readRanges(path), false);
+      return new CachedRangeFile(path, remote, url, downloader, previous, readRanges(path), false);
     }
     LOGGER.info("{} changed since it was partially downloaded to {}, starting over", url, path);
     return createNew(path, remote);
+  }
+
+  /**
+   * Opens a cache of the remote file at {@code url} at {@code path} like {@link #open} except it only checks to see if
+   * the remote version has changed if new bytes are needed, otherwise it can be read entirely offline.
+   *
+   * @throws IOException                            if the cache can't be read or created, or the remote file can't be
+   *                                                opened
+   * @throws Downloader.RangesNotSupportedException if the server does not support range requests
+   */
+  public static CachedRangeFile openRefreshingOnlyIfNeeded(Path path, String url, int tailBytes,
+    Downloader downloader) throws IOException {
+    var previous = isPartial(path) && Files.exists(path) ? readMeta(path) : null;
+    if (previous != null) {
+      var ranges = readRanges(path);
+      // if the tail isn't present we still have to open eagerly
+      long lastByte = previous.length() - 1;
+      if (TreeRangeSet.create(ranges).encloses(Range.closedOpen(lastByte, previous.length()))) {
+        return new CachedRangeFile(path, null, url, downloader, previous, ranges, false);
+      }
+    }
+    return open(path, url, tailBytes, downloader);
+  }
+
+  /**
+   * Connects to the remote file to read more ranges as long as the local and remote version match.
+   *
+   * @return true if connected, false if the remote file changed since the cached bytes were fetched, in which case
+   *         reading missing ranges fails and closing this deletes the cache, so the next open starts over
+   * @throws IOException if the remote file can't be opened
+   */
+  public boolean connectIfUnchanged() throws IOException {
+    synchronized (connectLock) {
+      if (remote == null && !stale) {
+        var opened = HttpRangeFile.open(downloader, url);
+        if (opened.isSameVersion(cachedVersion)) {
+          remote = opened;
+        } else {
+          opened.close();
+          LOGGER.info("{} changed since it was partially downloaded to {}, starting over", url, path);
+          stale = true;
+        }
+      }
+      return !stale;
+    }
+  }
+
+  private HttpRangeFile remote() throws IOException {
+    if (!connectIfUnchanged()) {
+      throw new Downloader.RemoteFileChangedException(url, "since it was partially downloaded to " + path);
+    }
+    return remote;
   }
 
   /**
@@ -156,12 +224,12 @@ public class CachedRangeFile implements RangeFile {
     // the ranges file marks the cache as partial, so it gets created before any data is written
     Files.writeString(rangesPath(path), "");
     MAPPER.writeValue(metaPath(path).toFile(), version);
-    return new CachedRangeFile(path, remote, version.length(), List.of(), true);
+    return new CachedRangeFile(path, remote, remote == null ? null : remote.url(), null, version, List.of(), true);
   }
 
   /**
-   * Opens a cache at {@code path} left by a previous run without connecting to the remote server, so only the ranges
-   * fetched before can be read.
+   * Opens a cache at {@code path} left by a previous run without ever connecting to the remote server, so only the
+   * ranges fetched before can be read (unlike {@link #open} and {@link #openRefreshingOnlyIfNeeded}).
    *
    * @throws IOException if {@code path} is not a partially downloaded file
    */
@@ -170,7 +238,7 @@ public class CachedRangeFile implements RangeFile {
     if (previous == null || !isPartial(path)) {
       throw new IOException(path + " is not a partially downloaded file");
     }
-    return new CachedRangeFile(path, null, previous.length(), readRanges(path), false);
+    return new CachedRangeFile(path, null, null, null, previous, readRanges(path), false);
   }
 
   private static RemoteVersion readMeta(Path path) {
@@ -197,7 +265,7 @@ public class CachedRangeFile implements RangeFile {
 
   /** Returns the URL of the remote file after following redirects. */
   public String url() {
-    return remote.url();
+    return remote != null ? remote.url() : url;
   }
 
   /** Returns the number of bytes of the file not fetched yet. */
@@ -212,7 +280,7 @@ public class CachedRangeFile implements RangeFile {
    * @throws IOException if a request fails after all retries or the file can't be written
    */
   public void fetchMissing(LongConsumer progress) throws IOException {
-    CompletableFutures.awaitIO(remote.fetch(missingRanges(), (position, buffer, offset, length) -> {
+    CompletableFutures.awaitIO(remote().fetch(missingRanges(), (position, buffer, offset, length) -> {
       write(position, buffer, offset, length);
       progress.accept(length);
     }));
@@ -228,16 +296,20 @@ public class CachedRangeFile implements RangeFile {
       .toList();
   }
 
-  // offline (no remote) nothing gets fetched: reading missing bytes fails instead
+  // offline (no url) nothing gets fetched: reading missing bytes fails instead
   @Override
   public boolean needsFetch(long offset, long length) {
-    return remote != null && !isCached(offset, length);
+    return url != null && !isCached(offset, length);
   }
 
   @Override
   public Plan planFetch(List<ByteRange> ranges) {
-    return remote == null ? Plan.EMPTY :
-      remote.planFetch(ranges.stream().filter(range -> !isCached(range.offset(), range.length())).toList());
+    if (url == null) {
+      return Plan.EMPTY;
+    }
+    var missing = ranges.stream().filter(range -> !isCached(range.offset(), range.length())).toList();
+    // planning needs no connection, so a cache that has every range never connects
+    return remote != null ? remote.planFetch(missing) : downloader.planner().plan(missing, length);
   }
 
   @Override
@@ -264,8 +336,14 @@ public class CachedRangeFile implements RangeFile {
   public List<Pending> readLater(List<ByteRange> ranges) {
     Map<ByteRange, Pending> fromRemote = new HashMap<>();
     List<ByteRange> missing = ranges.stream().filter(range -> !isCached(range.offset(), range.length())).toList();
-    if (remote != null && !missing.isEmpty()) {
-      var pending = remote.readLater(missing, this::write);
+    if (url != null && !missing.isEmpty()) {
+      HttpRangeFile connected;
+      try {
+        connected = remote();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+      var pending = connected.readLater(missing, this::write);
       for (int i = 0; i < missing.size(); i++) {
         fromRemote.put(missing.get(i), pending.get(i));
       }
@@ -397,6 +475,9 @@ public class CachedRangeFile implements RangeFile {
       if (rangesFile != null) {
         rangesFile.close();
       }
+    }
+    if (stale) {
+      FileUtils.delete(path, rangesPath, metaPath(path));
     }
   }
 
