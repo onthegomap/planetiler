@@ -60,6 +60,8 @@ jobs:
         key: jdk-${{ hashFiles('launcher/Makefile') }}
     - name: Build launchers
       run: make -C launcher VERSION="${{ github.event.inputs.version }}" JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
+    - name: Test launcher (planetiler setup)
+      run: make -C launcher smoke JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
     - name: Create tag
       uses: actions/github-script@v9
       with:
