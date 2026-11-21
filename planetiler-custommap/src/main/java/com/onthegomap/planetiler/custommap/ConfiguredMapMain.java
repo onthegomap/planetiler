@@ -55,7 +55,7 @@ public class ConfiguredMapMain {
       configureSource(planetiler, sourcesDir, source);
     }
 
-    planetiler.overwriteOutput(Path.of("data", "output.mbtiles")).run();
+    planetiler.overwriteOutput(Path.of("data", "output.pmtiles")).run();
   }
 
   private static void configureSource(Planetiler planetiler, Path sourcesDir, Source source) {
