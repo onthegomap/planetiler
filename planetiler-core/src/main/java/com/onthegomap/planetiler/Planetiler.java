@@ -1083,13 +1083,14 @@ public class Planetiler {
   public void run() {
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
+    if (showVersion) {
+      System.out.println(buildInfo == null ? "planetiler (unknown version)" : buildInfo.versionLine());
+      System.exit(0);
+    }
     if (buildInfo != null && LOGGER.isInfoEnabled()) {
       LOGGER.info("Planetiler build git hash: {}", buildInfo.githash());
       LOGGER.info("Planetiler build version: {}", buildInfo.version());
       LOGGER.info("Planetiler build timestamp: {}", buildInfo.buildTimeString());
-    }
-    if (showVersion) {
-      System.exit(0);
     }
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
