@@ -68,7 +68,8 @@ func main() {
 		if extra := os.Getenv("PLANETILER_CLASSPATH"); extra != "" {
 			cp += string(os.PathListSeparator) + extra
 		}
-		launch = []string{"-cp", cp}
+		// The jar manifest's Enable-Native-Access only applies to -jar.
+		launch = []string{"--enable-native-access=ALL-UNNAMED", "-cp", cp}
 		// The JVM rejects a cache trained with -jar in source mode, so these runs share their own. It holds the JDK,
 		// compiler and planetiler classes but not the profile's, so training on one profile speeds up all of them.
 		aotCache = filepath.Join(cache, "planetiler-java.aot")

@@ -21,6 +21,8 @@
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.23.0</jackson.version>
     <junit.version>6.1.3</junit.version>
+    <!-- set by jacoco in the coverage profile, extended by surefire with late @{argLine} replacement -->
+    <argLine/>
     <record-builder.version>44</record-builder.version>
     <!-- 1.21 has some critical bug fixes but hasn't been release yet -->
     <jts.version>1.21.0-20261121.005627-177</jts.version>
@@ -273,6 +275,7 @@
           <includes>
             <include>**/*.java</include>
           </includes>
+          <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
         </configuration>
       </plugin>
       <plugin>

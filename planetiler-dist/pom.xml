@@ -97,6 +97,9 @@
               </org.opencontainers.image.source>
             </labels>
             <mainClass>${mainClass}</mainClass>
+            <jvmFlags>
+              <jvmFlag>--enable-native-access=ALL-UNNAMED</jvmFlag>
+            </jvmFlags>
             <creationTime>${maven.build.timestamp}</creationTime>
             <filesModificationTime>${maven.build.timestamp}</filesModificationTime>
           </container>
@@ -120,6 +123,7 @@
           <archive>
             <manifestEntries>
               <Multi-Release>true</Multi-Release>
+              <Enable-Native-Access>ALL-UNNAMED</Enable-Native-Access>
             </manifestEntries>
             <manifest>
               <mainClass>${mainClass}</mainClass>
