@@ -85,7 +85,7 @@ curl -fL https://github.com/onthegomap/planetiler/releases/download/latest-main/
 **Linux (x86-64):**
 
 ```bash
-curl -fL https://github.com/onthegomap/planetiler/releases/download/latest-main/planetiler_snapshot_linux_arm64.tar.gz | tar -xz
+curl -fL https://github.com/onthegomap/planetiler/releases/download/latest-main/planetiler_snapshot_linux_amd64.tar.gz | tar -xz
 ./planetiler --help
 ```
 
@@ -99,7 +99,7 @@ curl -fL https://github.com/onthegomap/planetiler/releases/download/latest-main/
 **Windows (x86-64, PowerShell):**
 
 ```powershell
-curl.exe -fLo planetiler.zip https://github.com/onthegomap/planetiler/releases/latest/download/planetiler_snapshot_windows_amd64.zip; Expand-Archive planetiler.zip .
+curl.exe -fLo planetiler.zip https://github.com/onthegomap/planetiler/releases/download/latest-main/planetiler_snapshot_windows_amd64.zip; Expand-Archive planetiler.zip .
 .\planetiler.exe --help
 ```
 
@@ -108,7 +108,20 @@ Notes:
 - On macOS, files downloaded with `curl` run directly. Files downloaded in a browser are quarantined by Gatekeeper, so
   run `xattr -d com.apple.quarantine ./planetiler` first.
 - On Windows, SmartScreen may warn about the unsigned executable.
-- To extract the bundled `planetiler.jar` back out, run `planetiler --extract-jar`.
+- To extract the bundled `planetiler.jar` back out, run `planetiler --extract-jar`. It only includes the native
+  libraries for this platform; use the release's `planetiler.jar` for a jar that runs anywhere.
+
+Run `planetiler setup` once to build a warm-up AOT cache that makes every later run start faster. Launcher options:
+
+|          Option          |                                                   What it does                                                    |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `--memory=1g`            | maximum Java heap size                                                                                            |
+| `--jvm-args="..."`       | other JVM options                                                                                                 |
+| `--aot=auto\|off\|train` | `auto` (default) uses the warm-up AOT cache if there is one, `off` never uses it, `train` builds it from this run |
+| `--verbose`              | also prints the java command the launcher runs                                                                    |
+
+To run planetiler on another Java 25+ installation instead of the bundled runtime, set `PLANETILER_JAVA_HOME` to its
+home directory.
 
 ### Jar
 
@@ -283,7 +296,7 @@ public class Roads implements Profile {
 }
 ```
 
-This can be run without any compile step or build tools. With the launcher (which includes a Java 25 runtime):
+This can be run without any compile step or build tools. With the launcher (which includes a Java runtime):
 
 ```bash
 ./planetiler Roads.java --download --output=roads.pmtiles
