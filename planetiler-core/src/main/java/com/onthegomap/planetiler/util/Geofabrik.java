@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -115,9 +116,10 @@ public class Geofabrik {
     }
   }
 
+  // Geofabrik's index used to list ISO codes as arrays and has written plain strings since 2026-11, so accept both.
   record PropertiesJson(String id, String parent, String name, Map<String, String> urls,
-    @JsonProperty("iso3166-1:alpha2") List<String> iso3166_1,
-    @JsonProperty("iso3166-2") List<String> iso3166_2
+    @JsonProperty("iso3166-1:alpha2") @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY) List<String> iso3166_1,
+    @JsonProperty("iso3166-2") @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY) List<String> iso3166_2
   ) {
     List<String> ids() {
       List<String> result = new ArrayList<>(List.of(id, name));
