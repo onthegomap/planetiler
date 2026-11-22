@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
@@ -127,11 +128,20 @@ public class Main {
       run(args);
     } catch (IllegalArgumentException | FileFormatException e) {
       // Bad options or inputs: the message says what to fix, so the stack trace only shows when asked for.
-      if (Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose", "", false)) {
+      if (verbose(args)) {
         throw e;
       }
-      LOGGER.error("{}", e.getMessage());
+      LOGGER.error("{}", Objects.requireNonNullElse(e.getMessage(), e + " (run with --verbose for details)"));
       System.exit(1);
+    }
+  }
+
+  private static boolean verbose(String[] args) {
+    try {
+      return Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose", "", false);
+    } catch (IllegalArgumentException e) {
+      // a bad --verbose value is the error being reported
+      return false;
     }
   }
 

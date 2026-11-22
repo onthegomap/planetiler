@@ -22,16 +22,17 @@ public class SchemaValidator extends BaseSchemaValidator {
 
   private final Path schemaPath;
 
-  SchemaValidator(Arguments args, String schemaFile, PrintStream output) {
+  SchemaValidator(Arguments args, PrintStream output) {
     super(args, output);
-    schemaPath = args.file("schema", "the schema to test", schemaFile == null ? null : Path.of(schemaFile));
+    // `verify schema.yml` is a shortcut for `verify --schema=schema.yml`, read after --watch (in super) in case it
+    // comes right after it
+    List<String> positional = args.positional();
+    schemaPath = args.file("schema", "the schema to test", positional.isEmpty() ? null : Path.of(positional.getFirst()));
   }
 
   public static void main(String[] args) {
     var arguments = Arguments.fromEnvOrArgs(args);
-    // `verify schema.yml` is a shortcut for `verify --schema=schema.yml`
-    String schemaFile = arguments.positional().isEmpty() ? null : arguments.positional().getFirst();
-    var validator = new SchemaValidator(arguments, schemaFile, System.out);
+    var validator = new SchemaValidator(arguments, System.out);
     arguments.printHelpOrCheckOptions("<schema.yml> [options]");
     if (validator.schemaPath == null || !Files.exists(validator.schemaPath)) {
       throw new IllegalArgumentException(validator.schemaPath == null ? "missing required parameter: --schema" :

@@ -588,4 +588,56 @@ class ArgumentsTest {
     var args = Arguments.of();
     assertThrows(IllegalStateException.class, () -> args.getString(key, "", null));
   }
+
+  @Test
+  void testBooleanBeforePositional() {
+    var args = Arguments.fromArgs("--verbose", "a.pmtiles", "--strict", "false", "b.pmtiles");
+    assertTrue(args.getBoolean("verbose", "", false));
+    assertFalse(args.getBoolean("strict", "", true));
+    assertEquals(List.of("a.pmtiles", "b.pmtiles"), args.positional());
+    assertEquals(List.of(), args.unknownOptions());
+  }
+
+  @Test
+  void testWordAfterStringOptionIsItsValue() {
+    var args = Arguments.fromArgs("--output", "a.pmtiles", "b.pmtiles");
+    assertEquals("a.pmtiles", args.getString("output", "", null));
+    assertEquals(List.of("b.pmtiles"), args.positional());
+  }
+
+  @Test
+  void testBadBooleanValueStillFails() {
+    var args = Arguments.fromArgs("--verbose=a.pmtiles");
+    assertThrows(IllegalArgumentException.class, () -> args.getBoolean("verbose", "", false));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "--help=false --maxzoom=abc, true",
+    "--help openmaptiles --maxzoom=abc, false",
+    "--help=true --maxzoom=abc, false",
+  })
+  void testOnlySkipErrorsWhenHelpShows(String commandLine, boolean fails) {
+    var args = Arguments.fromArgs(commandLine.split(" "));
+    if (fails) {
+      assertThrows(IllegalArgumentException.class, () -> args.getInteger("maxzoom", "", 14));
+    } else {
+      assertEquals(14, args.getInteger("maxzoom", "", 14));
+    }
+  }
+
+  @Test
+  void testToMapDoesNotCountAsReadingOptions() {
+    var args = Arguments.fromArgs("--maxzoomm=3");
+    assertEquals(Map.of("maxzoomm", "3"), args.toMap());
+    assertEquals(List.of("unknown option --maxzoomm"), args.unknownOptions());
+  }
+
+  @Test
+  void testMissingRequiredOptionNamesIt() {
+    var args = Arguments.of();
+    var exception = assertThrows(IllegalArgumentException.class,
+      () -> args.getString("input=<archive>|-i", "archive to read"));
+    assertEquals("missing required parameter: --input (archive to read)", exception.getMessage());
+  }
 }

@@ -157,10 +157,16 @@ public class Arguments {
     private final Set<String> setByUser = ConcurrentHashMap.newKeySet();
     // one-letter alias -> the option it stands for, so two options can't claim the same letter
     private final Map<String, String> shortNames = new ConcurrentHashMap<>();
+    // The command line's words that aren't options, in order, including the word after each `--key word`, which
+    // only counts as positional once key is read as true / false and the word isn't one of those.
     @SuppressWarnings("java:S3077") // only accepts immutable lists
-    private volatile List<String> positional = List.of();
+    private volatile List<Word> words = List.of();
+    private final Set<String> flagsWithoutValue = ConcurrentHashMap.newKeySet();
     private volatile boolean positionalRead = false;
   }
+
+  /** A command-line word that isn't an option, or the value of {@code afterOption} (normalized) when not null. */
+  private record Word(String text, String afterOption) {}
 
   /**
    * Returns arguments from JVM system properties prefixed with {@code planetiler.}
@@ -214,27 +220,29 @@ public class Arguments {
    */
   public static Arguments fromArgs(String... args) {
     Map<String, String> parsed = new HashMap<>();
-    List<String> positional = new ArrayList<>();
+    List<Word> words = new ArrayList<>();
     for (int i = 0; i < args.length; i++) {
       String arg = args[i].strip();
       String[] kv = arg.split("=", 2);
       String key = SHORT_OPTION.matcher(kv[0]).matches() ? shortKey(kv[0].substring(1)) :
         kv[0].replaceAll("^[\\s-]+", "");
       if (arg.equals("--")) {
-        positional.addAll(Arrays.asList(args).subList(i + 1, args.length));
+        Arrays.stream(args, i + 1, args.length).forEach(word -> words.add(new Word(word, null)));
         break;
       } else if (kv.length == 2) {
         parsed.put(key, kv[1]);
       } else if (!arg.startsWith("-")) {
-        positional.add(arg);
+        words.add(new Word(arg, null));
       } else if (i >= args.length - 1 || args[i + 1].strip().startsWith("-")) {
         parsed.put(key, "true");
       } else {
-        parsed.put(key, args[++i].strip());
+        String word = args[++i].strip();
+        parsed.put(key, word);
+        words.add(new Word(word, normalize(key)));
       }
     }
     var result = of(parsed, COMMAND_LINE);
-    result.registry.positional = List.copyOf(positional);
+    result.registry.words = List.copyOf(words);
     parsed.keySet().forEach(key -> result.registry.setByUser.add(normalize(key)));
     return result;
   }
@@ -530,11 +538,19 @@ public class Arguments {
 
   /**
    * Returns the command-line arguments that aren't options, like the two archives in
-   * {@code compare a.pmtiles b.pmtiles}.
+   * {@code compare a.pmtiles b.pmtiles}. Read the true / false options first, so that the word after one of them (as in
+   * {@code compare --verbose a.pmtiles b.pmtiles}) is included.
    */
   public List<String> positional() {
     registry.positionalRead = true;
-    return registry.positional;
+    return positionalWords();
+  }
+
+  private List<String> positionalWords() {
+    return registry.words.stream()
+      .filter(word -> word.afterOption() == null || registry.flagsWithoutValue.contains(word.afterOption()))
+      .map(Word::text)
+      .toList();
   }
 
   /**
@@ -558,7 +574,7 @@ public class Arguments {
       }
     }
     if (!registry.positionalRead) {
-      for (String arg : registry.positional) {
+      for (String arg : positionalWords()) {
         if (registry.warnedAbout.add("positional " + arg)) {
           result.add("unexpected argument \"" + arg + "\" (the profile or command goes first, before its options)");
         }
@@ -626,8 +642,8 @@ public class Arguments {
   /** Like {@link #printHelpIfRequested(String)}, with the help from {@code helpText}. */
   @SuppressWarnings("java:S106") // help goes to stdout without log prefixes
   public void printHelpIfRequested(HelpText helpText) {
-    boolean all = "true".equalsIgnoreCase(getArg("help_all"));
-    if (all || "true".equalsIgnoreCase(getArg("help|-h"))) {
+    boolean all = "true".equalsIgnoreCase(flagValue("help_all"));
+    if (all || "true".equalsIgnoreCase(flagValue("help|-h"))) {
       System.out.print(helpText.build(all));
       System.out.flush();
       System.exit(0);
@@ -700,14 +716,24 @@ public class Arguments {
     String value = getArg(key);
     // with --help, a missing option shouldn't stop the help from showing
     if (value == null && !helpRequested()) {
-      throw new IllegalArgumentException("missing required parameter: " + key + " (" + description + ")");
+      throw new IllegalArgumentException("missing required parameter: " + optionName(key) + " (" + description + ")");
     }
     return value;
   }
 
+  // Matches printHelpIfRequested without recording the lookups, so that errors are only skipped when help will show.
   private boolean helpRequested() {
-    return provider.apply("help") != null || provider.apply("help_all") != null ||
-      provider.apply(shortKey("h")) != null;
+    return Stream.of("help", "help_all", shortKey("h")).anyMatch(key -> {
+      Value value = provider.apply(key);
+      String text = value == null ? "" : value.value().strip();
+      return "true".equalsIgnoreCase(text) ||
+        (!BOOLEANS.containsKey(text.toLowerCase(Locale.ROOT)) && registry.words.contains(new Word(text, key)));
+    });
+  }
+
+  // e.g. --output for "output=<file>|-o"
+  private String optionName(String key) {
+    return displayName(normalize(prefix + Key.parse(key).name()));
   }
 
   /**
@@ -722,26 +748,51 @@ public class Arguments {
       if (helpRequested()) {
         return defaultValue;
       }
-      String name = displayName(normalize(prefix + Key.parse(key).name()));
-      throw new IllegalArgumentException(name + ": expected " + expected + ", got \"" + value + "\"", e);
+      throw new IllegalArgumentException(optionName(key) + ": expected " + expected + ", got \"" + value + "\"", e);
     }
   }
 
+  private static final Map<String, Boolean> BOOLEANS = Map.of(
+    "true", true, "yes", true, "on", true, "1", true,
+    "false", false, "no", false, "off", false, "0", false);
+
   private static boolean parseBoolean(String value) {
-    return switch (value.toLowerCase(Locale.ROOT)) {
-      case "true", "yes", "on", "1" -> true;
-      case "false", "no", "off", "0" -> false;
-      default -> throw new IllegalArgumentException(value);
-    };
+    Boolean result = BOOLEANS.get(value.toLowerCase(Locale.ROOT));
+    if (result == null) {
+      throw new IllegalArgumentException(value);
+    }
+    return result;
+  }
+
+  /**
+   * Returns the value of a true / false option. For {@code --key word} where the word isn't true or false (like
+   * {@code compare --verbose a.pmtiles b.pmtiles}), returns {@code "true"} and hands the word back to
+   * {@link #positional()}.
+   */
+  private String flagValue(String key) {
+    String value = getArg(key);
+    if (value == null || BOOLEANS.containsKey(value.toLowerCase(Locale.ROOT))) {
+      return value;
+    }
+    Key parsed = Key.parse(key);
+    Stream<String> names = Stream.concat(
+      Stream.concat(Stream.of(parsed.name()), parsed.aliases().stream()).map(name -> normalize(prefix + name)),
+      Stream.ofNullable(parsed.shortName()).map(Arguments::shortKey));
+    String option = names.filter(name -> registry.words.contains(new Word(value, name))).findFirst().orElse(null);
+    if (option == null) {
+      return value;
+    }
+    registry.flagsWithoutValue.add(option);
+    return "true";
   }
 
   /** Returns the value of a boolean option, where {@code --no-key} is the same as {@code --key=false}. */
   private Boolean booleanArg(String key) {
-    String value = getArg(key);
+    String value = flagValue(key);
     if (value != null) {
       return parse(key, value, "true or false", null, Arguments::parseBoolean);
     }
-    String negated = getArg("no_" + Key.parse(key).name());
+    String negated = flagValue("no_" + Key.parse(key).name());
     return negated == null ? null : !parse("no_" + key, negated, "true or false", false, Arguments::parseBoolean);
   }
 
@@ -906,8 +957,11 @@ public class Arguments {
    */
   public Map<String, String> toMap() {
     Map<String, String> result = new HashMap<>();
+    // Through the provider, not get(), so that listing the values doesn't count as reading every option and hide the
+    // typos that warnAboutUnknownOptions reports.
     for (var key : keys.get()) {
-      result.put(normalize(key), get(key));
+      Value value = provider.apply(normalize(prefix + key));
+      result.put(normalize(key), value == null ? null : value.value());
     }
     return result;
   }
