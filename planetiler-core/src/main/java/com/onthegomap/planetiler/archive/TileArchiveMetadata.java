@@ -136,14 +136,14 @@ public record TileArchiveMetadata(
         getString(config, VERSION_KEY, profile.version()),
         getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"));
     }
-  }
 
-  private static String getString(PlanetilerConfig config, String key, String fallback) {
-    return config.arguments().getString(
-      ArgumentGroup.OUTPUT_ADVANCED,
-      "archive_" + key + "|mbtiles_" + key,
-      "'" + key + "' attribute for tileset metadata",
-      fallback);
+    private static String getString(PlanetilerConfig config, String key, String fallback) {
+      return config.arguments().getString(
+        ArgumentGroup.OUTPUT_ADVANCED,
+        "archive_" + key + "|mbtiles_" + key,
+        "'" + key + "' attribute for tileset metadata",
+        fallback);
+    }
   }
 
   private static Map<String, String> mapWithBuildInfo() {

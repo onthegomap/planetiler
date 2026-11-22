@@ -139,7 +139,7 @@ public class Main {
   private static boolean verbose(String[] args) {
     try {
       return Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose", "", false);
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException _) {
       // a bad --verbose value is the error being reported
       return false;
     }

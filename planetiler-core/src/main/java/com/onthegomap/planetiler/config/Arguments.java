@@ -12,9 +12,10 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -221,22 +222,23 @@ public class Arguments {
   public static Arguments fromArgs(String... args) {
     Map<String, String> parsed = new HashMap<>();
     List<Word> words = new ArrayList<>();
-    for (int i = 0; i < args.length; i++) {
-      String arg = args[i].strip();
+    Deque<String> remaining = new ArrayDeque<>(List.of(args));
+    while (!remaining.isEmpty()) {
+      String arg = remaining.poll().strip();
       String[] kv = arg.split("=", 2);
       String key = SHORT_OPTION.matcher(kv[0]).matches() ? shortKey(kv[0].substring(1)) :
         kv[0].replaceAll("^[\\s-]+", "");
       if (arg.equals("--")) {
-        Arrays.stream(args, i + 1, args.length).forEach(word -> words.add(new Word(word, null)));
+        remaining.forEach(word -> words.add(new Word(word, null)));
         break;
       } else if (kv.length == 2) {
         parsed.put(key, kv[1]);
       } else if (!arg.startsWith("-")) {
         words.add(new Word(arg, null));
-      } else if (i >= args.length - 1 || args[i + 1].strip().startsWith("-")) {
+      } else if (remaining.isEmpty() || remaining.peek().strip().startsWith("-")) {
         parsed.put(key, "true");
       } else {
-        String word = args[++i].strip();
+        String word = remaining.poll().strip();
         parsed.put(key, word);
         words.add(new Word(word, normalize(key)));
       }

@@ -26,7 +26,7 @@ public final class Terminal {
     try {
       int parsed = Integer.parseInt(columns.strip());
       return parsed > 0 ? OptionalInt.of(parsed) : OptionalInt.empty();
-    } catch (NumberFormatException e) {
+    } catch (NumberFormatException _) {
       return OptionalInt.empty();
     }
   }
