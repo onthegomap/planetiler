@@ -92,6 +92,18 @@
         <enabled>true</enabled>
       </snapshots>
     </repository>
+    <!-- A copy of the JTS snapshot above, so builds still work if repo.eclipse.org is down (#1704) or after it
+      deletes old snapshots. Remove it once planetiler is back on a JTS release. -->
+    <repository>
+      <id>planetiler-mirror</id>
+      <url>https://planetiler.onthegomap.com/maven</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 
   <modules>
