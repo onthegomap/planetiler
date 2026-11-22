@@ -13,6 +13,10 @@ else
 fi
 
 echo "Test java build"
+echo "::group::Help (java)"
+java -jar planetiler-dist/target/*with-deps.jar | grep "Build a map of Monaco"
+java -jar planetiler-dist/target/*with-deps.jar openmaptiles --help | grep -- "--building-merge-z13"
+echo "::endgroup::"
 echo "::group::OpenMapTiles monaco (java)"
 rm -f data/out*.mbtiles
 # vary threads to stress-test determinism check

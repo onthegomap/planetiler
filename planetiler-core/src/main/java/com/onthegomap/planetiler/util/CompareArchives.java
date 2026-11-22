@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.config.ArgumentHelp;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -71,19 +72,19 @@ public class CompareArchives {
   }
 
   public static void main(String[] args) {
-    if (args.length < 2) {
-      System.err.println("Usage: compare [options] {path/to/archive1} {path/to/archive2}");
-      System.exit(1);
-    }
-    // last 2 args are paths to the archives
-    String inputString1 = args[args.length - 2];
-    String inputString2 = args[args.length - 1];
-    var arguments = Arguments.fromArgsOrConfigFile(Arrays.copyOf(args, args.length - 2));
+    var arguments = Arguments.fromArgsOrConfigFile(args);
     var verbose = arguments.getBoolean("verbose", "log each tile diff", false);
     var strict = arguments.getBoolean("strict", "set to false to only fail on tile diffs", true);
     var config = PlanetilerConfig.from(arguments);
-    var input1 = TileArchiveConfig.from(inputString1);
-    var input2 = TileArchiveConfig.from(inputString2);
+    List<String> archives = arguments.positional();
+    String usage = "[options] <archive1> <archive2>";
+    arguments.printHelpOrCheckOptions(usage);
+    if (archives.size() != 2) {
+      throw new IllegalArgumentException(
+        "Expected 2 archives to compare, got " + archives.size() + ". Usage: " + ArgumentHelp.command(usage));
+    }
+    var input1 = TileArchiveConfig.from(archives.get(0));
+    var input2 = TileArchiveConfig.from(archives.get(1));
 
     try {
       var result = compare(input1, input2, config, verbose);

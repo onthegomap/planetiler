@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.util.YAML;
 import com.onthegomap.planetiler.validator.BaseSchemaValidator;
 import com.onthegomap.planetiler.validator.SchemaSpecification;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -23,19 +24,20 @@ public class SchemaValidator extends BaseSchemaValidator {
 
   SchemaValidator(Arguments args, String schemaFile, PrintStream output) {
     super(args, output);
-    schemaPath = schemaFile == null ? args.inputFile("schema", "Schema file") :
-      args.inputFile("schema", "Schema file", Path.of(schemaFile));
+    schemaPath = args.file("schema", "the schema to test", schemaFile == null ? null : Path.of(schemaFile));
   }
 
   public static void main(String[] args) {
-    // let users run `verify schema.yml` as a shortcut
-    String schemaFile = null;
-    if (args.length > 0 && args[0].endsWith(".yml") && !args[0].startsWith("-")) {
-      schemaFile = args[0];
-      args = Stream.of(args).skip(1).toArray(String[]::new);
-    }
     var arguments = Arguments.fromEnvOrArgs(args);
-    new SchemaValidator(arguments, schemaFile, System.out).runOrWatch();
+    // `verify schema.yml` is a shortcut for `verify --schema=schema.yml`
+    String schemaFile = arguments.positional().isEmpty() ? null : arguments.positional().getFirst();
+    var validator = new SchemaValidator(arguments, schemaFile, System.out);
+    arguments.printHelpOrCheckOptions("<schema.yml> [options]");
+    if (validator.schemaPath == null || !Files.exists(validator.schemaPath)) {
+      throw new IllegalArgumentException(validator.schemaPath == null ? "Missing required parameter: --schema" :
+        validator.schemaPath + " does not exist");
+    }
+    validator.runOrWatch();
   }
 
   /**

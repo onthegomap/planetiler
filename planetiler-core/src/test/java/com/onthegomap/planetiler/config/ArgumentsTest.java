@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Envelope;
 
 class ArgumentsTest {
@@ -131,7 +133,8 @@ class ArgumentsTest {
   void testBoolean() {
     assertTrue(Arguments.of("boolean", "true").getBoolean("boolean", "list", false));
     assertFalse(Arguments.of("boolean", "false").getBoolean("boolean", "list", true));
-    assertFalse(Arguments.of("boolean", "true1").getBoolean("boolean", "list", true));
+    var invalid = Arguments.of("boolean", "true1");
+    assertThrows(IllegalArgumentException.class, () -> invalid.getBoolean("boolean", "list", true));
     assertFalse(Arguments.of().getBoolean("boolean", "list", false));
   }
 
@@ -374,5 +377,194 @@ class ArgumentsTest {
     assertEquals(1, args.getInteger("true", "", 1));
     assertEquals(0, args.getInteger("false", "", 1));
     assertEquals(3, args.getInteger("3", "", 1));
+  }
+
+  @Test
+  void testOptionsRecordGroupDefaultValueAndSource() {
+    var args = Arguments.fromArgs("--threads=3", "--minzoom=2").orElse(Arguments.of("maxzoom", "12"));
+    args.withGroup(ArgumentGroup.OUTPUT).getInteger("minzoom", "lowest zoom", 0);
+    args.getInteger("maxzoom", "highest zoom", 14);
+    args.withGroup(ArgumentGroup.OUTPUT).getBoolean("force|overwrite", "overwrite the output", false);
+    args.getString("tile_format", "tile format", "mvt");
+
+    assertEquals(List.of(
+      Arguments.Option.builder()
+        .name("minzoom")
+        .description("lowest zoom")
+        .group(ArgumentGroup.OUTPUT)
+        .placeholder("<n>")
+        .defaultValue("0")
+        .value("2")
+        .source("command line")
+        .build(),
+      Arguments.Option.builder()
+        .name("maxzoom")
+        .description("highest zoom")
+        .placeholder("<n>")
+        .defaultValue("14")
+        .value("12")
+        .source("default")
+        .build(),
+      Arguments.Option.builder()
+        .name("force")
+        .description("overwrite the output")
+        .group(ArgumentGroup.OUTPUT)
+        .defaultValue("false")
+        .value("false")
+        .source("default")
+        .build(),
+      Arguments.Option.builder()
+        .name("tile-format")
+        .description("tile format")
+        .placeholder("<value>")
+        .defaultValue("mvt")
+        .value("mvt")
+        .source("default")
+        .build()
+    ), args.options());
+  }
+
+  @Test
+  void testOptionsListedOnceInTheOrderFirstRead() {
+    var args = Arguments.of();
+    args.getInteger("b", "first description", 1);
+    args.getInteger("a", "", 2);
+    args.getInteger("b", "second description", 3);
+    assertEquals(List.of("b", "a"), args.options().stream().map(Arguments.Option::name).toList());
+    assertEquals("first description", args.options().getFirst().description());
+  }
+
+  @Test
+  void testOptionsSharedByDerivedViews() {
+    var args = Arguments.of("a", "1");
+    args.copy().getString("a", "", null);
+    args.orElse(Arguments.of()).getString("b", "", null);
+    args.subset("c").getString("c", "", null);
+    args.withGroup("Profile group").getString("d", "", null);
+    args.withPrefix("prefix").getString("e", "", null);
+    args.copy().silence().getString("f", "", null);
+    assertEquals(List.of("a", "b", "c", "d", "prefix-e"), args.options().stream().map(Arguments.Option::name).toList());
+    assertEquals(ArgumentGroup.basic("Profile group"), args.options().get(3).group());
+  }
+
+  @Test
+  void testOptionSources() {
+    var args = Arguments.fromArgs("--a=1")
+      .orElse(Arguments.fromJvmProperties(Map.of("planetiler.b", "2")::get, () -> List.of("planetiler.b")))
+      .orElse(Arguments.fromEnvironment(Map.of("PLANETILER_C", "3")::get, () -> Set.of("PLANETILER_C")));
+    for (var key : List.of("a", "b", "c", "d")) {
+      args.getString(key, "", null);
+    }
+    assertEquals(List.of("command line", "JVM property", "environment", "default"),
+      args.options().stream().map(Arguments.Option::source).toList());
+  }
+
+  @Test
+  void testHelpText() {
+    var args = Arguments.of();
+    args.withGroup(ArgumentGroup.OUTPUT).getBoolean("force", "overwrite the output", false);
+    args.getInteger("layers", "how many layers", 3);
+    String help = args.help("Usage: x\n\n", "Profile options", Map.of(ArgumentGroup.OUTPUT, "  Output notes\n"), true);
+    assertEquals(ArgumentHelp.title() + "\n\n" + """
+      Usage: x
+
+      Profile options
+        --layers=<n>  how many layers [default: 3]
+
+      Output
+        --force  overwrite the output
+        Output notes
+      """, help.substring(0, help.indexOf("\nProcessing\n")));
+  }
+
+  @Test
+  void testCommandLineForms() {
+    var args = Arguments.fromArgs(
+      "openmaptiles minzoom=2 --area=monaco --maxzoom 12 --force --no-download -o out.pmtiles -- --not-an-option"
+        .split(" "));
+    assertEquals("monaco", args.getString("area", "", null));
+    assertEquals(12, args.getInteger("maxzoom", "", 14));
+    assertTrue(args.getBoolean("force", "", false));
+    assertFalse(args.getBoolean("download", "", true));
+    assertEquals(2, args.getInteger("minzoom", "", 0));
+    assertEquals("out.pmtiles", args.getString("output|-o", "", null));
+    assertEquals(List.of("openmaptiles", "--not-an-option"), args.positional());
+  }
+
+  @Test
+  void testShortNameOnlyMatchesOneDash() {
+    assertNull(Arguments.fromArgs("--o=out.pmtiles").getString("output|-o", "", null));
+    assertEquals("x", Arguments.fromArgs("-o=x").getString("output|-o", "", null));
+  }
+
+  @Test
+  void testShortNameCanOnlyStandForOneOption() {
+    var args = Arguments.fromArgs("-o", "out.pmtiles");
+    args.getString("output|-o", "", null);
+    args.getString("output|-o", "", null);
+    assertThrows(IllegalStateException.class, () -> args.getString("other|-o", "", null));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "true, true", "TRUE, true", "yes, true", "on, true", "1, true",
+    "false, false", "no, false", "off, false", "0, false",
+  })
+  void testBooleanValues(String value, boolean expected) {
+    assertEquals(expected, Arguments.of("flag", value).getBoolean("flag", "", !expected));
+    assertEquals(expected, Arguments.of("flag", value).getBooleanObject("flag", ""));
+  }
+
+  @Test
+  void testBadValuesNameTheOption() {
+    var args = Arguments.fromArgs("--maxzoom=abc --force=maybe --loginterval=soon".split(" "));
+    var maxzoom = assertThrows(IllegalArgumentException.class, () -> args.getInteger("maxzoom", "", 14));
+    assertEquals("--maxzoom: expected a whole number, got \"abc\"", maxzoom.getMessage());
+    var force = assertThrows(IllegalArgumentException.class, () -> args.getBoolean("force|-f", "", false));
+    assertEquals("--force: expected true or false, got \"maybe\"", force.getMessage());
+    var interval = assertThrows(IllegalArgumentException.class, () -> args.getDuration("loginterval", "", "10s"));
+    assertEquals("--loginterval: expected a duration like 30s, 5m or 1h30m, got \"soon\"", interval.getMessage());
+  }
+
+  @Test
+  void testHelpShowsEvenWithBadOrMissingValues() {
+    var args = Arguments.fromArgs("--help --maxzoom=abc".split(" "));
+    assertEquals(14, args.getInteger("maxzoom", "", 14));
+    assertNull(args.getString("input", "required input"));
+  }
+
+  @Test
+  void testUnknownOptions() {
+    var args = Arguments.fromArgs("--maxzom=15 --area=monaco --mbtiles-compact=false shortbread".split(" "))
+      .orElse(
+        Arguments.fromEnvironment(Map.of("PLANETILER_UNRELATED", "x")::get, () -> Set.of("PLANETILER_UNRELATED")));
+    args.getString("area", "", null);
+    args.getInteger("maxzoom", "", 14);
+    args.withPrefix("mbtiles").getBoolean("compact", "", true);
+    assertEquals(List.of(
+      "Unknown option --maxzom (did you mean --maxzoom?)",
+      "Unexpected argument \"shortbread\" (the profile or command goes first, before its options)"
+    ), args.unknownOptions());
+    assertEquals(List.of(), args.unknownOptions());
+  }
+
+  @Test
+  void testOverrides() {
+    var args = Arguments.fromArgs("--mbtiles-compact=false --mbtiles-vacuum=true".split(" ")).withPrefix("mbtiles")
+      .withOverrides(Map.of("compact", "true"), "output URI");
+    assertTrue(args.getBoolean("compact", "", false));
+    assertTrue(args.getBoolean("vacuum", "", false));
+    assertEquals(List.of("output URI", "command line"), args.options().stream().map(Arguments.Option::source).toList());
+    assertEquals(List.of("mbtiles-compact", "mbtiles-vacuum"),
+      args.options().stream().map(Arguments.Option::name).toList());
+  }
+
+  @Test
+  void testPrefixedViewWithFallbackRecordsPrefixedNames() {
+    var args = Arguments.fromArgs("--compact-db=false");
+    var options = args.withPrefix("mbtiles").orElse(args.subset("compact_db"));
+    assertFalse(options.getBoolean("compact|compact_db", "", true));
+    assertEquals(List.of("mbtiles-compact"), args.options().stream().map(Arguments.Option::name).toList());
+    assertEquals(List.of(), args.unknownOptions());
   }
 }

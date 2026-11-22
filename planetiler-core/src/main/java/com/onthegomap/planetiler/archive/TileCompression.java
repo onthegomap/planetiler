@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @JsonDeserialize(using = TileCompression.Deserializer.class)
@@ -42,7 +42,8 @@ public enum TileCompression {
   }
 
   public static Set<TileCompression> availableValues() {
-    return Arrays.stream(TileCompression.values()).filter(tc -> tc != UNKNOWN).collect(Collectors.toUnmodifiableSet());
+    // An EnumSet lists the values in the same order every run (e.g. in --help)
+    return Collections.unmodifiableSet(EnumSet.complementOf(EnumSet.of(UNKNOWN)));
   }
 
   public String id() {

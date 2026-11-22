@@ -154,14 +154,16 @@ The examples in this README use `planetiler` as the command. Substitute the comm
 
 ### Common arguments
 
-- `--output` tells planetiler where to write output to, and what format to write it in. For
+- `-o` or `--output` tells planetiler where to write output to, and what format to write it in. For
   example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
   It is best to specify the full path to the file. With Docker, use `/data/australia.pmtiles`.
 - `--download` downloads input sources automatically and `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
-- `--force` overwrites the output file
-- `--help` shows all of the options and exits
+- `-f` or `--force` overwrites the output file
+- `--help` shows the common options and exits, `planetiler <profile> --help` shows a profile's options and
+  `--help-all` every option
+- `--verbose` lists every option with its value and where that value came from
 
 ### Memory
 
