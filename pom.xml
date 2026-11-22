@@ -82,16 +82,16 @@
         <enabled>true</enabled>
       </releases>
     </repository>
-    <repository>
-      <id>jts-snapshots</id>
-      <url>https://repo.eclipse.org/content/repositories/jts-snapshots</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
+    <!--    <repository>-->
+    <!--      <id>jts-snapshots</id>-->
+    <!--      <url>https://repo.eclipse.org/content/repositories/jts-snapshots</url>-->
+    <!--      <releases>-->
+    <!--        <enabled>false</enabled>-->
+    <!--      </releases>-->
+    <!--      <snapshots>-->
+    <!--        <enabled>true</enabled>-->
+    <!--      </snapshots>-->
+    <!--    </repository>-->
     <!-- A copy of the JTS snapshot above, so builds still work if repo.eclipse.org is down (#1704) or after it
       deletes old snapshots. Remove it once planetiler is back on a JTS release. -->
     <repository>
