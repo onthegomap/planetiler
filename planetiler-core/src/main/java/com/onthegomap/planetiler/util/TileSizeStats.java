@@ -92,7 +92,7 @@ public class TileSizeStats {
         TopOsmTiles.downloadPrecomputed(downloader);
       }
     }
-    var inputString = arguments.getString("input", "archive to read");
+    var inputString = arguments.getString("input=<archive>", "archive to read");
     var outputArg = arguments.file("output", "where to write the stats (default: next to a local input)", null);
     arguments.printHelpOrCheckOptions("--input=<archive> [options]");
     var input = TileArchiveConfig.from(inputString);

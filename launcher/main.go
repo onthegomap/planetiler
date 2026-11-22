@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -133,6 +134,11 @@ func main() {
 		cmd.Dir, cmd.Stdout, cmd.Stderr = workDir, &setupLog, &setupLog
 	} else {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+		// Java can't get the terminal size without a native call, and shells don't export COLUMNS, so planetiler
+		// only wraps its help at the terminal width when the launcher passes it.
+		if width := terminalWidth(); width > 0 && os.Getenv("COLUMNS") == "" {
+			cmd.Env = append(os.Environ(), "COLUMNS="+strconv.Itoa(width))
+		}
 	}
 	code := run(cmd)
 

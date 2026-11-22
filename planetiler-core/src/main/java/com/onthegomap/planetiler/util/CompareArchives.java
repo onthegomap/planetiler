@@ -81,7 +81,7 @@ public class CompareArchives {
     arguments.printHelpOrCheckOptions(usage);
     if (archives.size() != 2) {
       throw new IllegalArgumentException(
-        "Expected 2 archives to compare, got " + archives.size() + ". Usage: " + ArgumentHelp.command(usage));
+        "expected 2 archives to compare, got " + archives.size() + ". Usage: " + ArgumentHelp.command(usage));
     }
     var input1 = TileArchiveConfig.from(archives.get(0));
     var input2 = TileArchiveConfig.from(archives.get(1));

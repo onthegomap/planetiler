@@ -34,7 +34,7 @@ public class SchemaValidator extends BaseSchemaValidator {
     var validator = new SchemaValidator(arguments, schemaFile, System.out);
     arguments.printHelpOrCheckOptions("<schema.yml> [options]");
     if (validator.schemaPath == null || !Files.exists(validator.schemaPath)) {
-      throw new IllegalArgumentException(validator.schemaPath == null ? "Missing required parameter: --schema" :
+      throw new IllegalArgumentException(validator.schemaPath == null ? "missing required parameter: --schema" :
         validator.schemaPath + " does not exist");
     }
     validator.runOrWatch();

@@ -44,8 +44,10 @@ import org.slf4j.LoggerFactory;
  * When looking up a key, tries to find a case-and-separator-insensitive match, for example {@code "CONFIG_OPTION"} will
  * match {@code "config-option"} and {@code "config_option"}.
  * <p>
- * If you replace an option with a new value, you can read a value from the new option and fall back to old one by using
- * {@code "new_flag|old_flag"} as the key.
+ * A key is the option name, optionally followed by {@code =<placeholder>} for what {@code --help} shows after the
+ * {@code =} (e.g. {@code <file>} instead of the default {@code <value>}), then {@code |}-separated aliases: older names
+ * to fall back to (with a deprecation warning) and a one-letter {@code -x} short name. For example
+ * {@code "output=<file>|-o"}, or {@code "new_flag|old_flag"} after renaming an option.
  */
 public class Arguments {
 
@@ -116,6 +118,32 @@ public class Arguments {
     }
   }
 
+  /** A key as getters take it, e.g. {@code output=<file>|old_output|-o}, see {@link Arguments}. */
+  private record Key(String name, String placeholder, List<String> aliases, String shortName) {
+
+    private static final Pattern NAME_AND_PLACEHOLDER = Pattern.compile("([^=<>]+)(?:=(<[^<>]+>))?");
+
+    static Key parse(String key) {
+      String[] parts = key.split("\\|");
+      var matcher = NAME_AND_PLACEHOLDER.matcher(parts[0].strip());
+      if (!matcher.matches()) {
+        throw new IllegalStateException(
+          "Bad option key \"" + key + "\", expected name, name=<placeholder> or name|alias");
+      }
+      List<String> aliases = new ArrayList<>();
+      String shortName = null;
+      for (int i = 1; i < parts.length; i++) {
+        String alias = parts[i].strip();
+        if (alias.startsWith("-")) {
+          shortName = alias.substring(1);
+        } else {
+          aliases.add(alias);
+        }
+      }
+      return new Key(matcher.group(1).strip(), matcher.group(2), List.copyOf(aliases), shortName);
+    }
+  }
+
   /** Every option read through an {@code Arguments} instance or the views derived from it, in the order first read. */
   private static final class Registry {
     // Options can be read from worker threads, so recording one that is already known must not take a lock.
@@ -178,8 +206,8 @@ public class Arguments {
    * <p>
    * To set {@code key=value}: {@code --key=value}, {@code --key value} or {@code key=value}. To set {@code key=true}:
    * {@code --key}, and {@code key=false}: {@code --no-key}. One-letter aliases like {@code -o value} work for options
-   * that define one ({@code "output|-o"}). Other words, and everything after {@code --}, are {@link #positional()}
-   * arguments.
+   * that define one ({@code "output=<file>|-o"}). Other words, and everything after {@code --}, are
+   * {@link #positional()} arguments.
    *
    * @param args arguments provided to main method
    * @return arguments parsed from command-line arguments
@@ -349,23 +377,25 @@ public class Arguments {
   }
 
   private Value lookup(String key, boolean warnIfDeprecated) {
-    String[] options = key.split("\\|");
-    for (int i = 0; i < options.length; i++) {
-      String option = options[i].strip();
-      boolean isShort = option.startsWith("-");
-      String normalized =
-        isShort ? claimShortName(option.substring(1), options[0].strip()) : normalize(prefix + option);
-      registry.lookedUp.add(normalized);
-      Value value = provider.apply(normalized);
-      if (value != null) {
-        // options are often read more than once (e.g. before the archive opens and when it does), so warn once
-        if (i != 0 && warnIfDeprecated && !isShort && registry.warnedAbout.add("deprecated " + option)) {
-          LOGGER.warn("Argument '{}' is deprecated", option);
-        }
-        return value;
+    Key parsed = Key.parse(key);
+    Value value = lookupNormalized(normalize(prefix + parsed.name()));
+    for (int i = 0; value == null && i < parsed.aliases().size(); i++) {
+      String alias = parsed.aliases().get(i);
+      value = lookupNormalized(normalize(prefix + alias));
+      // options are often read more than once (e.g. before the archive opens and when it does), so warn once
+      if (value != null && warnIfDeprecated && registry.warnedAbout.add("deprecated " + alias)) {
+        LOGGER.warn("Argument '{}' is deprecated", alias);
       }
     }
-    return null;
+    if (value == null && parsed.shortName() != null) {
+      value = lookupNormalized(claimShortName(parsed.shortName(), parsed.name()));
+    }
+    return value;
+  }
+
+  private Value lookupNormalized(String normalized) {
+    registry.lookedUp.add(normalized);
+    return provider.apply(normalized);
   }
 
   private String claimShortName(String letter, String longName) {
@@ -460,7 +490,8 @@ public class Arguments {
   /**
    * Adds an option to the list {@link #options()} returns, unless it is already there.
    *
-   * @param placeholder  what to type after {@code =} in help, or {@code null} for a flag that is off by default
+   * @param placeholder  what to show by default after {@code =} in help, or {@code null} for a flag that is off by
+   *                     default, overridden if key contains {@code key=placeholder}
    * @param defaultValue the value used when the option is not set
    * @param value        the value used in this run
    */
@@ -468,19 +499,18 @@ public class Arguments {
     if (silent) {
       return;
     }
-    String name = normalize(prefix + key.replaceFirst("\\|.*$", "").strip());
+    Key parsed = Key.parse(key);
+    String name = normalize(prefix + parsed.name());
     if (registry.byName.containsKey(name)) {
       return;
     }
     Value found = lookup(key, false);
-    String shortName = Stream.of(key.split("\\|")).map(String::strip).filter(alias -> alias.startsWith("-"))
-      .map(alias -> alias.substring(1)).findFirst().orElse(null);
     var option = Option.builder()
       .name(name.replace('_', '-'))
-      .shortName(shortName)
+      .shortName(parsed.shortName())
       .description(description)
       .group(group)
-      .placeholder(placeholder)
+      .placeholder(placeholder == null ? null : Objects.requireNonNullElse(parsed.placeholder(), placeholder))
       .defaultValue(Objects.toString(defaultValue, null))
       .value(Objects.toString(value, null))
       .source(found == null ? "default" : found.source())
@@ -523,14 +553,14 @@ public class Arguments {
     for (String normalized : registry.setByUser.stream().sorted().toList()) {
       if (!registry.lookedUp.contains(normalized) && registry.warnedAbout.add(normalized)) {
         String closest = EditDistance.closest(normalized, known);
-        result.add("Unknown option " + displayName(normalized) +
+        result.add("unknown option " + displayName(normalized) +
           (closest == null ? "" : " (did you mean " + displayName(closest) + "?)"));
       }
     }
     if (!registry.positionalRead) {
       for (String arg : registry.positional) {
         if (registry.warnedAbout.add("positional " + arg)) {
-          result.add("Unexpected argument \"" + arg + "\" (the profile or command goes first, before its options)");
+          result.add("unexpected argument \"" + arg + "\" (the profile or command goes first, before its options)");
         }
       }
     }
@@ -583,13 +613,14 @@ public class Arguments {
   }
 
   /**
-   * If {@code --help}, {@code -h} or {@code --help-all} is set, prints the usage line and every option read so far,
-   * then exits. Read all the options first so they show up in it.
+   * If {@code --help}, {@code -h} or {@code --help-all} is set, prints the usage line and the options read so far, then
+   * exits: the command's own options (read without a group), and with {@code --help-all} the grouped ones too. Read all
+   * the options first so they show up in it.
    *
    * @param usage what follows the command in the usage line, e.g. {@code [options] <archive1> <archive2>}
    */
   public void printHelpIfRequested(String usage) {
-    printHelpIfRequested(all -> help("Usage: " + ArgumentHelp.command(usage) + "\n\n", "Options", Map.of(), all));
+    printHelpIfRequested(all -> ArgumentHelp.commandHelp(options(), usage, all));
   }
 
   /** Like {@link #printHelpIfRequested(String)}, with the help from {@code helpText}. */
@@ -669,7 +700,7 @@ public class Arguments {
     String value = getArg(key);
     // with --help, a missing option shouldn't stop the help from showing
     if (value == null && !helpRequested()) {
-      throw new IllegalArgumentException("Missing required parameter: " + key + " (" + description + ")");
+      throw new IllegalArgumentException("missing required parameter: " + key + " (" + description + ")");
     }
     return value;
   }
@@ -691,7 +722,7 @@ public class Arguments {
       if (helpRequested()) {
         return defaultValue;
       }
-      String name = displayName(normalize(prefix + key.replaceFirst("\\|.*$", "").strip()));
+      String name = displayName(normalize(prefix + Key.parse(key).name()));
       throw new IllegalArgumentException(name + ": expected " + expected + ", got \"" + value + "\"", e);
     }
   }
@@ -710,7 +741,7 @@ public class Arguments {
     if (value != null) {
       return parse(key, value, "true or false", null, Arguments::parseBoolean);
     }
-    String negated = getArg("no_" + key.replaceFirst("\\|.*$", "").strip());
+    String negated = getArg("no_" + Key.parse(key).name());
     return negated == null ? null : !parse("no_" + key, negated, "true or false", false, Arguments::parseBoolean);
   }
 

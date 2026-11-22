@@ -130,7 +130,7 @@ public class Main {
       if (Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose", "", false)) {
         throw e;
       }
-      LOGGER.error("{} (--verbose shows the stack trace)", e.getMessage());
+      LOGGER.error("{}", e.getMessage());
       System.exit(1);
     }
   }
@@ -148,7 +148,7 @@ public class Main {
     String first = args.length == 0 ? "" : args[0].strip();
     if (first.matches("^.*\\.ya?ml$")) {
       task = ConfiguredMapMain::main;
-      ArgumentHelp.setSubcommand(first);
+      ArgumentHelp.setSubcommand(first, null);
       args = args.length == 1 ? new String[]{"--schema=" + first, "--help"} :
         Stream.concat(Stream.of("--schema=" + first), Stream.of(args).skip(1)).toArray(String[]::new);
     } else if (!first.isEmpty() && !first.contains("=") && !first.startsWith("-")) {
@@ -156,10 +156,10 @@ public class Main {
       Task found = tasksByName().get(name);
       if (found == null) {
         String closest = EditDistance.closest(name, tasksByName().keySet());
-        throw new IllegalArgumentException("Unknown profile or command: " + first +
+        throw new IllegalArgumentException("unknown profile or command: " + first +
           (closest == null ? "" : " (did you mean " + closest + "?)") + ", see " + ArgumentHelp.command("--help"));
       }
-      ArgumentHelp.setSubcommand(found.name());
+      ArgumentHelp.setSubcommand(found.name(), found.description());
       args = args.length == 1 && found.buildsMap() ? new String[]{"--help"} : Arrays.copyOfRange(args, 1, args.length);
       task = found.main();
     }
@@ -183,45 +183,48 @@ public class Main {
   /** Returns the overview that {@code planetiler --help} prints. */
   static String help() {
     String memory = ArgumentHelp.wasStartedByLauncher() ?
-      "  --memory=<size>            memory limit for planetiler, e.g. 4g" :
-      "  -Xmx<size> (Java option)   memory limit for planetiler, e.g. java -Xmx4g -jar ...";
-    return """
+      "      --memory=<size>            memory limit for planetiler, e.g. 4g" :
+      "      -Xmx<size> (Java option)   memory limit for planetiler, e.g. java -Xmx4g -jar ...";
+    // Don't wrap examples, so people can copy them.
+    String header = """
       %s
 
       Build a map of Monaco:
         %s
 
-      Usage:
+      Usage: %s
+
+      """.formatted(
+      ArgumentHelp.title(),
+      ArgumentHelp.command("--area=monaco --output=monaco.pmtiles"),
+      ArgumentHelp.command("[profile] [options]"));
+    return header + ArgumentHelp.wrapToTerminal(
+      """
+        Profiles:
+        %s
+          <schema.yml>    your own schema in YAML: https://github.com/onthegomap/planetiler/tree/main/planetiler-custommap
+          <Profile.java>  your own profile in Java: https://github.com/onthegomap/planetiler-examples
+
+        Common options:
+              --area=<name>              region to build: monaco, massachusetts, germany, planet, ... (downloaded if missing)
+              --osm-path=<file>          use a local .osm.pbf instead
+              --bounds=<w,s,e,n|planet>  only build tiles inside these bounds
+          -o, --output=<file>            .pmtiles or .mbtiles
+        %s
+          -f, --force                    overwrite the output
+              --verbose                  show option values and where each came from, and stack traces for errors
+
+        Other commands:
         %s
 
-      Profiles:
-      %s
-        <schema.yml>       your own schema in YAML      https://github.com/onthegomap/planetiler/tree/main/planetiler-custommap
-        <Profile.java>     your own profile in Java     https://github.com/onthegomap/planetiler-examples
-
-      Common options:
-        --area=<name>              region to build: monaco, massachusetts, germany, planet, ... (downloaded if missing)
-        --osm-path=<file>          use a local .osm.pbf instead
-        --bounds=<w,s,e,n|planet>  only build tiles inside these bounds
-        -o, --output=<file>        .pmtiles or .mbtiles
-      %s
-        -f, --force                overwrite the output
-        --verbose                  show option values and where each came from
-
-      Other commands:
-      %s
-
-      Options for a profile or command:  %s
-      Docs, questions and issues: https://github.com/onthegomap/planetiler
-      """
-      .formatted(
-        ArgumentHelp.title(),
-        ArgumentHelp.command("--area=monaco --output=monaco.pmtiles"),
-        ArgumentHelp.command("[profile] [options]"),
-        overviewList(true, "  %-19s%s"),
-        memory,
-        overviewList(false, "  %-27s%s"),
-        ArgumentHelp.command("<profile or command> --help"));
+        Options for a profile or command:  %s
+        Docs, questions and issues: https://github.com/onthegomap/planetiler
+        """
+        .formatted(
+          overviewList(true, "  %-16s%s"),
+          memory,
+          overviewList(false, "  %-21s%s"),
+          ArgumentHelp.command("<profile or command> --help")));
   }
 
   private static String overviewList(boolean profiles, String format) {

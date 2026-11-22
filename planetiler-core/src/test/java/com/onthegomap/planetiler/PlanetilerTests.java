@@ -3968,27 +3968,28 @@ class PlanetilerTests {
 
       Usage: %s
 
-      Test options
+      Test options:
         --water=<bool>  include water [default: true]
 
-      Input
+      Input:
       """.formatted(ArgumentHelp.command("--area=monaco --output=monaco.pmtiles"),
       ArgumentHelp.command("--osm-path=my-region.osm.pbf --output=my-region.pmtiles"),
       ArgumentHelp.command("[options]"))), help);
-    assertTrue(help.contains("  --area=<value> "), help);
+    assertTrue(help.contains("Input:\n  --area=<name> "), help);
+    assertTrue(help.contains("  -o, --output=<file> "), help);
     assertTrue(help.contains("""
 
         Sources             default path                            downloaded from
           osm               %-40sgeofabrik:monaco
           water             %-40sexample.com
       """.formatted(Path.of("data", "sources", "monaco.osm.pbf"), Path.of("data", "sources", "water.zip"))), help);
-    assertTrue(help.contains("\nOutput\n"), help);
-    assertTrue(help.contains("\nProcessing\n"), help);
+    assertTrue(help.contains("\nOutput:\n"), help);
+    assertTrue(help.contains("\nProcessing:\n"), help);
     assertFalse(help.contains("--water-path"), help);
     assertTrue(help.endsWith("\nShow all options with --help-all\n"), help);
 
     String helpAll = planetiler.help(true);
-    assertTrue(helpAll.contains("\nSources\n"), helpAll);
+    assertTrue(helpAll.contains("\nSources:\n"), helpAll);
     assertTrue(helpAll.contains("  --water-path=<file> "), helpAll);
   }
 }

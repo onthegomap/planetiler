@@ -13,6 +13,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Envelope;
 
 class ArgumentsTest {
@@ -468,13 +469,13 @@ class ArgumentsTest {
     assertEquals(ArgumentHelp.title() + "\n\n" + """
       Usage: x
 
-      Profile options
+      Profile options:
         --layers=<n>  how many layers [default: 3]
 
-      Output
+      Output:
         --force  overwrite the output
         Output notes
-      """, help.substring(0, help.indexOf("\nProcessing\n")));
+      """, help);
   }
 
   @Test
@@ -542,8 +543,8 @@ class ArgumentsTest {
     args.getInteger("maxzoom", "", 14);
     args.withPrefix("mbtiles").getBoolean("compact", "", true);
     assertEquals(List.of(
-      "Unknown option --maxzom (did you mean --maxzoom?)",
-      "Unexpected argument \"shortbread\" (the profile or command goes first, before its options)"
+      "unknown option --maxzom (did you mean --maxzoom?)",
+      "unexpected argument \"shortbread\" (the profile or command goes first, before its options)"
     ), args.unknownOptions());
     assertEquals(List.of(), args.unknownOptions());
   }
@@ -566,5 +567,25 @@ class ArgumentsTest {
     assertFalse(options.getBoolean("compact|compact_db", "", true));
     assertEquals(List.of("mbtiles-compact"), args.options().stream().map(Arguments.Option::name).toList());
     assertEquals(List.of(), args.unknownOptions());
+  }
+
+  @Test
+  void testPlaceholder() {
+    var args = Arguments.fromArgs("-o", "out.pmtiles");
+    assertEquals("out.pmtiles", args.getString("output=<file>|old_output|-o", "where to write", null));
+    args.getBoolean("force=<bool>", "overwrite", false);
+    args.getString("name", "", null);
+    var options = args.options();
+    assertEquals(List.of("output", "o", "<file>"),
+      List.of(options.get(0).name(), options.get(0).shortName(), options.get(0).placeholder()));
+    assertNull(options.get(1).placeholder());
+    assertEquals("<value>", options.get(2).placeholder());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"output=file", "output=<file", "=<file>", "output=<file>=<x>"})
+  void testBadKey(String key) {
+    var args = Arguments.of();
+    assertThrows(IllegalStateException.class, () -> args.getString(key, "", null));
   }
 }

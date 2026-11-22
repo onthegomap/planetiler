@@ -37,13 +37,13 @@ class ArgumentHelpTest {
     args.withGroup(ArgumentGroup.OUTPUT).getInteger("maxzoom", "highest zoom level", 14);
 
     String help = ArgumentHelp.render(args.options(), "Profile options", Map.of(), false);
-    assertTrue(help.contains("Output\n  --maxzoom=<n>  highest zoom level [default: 14]\n"), help);
+    assertTrue(help.contains("Output:\n  --maxzoom=<n>  highest zoom level [default: 14]\n"), help);
     assertFalse(help.contains("--simplify-tolerance"), help);
     assertTrue(help.endsWith("\nShow all options with --help-all\n"), help);
 
     String helpAll = ArgumentHelp.render(args.options(), "Profile options", Map.of(), true);
     assertTrue(helpAll.contains("""
-      Output (advanced)
+      Output (advanced):
         --simplify-tolerance=<n>  simplification tolerance [default: 0.1]
         --min-feature-size=<n>    smallest feature [default: 1.0]
       """), helpAll);
@@ -59,7 +59,7 @@ class ArgumentHelpTest {
     args.getBoolean("transliterate", "", false);
 
     String help = ArgumentHelp.render(args.options(), "Profile options", Map.of(), false);
-    List<Integer> positions = List.of("Profile options\n", "Layers\n", "Input\n", "Logging\n").stream()
+    List<Integer> positions = List.of("Profile options:\n", "Layers:\n", "Input:\n", "Logging:\n").stream()
       .map(help::indexOf)
       .toList();
     assertEquals(positions.stream().sorted().toList(), positions, help);
@@ -76,7 +76,7 @@ class ArgumentHelpTest {
     assertTrue(
       help.contains("  --a-very-long-option-name-that-does-not-fit-in-the-column\n" + " ".repeat(38) + "short\n"),
       help);
-    assertTrue(help.lines().allMatch(line -> line.length() <= 118), help);
+    assertTrue(help.lines().allMatch(line -> line.length() <= 100), help);
   }
 
   @Test
@@ -99,12 +99,12 @@ class ArgumentHelpTest {
     assertEquals("""
       Option values:
 
-      Profile options
+      Profile options:
         --area=monaco  (command line)
         --unset
         --empty=''
 
-      Processing
+      Processing:
         --threads=4
         --a-very-long-option-name-that-does-not-fit=value
       """, ArgumentHelp.verboseList(args.options(), "Profile options"));
@@ -112,8 +112,19 @@ class ArgumentHelpTest {
 
   @Test
   void testMemoryLimitListedUnderProcessing() {
-    String help = ArgumentHelp.render(Arguments.of().options(), "Options", Map.of(), false);
-    assertTrue(help.startsWith("Processing\n  -Xmx<size>  Java memory limit"), help);
+    var args = Arguments.of();
+    args.withGroup(ArgumentGroup.PROCESSING).getInteger("threads", "worker threads", 4);
+    String help = ArgumentHelp.render(args.options(), "Options", Map.of(), false);
+    assertTrue(help.startsWith("Processing:\n  --threads=<n>  worker threads [default: 4]\n  -Xmx<size>     Java memory"),
+      help);
+  }
+
+  @Test
+  void testNoMemoryLimitWithoutProcessingOptions() {
+    var args = Arguments.of();
+    args.getString("schema", "the schema to test", null);
+    String help = ArgumentHelp.render(args.options(), "Options", Map.of(), true);
+    assertFalse(help.contains("Xmx"), help);
   }
 
   @Test
@@ -122,7 +133,96 @@ class ArgumentHelpTest {
     List<String> languages = Collections.nCopies(40, "abcd");
     args.getList("languages", "", languages);
     String list = ArgumentHelp.verboseList(args.options(), "Options");
-    assertTrue(list.lines().allMatch(line -> line.length() <= 118), list);
+    assertTrue(list.lines().allMatch(line -> line.length() <= 100), list);
     assertTrue(list.replaceAll("\n +", "").contains("--languages=" + String.join(",", languages) + "\n"), list);
   }
+
+  @Test
+  void testLongOnlyFlagsLineUpWithShortFlags() {
+    var args = Arguments.of();
+    args.getString("output|-o", "the output", "out.pmtiles");
+    args.getInteger("maxzoom", "highest zoom", 14);
+    args.withGroup(ArgumentGroup.LOGGING).getBoolean("verbose", "more logs", false);
+
+    String help = ArgumentHelp.render(args.options(), "Options", Map.of(), false);
+    assertTrue(help.startsWith("""
+      Options:
+        -o, --output=<value>  the output [default: out.pmtiles]
+            --maxzoom=<n>     highest zoom [default: 14]
+
+      Logging:
+        --verbose  more logs
+      """), help);
+  }
+
+  @Test
+  void testCommonOptionsFirstInTheirSection() {
+    var args = Arguments.of();
+    args.withGroup(ArgumentGroup.INPUT).getString("config", "", null);
+    args.withGroup(ArgumentGroup.INPUT).getString("bounds", "", null);
+    args.withGroup(ArgumentGroup.INPUT).getString("area", "", null);
+    args.withGroup(ArgumentGroup.OUTPUT).getInteger("maxzoom", "", 14);
+    args.withGroup(ArgumentGroup.OUTPUT).getString("output|-o", "", null);
+
+    String help = ArgumentHelp.render(args.options(), "Options", Map.of(), false);
+    List<Integer> positions = List.of("--area", "--bounds", "--config", "--output", "--maxzoom").stream()
+      .map(help::indexOf)
+      .toList();
+    assertEquals(positions.stream().sorted().toList(), positions, help);
+  }
+
+  @Test
+  void testCommandHelpListsOnlyItsOwnOptionsUnlessHelpAll() {
+    var args = Arguments.of();
+    args.getBoolean("strict", "fail on any diff", true);
+    args.withGroup(ArgumentGroup.PROCESSING).getInteger("threads", "worker threads", 4);
+
+    String help = ArgumentHelp.commandHelp(args.options(), "compare: compare two tile archives", "<a> <b>", false);
+    assertTrue(help.startsWith(ArgumentHelp.title() + "\n\ncompare: compare two tile archives\n\nUsage: "), help);
+    assertTrue(help.contains("""
+      <a> <b>
+
+      Options:
+        --strict=<bool>  fail on any diff [default: true]
+
+      Show all options with --help-all
+      """), help);
+    assertFalse(help.contains("--threads"), help);
+
+    String helpAll = ArgumentHelp.commandHelp(args.options(), null, "<a> <b>", true);
+    assertTrue(helpAll.contains("\nProcessing:\n  --threads=<n>"), helpAll);
+    assertFalse(helpAll.contains("--help-all"), helpAll);
+  }
+
+  @Test
+  void testWrapToTerminal() {
+    String text = """
+      Title
+
+        short      fits
+        stats      %s
+        -Xmx<size> (Java option)  %s
+        %s
+      """.formatted("word ".repeat(30).strip(), "word ".repeat(30).strip(), "word ".repeat(30).strip());
+    String wrapped = ArgumentHelp.wrapToTerminal(text);
+    assertTrue(wrapped.startsWith("Title\n\n  short      fits\n  stats      word word"), wrapped);
+    assertTrue(wrapped.endsWith("\n"), wrapped);
+    assertTrue(wrapped.lines().allMatch(line -> line.length() <= 100), wrapped);
+    List<String> lines = wrapped.lines().toList();
+    assertEquals(" ".repeat(13) + "word", lines.get(4).substring(0, 17), wrapped);
+    assertTrue(lines.get(5).startsWith("  -Xmx<size> (Java option)  word"), wrapped);
+    assertEquals(" ".repeat(28) + "word", lines.get(6).substring(0, 32), wrapped);
+    assertEquals("  word", lines.get(8).substring(0, 6), wrapped);
+  }
+
+  @Test
+  void testWrapToTerminalLeavesUnindentedLinesAndWrapsListsAfterCommas() {
+    String usage = "Usage: " + "word ".repeat(30).strip();
+    String list = "  --languages=" + String.join(",", Collections.nCopies(40, "abcd"));
+    String wrapped = ArgumentHelp.wrapToTerminal(usage + "\n" + list + "\n");
+    assertTrue(wrapped.startsWith(usage + "\n  --languages=abcd,"), wrapped);
+    assertTrue(wrapped.lines().skip(1).allMatch(line -> line.length() <= 100), wrapped);
+    assertEquals(list, wrapped.lines().skip(1).map(String::strip).reduce("  ", String::concat), wrapped);
+  }
+
 }

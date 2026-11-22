@@ -246,7 +246,7 @@ public class Planetiler {
     boolean areaIsExplicit = arguments.contains("area");
     String area = arguments.getString(
       ArgumentGroup.INPUT,
-      "area",
+      "area=<name>",
       "region to build: monaco, massachusetts, germany, planet, ... (downloaded if missing)",
       defaultArea);
     Path path = downloadDir.resolve(area.replaceAll("[^a-zA-Z]+", "_") + ".osm.pbf");
@@ -1062,7 +1062,7 @@ public class Planetiler {
     this.output =
       TileArchiveConfig
         .from(arguments.withGroup(ArgumentGroup.OUTPUT)
-          .getString("output|" + argument + "|-o", ".pmtiles, .mbtiles, or a directory of tiles", fallback.toString()));
+          .getString("output=<file>|" + argument + "|-o", ".pmtiles, .mbtiles, or a directory of tiles", fallback.toString()));
     return this;
   }
 
@@ -1078,7 +1078,7 @@ public class Planetiler {
    */
   public Planetiler setOutput(String defaultOutputUri) {
     this.output = TileArchiveConfig.from(arguments.withGroup(ArgumentGroup.OUTPUT)
-      .getString("output|-o", ".pmtiles, .mbtiles, or a directory of tiles", defaultOutputUri));
+      .getString("output=<file>|-o", ".pmtiles, .mbtiles, or a directory of tiles", defaultOutputUri));
     return this;
   }
 
@@ -1139,7 +1139,7 @@ public class Planetiler {
     boolean verbose = arguments.getBoolean(
       ArgumentGroup.LOGGING,
       "verbose",
-      "show option values and where each came from",
+      "show option values and where each came from, and stack traces for errors",
       false);
     // creates the profile, so the options it reads show up in the help and option list
     profile();
