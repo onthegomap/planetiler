@@ -78,7 +78,7 @@ jobs:
           aws s3api head-object --bucket "$BUCKET" --key "$KEY" --query Metadata.etag --output text > etag.txt || true
         fi
         curl -sSfL --retry 3 --max-time 1800 --etag-compare etag.txt --etag-save etag.txt -o "${{ matrix.input }}" "${{ matrix.url }}"
-    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+    - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       if: hashFiles(matrix.input) != ''
     - name: Convert and upload
       if: hashFiles(matrix.input) != ''
