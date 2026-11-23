@@ -1203,6 +1203,9 @@ public class Planetiler {
       throw new IllegalArgumentException(
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
+    if (!onlyDownloadSources) {
+      TileArchiveWriter.checkTileEncoder(config, stats);
+    }
 
 
     if (config.tileWriteThreads() < 1) {

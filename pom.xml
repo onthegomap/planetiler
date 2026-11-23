@@ -21,6 +21,7 @@
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.23.0</jackson.version>
     <junit.version>6.1.3</junit.version>
+    <mlt-ffi.version>0.2.5</mlt-ffi.version>
     <!-- set by jacoco in the coverage profile, extended by surefire with late @{argLine} replacement -->
     <argLine/>
     <record-builder.version>44</record-builder.version>
@@ -287,6 +288,7 @@
           <includes>
             <include>**/*.java</include>
           </includes>
+          <!-- mlt-ffi-java, jffi, sqlite-jdbc, zstd-jni, lz4-java and snappy-java all load native code -->
           <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
         </configuration>
       </plugin>

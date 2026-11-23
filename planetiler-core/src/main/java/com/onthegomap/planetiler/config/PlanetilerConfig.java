@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.MltEncoderType;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileFormat;
@@ -68,6 +69,7 @@ public record PlanetilerConfig(
   TileCompression tileCompression,
   TileFormat tileFormat,
   boolean excludeIds,
+  MltEncoderType mltEncoder,
   boolean mltFsst,
   boolean mltFastPfor,
   boolean mltTessellatePolygons,
@@ -333,15 +335,22 @@ public record PlanetilerConfig(
             TileFormat.availableValues().stream().map(TileFormat::id).collect(Collectors.joining(", ")),
           "mvt")))
       .excludeIds(output.getBoolean("exclude_ids", "leave feature ids out of the tiles", false))
+      .mltEncoder(MltEncoderType.fromId(outputAdvanced.getString(
+        "mlt_encoder",
+        "encoder to use when tile format=MLT: " + String.join(", ", MltEncoderType.ids()) +
+          ", native (Rust) is faster but only works on common platforms",
+        MltEncoderType.NATIVE.id())))
       .mltFsst(outputAdvanced.getBoolean("mlt_fsst", "use FSST encoding when tile format=MLT", mltAdvanced))
       .mltFastPfor(outputAdvanced.getBoolean("mlt_fastpfor", "use FastPFOR encoding when tile format=MLT", mltAdvanced))
       .mltTessellatePolygons(outputAdvanced.getBoolean(
         "mlt_tessellate_polygons",
-        "pre-triangulate polygons when tile format=MLT so that clients do not need to",
+        "pre-triangulate polygons when tile format=MLT so that clients do not need to, " +
+          "the java encoder also needs mlt_polygon_outline for valid tiles",
         false))
       .mltPolygonOutline(outputAdvanced.getBoolean(
         "mlt_polygon_outline",
-        "store polygon outlines together with pre-triangulated polygons",
+        "store polygon outlines together with pre-triangulated polygons when tile format=MLT, " +
+          "only used by the java encoder since the native encoder always stores them",
         false))
       .mltReorderFeature(outputAdvanced.getBoolean(
         "mlt_reorder_features",

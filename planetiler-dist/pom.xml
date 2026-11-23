@@ -98,6 +98,7 @@
             </labels>
             <mainClass>${mainClass}</mainClass>
             <jvmFlags>
+              <!-- mlt-ffi-java, jffi, sqlite-jdbc, zstd-jni, lz4-java and snappy-java all load native code -->
               <jvmFlag>--enable-native-access=ALL-UNNAMED</jvmFlag>
             </jvmFlags>
             <creationTime>${maven.build.timestamp}</creationTime>
