@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.ArgumentGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.util.BuildInfo;
@@ -73,12 +74,17 @@ public record TileArchiveMetadata(
   }
 
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerAttrStats.VectorLayer> vectorLayers) {
+    this(Options.read(profile, config), profile, config, vectorLayers);
+  }
+
+  private TileArchiveMetadata(Options text, Profile profile, PlanetilerConfig config,
+    List<LayerAttrStats.VectorLayer> vectorLayers) {
     this(
-      getString(config, NAME_KEY, profile.name()),
-      getString(config, DESCRIPTION_KEY, profile.description()),
-      getString(config, ATTRIBUTION_KEY, profile.attribution()),
-      getString(config, VERSION_KEY, profile.version()),
-      getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
+      text.name(),
+      text.description(),
+      text.attribution(),
+      text.version(),
+      text.type(),
       config.tileFormat(),
       config.bounds().latLon(),
       new Coordinate(
@@ -112,9 +118,32 @@ public record TileArchiveMetadata(
     return json == null ? null : json.vectorLayers;
   }
 
-  private static String getString(PlanetilerConfig config, String key, String fallback) {
-    return config.arguments()
-      .getString("archive_" + key + "|mbtiles_" + key, "'" + key + "' attribute for tileset metadata", fallback);
+  /**
+   * Reads the options that replace the profile's name, description, attribution, version and type, so that
+   * {@code --help} lists them before the metadata can be built (it needs the bounds of the input).
+   */
+  public static void readOptions(Profile profile, PlanetilerConfig config) {
+    Options.read(profile, config);
+  }
+
+  private record Options(String name, String description, String attribution, String version, String type) {
+
+    static Options read(Profile profile, PlanetilerConfig config) {
+      return new Options(
+        getString(config, NAME_KEY, profile.name()),
+        getString(config, DESCRIPTION_KEY, profile.description()),
+        getString(config, ATTRIBUTION_KEY, profile.attribution()),
+        getString(config, VERSION_KEY, profile.version()),
+        getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"));
+    }
+
+    private static String getString(PlanetilerConfig config, String key, String fallback) {
+      return config.arguments().getString(
+        ArgumentGroup.OUTPUT_ADVANCED,
+        "archive_" + key + "|mbtiles_" + key,
+        "'" + key + "' attribute for tileset metadata",
+        fallback);
+    }
   }
 
   private static Map<String, String> mapWithBuildInfo() {

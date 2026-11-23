@@ -42,7 +42,7 @@ public abstract class BaseSchemaValidator {
 
   protected BaseSchemaValidator(Arguments args, PrintStream output) {
     this(
-      args.getBoolean("watch", "Watch files for changes and re-run validation when schema or spec changes", false),
+      args.getBoolean("watch", "watch files for changes and re-run validation when schema or spec changes", false),
       output
     );
   }

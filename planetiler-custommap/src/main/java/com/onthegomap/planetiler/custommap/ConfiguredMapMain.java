@@ -27,7 +27,7 @@ public class ConfiguredMapMain {
 
     var schemaFile = arguments.getString(
       "schema",
-      "Location of YML-format schema definition file"
+      "location of YML-format schema definition file"
     );
 
     var path = Path.of(schemaFile);

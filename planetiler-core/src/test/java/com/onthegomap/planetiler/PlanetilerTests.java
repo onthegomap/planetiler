@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
+import com.onthegomap.planetiler.config.ArgumentHelp;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -3934,5 +3935,61 @@ class PlanetilerTests {
       .run();
 
     assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
+  }
+
+  @Test
+  void testHelp() {
+    var planetiler = Planetiler.create(Arguments.of())
+      .setProfile(runner -> {
+        runner.arguments().getBoolean("water", "include water", true);
+        return new Profile.NullProfile() {
+          @Override
+          public String name() {
+            return "Test";
+          }
+
+          @Override
+          public String description() {
+            return "a test profile";
+          }
+        };
+      })
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
+      .addShapefileSource("water", Path.of("data", "sources", "water.zip"), "https://example.com/water.zip")
+      .setOutput(tempDir.resolve("output.pmtiles"));
+
+    String help = planetiler.help(false);
+    assertTrue(help.startsWith(ArgumentHelp.title() + "\n\n" + """
+      Test: a test profile
+
+      Build a region:
+        %s
+        %s
+
+      Usage: %s
+
+      Test options:
+        --water=<bool>  include water [default: true]
+
+      Input:
+      """.formatted(ArgumentHelp.planetilerCommand("--area=monaco --output=monaco.pmtiles"),
+      ArgumentHelp.planetilerCommand("--osm-path=my-region.osm.pbf --output=my-region.pmtiles"),
+      ArgumentHelp.planetilerCommand("[options]"))), help);
+    assertTrue(help.contains("Input:\n  --area=<name> "), help);
+    assertTrue(help.contains("  -o, --output=<file> "), help);
+    assertTrue(help.contains("""
+
+        Sources  default path                 downloaded from
+          osm    %-29sgeofabrik:monaco
+          water  %-29sexample.com
+      """.formatted(Path.of("data", "sources", "monaco.osm.pbf"), Path.of("data", "sources", "water.zip"))), help);
+    assertTrue(help.contains("\nOutput:\n"), help);
+    assertTrue(help.contains("\nProcessing:\n"), help);
+    assertFalse(help.contains("--water-path"), help);
+    assertTrue(help.endsWith("\nShow all options with --help-all\n"), help);
+
+    String helpAll = planetiler.help(true);
+    assertTrue(helpAll.contains("\nSources:\n"), helpAll);
+    assertTrue(helpAll.contains("  --water-path=<file> "), helpAll);
   }
 }

@@ -26,6 +26,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,24 +101,52 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   private final LongSupplier bytesWritten;
 
-  private Mbtiles(Connection connection, Arguments arguments, LongSupplier bytesWritten) {
+  private Mbtiles(Connection connection, Options options, LongSupplier bytesWritten) {
     this.connection = connection;
-    this.compactDb = arguments.getBoolean(
-      COMPACT_DB + "|" + LEGACY_COMPACT_DB,
-      "mbtiles: reduce the DB size by separating and deduping the tile data",
-      true
-    );
-    this.skipIndexCreation = arguments.getBoolean(
-      SKIP_INDEX_CREATION + "|" + LEGACY_SKIP_INDEX_CREATION,
-      "mbtiles: skip adding index to sqlite DB",
-      false
-    );
-    this.vacuumAnalyze = arguments.getBoolean(
-      VACUUM_ANALYZE + "|" + LEGACY_VACUUM_ANALYZE,
-      "mbtiles: vacuum analyze sqlite DB after writing",
-      false
-    );
+    this.compactDb = options.compactDb();
+    this.skipIndexCreation = options.skipIndexCreation();
+    this.vacuumAnalyze = options.vacuumAnalyze();
     this.bytesWritten = bytesWritten;
+  }
+
+  /**
+   * The options of an mbtiles file.
+   *
+   * @param compactDb         separate and dedupe the tile data
+   * @param skipIndexCreation skip adding the index
+   * @param vacuumAnalyze     vacuum analyze after writing
+   * @param pragmas           custom sqlite pragmas, by name
+   */
+  public record Options(boolean compactDb, boolean skipIndexCreation, boolean vacuumAnalyze,
+    Map<SQLiteConfig.Pragma, String> pragmas) {
+
+    /** Reads the options from {@code arguments}, which can also set any sqlite pragma (not listed in help). */
+    public static Options from(Arguments arguments) {
+      boolean compactDb = arguments.getBoolean(
+        COMPACT_DB + "|" + LEGACY_COMPACT_DB,
+        "mbtiles: reduce the DB size by separating and deduping the tile data",
+        true
+      );
+      boolean skipIndexCreation = arguments.getBoolean(
+        SKIP_INDEX_CREATION + "|" + LEGACY_SKIP_INDEX_CREATION,
+        "mbtiles: skip adding index to sqlite DB",
+        false
+      );
+      boolean vacuumAnalyze = arguments.getBoolean(
+        VACUUM_ANALYZE + "|" + LEGACY_VACUUM_ANALYZE,
+        "mbtiles: vacuum analyze sqlite DB after writing",
+        false
+      );
+      Map<SQLiteConfig.Pragma, String> pragmas = new EnumMap<>(SQLiteConfig.Pragma.class);
+      var silent = arguments.copy().silence();
+      for (var pragma : SQLiteConfig.Pragma.values()) {
+        var value = silent.getString(pragma.getPragmaName(), pragma.getPragmaName(), null);
+        if (value != null) {
+          pragmas.put(pragma, value);
+        }
+      }
+      return new Options(compactDb, skipIndexCreation, vacuumAnalyze, pragmas);
+    }
   }
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
@@ -129,7 +158,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   public static Mbtiles newInMemoryDatabase(Arguments options) {
     SQLiteConfig config = new SQLiteConfig();
     config.setApplicationId(MBTILES_APPLICATION_ID);
-    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options, () -> 0);
+    var mbtilesOptions = Options.from(options);
+    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, mbtilesOptions), mbtilesOptions, () -> 0);
   }
 
   /** Alias for {@link #newInMemoryDatabase(boolean)} */
@@ -150,8 +180,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     sqliteConfig.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
     sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
     sqliteConfig.setApplicationId(MBTILES_APPLICATION_ID);
-    var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
-    return new Mbtiles(connection, options, () -> FileUtils.size(path));
+    var mbtilesOptions = Options.from(options);
+    var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, mbtilesOptions);
+    return new Mbtiles(connection, mbtilesOptions, () -> FileUtils.size(path));
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
@@ -172,21 +203,18 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     config.setPageSize(32_768);
     // helps with 3 or more threads concurrently accessing:
     // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
-    Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, options);
-    return new Mbtiles(connection, options, () -> 0);
+    var mbtilesOptions = Options.from(options);
+    Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, mbtilesOptions);
+    return new Mbtiles(connection, mbtilesOptions, () -> 0);
   }
 
-  private static Connection newConnection(String url, SQLiteConfig defaults, Arguments args) {
+  private static Connection newConnection(String url, SQLiteConfig defaults, Options options) {
     try {
-      args = args.copy().silence();
       var config = new SQLiteConfig(defaults.toProperties());
-      for (var pragma : SQLiteConfig.Pragma.values()) {
-        var value = args.getString(pragma.getPragmaName(), pragma.getPragmaName(), null);
-        if (value != null) {
-          LOGGER.info("Setting custom mbtiles sqlite pragma {}={}", pragma.getPragmaName(), value);
-          config.setPragma(pragma, value);
-        }
-      }
+      options.pragmas().forEach((pragma, value) -> {
+        LOGGER.info("Setting custom mbtiles sqlite pragma {}={}", pragma.getPragmaName(), value);
+        config.setPragma(pragma, value);
+      });
       return DriverManager.getConnection(url, config.toProperties());
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + url, throwables);
