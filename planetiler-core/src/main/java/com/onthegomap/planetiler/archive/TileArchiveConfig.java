@@ -218,7 +218,7 @@ public record TileArchiveConfig(
    * URI, or from {@code arguments} prefixed by {@code "format_"}.
    */
   public Arguments applyFallbacks(Arguments arguments) {
-    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
+    return arguments.withPrefix(format.id).withOverrides(options, "output URI");
   }
 
   public Path getPathForMultiThreadedWriter(int index) {

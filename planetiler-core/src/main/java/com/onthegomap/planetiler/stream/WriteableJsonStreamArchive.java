@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
@@ -51,9 +52,31 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
 
   private WriteableJsonStreamArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
-    this.writeTilesOnly = config.moreOptions().getBoolean(OPTION_WRITE_TILES_ONLY, "write tiles, only", false);
-    this.rootValueSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
-      OPTION_ROOT_VALUE_SEPARATOR, "root value separator", "'\\n'", List.of("\n", " "));
+    var options = Options.from(config.moreOptions());
+    this.writeTilesOnly = options.writeTilesOnly();
+    this.rootValueSeparator = options.rootValueSeparator();
+  }
+
+  /**
+   * The options of a JSON archive.
+   *
+   * @param writeTilesOnly     write only the tiles, not the metadata
+   * @param rootValueSeparator what goes between the JSON values
+   */
+  public record Options(boolean writeTilesOnly, String rootValueSeparator) {
+
+    /** Reads the options from {@code options}. */
+    public static Options from(Arguments options) {
+      return new Options(
+        options.getBoolean(OPTION_WRITE_TILES_ONLY, "write tiles, only", false),
+        StreamArchiveUtils.getEscapedString(
+          options,
+          TileArchiveConfig.Format.JSON,
+          OPTION_ROOT_VALUE_SEPARATOR,
+          "root value separator",
+          "'\\n'",
+          List.of("\n", " ")));
+    }
   }
 
   public static WriteableJsonStreamArchive newWriteToFile(Path path, StreamArchiveConfig config) {

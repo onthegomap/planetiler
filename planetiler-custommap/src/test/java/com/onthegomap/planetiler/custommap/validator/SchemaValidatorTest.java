@@ -60,7 +60,7 @@ class SchemaValidatorTest {
       var baos = new ByteArrayOutputStream();
       var printStream = new PrintStream(baos, true, StandardCharsets.UTF_8)
     ) {
-      new SchemaValidator(Arguments.of(), path.toString(), printStream).validateFromCli();
+      new SchemaValidator(Arguments.of("schema", path), printStream).validateFromCli();
       return baos.toString(StandardCharsets.UTF_8);
     } catch (IOException e) {
       throw new UncheckedIOException(e);

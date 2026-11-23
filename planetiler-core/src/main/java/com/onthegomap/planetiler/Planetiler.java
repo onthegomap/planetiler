@@ -10,7 +10,10 @@ import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
+import com.onthegomap.planetiler.config.ArgumentGroup;
+import com.onthegomap.planetiler.config.ArgumentHelp;
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.HelpPage;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
@@ -55,6 +58,8 @@ import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,6 +126,9 @@ public class Planetiler {
   private final List<InputPath> inputPaths = new ArrayList<>();
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
+  private final Arguments sourceArgs;
+  private final Map<String, Source> sourcesForHelp = new LinkedHashMap<>();
+  private String areaSourceName = null;
   private final Stats stats;
   private final Path tmpDir;
   private final Path nodeDbPath;
@@ -164,6 +172,9 @@ public class Planetiler {
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
+    this.sourceArgs = arguments.withGroup(ArgumentGroup.SOURCES);
+    var inputArgs = arguments.withGroup(ArgumentGroup.INPUT);
+    var processingArgs = arguments.withGroup(ArgumentGroup.PROCESSING_ADVANCED);
     stats = arguments.getStats();
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
@@ -171,23 +182,30 @@ public class Planetiler {
       AnsiColors.setUseColors(config.color());
     }
     tmpDir = config.tmpDir();
-    onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
-    onlyRunTests = arguments.file("tests", "run test cases in a yaml then quit", null);
-    downloadMode = DownloadMode.parse(arguments.getString("download",
-      "download missing sources: false, cached (same as true), streaming or full", "false"));
+    onlyDownloadSources = inputArgs.getBoolean("only_download", "download the sources then exit", false);
+    onlyRunTests = arguments.file(ArgumentGroup.DEBUGGING, "tests", "run test cases in a yaml then quit", null);
+    downloadMode = DownloadMode.parse(inputArgs.getString(
+      "download",
+      "download missing sources: false, cached (same as true), streaming or full",
+      "false"));
     downloadSources = onlyDownloadSources || downloadMode.enabled();
     refreshSources =
-      arguments.getBoolean("refresh_sources", "download new version of source files if they have changed", false);
-    fetchOsmTileStats =
-      arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", downloadSources);
-    nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
+      inputArgs.getBoolean("refresh_sources", "download sources again if the remote copy changed", false);
+    fetchOsmTileStats = arguments.getBoolean(
+      ArgumentGroup.DOWNLOADS,
+      "download_osm_tile_weights",
+      "download OSM tile weights file",
+      downloadSources);
+    nodeDbPath = processingArgs.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
     multipolygonPath =
-      arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
-    featureDbPath = arguments.file("temp_features", "temp feature db location", tmpDir.resolve("feature.db"));
+      processingArgs.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
+    featureDbPath = processingArgs.file("temp_features", "temp feature db location", tmpDir.resolve("feature.db"));
     parseNodeBounds =
-      arguments.getBoolean("osm_parse_node_bounds", "parse bounds from OSM nodes instead of header", false);
-    readSourcesSequentially = arguments.getBoolean("read_sources_sequentially",
-      "read each source in its own stage even if the profile reads sources together", false);
+      sourceArgs.getBoolean("osm_parse_node_bounds", "parse bounds from OSM nodes instead of header", false);
+    readSourcesSequentially = inputArgs.getBoolean(
+      "read_sources_sequentially",
+      "read each source in its own stage even if the profile reads sources together",
+      false);
   }
 
   /** Returns a new empty runner that will get configuration from {@code arguments}. */
@@ -214,8 +232,8 @@ public class Planetiler {
 
   /**
    * Adds a new {@code .osm.pbf} source for the extract named by the {@code area} argument (default
-   * {@code defaultArea}), like {@link #addOsmSource(String, Path, String)}: {@code downloadDir/<area>.osm.pbf} downloaded
-   * from <a href="https://download.geofabrik.de/">Geofabrik</a>, or the latest planet from the
+   * {@code defaultArea}), like {@link #addOsmSource(String, Path, String)}: {@code downloadDir/<area>.osm.pbf}
+   * downloaded from <a href="https://download.geofabrik.de/">Geofabrik</a>, or the latest planet from the
    * <a href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a> for {@code area=planet}.
    * <p>
    * A {@code name_path} that doesn't exist only gets the extract downloaded into it if {@code area} is set too, and
@@ -227,9 +245,13 @@ public class Planetiler {
    * @return this runner instance for chaining
    */
   public Planetiler addOsmSourceForArea(String name, Path downloadDir, String defaultArea) {
+    areaSourceName = name;
     boolean areaIsExplicit = arguments.contains("area");
-    String area = arguments.getString("area", "name of the extract to download if " + name + "_path or " + name +
-      "_url are not set (e.g. 'monaco', 'rhode island', 'australia' or 'planet')", defaultArea);
+    String area = arguments.getString(
+      ArgumentGroup.INPUT,
+      "area=<name>",
+      "region to build: monaco, massachusetts, germany, planet, ... (downloaded if missing)",
+      defaultArea);
     Path path = downloadDir.resolve(area.replaceAll("[^a-zA-Z]+", "_") + ".osm.pbf");
     String url = "planet".equalsIgnoreCase(area) ? "aws:latest" : "geofabrik:" + area;
     return addOsmSource(name, path, url, areaIsExplicit);
@@ -389,17 +411,26 @@ public class Planetiler {
   public Planetiler addShapefileMultiUrlSource(String name, Path defaultDirectory, List<String> defaultUrls,
     ShapefileOptions options) {
     String argPrefix = "--" + name.replace('_', '-');
-    Path path = arguments.file(name + "_path",
-      name + " shapefile directory, or a .zip file containing all the shapefiles", defaultDirectory);
+    Path path = sourceArgs.file(
+      name + "_path",
+      name + " shapefile directory, or a .zip file containing all the shapefiles",
+      defaultDirectory);
     // the URLs name the local files, so they're needed even when not downloading
-    List<String> urls = arguments.getList(name + "_urls", name + " shapefile urls", defaultUrls);
-    if (arguments.getString(name + "_url", "not supported for " + name + ", use " + name + "_urls", null) != null) {
+    List<String> urls = sourceArgs.getList(name + "_urls", name + " shapefile urls", defaultUrls);
+    registerSource(name, defaultDirectory,
+      defaultUrls.isEmpty() ? "" : defaultUrls.size() + " files from " + host(defaultUrls.getFirst()));
+    if (sourceArgs.getString(
+      name + "_url",
+      "not supported for " + name + ", use " + name + "_urls",
+      null) != null) {
       throw new IllegalArgumentException(argPrefix + "-url is not supported since " + name + " reads " + urls.size() +
         " files, set " + argPrefix + "-urls (comma separated) or " + argPrefix +
         "-path to a .zip file containing all the shapefiles instead");
     }
-    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
-      "delete " + name + " input files after reading to make space for output (reduces peak disk usage)", false);
+    boolean freeAfterReading = sourceArgs.getBoolean(
+      "free_" + name + "_after_read",
+      "delete " + name + " input files after reading to make space for output (reduces peak disk usage)",
+      false);
     if (Files.isRegularFile(path)) {
       // select the shapefiles now so a file without them fails before any download
       List<Path> shapefiles = findShapefilesMatchingUrls(path, urls, options.globPattern(), argPrefix);
@@ -700,8 +731,10 @@ public class Planetiler {
   private Planetiler addParquetSource(String name, List<Path> base, Supplier<List<Path>> paths,
     boolean hivePartitioning, Function<Map<String, Object>, Object> getId,
     Function<Map<String, Object>, Object> getLayer, Supplier<CompletableFuture<Void>> download, String defaultUrl) {
-    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
-      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
+    boolean freeAfterReading = sourceArgs.getBoolean(
+      "free_" + name + "_after_read",
+      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)",
+      false);
     var separator = Pattern.quote(base.isEmpty() ? "/" : base.getFirst().getFileSystem().getSeparator());
     String prefix = StringUtils.getCommonPrefix(base.stream().map(Path::toString).toArray(String[]::new))
       .replaceAll(separator + "[^" + separator + "]*$", "");
@@ -775,9 +808,13 @@ public class Planetiler {
    * Overture sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
    */
   public Planetiler addOvertureSource(String name, String theme, String type, Path rootPath) {
-    Path downloadDir = arguments.file(name + "_path", name + " overture download directory", rootPath);
+    Path downloadDir = sourceArgs.file(name + "_path", name + " overture download directory", rootPath);
+    registerSource(name, rootPath, "Overture");
     boolean refresh = refreshSource(name);
-    String catalogUrl = arguments.getString("overture_catalog_url", "Overture STAC catalog to find files in",
+    String catalogUrl = arguments.getString(
+      ArgumentGroup.DOWNLOADS,
+      "overture_catalog_url",
+      "Overture STAC catalog to find files in",
       OvertureStac.DEFAULT_CATALOG_URL);
     DownloadMode mode = downloadMode(name);
     Path typeDir = downloadDir.resolve("theme=" + theme).resolve("type=" + type);
@@ -847,11 +884,15 @@ public class Planetiler {
   }
 
   private boolean refreshSource(String name) {
-    return arguments.getBoolean("refresh_" + name, "Download new version of " + name + " if changed", refreshSources);
+    return sourceArgs.getBoolean(
+      "refresh_" + name,
+      "download new version of " + name + " if changed",
+      refreshSources);
   }
 
   private DownloadMode downloadMode(String name) {
-    var mode = DownloadMode.parse(arguments.getString("download_" + name,
+    var mode = DownloadMode.parse(sourceArgs.getString(
+      "download_" + name,
       "how to download " + name + ": false, cached (same as true), streaming or full",
       downloadMode.name().toLowerCase(Locale.ROOT)));
     // only_download is for running offline later, which needs whole files (unless explicitly marked as streaming)
@@ -943,26 +984,33 @@ public class Planetiler {
    * @see Wikidata
    */
   public Planetiler fetchWikidataNameTranslations(Path defaultWikidataCache) {
-    onlyFetchWikidata = arguments
+    var args = arguments.withGroup(ArgumentGroup.WIKIDATA);
+    onlyFetchWikidata = args
       .getBoolean("only_fetch_wikidata", "fetch wikidata translations then quit", onlyFetchWikidata);
     fetchWikidata =
-      onlyFetchWikidata || arguments.getBoolean("fetch_wikidata", "fetch wikidata translations then continue",
+      onlyFetchWikidata || args.getBoolean(
+        "fetch_wikidata",
+        "fetch wikidata translations then continue",
         fetchWikidata);
-    useWikidata = fetchWikidata || arguments.getBoolean("use_wikidata", "use wikidata translations", true);
-    wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
-    wikidataMaxAge =
-      arguments.getDuration("wikidata_max_age",
-        "Maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)", "0s");
-    wikidataUpdateLimit = arguments.getInteger("wikidata_update_limit",
-      "Limit on how many old translations to update during one download (0 = disabled)", 0);
+    useWikidata = fetchWikidata || args.getBoolean("use_wikidata", "use wikidata translations", true);
+    wikidataNamesFile = args.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
+    wikidataMaxAge = args.getDuration(
+      "wikidata_max_age",
+      "maximum age of Wikidata translations (in ISO-8601 duration format PnDTnHnMn.nS; 0S = disabled)",
+      "0s");
+    wikidataUpdateLimit = args.getInteger(
+      "wikidata_update_limit",
+      "limit on how many old translations to update during one download (0 = disabled)",
+      0);
     return this;
   }
 
   public Translations translations() {
     if (translations == null) {
-      boolean transliterate = arguments.getBoolean("transliterate", "attempt to transliterate latin names", false);
+      boolean transliterate =
+        arguments.getBoolean("transliterate", "transliterate names to latin script when there is no latin name", false);
       List<String> languages = arguments.getList("languages",
-        "Languages to include labels for. \"default\" expands to the default set of languages configured by the profile. \"-lang\" excludes \"lang\". \"*\" includes every language not listed.",
+        "languages to include labels for; \"default\", \"-xx\" to leave one out, \"*\" for every language",
         this.defaultLanguages);
       if (languages.contains("default")) {
         languages = Stream.concat(
@@ -986,8 +1034,10 @@ public class Planetiler {
   }
 
   private boolean getKeepUnzipped(String name) {
-    return arguments.getBoolean(name + "_keep_unzipped",
-      "keep unzipped " + name + " after reading", config.keepUnzippedSources());
+    return sourceArgs.getBoolean(
+      name + "_keep_unzipped",
+      "keep unzipped " + name + " after reading",
+      config.keepUnzippedSources());
   }
 
   /** Sets the profile implementation that controls how source feature map to output map elements. */
@@ -1015,7 +1065,9 @@ public class Planetiler {
   public Planetiler setOutput(String argument, Path fallback) {
     this.output =
       TileArchiveConfig
-        .from(arguments.getString("output|" + argument, "output tile archive path", fallback.toString()));
+        .from(arguments.withGroup(ArgumentGroup.OUTPUT)
+          .getString("output=<file>|" + argument + "|-o", ".pmtiles, .mbtiles, or a directory of tiles",
+            fallback.toString()));
     return this;
   }
 
@@ -1030,7 +1082,8 @@ public class Planetiler {
    * @see TileArchiveConfig For details on URI string formats and options.
    */
   public Planetiler setOutput(String defaultOutputUri) {
-    this.output = TileArchiveConfig.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
+    this.output = TileArchiveConfig.from(arguments.withGroup(ArgumentGroup.OUTPUT)
+      .getString("output=<file>|-o", ".pmtiles, .mbtiles, or a directory of tiles", defaultOutputUri));
     return this;
   }
 
@@ -1080,12 +1133,38 @@ public class Planetiler {
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
    */
+  @SuppressWarnings("java:S106")
   public void run() {
-    var showVersion = arguments.getBoolean("version", "show version then exit", false);
+    var showVersion = arguments.getBoolean(ArgumentGroup.OTHER, "version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (showVersion) {
       System.out.println(buildInfo == null ? "planetiler (unknown version)" : buildInfo.versionLine());
       System.exit(0);
+    }
+    boolean verbose = arguments.getBoolean(
+      ArgumentGroup.LOGGING,
+      "verbose",
+      "show option values and where each came from, and stack traces for errors",
+      false);
+    // creates the profile, so the options it reads show up in the help and option list
+    profile();
+    Path layerStatsPath = arguments.file(
+      ArgumentGroup.OUTPUT_ADVANCED,
+      "layer_stats",
+      "layer stats output path",
+      // default to <output file>.layerstats.tsv.gz
+      TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output)
+        .map(TileArchiveConfig::getLocalPath)
+        .orElse(Path.of("output"))));
+    if (output != null && profile() != null) {
+      // the archive and its metadata read their options when they're created, after the sources are read
+      TileArchiveMetadata.readOptions(profile(), config);
+      TileArchives.parseWriterOptions(output, config);
+    }
+    arguments.printHelpOrCheckOptions(this::help);
+    if (verbose) {
+      System.out.println(ArgumentHelp.verboseList(arguments.options(), profileName() + " options"));
+      arguments.logOptionsReadFromNowOn();
     }
     if (buildInfo != null && LOGGER.isInfoEnabled()) {
       LOGGER.info("Planetiler build git hash: {}", buildInfo.githash());
@@ -1106,9 +1185,7 @@ public class Planetiler {
     }
     ran = true;
 
-    if (arguments.getBoolean("help", "show arguments then exit", false)) {
-      System.exit(0);
-    } else if (onlyRunTests != null) {
+    if (onlyRunTests != null) {
       boolean success = JavaProfileValidator.validate(profile(), onlyRunTests, config());
       System.exit(success ? 0 : 1);
     } else if (onlyDownloadSources) {
@@ -1127,9 +1204,6 @@ public class Planetiler {
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
 
-    Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
-      // default to <output file>.layerstats.tsv.gz
-      TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
 
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");
@@ -1570,8 +1644,10 @@ public class Planetiler {
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
     var source = sourceArgs(name, type, defaultPath, defaultUrl);
-    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
-      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
+    boolean freeAfterReading = sourceArgs.getBoolean(
+      "free_" + name + "_after_read",
+      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)",
+      false);
     addDownload(source);
     inputPaths.add(new InputPath(name, source.path(), freeAfterReading, false));
     return source.path();
@@ -1579,11 +1655,13 @@ public class Planetiler {
 
   /** Reads the arguments of a source with a local path and a download URL, each once so each gets logged once. */
   private SourceArgs sourceArgs(String name, String type, Path defaultPath, String defaultUrl) {
-    Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
+    Path path = sourceArgs.file(name + "_path", name + " " + type + " path", defaultPath);
+    registerSource(name, defaultPath, defaultUrl == null ? "" : defaultUrl.startsWith("http") ? host(defaultUrl) :
+      defaultUrl);
     boolean refresh = refreshSource(name);
     DownloadMode mode = downloadMode(name);
     String url = mode.enabled() || refresh ?
-      arguments.getString(name + "_url", name + " " + type + " url", defaultUrl) : null;
+      sourceArgs.getString(name + "_url", name + " " + type + " url", defaultUrl) : null;
     return new SourceArgs(name, path, url, mode, refresh);
   }
 
@@ -1762,6 +1840,68 @@ public class Planetiler {
   }
 
   private record SourceArgs(String name, Path path, String url, DownloadMode mode, boolean refresh) {}
+
+  private void registerSource(String name, Path defaultPath, String downloadedFrom) {
+    sourcesForHelp.putIfAbsent(name, new Source(name, defaultPath, downloadedFrom));
+  }
+
+  private static String host(String url) {
+    try {
+      String host = new URI(url).getHost();
+      return host == null ? url : host;
+    } catch (URISyntaxException _) {
+      // only shown in --help, so it must never fail a run
+      return url;
+    }
+  }
+
+  /** Returns the text {@code --help} prints: the profile, examples, its options, sources, then core's options. */
+  String help(boolean all) {
+    String description = profile() == null ? null : profile().description();
+    var page = HelpPage.create()
+      .line(ArgumentHelp.title())
+      .line()
+      .line(profileName() + (description == null ? "" : ": " + description));
+    if (areaSourceName != null) {
+      String pathOption = "--" + areaSourceName.replace('_', '-') + "-path";
+      page.section("Build a region")
+        .planetilerCommand("--area=monaco --output=monaco.pmtiles")
+        .planetilerCommand(pathOption + "=my-region.osm.pbf --output=my-region.pmtiles");
+    }
+    return page.line()
+      .usage("[options]")
+      .append(ArgumentHelp.options(
+        arguments.options(),
+        profileName() + " options",
+        Map.of(ArgumentGroup.INPUT, sourcesHelp(sourcesForHelp.values())),
+        all))
+      .render();
+  }
+
+  private record Source(String name, Path defaultPath, String downloadedFrom) {}
+
+  private static HelpPage sourcesHelp(Collection<Source> sources) {
+    var page = HelpPage.create();
+    if (sources.isEmpty()) {
+      return page;
+    }
+    page.line().row("Sources", "default path", "downloaded from");
+    for (var source : sources) {
+      page.row("  " + source.name(), source.defaultPath().toString(), source.downloadedFrom());
+    }
+    return page.line()
+      .line("  Each source can also be set on its own:")
+      .table(4)
+      .row("--<source>-path=<file>", "local file")
+      .row("--<source>-url=<url>", "where to download it")
+      .row("--refresh-<source>", "re-download if changed")
+      .row("--download-<source>=<mode>", "override --download for a single source")
+      .row("--free-<source>-after-read", "delete the file after reading it, to save disk");
+  }
+
+  private String profileName() {
+    return profile() == null ? "Planetiler" : profile().name();
+  }
 
   /** An exception that occurs while running planetiler. */
   public static class PlanetilerException extends RuntimeException {
