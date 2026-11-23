@@ -8,11 +8,13 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
 import com.onthegomap.planetiler.util.Parse;
+import io.soabase.recordbuilder.core.RecordBuilder;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Holder for common parameters used by many components in planetiler.
  */
+@RecordBuilder
+@RecordBuilder.Options(builderMode = RecordBuilder.BuilderMode.STAGED)
 public record PlanetilerConfig(
   Arguments arguments,
   Bounds bounds,
@@ -133,32 +137,45 @@ public record PlanetilerConfig(
   }
 
   public static PlanetilerConfig from(Arguments arguments) {
+    var input = arguments.withGroup(ArgumentGroup.INPUT);
+    var output = arguments.withGroup(ArgumentGroup.OUTPUT);
+    var outputAdvanced = arguments.withGroup(ArgumentGroup.OUTPUT_ADVANCED);
+    var processing = arguments.withGroup(ArgumentGroup.PROCESSING);
+    var processingAdvanced = arguments.withGroup(ArgumentGroup.PROCESSING_ADVANCED);
+    var logging = arguments.withGroup(ArgumentGroup.LOGGING);
+    var downloads = arguments.withGroup(ArgumentGroup.DOWNLOADS);
+    var debugging = arguments.withGroup(ArgumentGroup.DEBUGGING);
     // use --madvise and --storage options as default for temp storage, but allow users to override them explicitly for
     // multipolygon geometries or node locations
-    boolean defaultMadvise =
-      arguments.getBoolean("madvise",
-        "default value for whether to use linux madvise(random) to improve memory-mapped read performance for temporary storage",
-        true);
+    boolean defaultMadvise = processingAdvanced.getBoolean(
+      "madvise",
+      "default value for whether to use linux madvise(random) to improve memory-mapped read performance for temporary storage",
+      true);
     // nodemap_storage was previously the only option, so if that's set make it the default
     String fallbackTempStorage = arguments.getArg("nodemap_storage", Storage.MMAP.id());
-    String defaultTempStorage = arguments.getString("storage",
-      "default storage type for temporary data, one of " + Stream.of(Storage.values()).map(
-        Storage::id).toList(),
+    String defaultTempStorage = processing.getString(
+      "storage",
+      "temporary data storage: " + Stream.of(Storage.values()).map(Storage::id)
+        .collect(Collectors.joining(", ")),
       fallbackTempStorage);
-    boolean parallelTempIO = arguments.getBoolean("parallel_tmp_io",
-      "Use unlimited parallelism reading/writing temp files (ie. if using tmpfs or ramfs for temp storage)",
+    boolean parallelTempIO = processingAdvanced.getBoolean(
+      "parallel_tmp_io",
+      "use unlimited parallelism reading/writing temp files (ie. if using tmpfs or ramfs for temp storage)",
       false);
-    int threads = arguments.threads();
-    int featureWriteThreads =
-      arguments.getInteger("write_threads", "number of threads to use when writing temp features",
-        // defaults: <48 cpus=1 writer, 48-80=2 writers, 80-112=3 writers, 112-144=4 writers, ...
-        parallelTempIO ? 1 : Math.max(1, (threads - 16) / 32 + 1));
-    int featureProcessThreads =
-      arguments.getInteger("process_threads", "number of threads to use when processing input features",
-        Math.max(threads < 8 ? threads : (threads - featureWriteThreads), 1));
-    Bounds bounds = new Bounds(arguments.bounds("bounds", "bounds"));
+    int threads = processing.threads();
+    int featureWriteThreads = processingAdvanced.getInteger(
+      "write_threads",
+      "number of threads to use when writing temp features",
+      // defaults: <48 cpus=1 writer, 48-80=2 writers, 80-112=3 writers, 112-144=4 writers, ...
+      parallelTempIO ? 1 : Math.max(1, (threads - 16) / 32 + 1));
+    int featureProcessThreads = processingAdvanced.getInteger(
+      "process_threads",
+      "number of threads to use when processing input features",
+      Math.max(threads < 8 ? threads : (threads - featureWriteThreads), 1));
+    Bounds bounds =
+      new Bounds(input.bounds("bounds", "only build tiles inside these bounds (default: the input's bounds)"));
     Path polygonFile =
-      arguments.file("polygon", "a .poly file that limits output to tiles intersecting the shape", null);
+      input.file("polygon", "only build tiles touching the shape in this .poly file", null);
     if (polygonFile != null) {
       try {
         bounds.setShape(PolyFileReader.parsePolyFile(polygonFile));
@@ -167,150 +184,213 @@ public record PlanetilerConfig(
       }
     }
 
-    int minzoom = arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM);
-    int maxzoom = arguments.getInteger("maxzoom", "maximum zoom level up to " + MAX_MAXZOOM, DEFAULT_MAXZOOM);
-    int renderMaxzoom =
-      arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
-        Math.max(maxzoom, DEFAULT_MAXZOOM));
-    Path tmpDir = arguments.file("tmpdir|tmp", "temp directory", Path.of("data", "tmp"));
-    List<String> extraNameTags = arguments.getList("extra_name_tags", "Extra name tags to copy from OSM to output",
+    int minzoom = output.getInteger("minzoom", "lowest zoom level", MIN_MINZOOM);
+    int maxzoom = output.getInteger("maxzoom", "highest zoom level, up to " + MAX_MAXZOOM, DEFAULT_MAXZOOM);
+    int renderMaxzoom = outputAdvanced.getInteger(
+      "render_maxzoom",
+      "maximum rendering zoom level up to " + MAX_MAXZOOM,
+      Math.max(maxzoom, DEFAULT_MAXZOOM));
+    Path tmpDir = processing.file("tmpdir|tmp", "temporary files, deleted at the end", Path.of("data", "tmp"));
+    List<String> extraNameTags = outputAdvanced.getList(
+      "extra_name_tags",
+      "extra name tags to copy from OSM to output",
       List.of());
 
     boolean mltAdvanced =
-      arguments.getBoolean("mlt_advanced", "Use FSST and FastPFOR encoding schemes when tile format=MLT", false);
+      outputAdvanced.getBoolean("mlt_advanced", "use FSST and FastPFOR encoding schemes when tile format=MLT", false);
 
-    return new PlanetilerConfig(
-      arguments,
-      bounds,
-      threads,
-      featureWriteThreads,
-      featureProcessThreads,
-      arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
-        threads < 32 ? 1 : 2),
-      arguments.getInteger("tile_write_threads",
+    return PlanetilerConfigBuilder.builder()
+      .arguments(arguments)
+      .bounds(bounds)
+      .threads(threads)
+      .featureWriteThreads(featureWriteThreads)
+      .featureProcessThreads(featureProcessThreads)
+      .featureReadThreads(processingAdvanced.getInteger(
+        "feature_read_threads",
+        "number of threads to use when reading features at tile write time",
+        threads < 32 ? 1 : 2))
+      .tileWriteThreads(processingAdvanced.getInteger(
+        "tile_write_threads",
         "number of threads used to write tiles - only supported by " + Stream.of(TileArchiveConfig.Format.values())
           .filter(TileArchiveConfig.Format::supportsConcurrentWrites).map(TileArchiveConfig.Format::id).toList(),
-        1),
-      arguments.getDuration("loginterval", "time between logs", "10s"),
-      minzoom,
-      maxzoom,
-      renderMaxzoom,
-      arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
-      arguments.getBoolean("append",
+        1))
+      .logInterval(logging.getDuration("loginterval", "time between progress lines", "10s"))
+      .minzoom(minzoom)
+      .maxzoom(maxzoom)
+      .maxzoomForRendering(renderMaxzoom)
+      .force(output.getBoolean("force|-f", "overwrite the output and skip resource checks", false))
+      .append(outputAdvanced.getBoolean(
+        "append",
         "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
           .filter(TileArchiveConfig.Format::supportsAppend).map(TileArchiveConfig.Format::id).toList(),
-        false),
-      arguments.getBoolean("compress_temp|gzip_temp",
-        "compress temporary feature storage (uses more CPU, but less disk space)", false),
-      arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
-      arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
-        parallelTempIO ? featureProcessThreads : 6),
-      arguments.getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks",
-        parallelTempIO ? featureProcessThreads : 6),
-      arguments
-        .getString("nodemap_type", "type of node location map, one of " + Stream.of(LongLongMap.Type.values()).map(
-          t -> t.id()).toList(), LongLongMap.Type.SPARSE_ARRAY.id()),
-      arguments.getString("nodemap_storage", "storage for node location map, one of " + Stream.of(Storage.values()).map(
-        Storage::id).toList(), defaultTempStorage),
-      arguments.getBoolean("nodemap_madvise", "use linux madvise(random) for node locations", defaultMadvise),
-      arguments.getString("multipolygon_geometry_storage",
+        false))
+      .compressTempStorage(processing.getBoolean(
+        "compress_temp|gzip_temp",
+        "compress temporary features (less disk, more CPU)",
+        false))
+      .mmapTempStorage(processingAdvanced.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true))
+      .sortMaxReaders(processingAdvanced.getInteger(
+        "sort_max_readers",
+        "maximum number of concurrent read threads to use when sorting chunks",
+        parallelTempIO ? featureProcessThreads : 6))
+      .sortMaxWriters(processingAdvanced.getInteger(
+        "sort_max_writers",
+        "maximum number of concurrent write threads to use when sorting chunks",
+        parallelTempIO ? featureProcessThreads : 6))
+      .nodeMapType(processing.getString(
+        "nodemap_type",
+        "node location index: " + Stream.of(LongLongMap.Type.values()).map(LongLongMap.Type::id)
+          .collect(Collectors.joining(", ")) + "; array for the planet",
+        LongLongMap.Type.SPARSE_ARRAY.id()))
+      .nodeMapStorage(processing.getString(
+        "nodemap_storage",
+        "node location index storage: " + Stream.of(Storage.values()).map(Storage::id)
+          .collect(Collectors.joining(", ")),
+        defaultTempStorage))
+      .nodeMapMadvise(processingAdvanced.getBoolean(
+        "nodemap_madvise",
+        "use linux madvise(random) for node locations",
+        defaultMadvise))
+      .multipolygonGeometryStorage(processingAdvanced.getString(
+        "multipolygon_geometry_storage",
         "storage for multipolygon geometries, one of " + Stream.of(Storage.values()).map(Storage::id).toList(),
-        defaultTempStorage),
-      arguments.getBoolean("multipolygon_geometry_madvise",
-        "use linux madvise(random) for temporary multipolygon geometry storage", defaultMadvise),
-      arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",
-        "Planetiler downloader (https://github.com/onthegomap/planetiler)"),
-      arguments.getDuration("http_timeout", "Timeout to use when downloading files over HTTP", "30s"),
-      arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 5),
-      arguments.getDuration("http_retry_wait", "How long to wait before retrying HTTP request", "5s"),
-      arguments.getDuration("http_retry_max_wait",
-        "Longest a server may make us wait (Retry-After) before retrying an HTTP request, longer waits get capped",
-        "5m"),
-      arguments.getLong("download_chunk_size_mb", "Largest HTTP request to make when downloading in megabytes", 100),
-      arguments.getInteger("download_threads",
-        "Number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)", 4),
-      Parse.bandwidth(arguments.getString("download_max_bandwidth",
-        "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
-      arguments.getInteger("download_max_requests",
-        "Maximum number of HTTP requests in flight at once across all downloads (at least download_threads)", 64),
-      arguments.getBoolean("download_fail_if_changed",
-        "Fail when the ETag or Last-Modified header of a remote file changes mid-download", true),
-      arguments.getDouble("min_feature_size_at_max_zoom",
-        "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
-        256d / 4096),
-      arguments.getDouble("min_feature_size",
-        "Default value for the minimum size in tile pixels of features to emit below the maximum zoom level",
-        1),
-      arguments.getDouble("simplify_tolerance_at_max_zoom",
-        "Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming",
-        256d / 4096),
-      arguments.getDouble("simplify_tolerance",
-        "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
-        0.1d),
-      arguments.getBoolean("osm_lazy_reads",
-        "Read OSM blocks from disk in worker threads",
-        true),
-      arguments.getBoolean("skip_filled_tiles",
-        "Skip writing tiles containing only polygon fills to the output",
-        false),
-      (int) (arguments.getDouble("tile_warning_size_mb",
-        "Maximum size in megabytes of a tile to emit a warning about",
-        1d) * 1024 * 1024),
-      arguments.getBooleanObject("color", "Color the terminal output"),
-      arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", false),
-      TileCompression
-        .fromId(arguments.getString("tile_compression",
-          "the tile compression, one of " +
-            TileCompression.availableValues().stream().map(TileCompression::id).toList(),
-          "gzip")),
-      TileFormat
-        .fromId(arguments.getString("tile_format",
-          "the tile format, one of " +
-            TileFormat.availableValues().stream().map(TileFormat::id).toList(),
-          "mvt")),
-      arguments.getBoolean("exclude_ids", "Exclude feature IDs from generated vector tiles", false),
-      MltEncoderType
-        .fromId(arguments.getString("mlt_encoder",
-          "the encoder to use when tile format=MLT, one of " +
-            MltEncoderType.ids() +
-            ", native (Rust) is faster but only works on common platforms",
-          MltEncoderType.NATIVE.id())),
-      arguments.getBoolean("mlt_fsst", "Use FSST encoding when tile format=MLT", mltAdvanced),
-      arguments.getBoolean("mlt_fastpfor", "Use FastPFOR encoding when tile format=MLT", mltAdvanced),
-      arguments.getBoolean("mlt_tessellate_polygons",
-        "Pre-triangulate polygons when tile format=MLT so that clients do not need to, " +
+        defaultTempStorage))
+      .multipolygonGeometryMadvise(processingAdvanced.getBoolean(
+        "multipolygon_geometry_madvise",
+        "use linux madvise(random) for temporary multipolygon geometry storage",
+        defaultMadvise))
+      .httpUserAgent(downloads.getString(
+        "http_user_agent",
+        "user-Agent header to set when downloading files over HTTP",
+        "Planetiler downloader (https://github.com/onthegomap/planetiler)"))
+      .httpTimeout(downloads.getDuration("http_timeout", "timeout to use when downloading files over HTTP", "30s"))
+      .httpRetries(downloads.getInteger("http_retries", "retries to use when downloading files over HTTP", 5))
+      .httpRetryWait(downloads.getDuration("http_retry_wait", "how long to wait before retrying HTTP request", "5s"))
+      .httpRetryMaxWait(downloads.getDuration(
+        "http_retry_max_wait",
+        "longest a server may make us wait (Retry-After) before retrying an HTTP request, longer waits get capped",
+        "5m"))
+      .downloadChunkSizeMB(
+        downloads.getLong("download_chunk_size_mb", "largest HTTP request to make when downloading in megabytes", 100))
+      .downloadThreads(downloads.getInteger(
+        "download_threads",
+        "number of parallel requests to make to each remote file (up to 4x as many when reading part of a file)",
+        4))
+      .downloadMaxBandwidth(Parse.bandwidth(downloads.getString(
+        "download_max_bandwidth",
+        "maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.",
+        "")))
+      .downloadMaxRequests(downloads.getInteger(
+        "download_max_requests",
+        "maximum number of HTTP requests in flight at once across all downloads (at least download_threads)",
+        64))
+      .downloadFailIfChanged(downloads.getBoolean(
+        "download_fail_if_changed",
+        "fail when the ETag or Last-Modified header of a remote file changes mid-download",
+        true))
+      .minFeatureSizeAtMaxZoom(outputAdvanced.getDouble(
+        "min_feature_size_at_max_zoom",
+        "default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
+        256d / 4096))
+      .minFeatureSizeBelowMaxZoom(outputAdvanced.getDouble(
+        "min_feature_size",
+        "default value for the minimum size in tile pixels of features to emit below the maximum zoom level",
+        1))
+      .simplifyToleranceAtMaxZoom(outputAdvanced.getDouble(
+        "simplify_tolerance_at_max_zoom",
+        "default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming",
+        256d / 4096))
+      .simplifyToleranceBelowMaxZoom(outputAdvanced.getDouble(
+        "simplify_tolerance",
+        "default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
+        0.1d))
+      .osmLazyReads(processingAdvanced.getBoolean(
+        "osm_lazy_reads",
+        "read OSM blocks from disk in worker threads",
+        true))
+      .skipFilledTiles(output.getBoolean(
+        "skip_filled_tiles",
+        "don't write tiles that only contain a polygon fill",
+        false))
+      .tileWarningSizeBytes((int) (debugging.getDouble(
+        "tile_warning_size_mb",
+        "maximum size in megabytes of a tile to emit a warning about",
+        1d) * 1024 * 1024))
+      .color(logging.getBooleanObject("color", "color the output (NO_COLOR turns it off)"))
+      .keepUnzippedSources(arguments.getBoolean(
+        ArgumentGroup.SOURCES,
+        "keep_unzipped",
+        "keep unzipped sources by default after reading",
+        false))
+      .tileCompression(TileCompression
+        .fromId(output.getString(
+          "tile_compression",
+          "tile compression: " +
+            TileCompression.availableValues().stream().map(TileCompression::id).collect(Collectors.joining(", ")),
+          "gzip")))
+      .tileFormat(TileFormat
+        .fromId(output.getString(
+          "tile_format",
+          "tile format: " +
+            TileFormat.availableValues().stream().map(TileFormat::id).collect(Collectors.joining(", ")),
+          "mvt")))
+      .excludeIds(output.getBoolean("exclude_ids", "leave feature ids out of the tiles", false))
+      .mltEncoder(MltEncoderType.fromId(outputAdvanced.getString(
+        "mlt_encoder",
+        "encoder to use when tile format=MLT: " + String.join(", ", MltEncoderType.ids()) +
+          ", native (Rust) is faster but only works on common platforms",
+        MltEncoderType.NATIVE.id())))
+      .mltFsst(outputAdvanced.getBoolean("mlt_fsst", "use FSST encoding when tile format=MLT", mltAdvanced))
+      .mltFastPfor(outputAdvanced.getBoolean("mlt_fastpfor", "use FastPFOR encoding when tile format=MLT", mltAdvanced))
+      .mltTessellatePolygons(outputAdvanced.getBoolean(
+        "mlt_tessellate_polygons",
+        "pre-triangulate polygons when tile format=MLT so that clients do not need to, " +
           "the java encoder also needs mlt_polygon_outline for valid tiles",
-        false),
-      arguments.getBoolean("mlt_polygon_outline",
-        "Store polygon outlines together with pre-triangulated polygons when tile format=MLT, " +
+        false))
+      .mltPolygonOutline(outputAdvanced.getBoolean(
+        "mlt_polygon_outline",
+        "store polygon outlines together with pre-triangulated polygons when tile format=MLT, " +
           "only used by the java encoder since the native encoder always stores them",
-        false),
-      arguments.getBoolean("mlt_reorder_features",
-        "Allow re-ordering output features within each layer when tile format=MLT to reduce tile sizes", false),
-      arguments.getBoolean("mlt_shared_dict", "Share dictionaries between string fields when tile format=MLT", false),
-      arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
-      arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
-        "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
-      tmpDir,
-      arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
-        tmpDir.resolveSibling("tile_weights.tsv.gz")),
-      arguments.getDouble("max_point_buffer",
-        "Additional global limit for the max tile pixels to include points outside tile bounds of all layers. Set to a lower value to reduce tile size for " +
+        false))
+      .mltReorderFeature(outputAdvanced.getBoolean(
+        "mlt_reorder_features",
+        "allow re-ordering output features within each layer when tile format=MLT to reduce tile sizes",
+        false))
+      .mltSharedDictionaries(outputAdvanced.getBoolean(
+        "mlt_shared_dict",
+        "share dictionaries between string fields when tile format=MLT",
+        false))
+      .outputLayerStats(
+        output.getBoolean("output_layerstats", "also write per-tile, per-layer sizes (.layerstats.tsv.gz)", false))
+      .debugUrlPattern(logging.getString(
+        "debug_url",
+        "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
+        "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"))
+      .tmpDir(tmpDir)
+      .tileWeights(outputAdvanced.file(
+        "tile_weights",
+        "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
+        tmpDir.resolveSibling("tile_weights.tsv.gz")))
+      .maxPointBuffer(outputAdvanced.getDouble(
+        "max_point_buffer",
+        "additional global limit for the max tile pixels to include points outside tile bounds of all layers. Set to a lower value to reduce tile size for " +
           "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
           "raster tile rendering",
-        Double.POSITIVE_INFINITY),
-      arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false),
-      arguments.getInteger("feature_source_id_multiplier",
-        "Set vector tile feature IDs to (featureId * thisValue) + sourceId " +
+        Double.POSITIVE_INFINITY))
+      .logJtsExceptions(
+        debugging.getBoolean("log_jts_exceptions", "emit verbose details to debug JTS geometry errors", false))
+      .featureSourceIdMultiplier(outputAdvanced.getInteger(
+        "feature_source_id_multiplier",
+        "set vector tile feature IDs to (featureId * thisValue) + sourceId " +
           "where sourceId is 1 for OSM nodes, 2 for ways, 3 for relations, and 0 for other sources. Set to false to disable.",
-        10),
-      extraNameTags,
-      arguments.getBoolean("reuse_featuredb",
-        "Reuse existing feature DB on disk, skipping source reading stages (for iterating on post-processing logic)",
-        false),
-      parallelTempIO
-    );
+        10))
+      .extraNameTags(extraNameTags)
+      .reuseFeatureDb(debugging.getBoolean(
+        "reuse_featuredb",
+        "reuse existing feature DB on disk, skipping source reading stages (for iterating on post-processing logic)",
+        false))
+      .parallelTempIO(parallelTempIO)
+      .build();
   }
 
   public double minFeatureSize(int zoom) {

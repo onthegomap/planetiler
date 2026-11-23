@@ -82,6 +82,8 @@ jobs:
         key: jdk-${{ hashFiles('launcher/Makefile') }}
     - name: Build launchers
       run: make -C launcher VERSION=snapshot JAR="$(realpath build-jar/*with-deps.jar)"
+    - name: Test launcher (planetiler setup)
+      run: make -C launcher smoke JAR="$(realpath build-jar/*with-deps.jar)"
     - name: Publish rolling release
       env:
         GH_TOKEN: ${{ github.token }}

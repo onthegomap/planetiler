@@ -37,6 +37,12 @@ public record BuildInfo(String githash, String version, Long buildTime) {
     return buildTime == null ? null : Instant.ofEpochMilli(buildTime).toString();
   }
 
+  /** Returns the version, git hash and build time on one line, like {@code planetiler 0.11.0 (<git hash>, <time>)}. */
+  public String versionLine() {
+    String buildTimeString = buildTimeString();
+    return "planetiler " + version + " (" + githash + (buildTimeString == null ? "" : ", " + buildTimeString) + ")";
+  }
+
   /** Returns info inserted by maven at build-time into the {@code buildinfo.properties} file. */
   public static BuildInfo get() {
     return instance;

@@ -14,9 +14,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for waiting on {@link CompletableFuture CompletableFutures}. */
 public class CompletableFutures {
+  private static final Logger LOGGER = LoggerFactory.getLogger(CompletableFutures.class);
   /** A future that has already completed with {@code null}. */
   public static final CompletableFuture<Void> NULL = CompletableFuture.completedFuture(null);
 
@@ -34,7 +37,7 @@ public class CompletableFutures {
    * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
    * one fails.
    */
-  public static CompletableFuture<Void> joinFutures(Collection<CompletableFuture<?>> futures) {
+  public static CompletableFuture<Void> joinFutures(Collection<? extends CompletableFuture<?>> futures) {
     CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     // fail fast on exceptions
     for (CompletableFuture<?> f : futures) {
@@ -125,6 +128,22 @@ public class CompletableFutures {
       Exceptions.throwAsIOException(error);
     }
     return result;
+  }
+
+  /**
+   * Closes what each of {@code futures} returns once it completes, for results nothing is going to use, without waiting
+   * for them. Logs the ones that fail to close.
+   */
+  public static void closeWhenDone(Collection<? extends CompletableFuture<? extends Closeable>> futures) {
+    for (var future : futures) {
+      future.thenAccept(result -> {
+        try {
+          result.close();
+        } catch (IOException e) {
+          LOGGER.warn("Error closing {}", result, e);
+        }
+      });
+    }
   }
 
   /**

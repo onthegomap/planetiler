@@ -92,13 +92,16 @@ public class TileSizeStats {
         TopOsmTiles.downloadPrecomputed(downloader);
       }
     }
-    var tileStats = new TilesetSummaryStatistics(TileWeights.readFromFile(config.tileWeights()));
-    var inputString = arguments.getString("input", "input file");
+    var inputString = arguments.getString("input=<archive>", "archive to read");
+    var outputArg = arguments.file("output", "where to write the stats (default: next to a local input)", null);
+    arguments.printHelpOrCheckOptions("--input=<archive> [options]");
     var input = TileArchiveConfig.from(inputString);
-    var localPath = input.getLocalPath();
-    var output = localPath == null ?
-      arguments.file("output", "output file") :
-      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath));
+    var output = outputArg != null ? outputArg :
+      input.getLocalPath() != null ? getDefaultLayerstatsPath(input.getLocalPath()) : null;
+    if (output == null) {
+      throw new IllegalArgumentException("Set --output, " + inputString + " isn't a local file to write next to");
+    }
+    var tileStats = new TilesetSummaryStatistics(TileWeights.readFromFile(config.tileWeights()));
     var counter = new AtomicLong(0);
     var timer = stats.startStage("tilestats");
     record Batch(List<Tile> tiles, CompletableFuture<List<String>> stats) {}

@@ -144,10 +144,9 @@ public class AdminBordersOverlay implements Profile {
   }
 
   static void run(Arguments args) {
-    String area = args.getString("area", "geofabrik area to download", "monaco");
     Planetiler.create(args)
       .setProfile(new AdminBordersOverlay())
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
       .overwriteOutput(Path.of("data", "admin-borders.mbtiles"))
       .run();
   }

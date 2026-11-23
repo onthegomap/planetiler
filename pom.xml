@@ -21,12 +21,12 @@
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.23.0</jackson.version>
     <junit.version>6.1.3</junit.version>
-    <mlt-ffi.version>0.2.4</mlt-ffi.version>
+    <mlt-ffi.version>0.2.5</mlt-ffi.version>
     <!-- set by jacoco in the coverage profile, extended by surefire with late @{argLine} replacement -->
     <argLine/>
     <record-builder.version>44</record-builder.version>
     <!-- 1.21 has some critical bug fixes but hasn't been release yet -->
-    <jts.version>1.21.0-20261003.185626-121</jts.version>
+    <jts.version>1.21.0-20261121.005627-177</jts.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
@@ -93,6 +93,18 @@
         <enabled>true</enabled>
       </snapshots>
     </repository>
+    <!-- A copy of the JTS snapshot above, so builds still work if repo.eclipse.org is down (#1704) or after it
+      deletes old snapshots. Remove it once planetiler is back on a JTS release. -->
+    <repository>
+      <id>planetiler-mirror</id>
+      <url>https://planetiler.onthegomap.com/maven</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 
   <modules>
@@ -110,7 +122,7 @@
       <dependency>
         <groupId>org.snakeyaml</groupId>
         <artifactId>snakeyaml-engine</artifactId>
-        <version>3.1.1</version>
+        <version>3.2</version>
       </dependency>
       <dependency>
         <groupId>org.commonmark</groupId>
@@ -464,7 +476,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>flatten-maven-plugin</artifactId>
-            <version>1.7.3</version>
+            <version>1.9.0</version>
             <configuration>
               <updatePomFile>true</updatePomFile>
               <flattenMode>resolveCiFriendliesOnly</flattenMode>

@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.archive.TileFormat;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
+import com.onthegomap.planetiler.config.ArgumentHelp;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -2784,6 +2785,7 @@ class PlanetilerTests {
     "--max-point-buffer=1",
     "--osm-test-path=monaco-latest.lz4.osm.pbf",
     "--parallel-tmp-io",
+    "--read-sources-sequentially",
   })
   void testPlanetilerRunner(String args) throws Exception {
     var argParsed = Arguments.fromArgs(args.split(" "));
@@ -2833,6 +2835,8 @@ class PlanetilerTests {
           }
         }
       })
+      // the sources after OSM run in one stage, unless --read-sources-sequentially
+      .readSourcesTogether()
       .addOsmSource("osm", tempOsm)
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
@@ -3170,17 +3174,24 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @CsvSource({
-    "full, false", "cached, false", "streaming, false",
-    "full, true", "cached, true", "streaming, true"
+    "full, false, true", "cached, false, true", "streaming, false, true",
+    "full, true, true", "cached, true, true", "streaming, true, true",
+    // the bounds come from the header of the downloaded file when the server can't send just the start of it
+    "full, true, false", "streaming, true, false"
   })
-  void testOvertureFilesListedForBoundsFromOsmFile(String mode, boolean downloadOsm) throws IOException {
+  void testOvertureFilesListedForBoundsFromOsmFile(String mode, boolean downloadOsm, boolean ranges)
+    throws IOException {
     Path localOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path osmPath = downloadOsm ? tempDir.resolve("sources").resolve("monaco.osm.pbf") : localOsm;
     String osmUrl = "http://host/monaco.osm.pbf";
     List<Envelope> lookups = new CopyOnWriteArrayList<>();
+    var downloader = new StubDownloader(PlanetilerConfig.defaults()).put(osmUrl, Files.readAllBytes(localOsm));
+    if (!ranges) {
+      downloader.ignoreRanges();
+    }
 
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=" + mode))
-      .setDownloader(new StubDownloader(PlanetilerConfig.defaults()).put(osmUrl, Files.readAllBytes(localOsm)))
+      .setDownloader(downloader)
       .setOvertureStac(recordingOvertureStac(lookups))
       .setProfile(new Profile.NullProfile())
       .addOsmSource("osm", osmPath, osmUrl)
@@ -3228,7 +3239,8 @@ class PlanetilerTests {
   private static OvertureStac recordingOvertureStac(List<Envelope> lookups) {
     return new OvertureStac(new StubDownloader(PlanetilerConfig.defaults())) {
       @Override
-      public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
+      public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds, Path savedList,
+        boolean refresh) {
         // copy since the bounds get updated in place once they are known
         lookups.add(new Envelope(bounds.latLon()));
         return List.of();
@@ -3385,8 +3397,15 @@ class PlanetilerTests {
   }
 
   private PlanetilerResults runForBoundsTest(int minzoom, int maxzoom, String key, String value) throws Exception {
+    return runForBoundsTest(minzoom, maxzoom, Map.of(key, value));
+  }
+
+  private PlanetilerResults runForBoundsTest(int minzoom, int maxzoom, Map<String, String> boundsArgs)
+    throws Exception {
+    var args = new HashMap<>(boundsArgs);
+    args.put("threads", "1");
     return runWithReaderFeatures(
-      Map.of("threads", "1", key, value),
+      args,
       List.of(
         newReaderFeature(WORLD_POLYGON, Map.of())
       ),
@@ -3594,6 +3613,22 @@ class PlanetilerTests {
   }
 
   @Test
+  void testBoundsAndPolygonFilters() throws Exception {
+    var result = runForBoundsTest(0, 2, Map.of(
+      "bounds", "1,-85.05113,90,-1",
+      "polygon", TestUtils.pathToResource("bottomrightearth.poly").toString()
+    ));
+
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 0),
+      TileCoord.ofXYZ(1, 1, 1),
+      // TileCoord.ofXYZ(2, 2, 2), - within bounds but outside of triangle
+      TileCoord.ofXYZ(2, 3, 2)
+      // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
+    ), result.tiles.keySet());
+  }
+
+  @Test
   void testDefaultLanguages() {
     var planetiler = Planetiler.create(Arguments.of("languages", "default,en"))
       .setDefaultLanguages(List.of("jbo", "tlh"));
@@ -3734,6 +3769,24 @@ class PlanetilerTests {
   }
 
   @Test
+  void testShapefileSourceWithUrlsOnlyFromArguments() throws IOException {
+    Set<Long> featureIds = ConcurrentHashMap.newKeySet();
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    downloader.put("http://host/a/one.zip", Files.readAllBytes(TestUtils.pathToResource("shapefile.zip")));
+    Planetiler.create(Arguments.fromArgs(
+      "--tmpdir=" + tempDir.resolve("data"),
+      "--download",
+      "--shapes-urls=http://host/a/one.zip"))
+      .setDownloader(downloader)
+      .setProfile((SourceFeature source, FeatureCollector features) -> featureIds.add(source.id()))
+      .addShapefileMultiUrlSource("shapes", tempDir.resolve("shapes"), List.of())
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertEquals(86, featureIds.size());
+  }
+
+  @Test
   void testShapefileSourceFromSeveralUrlsRejectsSingleUrlArgument() {
     List<String> urls = List.of("http://host/a/one.zip", "http://host/b/two.zip");
     var exception = assertThrows(IllegalArgumentException.class,
@@ -3770,5 +3823,219 @@ class PlanetilerTests {
     assertEquals(zip + " is missing 2 of the 3 shapefiles needed (ne_10m_rivers_lake_centerlines.shp, " +
       "ne_10m_roads.shp), set --shapes-path to a directory to download them into, or a .zip file containing them",
       exception.getMessage());
+  }
+
+  // files that sourcesFromEveryReader reads, by path under tempDir/sources (also their URL under http://host/)
+  private static final Map<String, String> SOURCE_FILES = Map.of(
+    "shapefile.zip", "shapefile.zip",
+    "featurecollection.geojson", "featurecollection.geojson",
+    "monaco.osm.pbf", "monaco-latest.osm.pbf",
+    "geopackage.gpkg.zip", "geopackage.gpkg.zip",
+    "boston.parquet", "parquet/boston.parquet",
+    "overture/theme=buildings/type=building/boston.parquet", "parquet/boston.parquet"
+  );
+
+  @ParameterizedTest
+  @ValueSource(strings = {"full", "streaming"})
+  void testSourcesReadTogetherWhileDownloadingGiveSameOutput(String mode) throws Exception {
+    Path actual = runSourcesFromEveryReader("actual.mbtiles", true, "--download=" + mode);
+    // the way each source used to get read, one at a time from local files
+    FileUtils.delete(tempDir.resolve("sources"));
+    copySourceFiles();
+    Path expected = runSourcesFromEveryReader("expected.mbtiles", false);
+
+    try (
+      Mbtiles expectedDb = Mbtiles.newReadOnlyDatabase(expected);
+      Mbtiles actualDb = Mbtiles.newReadOnlyDatabase(actual)
+    ) {
+      var tiles = TestUtils.getTileMap(expectedDb);
+      assertEquals(Set.of("shapefile", "geojson", "osm", "geopackage", "parquet", "overture"),
+        tiles.values().stream().flatMap(List::stream).map(feature -> feature.attrs().get("source"))
+          .collect(Collectors.toSet()));
+      assertEquals(tiles, TestUtils.getTileMap(actualDb));
+    }
+  }
+
+  private void copySourceFiles() throws IOException {
+    for (var file : SOURCE_FILES.entrySet()) {
+      Path dest = tempDir.resolve("sources").resolve(file.getKey());
+      FileUtils.createParentDirectories(dest);
+      Files.copy(TestUtils.pathToResource(file.getValue()), dest);
+    }
+  }
+
+  /** Runs a source of each type, with OSM in between so there are two groups of sources read together. */
+  private Path runSourcesFromEveryReader(String output, boolean together, String... args) throws IOException {
+    Path sources = tempDir.resolve("sources");
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    for (var file : SOURCE_FILES.entrySet()) {
+      downloader.put("http://host/" + file.getKey(), Files.readAllBytes(TestUtils.pathToResource(file.getValue())));
+    }
+    List<String> allArgs = new ArrayList<>(List.of(args));
+    // the parquet files are around Boston, far from Monaco
+    allArgs.addAll(List.of("--tmpdir=" + tempDir.resolve("data"), "--bounds=world"));
+    Path path = tempDir.resolve(output);
+    var planetiler = Planetiler.create(Arguments.fromArgs(allArgs.toArray(String[]::new)));
+    if (together) {
+      planetiler.readSourcesTogether();
+    }
+    planetiler
+      .setDownloader(downloader)
+      .setOvertureStac(new OvertureStac(downloader) {
+        @Override
+        public List<ParquetFile> listParquetFiles(String catalogUrl, String theme, String type) {
+          return List.of(new ParquetFile("http://host/overture/theme=buildings/type=building/boston.parquet", null));
+        }
+      })
+      .setProfile((SourceFeature source, FeatureCollector features) -> {
+        if (!source.getSource().equals("osm") || source.hasTag("name")) {
+          features.centroid("features").setZoomRange(14, 14).setAttr("source", source.getSource());
+        }
+      })
+      .addShapefileSource("shapefile", sources.resolve("shapefile.zip"), "http://host/shapefile.zip")
+      .addGeoJsonSource("geojson", sources.resolve("featurecollection.geojson"),
+        "http://host/featurecollection.geojson")
+      .addOsmSource("osm", sources.resolve("monaco.osm.pbf"), "http://host/monaco.osm.pbf")
+      .addGeoPackageSource("geopackage", sources.resolve("geopackage.gpkg.zip"), "http://host/geopackage.gpkg.zip")
+      .addParquetSource("parquet", sources.resolve("boston.parquet"), "http://host/boston.parquet")
+      .addOvertureSource("overture", "buildings", "building", sources.resolve("overture"))
+      .setOutput(path)
+      .run();
+    return path;
+  }
+
+  @ParameterizedTest
+  @CsvSource({"false, false", "true, false", "true, true"})
+  void testReadSourcesTogetherAndWaitForPreviousSources(boolean together, boolean wait) {
+    List<String> events = new CopyOnWriteArrayList<>();
+    Path geojson = TestUtils.pathToResource("featurecollection.geojson");
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          events.add("process " + source.getSource());
+        }
+
+        @Override
+        public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
+          Consumer<FeatureCollector.Feature> next) {
+          events.add("finish " + sourceName);
+        }
+      })
+      .addGeoJsonSource("a", geojson, null);
+    if (together) {
+      planetiler.readSourcesTogether();
+    }
+    if (wait) {
+      planetiler.waitForPreviousSources();
+    }
+    planetiler.addGeoJsonSource("b", geojson, null).setOutput(tempDir.resolve("output.mbtiles")).run();
+
+    assertTrue(events.contains("process a"), events::toString);
+    if (together && !wait) {
+      // read together with b, so a finishes after b has been processed
+      assertTrue(events.indexOf("finish a") > events.lastIndexOf("process b"), events::toString);
+    } else {
+      assertTrue(events.indexOf("finish a") < events.indexOf("process b"), events::toString);
+    }
+  }
+
+  @Test
+  void testExplicitOsmPathDoesNotGetDefaultAreaDownloadedIntoIt() {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    Path typo = tempDir.resolve("typo.osm.pbf");
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download",
+      "--osm-path=" + typo))
+      .setDownloader(downloader)
+      .setProfile(new Profile.NullProfile());
+
+    var sources = tempDir.resolve("sources");
+    var exception = assertThrows(IllegalArgumentException.class,
+      () -> planetiler.addOsmSourceForArea("osm", sources, "monaco"));
+    assertTrue(exception.getMessage().contains(typo + " does not exist. Set --area or --osm-url"),
+      exception.getMessage());
+    assertEquals(List.of(), downloader.requests());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"--area=monaco", "--osm-url=http://host/monaco.osm.pbf"})
+  void testExplicitOsmPathCanBeDownloadedIntoWithExplicitSource(String arg) {
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download",
+      "--osm-path=" + tempDir.resolve("custom.osm.pbf"), arg))
+      .setProfile(new Profile.NullProfile());
+
+    assertDoesNotThrow(() -> planetiler.addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco"));
+  }
+
+  @Test
+  void testOsmSourceForArea() throws IOException {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults())
+      .put("http://host/monaco.osm.pbf", Files.readAllBytes(TestUtils.pathToResource("monaco-latest.osm.pbf")));
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download", "--area=rhode island",
+      "--osm-url=http://host/monaco.osm.pbf"))
+      .setDownloader(downloader)
+      .setProfile(new Profile.NullProfile())
+      .addOsmSourceForArea("osm", tempDir.resolve("sources"), "monaco")
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
+  }
+
+  @Test
+  void testHelp() {
+    var planetiler = Planetiler.create(Arguments.of())
+      .setProfile(runner -> {
+        runner.arguments().getBoolean("water", "include water", true);
+        return new Profile.NullProfile() {
+          @Override
+          public String name() {
+            return "Test";
+          }
+
+          @Override
+          public String description() {
+            return "a test profile";
+          }
+        };
+      })
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
+      .addShapefileSource("water", Path.of("data", "sources", "water.zip"), "https://example.com/water.zip")
+      .setOutput(tempDir.resolve("output.pmtiles"));
+
+    String help = planetiler.help(false);
+    assertTrue(help.startsWith(ArgumentHelp.title() + "\n\n" + """
+      Test: a test profile
+
+      Build a region:
+        %s
+        %s
+
+      Usage: %s
+
+      Test options:
+        --water=<bool>  include water [default: true]
+
+      Input:
+      """.formatted(ArgumentHelp.planetilerCommand("--area=monaco --output=monaco.pmtiles"),
+      ArgumentHelp.planetilerCommand("--osm-path=my-region.osm.pbf --output=my-region.pmtiles"),
+      ArgumentHelp.planetilerCommand("[options]"))), help);
+    assertTrue(help.contains("Input:\n  --area=<name> "), help);
+    assertTrue(help.contains("  -o, --output=<file> "), help);
+    assertTrue(help.contains("""
+
+        Sources  default path                 downloaded from
+          osm    %-29sgeofabrik:monaco
+          water  %-29sexample.com
+      """.formatted(Path.of("data", "sources", "monaco.osm.pbf"), Path.of("data", "sources", "water.zip"))), help);
+    assertTrue(help.contains("\nOutput:\n"), help);
+    assertTrue(help.contains("\nProcessing:\n"), help);
+    assertFalse(help.contains("--water-path"), help);
+    assertTrue(help.endsWith("\nShow all options with --help-all\n"), help);
+
+    String helpAll = planetiler.help(true);
+    assertTrue(helpAll.contains("\nSources:\n"), helpAll);
+    assertTrue(helpAll.contains("  --water-path=<file> "), helpAll);
   }
 }

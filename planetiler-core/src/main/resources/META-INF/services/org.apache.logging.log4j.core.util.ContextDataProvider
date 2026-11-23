@@ -1,1 +1,2 @@
 com.onthegomap.planetiler.util.log4j.UptimeContextDataProvider
+com.onthegomap.planetiler.util.log4j.AnsiColorsContextDataProvider

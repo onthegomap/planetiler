@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.archive;
 
+import com.onthegomap.planetiler.config.ArgumentGroup;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.files.WriteableFilesArchive;
@@ -28,6 +30,31 @@ public class TileArchives {
   }
 
   /**
+   * Reads the options that the writer for {@code archive} reads when it opens, without opening it, so that
+   * {@code --help} lists them and unknown options can be reported before the run starts.
+   */
+  public static void parseWriterOptions(TileArchiveConfig archive, PlanetilerConfig config) {
+    var options = writerOptions(archive, config);
+    switch (archive.format()) {
+      case MBTILES -> Mbtiles.Options.from(options);
+      case CSV, TSV -> WriteableCsvArchive.Options.from(archive.format(), options);
+      case JSON -> WriteableJsonStreamArchive.Options.from(options);
+      case FILES -> WriteableFilesArchive.Options.from(archive.getLocalPath(), options);
+      case PMTILES, PROTO, PBF -> {
+        // no options
+      }
+    }
+  }
+
+  private static Arguments writerOptions(TileArchiveConfig archive, PlanetilerConfig config) {
+    var arguments = config.arguments().withGroup(ArgumentGroup.OUTPUT_ADVANCED);
+    var options = archive.applyFallbacks(arguments);
+    // mbtiles options used to have other names, which still work
+    return archive.format() == TileArchiveConfig.Format.MBTILES ? options.orElse(arguments
+      .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)) : options;
+  }
+
+  /**
    * Returns a new {@link ReadableTileArchive} from the string definition in {@code archive} that will be parsed with
    * {@link TileArchiveConfig}.
    *
@@ -44,13 +71,10 @@ public class TileArchives {
    */
   public static WriteableTileArchive newWriter(TileArchiveConfig archive, PlanetilerConfig config)
     throws IOException {
-    var options = archive.applyFallbacks(config.arguments());
+    var options = writerOptions(archive, config);
     var format = archive.format();
     return switch (format) {
-      case MBTILES ->
-        // pass-through legacy arguments for fallback
-        Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options.orElse(config.arguments()
-          .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
+      case MBTILES -> Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options);
       case PMTILES -> WriteablePmtiles.newWriteToFile(archive.getLocalPath());
       case CSV, TSV -> WriteableCsvArchive.newWriteToFile(format, archive.getLocalPath(),
         new StreamArchiveConfig(config, options));

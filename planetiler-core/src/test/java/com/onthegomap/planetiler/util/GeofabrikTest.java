@@ -3,9 +3,11 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -171,5 +173,34 @@ class GeofabrikTest {
     var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
     assertThrows(IllegalArgumentException.class,
       () -> Geofabrik.searchIndexForDownloadUrl("georgia", index));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"monaco", "Monaco"})
+  void testMonacoComesFromMirrorWithoutFetchingIndex(String search) {
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+
+    assertEquals("https://planetiler.onthegomap.com/monaco.osm.pbf", Geofabrik.getDownloadUrl(search, downloader));
+    assertEquals(List.of(), downloader.requests());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "af,https://download.geofabrik.de/asia/afghanistan/afghanistan-latest.osm.pbf",
+    "us-ga,https://download.geofabrik.de/north-america/us/georgia/georgia-latest.osm.pbf"
+  })
+  void testIsoCodesAsStrings(String search, String expectedUrl) throws IOException {
+    byte[] currentFormat = """
+      {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"id": "afghanistan", "parent": "asia", "name": "Afghanistan",
+          "iso3166-1:alpha2": "AF",
+          "urls": {"pbf": "https://download.geofabrik.de/asia/afghanistan/afghanistan-latest.osm.pbf"}}},
+        {"type": "Feature", "properties": {"id": "us/georgia", "parent": "north-america", "name": "Georgia",
+          "iso3166-2": "US-GA",
+          "urls": {"pbf": "https://download.geofabrik.de/north-america/us/georgia/georgia-latest.osm.pbf"}}}
+      ]}
+      """.getBytes(StandardCharsets.UTF_8);
+    var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(currentFormat));
+    assertEquals(expectedUrl, Geofabrik.searchIndexForDownloadUrl(search, index));
   }
 }

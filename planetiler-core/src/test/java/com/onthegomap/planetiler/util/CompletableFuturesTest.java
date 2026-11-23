@@ -154,6 +154,27 @@ class CompletableFuturesTest {
   void testInCompletionOrderRejectsEmptyWindow() {
     List<Integer> items = List.of(1);
     assertThrows(IllegalArgumentException.class,
-      () -> CompletableFutures.inCompletionOrder(items, 0, _ -> CompletableFutures.NULL, _ -> {}));
+      () -> CompletableFutures.inCompletionOrder(items, 0, _ -> CompletableFutures.NULL, _ -> {
+      }));
+  }
+
+  @Test
+  void testCloseWhenDoneClosesResultsThatArriveLater() {
+    var opened = new Resource();
+    var failsToClose = new Resource(new IOException("close failed"));
+    var later = new CompletableFuture<Resource>();
+    var failed = CompletableFuture.<Resource>failedFuture(new IOException("open failed"));
+
+    CompletableFutures.closeWhenDone(List.of(
+      CompletableFuture.completedFuture(opened),
+      CompletableFuture.completedFuture(failsToClose),
+      later,
+      failed));
+    assertTrue(opened.closed);
+    assertTrue(failsToClose.closed);
+
+    var openedLater = new Resource();
+    later.complete(openedLater);
+    assertTrue(openedLater.closed);
   }
 }

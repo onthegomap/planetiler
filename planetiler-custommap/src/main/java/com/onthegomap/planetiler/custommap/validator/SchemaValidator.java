@@ -10,10 +10,10 @@ import com.onthegomap.planetiler.util.YAML;
 import com.onthegomap.planetiler.validator.BaseSchemaValidator;
 import com.onthegomap.planetiler.validator.SchemaSpecification;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 
@@ -21,21 +21,23 @@ public class SchemaValidator extends BaseSchemaValidator {
 
   private final Path schemaPath;
 
-  SchemaValidator(Arguments args, String schemaFile, PrintStream output) {
+  SchemaValidator(Arguments args, PrintStream output) {
     super(args, output);
-    schemaPath = schemaFile == null ? args.inputFile("schema", "Schema file") :
-      args.inputFile("schema", "Schema file", Path.of(schemaFile));
+    // `verify schema.yml` is a shortcut for `verify --schema=schema.yml`, read after --watch (in super) in case it
+    // comes right after it
+    List<String> positional = args.positional();
+    schemaPath = args.file("schema", "the schema to test", positional.isEmpty() ? null : Path.of(positional.getFirst()));
   }
 
   public static void main(String[] args) {
-    // let users run `verify schema.yml` as a shortcut
-    String schemaFile = null;
-    if (args.length > 0 && args[0].endsWith(".yml") && !args[0].startsWith("-")) {
-      schemaFile = args[0];
-      args = Stream.of(args).skip(1).toArray(String[]::new);
-    }
     var arguments = Arguments.fromEnvOrArgs(args);
-    new SchemaValidator(arguments, schemaFile, System.out).runOrWatch();
+    var validator = new SchemaValidator(arguments, System.out);
+    arguments.printHelpOrCheckOptions("<schema.yml> [options]");
+    if (validator.schemaPath == null || !Files.exists(validator.schemaPath)) {
+      throw new IllegalArgumentException(validator.schemaPath == null ? "missing required parameter: --schema" :
+        validator.schemaPath + " does not exist");
+    }
+    validator.runOrWatch();
   }
 
   /**

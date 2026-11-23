@@ -59,15 +59,13 @@ public class WriteableFilesArchive implements WriteableTileArchive {
 
   private WriteableFilesArchive(Path basePath, Arguments options, boolean overwriteMetadata) {
 
-    final var pathAndScheme = FilesArchiveUtils.basePathWithTileSchemeEncoding(options, basePath);
-    basePath = pathAndScheme.basePath();
+    var archiveOptions = Options.from(basePath, options);
+    basePath = archiveOptions.basePath();
 
     LOGGER.atInfo().log("using {} as base files archive path", basePath);
 
     this.basePath = createValidateDirectory(basePath);
-    this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options)
-      .flatMap(p -> FilesArchiveUtils.metadataPath(p.getParent(), options))
-      .orElse(null);
+    this.metadataPath = archiveOptions.metadataPath();
     if (this.metadataPath != null && Files.exists(this.metadataPath)) {
       if (!overwriteMetadata) {
         throw new IllegalArgumentException(this.metadataPath + " already exists");
@@ -75,9 +73,29 @@ public class WriteableFilesArchive implements WriteableTileArchive {
         throw new IllegalArgumentException("require " + this.metadataPath + " to be a regular file");
       }
     }
-    final TileSchemeEncoding tileSchemeEncoding = pathAndScheme.tileSchemeEncoding();
+    final TileSchemeEncoding tileSchemeEncoding = archiveOptions.tileSchemeEncoding();
     this.tileSchemeEncoder = tileSchemeEncoding.encoder();
     this.tileOrder = tileSchemeEncoding.preferredTileOrder();
+  }
+
+  /**
+   * The options of a directory of tile files.
+   *
+   * @param basePath           the directory the tiles go in
+   * @param tileSchemeEncoding where each tile goes inside it
+   * @param metadataPath       where the metadata goes, or {@code null} for none
+   */
+  public record Options(Path basePath, TileSchemeEncoding tileSchemeEncoding, Path metadataPath) {
+
+    /** Reads the options for tiles written under {@code path} (which may end in a tile scheme) from {@code options}. */
+    public static Options from(Path path, Arguments options) {
+      var pathAndScheme = FilesArchiveUtils.basePathWithTileSchemeEncoding(options, path);
+      Path basePath = pathAndScheme.basePath();
+      Path metadataPath = FilesArchiveUtils.metadataPath(basePath, options)
+        .flatMap(p -> FilesArchiveUtils.metadataPath(p.getParent(), options))
+        .orElse(null);
+      return new Options(basePath, pathAndScheme.tileSchemeEncoding(), metadataPath);
+    }
   }
 
   public static WriteableFilesArchive newWriter(Path basePath, Arguments options, boolean overwriteMetadata) {

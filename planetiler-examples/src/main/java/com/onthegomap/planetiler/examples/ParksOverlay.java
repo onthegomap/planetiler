@@ -68,12 +68,11 @@ public class ParksOverlay implements Profile {
   }
 
   static void run(Arguments args) {
-    String area = args.getString("area", "geofabrik area to download", "monaco");
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler.create(args)
       .setProfile(new ParksOverlay())
       // override this default with osm_path="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput(Path.of("data", "parks.mbtiles"))
       .run();

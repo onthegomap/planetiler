@@ -11,4 +11,4 @@ if [[ "${1:-}" == "--skip-slow" ]]; then
   set -- '-Dgroups=!slow' "$@"
 fi
 
-./mvnw -q -T 1C clean test "$@" -DargLine="-Djunit.jupiter.execution.parallel.enabled=true -Djunit.jupiter.execution.parallel.mode.default=concurrent -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent"
+./mvnw -q -T 1C clean test "$@" -Djunit.jupiter.execution.parallel.enabled=true -Djunit.jupiter.execution.parallel.mode.default=concurrent -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent

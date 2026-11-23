@@ -39,11 +39,10 @@ public class WaterInfrastructureProject implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
-    String area = args.getString("area", "geofabrik area to download", "monaco");
     Planetiler.create(args)
       .setProfile(new WaterInfrastructureProject())
       // override this default with osm_path="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .addOsmSourceForArea("osm", Path.of("data", "sources"), "monaco")
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput(Path.of("data", "water_map.mbtiles"))
       .run();

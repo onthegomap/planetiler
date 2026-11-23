@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.stream;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -77,21 +78,51 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
 
   private WriteableCsvArchive(TileArchiveConfig.Format format, Path p, StreamArchiveConfig config) {
     super(p, config);
-    final String defaultColumnSeparator = switch (format) {
-      case CSV -> "','";
-      case TSV -> "'\\t'";
-      default -> throw new IllegalArgumentException("supported formats are csv and tsv but got " + format.id());
-    };
-    this.columnSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
-      OPTION_COLUMN_SEPARATOR, "column separator", defaultColumnSeparator, List.of(",", " "));
-    this.lineSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
-      OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
-    final BinaryEncoding binaryEncoding = BinaryEncoding.fromId(config.moreOptions().getString(OPTION_BINARY_ENCODING,
-      "binary (tile) data encoding - one of " + BinaryEncoding.ids(), "base64"));
-    this.tileDataEncoder = switch (binaryEncoding) {
+    var options = Options.from(format, config.moreOptions());
+    this.columnSeparator = options.columnSeparator();
+    this.lineSeparator = options.lineSeparator();
+    this.tileDataEncoder = switch (options.binaryEncoding()) {
       case BASE64 -> Base64.getEncoder()::encodeToString;
       case HEX -> HexFormat.of()::formatHex;
     };
+  }
+
+  /**
+   * The options of a CSV / TSV archive.
+   *
+   * @param columnSeparator what goes between columns
+   * @param lineSeparator   what goes between rows
+   * @param binaryEncoding  how the tile data is written
+   */
+  public record Options(String columnSeparator, String lineSeparator, BinaryEncoding binaryEncoding) {
+
+    /** Reads the options of a {@code format} (CSV or TSV) archive from {@code options}. */
+    public static Options from(TileArchiveConfig.Format format, Arguments options) {
+      final String defaultColumnSeparator = switch (format) {
+        case CSV -> "','";
+        case TSV -> "'\\t'";
+        default -> throw new IllegalArgumentException("supported formats are csv and tsv but got " + format.id());
+      };
+      return new Options(
+        StreamArchiveUtils.getEscapedString(
+          options,
+          format,
+          OPTION_COLUMN_SEPARATOR,
+          "column separator",
+          defaultColumnSeparator,
+          List.of(",", " ")),
+        StreamArchiveUtils.getEscapedString(
+          options,
+          format,
+          OPTION_LINE_SEPARTATOR,
+          "line separator",
+          "'\\n'",
+          List.of("\n", "\r\n")),
+        BinaryEncoding.fromId(options.getString(
+          OPTION_BINARY_ENCODING,
+          "binary (tile) data encoding - one of " + BinaryEncoding.ids(),
+          "base64")));
+    }
   }
 
   public static WriteableCsvArchive newWriteToFile(TileArchiveConfig.Format format, Path path,
@@ -151,7 +182,8 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
     }
   }
 
-  private enum BinaryEncoding {
+  /** How a CSV / TSV archive writes the tile data. */
+  public enum BinaryEncoding {
 
     BASE64("base64"),
     HEX("hex");

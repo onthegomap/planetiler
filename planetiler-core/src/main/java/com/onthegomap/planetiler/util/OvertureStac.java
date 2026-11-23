@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,11 +61,7 @@ public class OvertureStac {
     }
   }
 
-  record SpatialExtent(List<List<Double>> bbox) {}
-
-  record StacExtent(SpatialExtent spatial) {}
-
-  record StacCollection(List<StacLink> links, StacExtent extent) {
+  record StacCollection(List<StacLink> links) {
     StacCollection {
       if (links == null) {
         links = List.of();
@@ -72,6 +70,8 @@ public class OvertureStac {
   }
 
   record StacAsset(String href) {}
+
+  record SavedList(String catalogUrl, String theme, String type, List<ParquetFile> files) {}
 
   record StacItem(List<Double> bbox, Map<String, StacAsset> assets) {
     StacItem {
@@ -86,6 +86,23 @@ public class OvertureStac {
 
 
   /**
+   * A parquet file in an Overture release.
+   *
+   * @param url  where to read the file from
+   * @param bbox {@code [minLon, minLat, maxLon, maxLat]} of the features in the file, or null if the catalog doesn't
+   *             say
+   */
+  public record ParquetFile(String url, List<Double> bbox) {
+
+    boolean intersects(Envelope latLonBounds) {
+      if (bbox == null || bbox.size() < 4) {
+        return true; // no bbox → include conservatively
+      }
+      return latLonBounds.intersects(new Envelope(bbox.get(0), bbox.get(2), bbox.get(1), bbox.get(3)));
+    }
+  }
+
+  /**
    * Returns HTTPS URLs of parquet files for {@code theme}/{@code type} in the latest Overture release, keeping only
    * files whose STAC item bbox intersects {@code bounds}.
    */
@@ -93,8 +110,60 @@ public class OvertureStac {
     return getParquetUrls(DEFAULT_CATALOG_URL, theme, type, bounds);
   }
 
+  /**
+   * Same as {@link #getParquetUrls(String, String, String, Bounds)}, but saves the list of every file in the release
+   * for {@code theme}/{@code type} in {@code savedList} and filters it from there in later lookups with the same
+   * catalog, theme and type (for any bounds) unless {@code refresh}, so reruns need no requests.
+   */
+  public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds, Path savedList,
+    boolean refresh) {
+    return inBounds(listParquetFiles(catalogUrl, theme, type, savedList, refresh), theme, type, bounds);
+  }
+
   /** Same as {@link #getParquetUrls(String, String, Bounds)} but using the STAC catalog at {@code catalogUrl}. */
   public List<String> getParquetUrls(String catalogUrl, String theme, String type, Bounds bounds) {
+    return inBounds(listParquetFiles(catalogUrl, theme, type), theme, type, bounds);
+  }
+
+  private List<ParquetFile> listParquetFiles(String catalogUrl, String theme, String type, Path savedList,
+    boolean refresh) {
+    if (!refresh && Files.exists(savedList)) {
+      try {
+        var saved = MAPPER.readValue(savedList.toFile(), SavedList.class);
+        if (saved.equals(new SavedList(catalogUrl, theme, type, saved.files()))) {
+          // Overture removes old releases after a while, so say how to move to the latest one.
+          LOGGER.info("Using the list of {}/{} files an earlier run saved in {}, run with --refresh-sources to look " +
+            "up the latest Overture release", theme, type, savedList);
+          return saved.files();
+        }
+      } catch (IOException e) {
+        LOGGER.warn("Ignoring unreadable {}: {}", savedList, e.toString());
+      }
+    }
+    var files = listParquetFiles(catalogUrl, theme, type);
+    try {
+      FileUtils.createParentDirectories(savedList);
+      MAPPER.writeValue(savedList.toFile(), new SavedList(catalogUrl, theme, type, files));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return files;
+  }
+
+  private static List<String> inBounds(List<ParquetFile> files, String theme, String type, Bounds bounds) {
+    var urls = files.stream()
+      .filter(file -> bounds.isWorld() || file.intersects(bounds.latLon()))
+      .map(ParquetFile::url)
+      .toList();
+    LOGGER.info("Found {} parquet files for theme={} type={} within bounds", urls.size(), theme, type);
+    return urls;
+  }
+
+  /**
+   * Returns every parquet file for {@code theme}/{@code type} in the latest Overture release of the STAC catalog at
+   * {@code catalogUrl}, in catalog order.
+   */
+  public List<ParquetFile> listParquetFiles(String catalogUrl, String theme, String type) {
     LOGGER.info("Fetching Overture STAC catalog from {}", catalogUrl);
     StacCatalog catalog = fetch(catalogUrl, StacCatalog.class);
 
@@ -116,32 +185,19 @@ public class OvertureStac {
     }
     StacCollection collection = fetch(collectionUrl, StacCollection.class);
 
-    Envelope latLonBounds = bounds.isWorld() ? null : bounds.latLon();
-
-    // Skip the whole collection if its declared spatial extent doesn't intersect our bounds.
-    if (latLonBounds != null && !collectionExtentIntersects(collection, latLonBounds)) {
-      LOGGER.debug("Skipping collection {} — extent does not intersect bounds", collectionUrl);
-      return List.of();
-    }
-
-    // Gather item links; per-item bbox check happens after fetching each item below.
     List<String> itemUrls = new ArrayList<>();
     for (StacLink link : collection.links()) {
       if ("item".equals(link.rel())) {
-        String itemUrl = resolveUrl(collectionUrl, link.href());
-        itemUrls.add(itemUrl);
+        itemUrls.add(resolveUrl(collectionUrl, link.href()));
       }
     }
 
     // Fetch all items in parallel on virtual threads to avoid blocking the fork/join pool.
-    List<CompletableFuture<String>> futures;
+    List<CompletableFuture<ParquetFile>> futures;
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       futures = itemUrls.stream()
         .map(itemUrl -> CompletableFuture.supplyAsync(() -> {
           StacItem item = fetch(itemUrl, StacItem.class);
-          if (latLonBounds != null && !itemBboxIntersects(item, latLonBounds)) {
-            return null;
-          }
           // Prefer AWS, fall back to Azure.
           String parquetUrl = getAssetHref(item, "aws");
           if (parquetUrl == null) {
@@ -149,22 +205,21 @@ public class OvertureStac {
           }
           if (parquetUrl == null) {
             LOGGER.warn("No parquet asset found in STAC item {}", itemUrl);
+            return null;
           }
-          return parquetUrl;
+          return new ParquetFile(parquetUrl, item.bbox());
         }, executor))
         .toList();
     }
 
-    List<String> urls = new ArrayList<>();
-    for (CompletableFuture<String> future : futures) {
-      String url = future.join();
-      if (url != null) {
-        urls.add(url);
+    List<ParquetFile> files = new ArrayList<>();
+    for (CompletableFuture<ParquetFile> future : futures) {
+      ParquetFile file = future.join();
+      if (file != null) {
+        files.add(file);
       }
     }
-
-    LOGGER.info("Found {} parquet files for theme={} type={} within bounds", urls.size(), theme, type);
-    return urls;
+    return files;
   }
 
 
@@ -204,42 +259,6 @@ public class OvertureStac {
     String stripped = href.startsWith("./") ? href.substring(2) : href;
     int slash = stripped.indexOf('/');
     return slash < 0 ? stripped : stripped.substring(0, slash);
-  }
-
-  /** Returns false only if the collection's declared extent bbox is known and does not overlap {@code filter}. */
-  private static boolean collectionExtentIntersects(StacCollection collection, Envelope filter) {
-    if (collection.extent() == null || collection.extent().spatial() == null) {
-      return true;
-    }
-    List<List<Double>> bboxes = collection.extent().spatial().bbox();
-    if (bboxes == null || bboxes.isEmpty()) {
-      return true;
-    }
-    for (var bbox : bboxes) {
-      if (bbox != null && bbox.size() >= 4) {
-        double minLon = bbox.get(0);
-        double minLat = bbox.get(1);
-        double maxLon = bbox.get(2);
-        double maxLat = bbox.get(3);
-        if (filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat))) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /** Returns true if the STAC item's bbox overlaps {@code filter}. */
-  static boolean itemBboxIntersects(StacItem item, Envelope filter) {
-    List<Double> bbox = item.bbox();
-    if (bbox == null || bbox.size() < 4) {
-      return true; // no bbox → include conservatively
-    }
-    double minLon = bbox.get(0);
-    double minLat = bbox.get(1);
-    double maxLon = bbox.get(2);
-    double maxLat = bbox.get(3);
-    return filter.intersects(new Envelope(minLon, maxLon, minLat, maxLat));
   }
 
   private static String getAssetHref(StacItem item, String assetKey) {

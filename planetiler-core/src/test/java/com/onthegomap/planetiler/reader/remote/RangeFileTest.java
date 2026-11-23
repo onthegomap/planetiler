@@ -314,14 +314,13 @@ abstract class RangeFileTest {
     void testReusesCachedRanges() throws IOException {
       file.read(10, 100);
       reopen();
-      // only checks that the remote file didn't change
-      assertEquals(List.of(new StubDownloader.Request(URL, "bytes=0-0", null, null)), downloader.requests());
       assertReads(file, 10, 100);
       assertReads(file, CONTENTS.length - 100L, 100);
-      assertEquals(1, downloader.requests().size());
+      assertEquals(List.of(), downloader.requests(), "cached ranges need no requests");
 
       assertReads(file, 0, 200);
-      assertEquals(2, downloader.requests().size());
+      // checks that the remote file didn't change, then fetches the missing range
+      assertEquals(List.of("bytes=0-0", "bytes=0-199"), ranges());
     }
 
     @Test
@@ -331,8 +330,24 @@ abstract class RangeFileTest {
       changed[20] = 1;
       downloader.put(URL, changed);
       reopen();
+      var cached = assertInstanceOf(CachedRangeFile.class, file);
+      assertFalse(cached.connectIfUnchanged());
+      assertThrows(Downloader.RemoteFileChangedException.class, () -> file.read(0, 200));
+
+      // closing the stale cache deletes it, so opening it again starts over
+      reopen();
       assertArrayEquals(Arrays.copyOfRange(changed, 10, 110), file.read(10, 100));
-      assertEquals(2, downloader.requests().size());
+    }
+
+    @Test
+    void testRefreshChecksPartialCacheWhenOpened() throws IOException {
+      file.read(10, 100);
+      file.close();
+      downloader.clearRequests();
+      file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, true, downloader);
+      assertEquals(List.of("bytes=0-0"), ranges());
+      assertReads(file, 10, 100);
+      assertEquals(1, downloader.requests().size());
     }
 
     @Test
@@ -384,7 +399,7 @@ abstract class RangeFileTest {
       Files.writeString(CachedRangeFile.rangesPath(path), "200", StandardCharsets.UTF_8, StandardOpenOption.APPEND);
       reopen();
       assertReads(file, 10, 100);
-      assertEquals(1, downloader.requests().size());
+      assertEquals(List.of(), downloader.requests());
     }
 
     @Test
@@ -392,8 +407,8 @@ abstract class RangeFileTest {
       file.read(10, 100);
       reopen();
       file.read(10, 100);
-      assertEquals(1, file.bytesFetched(), "only the validation request");
-      assertEquals(1, file.requestsMade());
+      assertEquals(0, file.bytesFetched());
+      assertEquals(0, file.requestsMade());
       file.read(200, 100);
       assertEquals(101, file.bytesFetched());
       assertEquals(2, file.requestsMade());
@@ -434,7 +449,36 @@ abstract class RangeFileTest {
       reads.get(1).get();
       reopen();
       assertReads(file, 0, 200_500);
-      assertEquals(1, downloader.requests().size(), "only the validation request");
+      assertEquals(List.of(), downloader.requests());
+    }
+
+    @Test
+    void testOpensEagerlyWhenTailWasNotRecorded() throws IOException {
+      file.read(10, 100);
+      file.close();
+      // like a run killed before its first sync
+      Files.writeString(CachedRangeFile.rangesPath(path), "");
+      byte[] changed = contents(CONTENTS.length);
+      changed[CONTENTS.length - 1] = 1;
+      downloader.put(URL, changed);
+      downloader.clearRequests();
+
+      file = RangeFile.open(path, URL, TAIL_BYTES, DownloadMode.CACHED, false, downloader);
+
+      assertEquals(List.of("bytes=0-0"), ranges(), "checks the version when opened");
+      // and starts over since it changed
+      assertArrayEquals(Arrays.copyOfRange(changed, CONTENTS.length - 10, CONTENTS.length),
+        file.read(CONTENTS.length - 10L, 10));
+    }
+
+    @Test
+    void testPlansMissingRangesOfReusedCacheWithoutConnecting() throws IOException {
+      file.read(10, 100);
+      reopen();
+      assertFalse(file.needsFetch(20, 50));
+      assertTrue(file.needsFetch(0, 210));
+      assertEquals(List.of(range(0, 210)), file.planFetch(List.of(range(0, 210))).httpRequests());
+      assertEquals(List.of(), downloader.requests());
     }
 
     @Test

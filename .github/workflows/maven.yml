@@ -117,6 +117,8 @@ jobs:
         key: jdk-${{ hashFiles('launcher/Makefile') }}
 
     - run: make -C launcher JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
+    - name: Test launcher (planetiler setup)
+      run: make -C launcher smoke JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
 
     - uses: actions/upload-artifact@v7
       with: { path: launcher/dist/planetiler_*_linux_amd64.tar.gz, archive: false }

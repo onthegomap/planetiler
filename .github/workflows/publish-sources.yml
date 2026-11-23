@@ -1,6 +1,8 @@
 # Converts OSM water polygons (https://osmdata.openstreetmap.de/data/water-polygons.html) and lake centerlines
 # (https://github.com/acalcutt/osm-lakelines) to GeoParquet files hosted in R2 that planetiler can read with range
-# requests, so small extracts only download the parts they need.
+# requests, so small extracts only download the parts they need. Also mirrors the Monaco extract from Geofabrik
+# (https://download.geofabrik.de/europe/monaco.html) unchanged, since it is the default --area and Geofabrik is not
+# always up.
 
 # Each day this checks the upstream sources, and when they change, converts, validates, and publishes the result.
 
@@ -36,13 +38,29 @@ jobs:
         - source: water_polygons
           url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
           key: water_polygons.parquet
-          # 14,509 in 2026
-          min_features: 14000
+          input: input.zip
+          content_type: application/vnd.apache.parquet
+          # 14,509 features in 2026
+          convert: uv run scripts/shp2parquet.py water_polygons input.zip output --min-features 14000
         - source: lake_centerlines
           url: https://github.com/acalcutt/osm-lakelines/releases/download/latest/lake_centerline.shp.zip
           key: lake_centerline.parquet
-          # 59,592 in 2026
-          min_features: 55000
+          input: input.zip
+          content_type: application/vnd.apache.parquet
+          # 59,592 features in 2026
+          convert: uv run scripts/shp2parquet.py lake_centerlines input.zip output --min-features 55000
+        - source: monaco
+          url: https://download.geofabrik.de/europe/monaco/monaco-latest.osm.pbf
+          key: monaco.osm.pbf
+          input: input.osm.pbf
+          content_type: application/octet-stream
+          # Published unchanged once it reads as a complete .osm.pbf with enough nodes (41,844 in 2026).
+          convert: |
+            uv run --with osmium==4.3.2 python -c '
+            import osmium
+            nodes = sum(1 for _ in osmium.FileProcessor("input.osm.pbf", osmium.osm.NODE))
+            assert nodes >= 35000, f"only {nodes} nodes"'
+            cp input.osm.pbf output
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -59,16 +77,17 @@ jobs:
         if [[ "${{ inputs.force }}" != "true" ]]; then
           aws s3api head-object --bucket "$BUCKET" --key "$KEY" --query Metadata.etag --output text > etag.txt || true
         fi
-        curl -sSfL --retry 3 --max-time 1800 --etag-compare etag.txt --etag-save etag.txt -o input.zip "${{ matrix.url }}"
-    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      if: hashFiles('input.zip') != ''
+        curl -sSfL --retry 3 --max-time 1800 --etag-compare etag.txt --etag-save etag.txt -o "${{ matrix.input }}" "${{ matrix.url }}"
+    - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      if: hashFiles(matrix.input) != ''
     - name: Convert and upload
-      if: hashFiles('input.zip') != ''
+      if: hashFiles(matrix.input) != ''
       run: |
-        uv run scripts/shp2parquet.py "${{ matrix.source }}" input.zip output.parquet \
-          --min-features ${{ matrix.min_features }}
+        ${{ matrix.convert }}
+        # never publish a missing or empty file
+        test -s output
         # A single PUT (not multipart) replaces the file atomically and gives it a strong MD5 ETag, which planetiler
         # uses to detect that the file changed while it was reading it. The quotes keep the ETag's own quotes.
-        aws s3api put-object --bucket "$BUCKET" --key "$KEY" --body output.parquet \
-          --content-type application/vnd.apache.parquet --metadata "etag='$(cat etag.txt)'"
+        aws s3api put-object --bucket "$BUCKET" --key "$KEY" --body output \
+          --content-type ${{ matrix.content_type }} --metadata "etag='$(cat etag.txt)'"
         echo "Published $KEY from ${{ matrix.url }} (ETag $(cat etag.txt))" >> "$GITHUB_STEP_SUMMARY"

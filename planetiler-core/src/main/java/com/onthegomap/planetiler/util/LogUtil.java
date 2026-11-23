@@ -36,4 +36,19 @@ public class LogUtil {
       setStage(parent + ":" + child.replaceFirst("^" + Pattern.quote(parent) + "_?", ""));
     }
   }
+
+  /** Runs {@code task} with {@code [stage]} prepended to the logs from this thread, then goes back to the stage before. */
+  public static void runInStage(String stage, Runnable task) {
+    String previousStage = getStage();
+    setStage(stage);
+    try {
+      task.run();
+    } finally {
+      if (previousStage == null) {
+        clearStage();
+      } else {
+        setStage(previousStage);
+      }
+    }
+  }
 }

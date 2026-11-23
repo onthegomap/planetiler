@@ -13,7 +13,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
       packages: write
@@ -52,6 +52,16 @@ jobs:
         max_attempts: 5
         timeout_minutes: 30
         command: ./scripts/test-release.sh "${{ github.event.inputs.version }}"
+    # Before "Create tag", so a failed build can be rerun.
+    # JDK + jmods downloads (~1 GB), shared with the snapshot / CI builds on main until the Makefile changes
+    - uses: actions/cache@v6
+      with:
+        path: launcher/.cache
+        key: jdk-${{ hashFiles('launcher/Makefile') }}
+    - name: Build launchers
+      run: make -C launcher VERSION="${{ github.event.inputs.version }}" JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
+    - name: Test launcher (planetiler setup)
+      run: make -C launcher smoke JAR="$(realpath planetiler-dist/target/*with-deps.jar)"
     - name: Create tag
       uses: actions/github-script@v9
       with:
@@ -74,6 +84,7 @@ jobs:
         draft: true
         files: |
           planetiler.jar*
+          launcher/dist/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - run: ./scripts/push-release.sh ${{ github.event.inputs.version }}
