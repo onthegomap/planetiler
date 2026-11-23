@@ -138,7 +138,7 @@ public class Contexts {
         throw new ParseException("Infinite loop while processing arguments: " + unparsedSchemaArgs.keySet());
       }
     }
-    var finalArguments = loggingEnabled ? arguments.withExactlyOnceLogging() : arguments.silence();
+    var finalArguments = loggingEnabled ? arguments : arguments.silence();
     if (loggingEnabled) {
       argDescriptions.forEach((key, description) -> finalArguments.getString(key, description, null));
     }

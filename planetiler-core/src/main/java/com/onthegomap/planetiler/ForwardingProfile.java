@@ -56,8 +56,8 @@ public abstract class ForwardingProfile implements Profile {
   private volatile MultiExpression.Index<FeatureProcessor> indexedSourceElementProcessors = null;
 
   protected ForwardingProfile(PlanetilerConfig config) {
-    onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
-    excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
+    onlyLayers = config.arguments().getList("only_layers", "include only these layers (e.g. water,landcover)", List.of());
+    excludeLayers = config.arguments().getList("exclude_layers", "leave out these layers", List.of());
   }
 
   protected ForwardingProfile(PlanetilerConfig config, Handler... handlers) {

@@ -27,9 +27,13 @@ public class ConfiguredMapMain {
 
     var schemaFile = arguments.getString(
       "schema",
-      "Location of YML-format schema definition file"
+      "location of YML-format schema definition file"
     );
 
+    if (schemaFile == null) {
+      // only with --help, which can't list the schema's own options without one
+      arguments.printHelpIfRequested("--schema=<file> [options]");
+    }
     var path = Path.of(schemaFile);
     SchemaConfig schema;
     if (Files.exists(path)) {
