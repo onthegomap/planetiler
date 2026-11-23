@@ -65,12 +65,10 @@ public class Bounds {
     return this;
   }
 
-  /** Planetiler will emit any tile that intersects {@code shape}. */
+  /** Planetiler will emit any tile that intersects {@code shape} and is within the bounds, if any were set. */
   public Bounds setShape(Geometry shape) {
     this.shape = shape;
-    if (latLon == null) {
-      set(shape.getEnvelopeInternal());
-    }
+    set(latLon == null ? shape.getEnvelopeInternal() : latLon);
     return this;
   }
 

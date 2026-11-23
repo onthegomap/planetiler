@@ -3391,8 +3391,15 @@ class PlanetilerTests {
   }
 
   private PlanetilerResults runForBoundsTest(int minzoom, int maxzoom, String key, String value) throws Exception {
+    return runForBoundsTest(minzoom, maxzoom, Map.of(key, value));
+  }
+
+  private PlanetilerResults runForBoundsTest(int minzoom, int maxzoom, Map<String, String> boundsArgs)
+    throws Exception {
+    var args = new HashMap<>(boundsArgs);
+    args.put("threads", "1");
     return runWithReaderFeatures(
-      Map.of("threads", "1", key, value),
+      args,
       List.of(
         newReaderFeature(WORLD_POLYGON, Map.of())
       ),
@@ -3597,6 +3604,22 @@ class PlanetilerTests {
     int z8tiles = 1 << 8;
     assertFalse(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 5 / 8, 8)));
     assertTrue(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 7 / 8, 8)));
+  }
+
+  @Test
+  void testBoundsAndPolygonFilters() throws Exception {
+    var result = runForBoundsTest(0, 2, Map.of(
+      "bounds", "1,-85.05113,90,-1",
+      "polygon", TestUtils.pathToResource("bottomrightearth.poly").toString()
+    ));
+
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 0),
+      TileCoord.ofXYZ(1, 1, 1),
+      // TileCoord.ofXYZ(2, 2, 2), - within bounds but outside of triangle
+      TileCoord.ofXYZ(2, 3, 2)
+      // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
+    ), result.tiles.keySet());
   }
 
   @Test
