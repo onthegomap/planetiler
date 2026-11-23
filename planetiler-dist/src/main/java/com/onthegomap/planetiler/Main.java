@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
 import org.openmaptiles.util.VerifyMonaco;
@@ -37,6 +38,13 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("java:S106")
 public class Main {
+
+  // Set by or for the launcher (launcher/main.go, cache.go), not planetiler options.
+  private static final Set<String> LAUNCHER_SETTINGS = Set.of(
+    "planetiler.launcher",
+    "PLANETILER_JAVA_HOME",
+    "PLANETILER_CLASSPATH",
+    "PLANETILER_CACHE_DIR");
   static {
     int version = Runtime.version().feature();
     if (version < 25) {
@@ -157,7 +165,7 @@ public class Main {
     if (first.matches("^.*\\.ya?ml$")) {
       task = ConfiguredMapMain::main;
       ArgumentHelp.setSubcommand(first, null);
-      args = args.length == 1 ? new String[]{"--schema=" + first, "--help"} :
+      args = args.length == 1 && !configuredOutsideArgs() ? new String[]{"--schema=" + first, "--help"} :
         Stream.concat(Stream.of("--schema=" + first), Stream.of(args).skip(1)).toArray(String[]::new);
     } else if (!first.isEmpty() && !first.contains("=") && !first.startsWith("-")) {
       String name = first.toLowerCase(Locale.ROOT);
@@ -169,7 +177,8 @@ public class Main {
           ArgumentHelp.planetilerCommand("--help"));
       }
       ArgumentHelp.setSubcommand(found.name(), found.description());
-      args = args.length == 1 && found.buildsMap() ? new String[]{"--help"} : Arrays.copyOfRange(args, 1, args.length);
+      args = args.length == 1 && found.buildsMap() && !configuredOutsideArgs() ? new String[]{"--help"} :
+        Arrays.copyOfRange(args, 1, args.length);
       task = found.main();
     }
     task.main(args);
@@ -183,10 +192,15 @@ public class Main {
     if (args.length == 1) {
       return args[0].matches("^(--?help|-h|help)$");
     }
-    return args.length == 0 &&
-      System.getenv().keySet().stream().noneMatch(key -> key.startsWith("PLANETILER_")) &&
+    return args.length == 0 && !configuredOutsideArgs();
+  }
+
+  /** Returns true when planetiler options are set in environment variables or JVM properties. */
+  private static boolean configuredOutsideArgs() {
+    return System.getenv().keySet().stream()
+      .anyMatch(key -> key.startsWith("PLANETILER_") && !LAUNCHER_SETTINGS.contains(key)) ||
       System.getProperties().stringPropertyNames().stream()
-        .noneMatch(key -> key.startsWith("planetiler.") && !key.equals("planetiler.launcher"));
+        .anyMatch(key -> key.startsWith("planetiler.") && !LAUNCHER_SETTINGS.contains(key));
   }
 
   /** Returns the overview that {@code planetiler --help} prints. */

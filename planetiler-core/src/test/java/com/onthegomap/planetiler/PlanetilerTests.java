@@ -3741,6 +3741,24 @@ class PlanetilerTests {
   }
 
   @Test
+  void testShapefileSourceWithUrlsOnlyFromArguments() throws IOException {
+    Set<Long> featureIds = ConcurrentHashMap.newKeySet();
+    var downloader = new StubDownloader(PlanetilerConfig.defaults());
+    downloader.put("http://host/a/one.zip", Files.readAllBytes(TestUtils.pathToResource("shapefile.zip")));
+    Planetiler.create(Arguments.fromArgs(
+      "--tmpdir=" + tempDir.resolve("data"),
+      "--download",
+      "--shapes-urls=http://host/a/one.zip"))
+      .setDownloader(downloader)
+      .setProfile((SourceFeature source, FeatureCollector features) -> featureIds.add(source.id()))
+      .addShapefileMultiUrlSource("shapes", tempDir.resolve("shapes"), List.of())
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertEquals(86, featureIds.size());
+  }
+
+  @Test
   void testShapefileSourceFromSeveralUrlsRejectsSingleUrlArgument() {
     List<String> urls = List.of("http://host/a/one.zip", "http://host/b/two.zip");
     var exception = assertThrows(IllegalArgumentException.class,

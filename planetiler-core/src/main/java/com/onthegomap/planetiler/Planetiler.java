@@ -59,6 +59,7 @@ import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -416,7 +417,8 @@ public class Planetiler {
       defaultDirectory);
     // the URLs name the local files, so they're needed even when not downloading
     List<String> urls = sourceArgs.getList(name + "_urls", name + " shapefile urls", defaultUrls);
-    registerSource(name, defaultDirectory, defaultUrls.size() + " files from " + host(defaultUrls.getFirst()));
+    registerSource(name, defaultDirectory,
+      defaultUrls.isEmpty() ? "" : defaultUrls.size() + " files from " + host(defaultUrls.getFirst()));
     if (sourceArgs.getString(
       name + "_url",
       "not supported for " + name + ", use " + name + "_urls",
@@ -1844,8 +1846,13 @@ public class Planetiler {
   }
 
   private static String host(String url) {
-    String host = URI.create(url).getHost();
-    return host == null ? url : host;
+    try {
+      String host = new URI(url).getHost();
+      return host == null ? url : host;
+    } catch (URISyntaxException _) {
+      // only shown in --help, so it must never fail a run
+      return url;
+    }
   }
 
   /** Returns the text {@code --help} prints: the profile, examples, its options, sources, then core's options. */

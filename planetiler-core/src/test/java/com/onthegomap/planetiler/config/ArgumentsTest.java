@@ -655,4 +655,12 @@ class ArgumentsTest {
     args.getString("key3", "", null);
     assertEquals(List.of("unknown option --key2 (did you mean --key1?)"), args.unknownOptions());
   }
+
+  @Test
+  void testPathsAndUrisWithEqualsArePositional() {
+    var args = Arguments.fromArgs("data/run=1/a.pmtiles", "b.pmtiles?compact=true", "maxzoom=3");
+    assertEquals(3, args.getInteger("maxzoom", "", 14));
+    assertEquals(List.of("data/run=1/a.pmtiles", "b.pmtiles?compact=true"), args.positional());
+    assertEquals(List.of(), args.unknownOptions());
+  }
 }

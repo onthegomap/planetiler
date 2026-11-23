@@ -56,6 +56,7 @@ public class Arguments {
   private static final String COMMAND_LINE = "command line";
   private static final String CONFIG_FILE = "config file";
   private static final Pattern SHORT_OPTION = Pattern.compile("^-[a-zA-Z]$");
+  private static final Pattern OPTION_NAME = Pattern.compile("^[\\w.-]+$");
   private static final Map<String, Boolean> BOOLEANS = Map.of(
     "true", true, "yes", true, "on", true, "1", true,
     "false", false, "no", false, "off", false, "0", false);
@@ -155,7 +156,8 @@ public class Arguments {
       if (arg.equals("--")) {
         remaining.forEach(word -> words.add(new Word(word, null)));
         break;
-      } else if (kv.length == 2) {
+      } else if (kv.length == 2 && (arg.startsWith("-") || OPTION_NAME.matcher(kv[0]).matches())) {
+        // key=value without dashes is an option too, unless it looks like a path or URI (data/run=1/a.pmtiles)
         parsed.put(key, kv[1]);
       } else if (!arg.startsWith("-")) {
         words.add(new Word(arg, null));
