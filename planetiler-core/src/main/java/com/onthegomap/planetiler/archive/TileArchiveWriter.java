@@ -292,7 +292,7 @@ public class TileArchiveWriter {
         byte[] bytes, encoded;
         List<TileSizeStats.LayerStats> layerStats;
         Long tileDataHash;
-        if (tileFeatures.hasSameContents(last)) {
+        if (tileFeatures.producesSameOutputAs(last)) {
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;

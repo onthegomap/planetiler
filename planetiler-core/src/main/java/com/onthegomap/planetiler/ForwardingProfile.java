@@ -275,6 +275,12 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   @Override
+  public boolean postProcessEveryTile() {
+    // TilePostProcessor handlers get the tile coordinate, so assume any of them may depend on it.
+    return !tilePostProcessors.isEmpty();
+  }
+
+  @Override
   public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
     Consumer<FeatureCollector.Feature> next) {
     // delegate finish handling to every layer that implements FinishHandler
