@@ -3977,7 +3977,7 @@ class PlanetilerTests {
 
     assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
   }
-
+  
   @Test
   void testHelp() {
     var planetiler = Planetiler.create(Arguments.of())
@@ -4032,5 +4032,30 @@ class PlanetilerTests {
     String helpAll = planetiler.help(true);
     assertTrue(helpAll.contains("\nSources:\n"), helpAll);
     assertTrue(helpAll.contains("  --water-path=<file> "), helpAll);
+  }
+
+  @Test
+  void testTilePostProcessorRunsOnTilesWithSameContents() throws Exception {
+    ForwardingProfile profile = new ForwardingProfile() {
+      @Override
+      public String name() {
+        return "test";
+      }
+    };
+    profile.registerFeatureHandler((in, features) -> features.polygon("water")
+      .setZoomRange(0, 6)
+      .setAttr("kind", "ocean"));
+    // a tile post-processor whose output depends on the tile coordinate, not only on the features in the tile
+    profile.registerHandler(
+      (ForwardingProfile.TilePostProcessor) (tileCoord, layers) -> tileCoord.x() % 2 == 1 ? Map.of() : layers);
+
+    var results = runWithReaderFeaturesProfile(
+      Map.of("threads", "1", "maxzoom", "6"),
+      List.of(newReaderFeature(rectangle(-40, -40, 40, 40), Map.of())),
+      profile
+    );
+
+    assertFalse(results.tiles.isEmpty());
+    assertEquals(List.of(), results.tiles.keySet().stream().filter(tile -> tile.x() % 2 == 1).toList());
   }
 }

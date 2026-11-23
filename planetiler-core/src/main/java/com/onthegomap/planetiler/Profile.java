@@ -136,6 +136,10 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
    * <p>
    * Many threads invoke this method concurrently so ensure thread-safe access to any shared data structures.
    * <p>
+   * Planetiler skips this method for a tile that has the same input features as the previous tile on the same zoom
+   * level (like large ocean areas) and reuses the previous tile's output. If the output depends on {@code tileCoord}
+   * (for example to clip the output to a shape), also override {@link #postProcessEveryTile()} to return true.
+   * <p>
    * The default implementation passes through input features unaltered
    *
    * @param tileCoord the tile being post-processed
@@ -148,6 +152,17 @@ public interface Profile extends FeatureProcessor<SourceFeature> {
   default Map<String, List<VectorTile.Feature>> postProcessTileFeatures(TileCoord tileCoord,
     Map<String, List<VectorTile.Feature>> layers) throws GeometryException {
     return layers;
+  }
+
+  /**
+   * Returns true if {@link #postProcessTileFeatures(TileCoord, Map)} may return different output for two tiles with the
+   * same input features, depending on where each tile is, so Planetiler has to post-process every tile instead of
+   * reusing the previous tile's output when their input features are the same.
+   * <p>
+   * The default implementation returns false.
+   */
+  default boolean postProcessEveryTile() {
+    return false;
   }
 
   /**

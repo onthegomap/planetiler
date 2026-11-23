@@ -481,10 +481,23 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     /**
-     * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
-     * even if the tiles have separate coordinates.
+     * Returns true if this tile is guaranteed to produce the same output tile as {@code other}: both are on the same
+     * zoom level, have the same contents (see {@link #hasSameContents(TileFeatures)}), and the profile's tile
+     * post-processing does not depend on the tile coordinate (see {@link Profile#postProcessEveryTile()}).
      * <p>
      * Used as an optimization to avoid re-encoding the same ocean tiles over and over again.
+     */
+    public boolean producesSameOutputAs(TileFeatures other) {
+      // Layer post-processing gets the zoom level, so tiles with the same contents on different zooms may differ.
+      return other != null &&
+        other.tileCoord.z() == tileCoord.z() &&
+        !profile.postProcessEveryTile() &&
+        hasSameContents(other);
+    }
+
+    /**
+     * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
+     * even if the tiles have separate coordinates.
      */
     public boolean hasSameContents(TileFeatures other) {
       if (other == null || other.entries.size() != entries.size()) {
