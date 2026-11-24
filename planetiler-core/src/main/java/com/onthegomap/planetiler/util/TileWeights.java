@@ -105,7 +105,7 @@ public class TileWeights {
         return result;
       }
     } catch (IOException | RuntimeJsonMappingException e) {
-      LOGGER.info("Unable to load tile weights from {}, falling back to top 100k", path);
+      LOGGER.debug("Unable to load tile weights from {}, falling back to top 100k", path);
     }
 
     try (var resourceStream = TileWeights.class.getResourceAsStream("/top_50k_osm_tiles.tsv")) {

@@ -202,4 +202,13 @@ class FileUtilsTest {
 
     assertEquals(List.of("a", "b"), closed);
   }
+
+  @Test
+  void testDisplayPath(@TempDir Path tempDir) {
+    String relative = Path.of("data", "output.pmtiles").toString();
+    assertEquals(relative, FileUtils.displayPath(Path.of("data", "output.pmtiles")));
+    assertEquals(relative, FileUtils.displayPath(Path.of("data", "..", "data", "output.pmtiles").toAbsolutePath()));
+    Path outside = tempDir.resolve("output.pmtiles").toAbsolutePath();
+    assertEquals(outside.toString(), FileUtils.displayPath(outside));
+  }
 }

@@ -174,7 +174,7 @@ public class Wikidata {
   private static WikidataTranslations load(Path path, Duration maxAge, int updateLimit) {
     Timer timer = Timer.start();
     if (!Files.exists(path)) {
-      LOGGER.info("no wikidata translations found, run with --fetch-wikidata to download");
+      LOGGER.debug("no wikidata translations found, run with --fetch-wikidata to download");
       return new WikidataTranslations();
     } else {
       try (BufferedReader fis = Files.newBufferedReader(path)) {

@@ -117,7 +117,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
         }
         FileUtils.createParentDirectories(extracted);
         if (!keepUnzipped || FileUtils.isNewer(path, extracted)) {
-          LOGGER.info("unzipping {} to {}", path.toAbsolutePath(), extracted);
+          LOGGER.debug("unzipping {} to {}", path.toAbsolutePath(), extracted);
           FileUtils.safeCopy(Files.newInputStream(zipEntry), extracted);
         }
         if (!keepUnzipped) {

@@ -445,14 +445,14 @@ public class CompareArchives {
     }
     layerDiffs.merge(issue, 1L, Long::sum);
     if (verbose) {
-      LOGGER.debug("{} layer {} {}", coord, layer, issue);
+      LOGGER.info("{} layer {} {}", coord, layer, issue);
     }
   }
 
   private void recordTileDiff(TileCoord coord, String issue) {
     diffTypes.merge(issue, 1L, Long::sum);
     if (verbose) {
-      LOGGER.debug("{} {}", coord, issue);
+      LOGGER.info("{} {}", coord, issue);
     }
   }
 

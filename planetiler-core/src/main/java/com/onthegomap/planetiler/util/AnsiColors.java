@@ -22,6 +22,7 @@ public class AnsiColors {
   private static final String FG_BLUE = "\u001B[34m";
   private static final String REVERSE = "\u001B[7m";
   private static final String BOLD = "\u001B[1m";
+  private static final String DIM = "\u001B[2m";
   // Warnings and errors in the log are colored with these in log4j2.properties using:
   // %X{ansi_yellow} ... %X{ansi_reset}
   private static final Map<String, String> LOG_PATTERN_COLORS =
@@ -53,6 +54,10 @@ public class AnsiColors {
 
   public static String blue(String string) {
     return color(FG_BLUE, string);
+  }
+
+  public static String dim(String string) {
+    return color(DIM, string);
   }
 
   public static String redBackground(String string) {

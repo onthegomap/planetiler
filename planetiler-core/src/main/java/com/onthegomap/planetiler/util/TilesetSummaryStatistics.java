@@ -71,7 +71,7 @@ public class TilesetSummaryStatistics {
       .filter(tile -> !alreadyListed.contains(tile.coord) && tile.archivedSize > WARN_BYTES)
       .toList();
     if (!otherTiles.isEmpty()) {
-      LOGGER.info("Other tiles with large layers\n{}",
+      LOGGER.debug("Other tiles with large layers\n{}",
         otherTiles.stream()
           .map(tile -> "%d/%d/%d (%s) %s (%s)".formatted(
             tile.coord.z(),

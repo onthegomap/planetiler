@@ -128,9 +128,9 @@ class ExternalMergeSort implements FeatureSort {
     this.writerLimit = Math.max(1, config.sortMaxWriters());
     try {
       if (reuseExisting) {
-        LOGGER.info("Reusing merge sort feature map directory at {}", dir);
+        LOGGER.debug("Reusing merge sort feature map directory at {}", dir);
       } else {
-        LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000,
+        LOGGER.debug("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000,
           workers);
         FileUtils.deleteDirectory(dir);
       }
@@ -191,7 +191,7 @@ class ExternalMergeSort implements FeatureSort {
       chunk -> chunk.bytesInMemory
     );
 
-    LOGGER.info("Grouped {} chunks into {}", chunks.size(), groups.size());
+    LOGGER.debug("Grouped {} chunks into {}", chunks.size(), groups.size());
 
     var pipeline = WorkerPipeline.start("sort", stats)
       .readFromTiny("item_queue", groups)
@@ -235,7 +235,7 @@ class ExternalMergeSort implements FeatureSort {
 
     sorted = true;
     timer.stop();
-    LOGGER.info("read:{}s write:{}s sort:{}s",
+    LOGGER.debug("read:{}s write:{}s sort:{}s",
       Duration.ofNanos(reading.get()).toSeconds(),
       Duration.ofNanos(writing.get()).toSeconds(),
       Duration.ofNanos(sorting.get()).toSeconds());
@@ -283,7 +283,7 @@ class ExternalMergeSort implements FeatureSort {
       ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
     } catch (IOException e) {
       if (madviseFailed.compareAndSet(false, true)) { // log once
-        LOGGER.info("madvise not available on this system to speed up temporary feature IO.");
+        LOGGER.debug("madvise not available on this system to speed up temporary feature IO.");
       }
     }
   }
@@ -700,7 +700,7 @@ class ExternalMergeSort implements FeatureSort {
       try {
         ByteBufferUtil.free(buffer);
       } catch (IOException e) {
-        LOGGER.info("Unable to unmap chunk", e);
+        LOGGER.debug("Unable to unmap chunk", e);
       }
       try {
         channel.close();

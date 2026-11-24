@@ -62,7 +62,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
     var archiveOptions = Options.from(basePath, options);
     basePath = archiveOptions.basePath();
 
-    LOGGER.atInfo().log("using {} as base files archive path", basePath);
+    LOGGER.atDebug().log("using {} as base files archive path", basePath);
 
     this.basePath = createValidateDirectory(basePath);
     this.metadataPath = archiveOptions.metadataPath();

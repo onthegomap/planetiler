@@ -148,6 +148,16 @@ public class FileUtils {
     return Files.isDirectory(path) ? directorySize(path) : fileSize(path);
   }
 
+  /**
+   * Returns {@code path} relative to the working directory if it is inside it, or its absolute path otherwise, to show
+   * it to users the way they would type it.
+   */
+  public static String displayPath(Path path) {
+    Path absolute = path.toAbsolutePath().normalize();
+    Path workingDir = Path.of("").toAbsolutePath();
+    return (absolute.startsWith(workingDir) ? workingDir.relativize(absolute) : absolute).toString();
+  }
+
   /** Deletes a file if it exists or fails silently if it doesn't. */
   public static void deleteFile(Path path) {
     try {

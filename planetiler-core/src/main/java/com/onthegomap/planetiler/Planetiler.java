@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.util.LogUtil.UNTIMED_LOGGER;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Suppliers;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
@@ -90,6 +92,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 /**
  * High-level API for creating a new map that ties together lower-level utilities in a way that is suitable for the most
@@ -129,6 +132,7 @@ public class Planetiler {
   private final Arguments sourceArgs;
   private final Map<String, Source> sourcesForHelp = new LinkedHashMap<>();
   private String areaSourceName = null;
+  private String acknowledgments = null;
   private final Stats stats;
   private final Path tmpDir;
   private final Path nodeDbPath;
@@ -178,6 +182,7 @@ public class Planetiler {
     stats = arguments.getStats();
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
+    stats.timers().setLogInterval(config.logInterval());
     if (config.color() != null) {
       AnsiColors.setUseColors(config.color());
     }
@@ -955,6 +960,18 @@ public class Planetiler {
   }
 
   /**
+   * Sets text to print at the end of a successful run, before the summary of what was written: for example the licenses
+   * of the data in the output and the credit that maps made from it must show.
+   *
+   * @param acknowledgments the text, may span several lines
+   * @return this runner instance for chaining
+   */
+  public Planetiler setAcknowledgments(String acknowledgments) {
+    this.acknowledgments = acknowledgments;
+    return this;
+  }
+
+  /**
    * Sets the default languages that will be used by {@link #translations()} when not overridden by {@code languages}
    * argument.
    *
@@ -1138,14 +1155,15 @@ public class Planetiler {
     var showVersion = arguments.getBoolean(ArgumentGroup.OTHER, "version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (showVersion) {
-      System.out.println(buildInfo == null ? "planetiler (unknown version)" : buildInfo.versionLine());
+      System.out.println(BuildInfo.currentVersionLine());
       System.exit(0);
     }
     boolean verbose = arguments.getBoolean(
       ArgumentGroup.LOGGING,
-      "verbose",
-      "show option values and where each came from, and stack traces for errors",
+      "verbose|-v",
+      "show option values and where each came from, details of each stage, and stack traces for errors",
       false);
+    boolean quiet = arguments.getBoolean(ArgumentGroup.LOGGING, "quiet|-q", "only show warnings and errors", false);
     // creates the profile, so the options it reads show up in the help and option list
     profile();
     Path layerStatsPath = arguments.file(
@@ -1161,15 +1179,17 @@ public class Planetiler {
       TileArchiveMetadata.readOptions(profile(), config);
       TileArchives.parseWriterOptions(output, config);
     }
-    arguments.printHelpOrCheckOptions(this::help);
+    arguments.printHelpIfRequested(this::help);
+    if (verbose) {
+      LogUtil.setLevel(Level.DEBUG);
+    } else if (quiet) {
+      LogUtil.setLevel(Level.WARN);
+    }
+    UNTIMED_LOGGER.info("{}, {} profile", BuildInfo.planetilerVersion(), profileName());
+    arguments.warnAboutUnknownOptions();
     if (verbose) {
       System.out.println(ArgumentHelp.verboseList(arguments.options(), profileName() + " options"));
       arguments.logOptionsReadFromNowOn();
-    }
-    if (buildInfo != null && LOGGER.isInfoEnabled()) {
-      LOGGER.info("Planetiler build git hash: {}", buildInfo.githash());
-      LOGGER.info("Planetiler build version: {}", buildInfo.version());
-      LOGGER.info("Planetiler build timestamp: {}", buildInfo.buildTimeString());
     }
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
@@ -1236,29 +1256,8 @@ public class Planetiler {
     boolean hasReusableFeatureDb = hasFeatureDb && hasStringEncoders && hasChunkManifest && hasSourceInfo;
     boolean reuseExistingFeatureDb = config.reuseFeatureDb() && hasReusableFeatureDb;
 
-    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
-
-    if (!toDownload.isEmpty()) {
-      LOGGER.info("  download: Download sources {}", toDownload.stream().map(d -> d.id).distinct().toList());
-    }
-
-    if (!onlyDownloadSources && fetchWikidata) {
-      LOGGER.info("  wikidata: Fetch translations from wikidata query service");
-    }
-
-    if (!onlyDownloadSources && !onlyFetchWikidata) {
-      if (reuseExistingFeatureDb) {
-        LOGGER.info("  reuse: Reusing existing feature DB at {} (skipping source reading stages)", featureDbPath);
-      } else {
-        for (Stage stage : stages) {
-          for (String details : stage.details()) {
-            LOGGER.info("  {}", details);
-          }
-        }
-        LOGGER.info("  sort: Sort rendered features by tile ID");
-      }
-      LOGGER.info("  archive: Encode each tile and write to {}", output);
-    }
+    logStart(buildInfo);
+    logPhases(reuseExistingFeatureDb);
 
     if (reuseExistingFeatureDb) {
       LOGGER.info("Reusing existing feature DB state at {}", featureDbPath);
@@ -1287,6 +1286,7 @@ public class Planetiler {
     // A reused feature DB, --only-download and --only-fetch-wikidata don't read the sources, but their downloads
     // still run, so only open the sources that need downloading.
     Map<String, SourceReader> sources = openSources(onlyDownloadSources || onlyFetchWikidata || reuseExistingFeatureDb);
+    long tilesWritten;
     try {
       if (fetchOsmTileStats) {
         TopOsmTiles.downloadPrecomputed(downloader());
@@ -1366,7 +1366,7 @@ public class Planetiler {
           }
           processSources(readTogether);
 
-          LOGGER.info("Deleting node.db to make room for output file");
+          LOGGER.debug("Deleting node.db to make room for output file");
           profile.release();
           for (var inputPath : inputPaths) {
             if (inputPath.freeAfterReading()) {
@@ -1384,8 +1384,9 @@ public class Planetiler {
         }
 
         sourceMetadata.forEach(tileArchiveMetadata::setExtraMetadata);
-        TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,
-          config, stats);
+        tilesWritten =
+          TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata,
+            layerStatsPath, config, stats);
       } catch (IOException e) {
         throw new PlanetilerException("Unable to write to " + output, e);
       }
@@ -1395,8 +1396,8 @@ public class Planetiler {
     }
 
     overallTimer.stop();
-    LOGGER.info("FINISHED!");
     stats.printSummary();
+    logClosingLines(tilesWritten);
     try {
       stats.close();
       virtualThreadPoolExecutor.close();
@@ -1406,6 +1407,78 @@ public class Planetiler {
     } catch (Exception e) {
       throw new PlanetilerException(e);
     }
+  }
+
+  private void logStart(BuildInfo buildInfo) {
+    if (UNTIMED_LOGGER.isInfoEnabled()) {
+      UNTIMED_LOGGER.info("Building {}", outputName());
+    }
+    if (LOGGER.isDebugEnabled()) {
+      if (buildInfo != null) {
+        LOGGER.debug("Built from git {} at {}", buildInfo.githash(), buildInfo.buildTimeString());
+      }
+      LOGGER.debug("Java {} ({}), {} {}, {} threads, max heap {}",
+        Runtime.version(),
+        System.getProperty("java.vendor"),
+        System.getProperty("os.name"),
+        System.getProperty("os.arch"),
+        config.threads(),
+        Format.defaultInstance().storage(ProcessInfo.getMaxMemoryBytes()));
+    }
+  }
+
+  private void logPhases(boolean reuseExistingFeatureDb) {
+    if (!LOGGER.isDebugEnabled()) {
+      return;
+    }
+    LOGGER.debug("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
+    if (!toDownload.isEmpty()) {
+      LOGGER.debug("  download: Download sources {}", toDownload.stream().map(d -> d.id).distinct().toList());
+    }
+    if (!onlyDownloadSources && fetchWikidata) {
+      LOGGER.debug("  wikidata: Fetch translations from wikidata query service");
+    }
+    if (!onlyDownloadSources && !onlyFetchWikidata) {
+      if (reuseExistingFeatureDb) {
+        LOGGER.debug("  reuse: Reusing existing feature DB at {} (skipping source reading stages)", featureDbPath);
+      } else {
+        for (Stage stage : stages) {
+          for (String details : stage.details()) {
+            LOGGER.debug("  {}", details);
+          }
+        }
+        LOGGER.debug("  sort: Sort rendered features by tile ID");
+      }
+      LOGGER.debug("  archive: Encode each tile and write to {}", output);
+    }
+  }
+
+  private String outputName() {
+    return output.getLocalPath() == null ? output.uri().toString() : FileUtils.displayPath(output.getLocalPath());
+  }
+
+  private void logClosingLines(long tilesWritten) {
+    if (!UNTIMED_LOGGER.isInfoEnabled()) {
+      return;
+    }
+    Format format = Format.defaultInstance();
+    UNTIMED_LOGGER.info("");
+    if (acknowledgments != null) {
+      UNTIMED_LOGGER.info(AnsiColors.dim(acknowledgments.strip()));
+    }
+    UNTIMED_LOGGER.info(AnsiColors.dim(
+      "Questions or problems: https://github.com/onthegomap/planetiler/issues Sponsor planetiler: https://github.com/sponsors/onthegomap"));
+    // Only the launcher builds the warm-up cache with one command, under java -jar it takes two runs with JVM flags.
+    if (ArgumentHelp.wasStartedByLauncher() && !ProcessInfo.usesAotCache()) {
+      UNTIMED_LOGGER.info("Tip: run `{}` once to make every later run start faster.",
+        ArgumentHelp.planetilerCommand("setup"));
+    }
+    String viewHint = output.format() == TileArchiveConfig.Format.PMTILES ?
+      ". View it on https://pmtiles.io" : "";
+    UNTIMED_LOGGER.info("");
+    UNTIMED_LOGGER.info("Wrote {} ({}B, {} tiles){}", outputName(), format.storage(output.size(), false),
+      format.integer(tilesWritten), viewHint);
+    UNTIMED_LOGGER.info("");
   }
 
   private void checkDiskSpace() {
@@ -1512,7 +1585,7 @@ public class Planetiler {
 
   private static void logUnused(String name) {
     LogUtil.setStage(name);
-    LOGGER.info("Skipping since profile does not use it");
+    LOGGER.debug("Skipping since profile does not use it");
     LogUtil.clearStage();
   }
 

@@ -50,29 +50,25 @@ public interface Stats extends AutoCloseable {
   }
 
   /**
-   * Logs top-level stats at the end of a job like the amount of user and CPU time that each task has taken, and size of
-   * each monitored file.
+   * Logs top-level stats at the end of a job: the time and CPU each stage took, and with debug logging also the data
+   * errors and the size of each monitored file.
    */
   default void printSummary() {
     Format format = Format.defaultInstance();
     Logger logger = LoggerFactory.getLogger(getClass());
-    if (logger.isInfoEnabled()) {
-      logger.info("");
-      logger.info("-".repeat(40));
-      logger.info("data errors:");
+    if (logger.isDebugEnabled()) {
+      logger.debug("data errors:");
       dataErrors().entrySet().stream()
         .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-        .forEachOrdered(entry -> logger.info("\t{}\t{}", entry.getKey(), format.integer(entry.getValue())));
-      logger.info("-".repeat(40));
-      timers().printSummary();
-      logger.info("-".repeat(40));
+        .forEachOrdered(entry -> logger.debug("\t{}\t{}", entry.getKey(), format.integer(entry.getValue())));
       for (var entry : monitoredFiles().entrySet()) {
         long size = entry.getValue().sizeProvider().getAsLong();
         if (size > 0) {
-          logger.info("\t{}\t{}B", entry.getKey(), format.storage(size, false));
+          logger.debug("{} size: {}B", entry.getKey(), format.storage(size, false));
         }
       }
     }
+    timers().printSummary();
   }
 
   /**
@@ -85,7 +81,8 @@ public interface Stats extends AutoCloseable {
   }
 
   /**
-   * Same as {@link #startStage(String)} except does not log that it started, or set the logging prefix.
+   * Same as {@link #startStage(String)} except does not log when it starts or finishes, set the logging prefix, or show
+   * up in the {@link #printSummary()} table.
    */
   default Timers.Finishable startStageQuietly(String name) {
     return startStage(name, false);
@@ -94,8 +91,8 @@ public interface Stats extends AutoCloseable {
   /**
    * Records that a long-running task with {@code name} has started and returns a handle to call when finished.
    * <p>
-   * Also sets the "stage" prefix that shows up in the logs to {@code name} if {@code log} is true, until the stage
-   * finishes.
+   * If {@code log} is true, also logs when it starts (and finishes, see {@link Timers#setLogInterval}), shows up in the {@link #printSummary()} table, and
+   * sets the "stage" prefix that shows up in the logs to {@code name} until the stage finishes.
    */
   default Timers.Finishable startStage(String name, boolean log) {
     String previousStage = LogUtil.getStage();

@@ -197,7 +197,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
         if (!source.name().equals(stageName)) {
           LogUtil.setStage(stageName, source.name());
         }
-        LOGGER.atInfo().setMessage("Finished {}").addArgument(source.progress()::summary).log();
+        LOGGER.atDebug().setMessage("Finished {}").addArgument(source.progress()::summary).log();
         // hook for profile to do any post-processing after this source is read
         try (
           var threadLocalWriter = writer.writerForThread();

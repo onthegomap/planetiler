@@ -43,6 +43,19 @@ public record BuildInfo(String githash, String version, Long buildTime) {
     return "planetiler " + version + " (" + githash + (buildTimeString == null ? "" : ", " + buildTimeString) + ")";
   }
 
+  /** Returns this build's {@link #versionLine()}, or {@code planetiler (unknown version)} without build info. */
+  public static String currentVersionLine() {
+    return instance == null ? "planetiler (unknown version)" : instance.versionLine();
+  }
+
+  /**
+   * Returns {@code Planetiler <version>}, or just {@code Planetiler} when the version is unknown, for the first line of
+   * help pages and runs.
+   */
+  public static String planetilerVersion() {
+    return instance == null || instance.version == null ? "Planetiler" : ("Planetiler " + instance.version);
+  }
+
   /** Returns info inserted by maven at build-time into the {@code buildinfo.properties} file. */
   public static BuildInfo get() {
     return instance;

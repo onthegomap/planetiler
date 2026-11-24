@@ -50,7 +50,7 @@ public class ReadableFilesArchive implements ReadableTileArchive {
     final var pathAndScheme = FilesArchiveUtils.basePathWithTileSchemeEncoding(options, basePath);
     basePath = pathAndScheme.basePath();
 
-    LOGGER.atInfo().log(() -> "using " + pathAndScheme.basePath() + " as base files archive path");
+    LOGGER.atDebug().log(() -> "using " + pathAndScheme.basePath() + " as base files archive path");
 
     this.basePath = basePath;
     Preconditions.checkArgument(

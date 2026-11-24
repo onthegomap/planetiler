@@ -59,7 +59,7 @@ public class TileExtents implements Predicate<TileCoord> {
           throw new IllegalArgumentException("Invalid geometry: " + scaled);
         }
         forZoom = forZoom.withShape(covered);
-        LOGGER.info("prepareShapeForZoom z{} {}", zoom, covered);
+        LOGGER.debug("prepareShapeForZoom z{} {}", zoom, covered);
       }
 
       zoomExtents[zoom] = forZoom;

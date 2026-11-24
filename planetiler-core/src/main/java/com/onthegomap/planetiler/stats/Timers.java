@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 /**
  * A registry of tasks that are being timed.
@@ -24,18 +25,58 @@ public class Timers {
   private final Map<String, Stage> timers = Collections.synchronizedMap(new LinkedHashMap<>());
   private final AtomicReference<Stage> currentStage = new AtomicReference<>();
 
+  private final Timer sinceCreated = Timer.start();
+  private volatile Duration logInterval = Duration.ofSeconds(10);
+
+  /**
+   * Sets the time between progress lines. Stages that take at least that long log when they finish, shorter ones only
+   * at debug level since they printed no progress and the summary table already shows their time.
+   */
+  public void setLogInterval(Duration logInterval) {
+    this.logInterval = logInterval;
+  }
+
+  /**
+   * Logs the time since this registry was created, then a table with the wall time, CPU time and average cores used by
+   * each stage that logged when it started, plus each stage's worker threads when debug logging is on.
+   */
   public void printSummary() {
-    int maxLength = (int) all().keySet().stream().mapToLong(String::length).max().orElse(0);
-    for (var entry : all().entrySet()) {
+    if (LOGGER.isInfoEnabled()) {
+      LOGGER.info("Finished in {}{}{}", sinceCreated.elapsed(), System.lineSeparator(),
+        stageTable(LOGGER.isDebugEnabled()));
+    }
+  }
+
+  private String stageTable(boolean withWorkers) {
+    var stages = all().entrySet().stream().filter(entry -> entry.getValue().logged()).toList();
+    int nameWidth =
+      Math.max("stage".length(), stages.stream().mapToInt(entry -> entry.getKey().length()).max().orElse(0));
+    StringBuilder result = new StringBuilder();
+    result.append(stageTableRow(nameWidth, "stage", "time", "cpu", "avg cores"));
+    for (var entry : stages) {
       String name = entry.getKey();
-      var elapsed = entry.getValue().timer.elapsed();
-      LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
-      if (elapsed.wall().compareTo(Duration.ofSeconds(1)) > 0) {
+      ProcessTime elapsed = entry.getValue().timer.elapsed();
+      // Average cores over a few milliseconds is noise, so very short stages leave it blank.
+      String avgCores = elapsed.wall().compareTo(Duration.ofMillis(50)) < 0 ? "" :
+        elapsed.cpu().map(cpu -> FORMAT.decimal(cpu.toNanos() * 1d / elapsed.wall().toNanos())).orElse("");
+      result.append(stageTableRow(
+        nameWidth,
+        name,
+        FORMAT.duration(elapsed.wall()),
+        elapsed.cpu().map(FORMAT::duration).orElse("-"),
+        avgCores));
+      if (withWorkers) {
         for (String detail : getStageDetails(name, true)) {
-          LOGGER.info("\t  " + detail);
+          result.append(System.lineSeparator()).append("\t  ").append(detail);
         }
       }
     }
+    return result.toString();
+  }
+
+  private static String stageTableRow(int nameWidth, String name, String time, String cpu, String avgCores) {
+    return System.lineSeparator() + "\t" + Format.padRight(name, nameWidth) + Format.padLeft(time, 7) +
+      (Format.padLeft(cpu, 7) + "   " + avgCores).stripTrailing();
   }
 
   private List<String> getStageDetails(String name, boolean pad) {
@@ -96,19 +137,25 @@ public class Timers {
 
   public Finishable startTimer(String name, boolean logStart) {
     Timer timer = Timer.start();
-    Stage stage = new Stage(timer);
+    Stage stage = new Stage(timer, logStart);
     timers.put(name, stage);
     Stage last = currentStage.getAndSet(stage);
     if (logStart) {
-      LOGGER.info("");
       LOGGER.info("Starting...");
     }
     return new Finishable() {
       @Override
       public void stop() {
-        LOGGER.info("Finished in {}", timers.get(name).timer.stop());
-        for (var details : getStageDetails(name, true)) {
-          LOGGER.info("  {}", details);
+        timer.stop();
+        if (logStart) {
+          // skip "Finished" if it ran fast enough that no progress was printed (<10s)
+          boolean printedProgress = timer.elapsed().wall().compareTo(logInterval) >= 0;
+          LOGGER.atLevel(printedProgress ? Level.INFO : Level.DEBUG).log("Finished in {}", timer);
+          if (LOGGER.isDebugEnabled()) {
+            for (var details : getStageDetails(name, true)) {
+              LOGGER.debug("  {}", details);
+            }
+          }
         }
         currentStage.set(last);
       }
@@ -143,10 +190,13 @@ public class Timers {
 
   record ThreadInfo(ProcessInfo.ThreadState state, String prefix, Duration elapsed) {}
 
-  record Stage(Timer timer, List<ThreadInfo> threadStats) {
+  /**
+   * A timed task, {@code logged} if it logged when it started and finished, and so shows up in the summary.
+   */
+  record Stage(Timer timer, boolean logged, List<ThreadInfo> threadStats) {
 
-    Stage(Timer timer) {
-      this(timer, new CopyOnWriteArrayList<>());
+    Stage(Timer timer, boolean logged) {
+      this(timer, logged, new CopyOnWriteArrayList<>());
     }
   }
 }
