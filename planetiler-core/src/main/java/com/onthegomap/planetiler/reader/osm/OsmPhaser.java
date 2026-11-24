@@ -72,7 +72,7 @@ class OsmPhaser {
     }
     String summary = getSummary(phase);
     if (summary != null) {
-      LOGGER.info("Finished " + getSummary(phase));
+      LOGGER.debug("Finished " + getSummary(phase));
     }
   }
 

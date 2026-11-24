@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler;
 
+import static com.onthegomap.planetiler.util.LogUtil.UNTIMED_LOGGER;
+
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
 import com.onthegomap.planetiler.config.ArgumentHelp;
@@ -15,6 +17,7 @@ import com.onthegomap.planetiler.examples.overture.OvertureBasemap;
 import com.onthegomap.planetiler.fuzz.DeterminismFuzzer;
 import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.CompareArchives;
 import com.onthegomap.planetiler.util.EditDistance;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -29,8 +32,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
 import org.openmaptiles.util.VerifyMonaco;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Main entry-point for executable jar and container distributions of Planetiler, which delegates to individual {@code
@@ -55,8 +56,6 @@ public class Main {
     }
   }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
-
   private static final Task OPENMAPTILES =
     profile("openmaptiles", "OpenMapTiles schema (default)", OpenMapTilesMain::main, "generate-openmaptiles");
   private static final List<Task> TASKS = List.of(
@@ -73,6 +72,7 @@ public class Main {
     command("stats", "tile size statistics for an archive", TileSizeStats::main),
     command("verify <schema.yml>", "run a YAML schema's tests", SchemaValidator::main, "verify-custom",
       "verify-schema"),
+    command("version", "show the version", _ -> System.out.println(BuildInfo.currentVersionLine())),
 
     hiddenTool("benchmark-mapping", OpenMapTilesMapping::main),
     hiddenTool("benchmark-longlongmap", LongLongMapBench::main),
@@ -137,14 +137,15 @@ public class Main {
       if (verbose(args)) {
         throw e;
       }
-      LOGGER.error("{}", Objects.requireNonNullElse(e.getMessage(), e + " (run with --verbose for details)"));
+      // Omit elapsed time since it's the one line saying why the run stopped, often before it started.
+      UNTIMED_LOGGER.error("{}", Objects.requireNonNullElse(e.getMessage(), e + " (run with --verbose for details)"));
       System.exit(1);
     }
   }
 
   private static boolean verbose(String[] args) {
     try {
-      return Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose", "", false);
+      return Arguments.fromEnvOrArgs(args).silence().getBoolean("verbose|-v", "", false);
     } catch (IllegalArgumentException _) {
       // a bad --verbose value is the error being reported
       return false;
@@ -230,7 +231,8 @@ public class Main {
     }
     page
       .flag("-f", "--force", "overwrite the output")
-      .flag("--verbose", "show option values and where each came from, and stack traces for errors")
+      .flag("-v", "--verbose",
+        "show option values and where each came from, details of each stage, and stack traces for errors")
       .section("Other commands");
     listedTasks(false).forEach(task -> page.row(task.usage(), task.description()));
     return page

@@ -59,7 +59,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
   private static Directories makeDirectoriesWithLeaves(List<Pmtiles.Entry> subEntries, int leafSize, int attemptNum)
     throws IOException {
-    LOGGER.info("Building directories with {} entries per leaf, attempt {}...", leafSize, attemptNum);
+    LOGGER.debug("Building directories with {} entries per leaf, attempt {}...", leafSize, attemptNum);
     ArrayList<Pmtiles.Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
     int leavesLength = 0;
@@ -81,7 +81,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     byte[] rootBytes = Pmtiles.directoryToBytes(rootEntries);
     rootBytes = Gzip.gzip(rootBytes);
 
-    LOGGER.info("Built directories with {} leaves, {}B root directory", rootEntries.size(), rootBytes.length);
+    LOGGER.debug("Built directories with {} leaves, {}B root directory", rootEntries.size(), rootBytes.length);
 
     return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves, leafSize, attemptNum);
   }
@@ -141,9 +141,9 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   @Override
   public void finish(TileArchiveMetadata tileArchiveMetadata) {
     if (!isClustered) {
-      LOGGER.info("Tile data was not written in order, sorting entries...");
+      LOGGER.debug("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);
-      LOGGER.info("Done sorting.");
+      LOGGER.debug("Done sorting.");
     }
     try {
       Directories directories = makeDirectories(entries);
@@ -213,35 +213,35 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         (int) (center.y * 10_000_000)
       );
 
-      LOGGER.info("Writing metadata and leaf directories...");
+      LOGGER.debug("Writing metadata and leaf directories...");
 
       out.write(ByteBuffer.wrap(jsonBytes));
       out.write(ByteBuffer.wrap(directories.leaves));
 
-      LOGGER.info("Writing header...");
+      LOGGER.debug("Writing header...");
       out.position(0);
       out.write(ByteBuffer.wrap(header.toBytes()));
       out.write(ByteBuffer.wrap(directories.root));
 
       Format format = Format.defaultInstance();
 
-      if (LOGGER.isInfoEnabled()) {
-        LOGGER.info("# addressed tiles: {}", numAddressedTiles);
-        LOGGER.info("# of tile entries: {}", entries.size());
-        LOGGER.info("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
-        LOGGER.info("Root directory: {}B", format.storage(directories.root.length, false));
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("# addressed tiles: {}", numAddressedTiles);
+        LOGGER.debug("# of tile entries: {}", entries.size());
+        LOGGER.debug("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
+        LOGGER.debug("Root directory: {}B", format.storage(directories.root.length, false));
 
-        LOGGER.info("# leaves: {}", directories.numLeaves);
+        LOGGER.debug("# leaves: {}", directories.numLeaves);
         if (directories.numLeaves > 0) {
-          LOGGER.info("Leaf directories: {}B", format.storage(directories.leaves.length, false));
+          LOGGER.debug("Leaf directories: {}B", format.storage(directories.leaves.length, false));
           LOGGER
-            .info("Avg leaf size: {}B", format.storage(directories.leaves.length / directories.numLeaves, false));
+            .debug("Avg leaf size: {}B", format.storage(directories.leaves.length / directories.numLeaves, false));
         }
 
         LOGGER
-          .info("Total dir bytes: {}B", format.storage(directories.root.length + directories.leaves.length, false));
+          .debug("Total dir bytes: {}B", format.storage(directories.root.length + directories.leaves.length, false));
         double tot = (double) directories.root.length + directories.leaves.length;
-        LOGGER.info("Average bytes per addressed tile: {}", tot / numAddressedTiles);
+        LOGGER.debug("Average bytes per addressed tile: {}", tot / numAddressedTiles);
       }
     } catch (IOException e) {
       LOGGER.error(e.getMessage());

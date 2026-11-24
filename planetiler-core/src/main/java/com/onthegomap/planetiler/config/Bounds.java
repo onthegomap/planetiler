@@ -55,7 +55,7 @@ public class Bounds {
     if (latLon == null) {
       Envelope bounds = latLonProvider.getLatLonBounds();
       if (bounds != null && !bounds.isNull() && bounds.getArea() > 0) {
-        LOGGER.atInfo()
+        LOGGER.atDebug()
           .setMessage("Setting map bounds from input: {}")
           .addArgument(() -> envelopeToString(bounds))
           .log();

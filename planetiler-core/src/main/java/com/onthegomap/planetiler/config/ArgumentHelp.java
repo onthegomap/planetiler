@@ -68,9 +68,7 @@ public final class ArgumentHelp {
 
   /** Returns the line every help screen starts with: planetiler, its version and what it does. */
   public static String title() {
-    BuildInfo buildInfo = BuildInfo.get();
-    String version = buildInfo == null || buildInfo.version() == null ? "" : " " + buildInfo.version();
-    return "Planetiler" + version + ": build vector tiles from OpenStreetMap data fast";
+    return BuildInfo.planetilerVersion() + ": build vector tiles from OpenStreetMap data fast";
   }
 
   /** Returns true when the {@code planetiler} launcher started planetiler (it sets the memory limit). */

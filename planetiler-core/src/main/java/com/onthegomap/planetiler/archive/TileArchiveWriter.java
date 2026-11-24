@@ -88,8 +88,11 @@ public class TileArchiveWriter {
     stats.counter("archive_tiles_written", "zoom", () -> countsByZoom);
   }
 
-  /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
+  /**
+   * Reads all {@code features}, encodes them in parallel, writes to {@code output}, and returns the number of tiles
+   * written.
+   */
+  public static long writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
     TileArchiveMetadata tileArchiveMetadata, Path layerStatsPath, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 
@@ -199,6 +202,7 @@ public class TileArchiveWriter {
     loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
+    return writer.tilesEmitted();
   }
 
   private static WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
@@ -382,9 +386,9 @@ public class TileArchiveWriter {
             // but it should be a "good-enough" indicator for "zoom-progress"-logging
             if (firstTileWriter) {
               if (time == null) {
-                LOGGER.info("Starting z{}", z);
+                LOGGER.debug("Starting z{}", z);
               } else {
-                LOGGER.info("Finished z{} in {}, now starting z{}", currentZ, time.stop(), z);
+                LOGGER.debug("Finished z{} in {}, now starting z{}", currentZ, time.stop(), z);
               }
             }
             time = Timer.start();
@@ -401,7 +405,7 @@ public class TileArchiveWriter {
     }
 
     if (time != null) {
-      LOGGER.info("Finished z{} in {}", currentZ, time.stop());
+      LOGGER.debug("Finished z{} in {}", currentZ, time.stop());
     }
   }
 

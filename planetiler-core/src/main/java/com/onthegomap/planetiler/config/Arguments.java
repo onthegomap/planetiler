@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import static com.onthegomap.planetiler.util.LogUtil.UNTIMED_LOGGER;
+
 import static com.onthegomap.planetiler.geo.GeoUtils.envelopeToString;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -339,7 +341,7 @@ public class Arguments {
       value = lookupNormalized(normalize(prefix + alias));
       // options are often read more than once (e.g. before the archive opens and when it does), so warn once
       if (value != null && warnIfDeprecated && registry.warnedAbout.add("deprecated " + alias)) {
-        LOGGER.warn("Argument '{}' is deprecated", alias);
+        UNTIMED_LOGGER.warn("Argument '{}' is deprecated", alias);
       }
     }
     if (value == null && parsed.shortName() != null) {
@@ -499,7 +501,7 @@ public class Arguments {
    */
   // TODO fail instead of warning, after the 0.11 release
   public void warnAboutUnknownOptions() {
-    unknownOptions().forEach(LOGGER::warn);
+    unknownOptions().forEach(UNTIMED_LOGGER::warn);
   }
 
   List<String> unknownOptions() {

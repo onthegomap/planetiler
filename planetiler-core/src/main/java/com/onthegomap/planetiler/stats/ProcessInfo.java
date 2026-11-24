@@ -144,6 +144,12 @@ public class ProcessInfo {
       .orElseGet(ProcessInfo::getMaxMemoryBytes);
   }
 
+  /** Returns {@code true} if the JVM uses or trains an AOT cache ({@code -XX:AOTCache} or {@code -XX:AOTCacheOutput}). */
+  public static boolean usesAotCache() {
+    return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+      .anyMatch(arg -> arg.startsWith("-XX:AOTCache"));
+  }
+
   /**
    * Returns the total amount of memory available on the system if available.
    */

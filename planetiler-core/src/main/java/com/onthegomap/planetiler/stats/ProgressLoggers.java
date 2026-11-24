@@ -344,10 +344,14 @@ public class ProgressLoggers {
 
   /** Invoke {@link #log()} at a fixed duration until {@code future} completes. */
   public void awaitAndLog(Future<?> future, Duration logInterval) {
+    // At regular log level, only log if it takes > logInterval
     while (!await(future, logInterval)) {
       log();
     }
-    log();
+    // At verbose log levels, also log once at the end of each stage
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(getLog());
+    }
   }
 
   /** Returns true if the future is done, false if {@code duration} has elapsed. */

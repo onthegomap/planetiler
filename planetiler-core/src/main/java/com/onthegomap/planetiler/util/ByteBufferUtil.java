@@ -24,7 +24,7 @@ public class ByteBufferUtil {
       try {
         posixMadvise(ByteBuffer.allocateDirect(1), Madvice.RANDOM);
       } catch (IOException e) {
-        LOGGER.info("madvise not available on this system");
+        LOGGER.debug("madvise not available on this system");
       }
     }
   }
@@ -113,7 +113,7 @@ public class ByteBufferUtil {
             ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.RANDOM);
           } catch (IOException e) {
             if (!madviseFailed) { // log once
-              LOGGER.info(
+              LOGGER.debug(
                 "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
               madviseFailed = true;
             }
