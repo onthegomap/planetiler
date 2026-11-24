@@ -72,7 +72,7 @@ public class Main {
     command("stats", "tile size statistics for an archive", TileSizeStats::main),
     command("verify <schema.yml>", "run a YAML schema's tests", SchemaValidator::main, "verify-custom",
       "verify-schema"),
-    command("version", "show the version", _ -> System.out.println(BuildInfo.currentVersionLine())),
+    command("version", "show the version", _ -> System.out.println(BuildInfo.versionDetails())),
 
     hiddenTool("benchmark-mapping", OpenMapTilesMapping::main),
     hiddenTool("benchmark-longlongmap", LongLongMapBench::main),

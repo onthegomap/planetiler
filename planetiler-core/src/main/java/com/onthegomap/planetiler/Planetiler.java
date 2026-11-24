@@ -1155,7 +1155,7 @@ public class Planetiler {
     var showVersion = arguments.getBoolean(ArgumentGroup.OTHER, "version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (showVersion) {
-      System.out.println(BuildInfo.currentVersionLine());
+      System.out.println(BuildInfo.versionDetails());
       System.exit(0);
     }
     boolean verbose = arguments.getBoolean(
@@ -1417,11 +1417,8 @@ public class Planetiler {
       if (buildInfo != null) {
         LOGGER.debug("Built from git {} at {}", buildInfo.githash(), buildInfo.buildTimeString());
       }
-      LOGGER.debug("Java {} ({}), {} {}, {} threads, max heap {}",
-        Runtime.version(),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.name"),
-        System.getProperty("os.arch"),
+      LOGGER.debug("{}, {} threads, max heap {}",
+        ProcessInfo.describeRuntime(),
         config.threads(),
         Format.defaultInstance().storage(ProcessInfo.getMaxMemoryBytes()));
     }

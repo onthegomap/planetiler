@@ -144,6 +144,19 @@ public class ProcessInfo {
       .orElseGet(ProcessInfo::getMaxMemoryBytes);
   }
 
+  /**
+   * Returns the Java version and vendor, then the operating system, its version and the architecture, like
+   * {@code Java 25.0.1+8-LTS (Eclipse Adoptium), Linux 6.8.0 amd64}.
+   */
+  public static String describeRuntime() {
+    return "Java %s (%s), %s %s %s".formatted(
+      Runtime.version(),
+      System.getProperty("java.vendor"),
+      System.getProperty("os.name"),
+      System.getProperty("os.version"),
+      System.getProperty("os.arch"));
+  }
+
   /** Returns {@code true} if the JVM uses or trains an AOT cache ({@code -XX:AOTCache} or {@code -XX:AOTCacheOutput}). */
   public static boolean usesAotCache() {
     return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
