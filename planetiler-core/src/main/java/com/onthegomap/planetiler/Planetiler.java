@@ -1155,7 +1155,7 @@ public class Planetiler {
     var showVersion = arguments.getBoolean(ArgumentGroup.OTHER, "version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (showVersion) {
-      System.out.println(BuildInfo.currentVersionLine());
+      System.out.println(BuildInfo.versionDetails());
       System.exit(0);
     }
     boolean verbose = arguments.getBoolean(
@@ -1186,6 +1186,15 @@ public class Planetiler {
       LogUtil.setLevel(Level.WARN);
     }
     UNTIMED_LOGGER.info("{}, {} profile", BuildInfo.planetilerVersion(), profileName());
+    if (UNTIMED_LOGGER.isDebugEnabled()) {
+      if (buildInfo != null) {
+        UNTIMED_LOGGER.debug("Built from git {} at {}", buildInfo.githash(), buildInfo.buildTimeString());
+      }
+      UNTIMED_LOGGER.debug("{}, {} threads, max heap {}",
+        ProcessInfo.describeRuntime(),
+        config.threads(),
+        Format.defaultInstance().storage(ProcessInfo.getMaxMemoryBytes()));
+    }
     arguments.warnAboutUnknownOptions();
     if (verbose) {
       System.out.println(ArgumentHelp.verboseList(arguments.options(), profileName() + " options"));
@@ -1256,7 +1265,7 @@ public class Planetiler {
     boolean hasReusableFeatureDb = hasFeatureDb && hasStringEncoders && hasChunkManifest && hasSourceInfo;
     boolean reuseExistingFeatureDb = config.reuseFeatureDb() && hasReusableFeatureDb;
 
-    logStart(buildInfo);
+    logStart();
     logPhases(reuseExistingFeatureDb);
 
     if (reuseExistingFeatureDb) {
@@ -1409,21 +1418,9 @@ public class Planetiler {
     }
   }
 
-  private void logStart(BuildInfo buildInfo) {
+  private void logStart() {
     if (UNTIMED_LOGGER.isInfoEnabled()) {
       UNTIMED_LOGGER.info("Building {}", outputName());
-    }
-    if (LOGGER.isDebugEnabled()) {
-      if (buildInfo != null) {
-        LOGGER.debug("Built from git {} at {}", buildInfo.githash(), buildInfo.buildTimeString());
-      }
-      LOGGER.debug("Java {} ({}), {} {}, {} threads, max heap {}",
-        Runtime.version(),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.name"),
-        System.getProperty("os.arch"),
-        config.threads(),
-        Format.defaultInstance().storage(ProcessInfo.getMaxMemoryBytes()));
     }
   }
 

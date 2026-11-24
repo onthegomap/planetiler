@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Properties;
@@ -43,9 +44,13 @@ public record BuildInfo(String githash, String version, Long buildTime) {
     return "planetiler " + version + " (" + githash + (buildTimeString == null ? "" : ", " + buildTimeString) + ")";
   }
 
-  /** Returns this build's {@link #versionLine()}, or {@code planetiler (unknown version)} without build info. */
-  public static String currentVersionLine() {
-    return instance == null ? "planetiler (unknown version)" : instance.versionLine();
+  /**
+   * Returns what {@code planetiler version} prints: this build's {@link #versionLine()} (or
+   * {@code planetiler (unknown version)} without build info), then {@link ProcessInfo#describeRuntime()}.
+   */
+  public static String versionDetails() {
+    return (instance == null ? "planetiler (unknown version)" : instance.versionLine()) + System.lineSeparator() +
+      ProcessInfo.describeRuntime();
   }
 
   /**

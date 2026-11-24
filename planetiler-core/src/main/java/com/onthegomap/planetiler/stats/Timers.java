@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.stats;
 
+import static com.onthegomap.planetiler.util.LogUtil.UNTIMED_LOGGER;
+
 import com.onthegomap.planetiler.util.Format;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,9 +43,9 @@ public class Timers {
    * each stage that logged when it started, plus each stage's worker threads when debug logging is on.
    */
   public void printSummary() {
-    if (LOGGER.isInfoEnabled()) {
-      LOGGER.info("Finished in {}{}{}", sinceCreated.elapsed(), System.lineSeparator(),
-        stageTable(LOGGER.isDebugEnabled()));
+    if (UNTIMED_LOGGER.isInfoEnabled()) {
+      UNTIMED_LOGGER.info("");
+      UNTIMED_LOGGER.info("Finished in {}{}", sinceCreated.elapsed(), stageTable(UNTIMED_LOGGER.isDebugEnabled()));
     }
   }
 
