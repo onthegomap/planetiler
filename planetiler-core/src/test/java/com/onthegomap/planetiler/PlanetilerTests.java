@@ -25,8 +25,8 @@ import com.onthegomap.planetiler.geo.SimplifyMethod;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
-import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
+import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.ShapefileOptions;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -42,7 +42,6 @@ import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
-import com.onthegomap.planetiler.util.Exceptions;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.FunctionThatThrows;
 import com.onthegomap.planetiler.util.Gzip;
@@ -3621,7 +3620,7 @@ class PlanetilerTests {
       TileCoord.ofXYZ(1, 1, 1),
       // TileCoord.ofXYZ(2, 2, 2), - within bounds but outside of triangle
       TileCoord.ofXYZ(2, 3, 2)
-      // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
+    // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
     ), result.tiles.keySet());
   }
 
@@ -3981,7 +3980,7 @@ class PlanetilerTests {
 
     assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
   }
-  
+
   @Test
   void testHelp() {
     var planetiler = Planetiler.create(Arguments.of())
