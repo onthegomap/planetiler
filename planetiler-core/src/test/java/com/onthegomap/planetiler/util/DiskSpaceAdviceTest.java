@@ -96,8 +96,13 @@ class DiskSpaceAdviceTest {
         - move the sources in %s to another disk
         - write the output to another disk with --output=<file>""".formatted(FileUtils.displayPath(sourcesDir));
     assertEquals(Optional.of(whileReading), advice.explainFailure(DISK_FULL, false));
-    assertEquals(Optional.of(whileReading + "\n  - use --free-natural-earth-after-read to delete %s once it's read"
-      .formatted(FileUtils.displayPath(sources.get(1).path()))), advice.explainFailure(DISK_FULL, true));
+    String afterReading = """
+      Ran out of disk space on full. Free up space on that disk, or:
+        - move the sources in %s to another disk
+        - write the output to another disk with --output=<file>
+        - use --free-natural-earth-after-read to delete %s once it's read"""
+      .formatted(FileUtils.displayPath(sourcesDir), FileUtils.displayPath(sources.get(1).path()));
+    assertEquals(Optional.of(afterReading), advice.explainFailure(DISK_FULL, true));
   }
 
   @Test

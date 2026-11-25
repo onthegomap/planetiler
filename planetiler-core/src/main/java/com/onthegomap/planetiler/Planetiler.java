@@ -1323,7 +1323,7 @@ public class Planetiler {
       // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
       TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
-      try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
+      try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) { // NOSONAR outer catch cleans up failures
         featureGroup =
           FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats,
             reuseExistingFeatureDb);
@@ -1355,7 +1355,7 @@ public class Planetiler {
               case SequentialStage task -> {
                 processSources(readTogether);
                 readTogether.clear();
-                try {
+                try { // NOSONAR outer catch cleans up failures
                   awaitDownloads(task.id, downloadsOf(task.id).toList());
                   task.task.run();
                 } catch (Exception e) {
