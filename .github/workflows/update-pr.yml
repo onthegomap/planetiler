@@ -46,11 +46,11 @@ jobs:
     - name: 'Build comment-body'
       if: steps.has_build_info.outputs.available == 'true'
       run: |
-        cat build-info/branchlogs.txt | sed -n '/^.*Tile stats/,/\tfeatures\t/p' > branchsummary.txt
-        cat build-info/branchlogs.txt | sed -n '/^.*Exception in thread/,$p' >> branchsummary.txt
+        cat build-info/branchlogs.txt | sed -n '/^.*Tile stats/,/^Wrote /p' > branchsummary.txt
+        cat build-info/branchlogs.txt | sed -nE '/^ERROR |Exception in thread/,$p' >> branchsummary.txt
         cat build-info/branchlogs.txt | grep run.jar >> branchsummary.txt
-        cat build-info/baselogs.txt | sed -n '/^.*Tile stats/,/\tfeatures\t/p' > basesummary.txt
-        cat build-info/baselogs.txt | sed -n '/^.*Exception in thread/,$p' >> basesummary.txt
+        cat build-info/baselogs.txt | sed -n '/^.*Tile stats/,/^Wrote /p' > basesummary.txt
+        cat build-info/baselogs.txt | sed -nE '/^ERROR |Exception in thread/,$p' >> basesummary.txt
         cat build-info/baselogs.txt | grep run.jar >> basesummary.txt
 
         cat << EOF > comment-body.txt

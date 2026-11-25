@@ -1,13 +1,14 @@
 package com.onthegomap.planetiler.reader.osm;
 
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 import static com.onthegomap.planetiler.util.CompletableFutures.joinFutures;
+import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.onthegomap.planetiler.util.RepeatedErrorLogger;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -74,6 +75,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private static final int ROLE_MASK = (1 << ROLE_BITS) - 1;
   private static final long NOT_ROLE_MASK = (1L << ROLE_SHIFT) - 1L;
   private final OsmBlockSource osmBlockSource;
+  private final RepeatedErrorLogger featureErrors = new RepeatedErrorLogger(LOGGER, 10);
   private final Stats stats;
   private final LongLongMap nodeLocationDb;
   private final Counter.Readable PASS1_BLOCKS = Counter.newSingleThreadCounter();
@@ -518,7 +520,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       }
     } catch (Exception e) {
       String type = element.getClass().getSimpleName();
-      LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
+      featureErrors.log("Error processing OSM " + type + " " + element.id(), e);
     }
   }
 

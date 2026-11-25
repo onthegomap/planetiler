@@ -42,13 +42,16 @@ import com.onthegomap.planetiler.util.AnsiColors;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.CompletableFutures;
+import com.onthegomap.planetiler.util.DiskSpaceAdvice;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.Downloader.Download;
 import com.onthegomap.planetiler.util.Exceptions;
+import com.onthegomap.planetiler.util.FailureReport;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.Glob;
+import com.onthegomap.planetiler.util.InsufficientResourcesException;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.OvertureStac;
 import com.onthegomap.planetiler.util.ResourceUsage;
@@ -159,6 +162,8 @@ public class Planetiler {
   private TileArchiveConfig output;
   private boolean overwrite = false;
   private boolean ran = false;
+  // track whether sources have been read yet to improve error message if we run out of disk
+  private boolean sourcesRead = false;
   // most common OSM languages
   private List<String> defaultLanguages = List.of(
     "en", "ru", "ar", "zh", "ja", "ko", "fr",
@@ -1145,13 +1150,29 @@ public class Planetiler {
   }
 
   /**
-   * Reads all elements from all sourced that have been added, generates map features according to the profile, and
+   * Reads all elements from all sources that have been added, generates map features according to the profile, and
    * writes the rendered tiles to the output archive.
+   * <p>
+   * The following errors come with user-facing messages explaining how to recover that can be caught/logged without
+   * printing the whole stack trace:
    *
-   * @throws IllegalArgumentException if expected inputs have not been provided
+   * @throws IllegalArgumentException       if expected inputs have not been provided
+   * @throws InsufficientResourcesException if there isn't enough memory or disk space for the run, or a disk filled up
+   * @throws ExpectedFailureException       if the run failed for another expected reason (out of memory, an error
+   *                                        reading or writing a file, ...), with the original error as its cause
    */
-  @SuppressWarnings("java:S106")
   public void run() {
+    try {
+      doRun();
+    } catch (Throwable e) { // NOSONAR
+      String message = FailureReport.expectedFailureMessage(e);
+      throw Exceptions.<RuntimeException>throwFatalException(
+        message == null || message.equals(e.getMessage()) ? e : new ExpectedFailureException(message, e));
+    }
+  }
+
+  @SuppressWarnings("java:S106")
+  private void doRun() {
     var showVersion = arguments.getBoolean(ArgumentGroup.OTHER, "version", "show version then exit", false);
     var buildInfo = BuildInfo.get();
     if (showVersion) {
@@ -1185,7 +1206,27 @@ public class Planetiler {
     } else if (quiet) {
       LogUtil.setLevel(Level.WARN);
     }
-    UNTIMED_LOGGER.info("{}, {} profile", BuildInfo.planetilerVersion(), profileName());
+    if (profile() == null) {
+      throw new IllegalArgumentException("No profile specified");
+    }
+    if (output == null) {
+      throw new IllegalArgumentException("No output specified");
+    }
+    if (stages.isEmpty()) {
+      throw new IllegalArgumentException("No sources specified");
+    }
+    if (ran) {
+      throw new IllegalArgumentException("Can only run once");
+    }
+    ran = true;
+    if (onlyRunTests == null && !onlyDownloadSources) {
+      // before anything prints, so a rerun that would overwrite the output stops with one line saying so
+      checkOutput();
+    }
+    UNTIMED_LOGGER.atInfo().setMessage("{}, {} profile")
+      .addArgument(BuildInfo::planetilerVersion)
+      .addArgument(this::profileName)
+      .log();
     if (UNTIMED_LOGGER.isDebugEnabled()) {
       if (buildInfo != null) {
         UNTIMED_LOGGER.debug("Built from git {} at {}", buildInfo.githash(), buildInfo.buildTimeString());
@@ -1200,59 +1241,9 @@ public class Planetiler {
       System.out.println(ArgumentHelp.verboseList(arguments.options(), profileName() + " options"));
       arguments.logOptionsReadFromNowOn();
     }
-    if (profile() == null) {
-      throw new IllegalArgumentException("No profile specified");
-    }
-    if (output == null) {
-      throw new IllegalArgumentException("No output specified");
-    }
-    if (stages.isEmpty()) {
-      throw new IllegalArgumentException("No sources specified");
-    }
-    if (ran) {
-      throw new IllegalArgumentException("Can only run once");
-    }
-    ran = true;
-
     if (onlyRunTests != null) {
       boolean success = JavaProfileValidator.validate(profile(), onlyRunTests, config());
       System.exit(success ? 0 : 1);
-    } else if (onlyDownloadSources) {
-      // don't check files if not generating map
-    } else if (config.append()) {
-      if (!output.format().supportsAppend()) {
-        throw new IllegalArgumentException("cannot append to " + output.format().id());
-      }
-      if (!output.exists()) {
-        throw new IllegalArgumentException(output.uri() + " must exist when appending");
-      }
-    } else if (overwrite || config.force()) {
-      output.delete();
-    } else if (output.exists()) {
-      throw new IllegalArgumentException(
-        output.uri() + " already exists, use the --force argument to overwrite or --append.");
-    }
-
-
-    if (config.tileWriteThreads() < 1) {
-      throw new IllegalArgumentException("require tile_write_threads >= 1");
-    }
-    if (config.tileWriteThreads() > 1) {
-      if (!output.format().supportsConcurrentWrites()) {
-        throw new IllegalArgumentException(output.format() + " doesn't support concurrent writes");
-      }
-      IntStream.range(1, config.tileWriteThreads())
-        .mapToObj(output::getPathForMultiThreadedWriter)
-        .forEach(p -> {
-          if (!config.append() && (overwrite || config.force())) {
-            FileUtils.delete(p);
-          }
-          if (config.append() && !output.exists(p)) {
-            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
-          } else if (!config.append() && output.exists(p)) {
-            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
-          }
-        });
     }
 
     // Keep reuse metadata next to feature.db so it survives directory cleanup and is easy to atomically manage.
@@ -1374,6 +1365,7 @@ public class Planetiler {
             }
           }
           processSources(readTogether);
+          sourcesRead = true;
 
           LOGGER.debug("Deleting node.db to make room for output file");
           profile.release();
@@ -1399,6 +1391,16 @@ public class Planetiler {
       } catch (IOException e) {
         throw new PlanetilerException("Unable to write to " + output, e);
       }
+    } catch (Throwable e) { // NOSONAR
+      // before deleting the output, so it counts toward what filled up the disk
+      Throwable explained = diskSpaceAdvice().explainFailure(e, sourcesRead)
+        .<Throwable>map(message -> new InsufficientResourcesException(message, e))
+        .orElse(e);
+      if (!config.append()) {
+        // only a finished archive is usable, and without it the next run doesn't need --force
+        FileUtils.deleteQuietly(output.getLocalPath());
+      }
+      throw Exceptions.<RuntimeException>throwFatalException(explained);
     } finally {
       // the sources a stage hasn't read, like when an earlier one failed or nothing reads them
       FileUtils.closeAll(sources.values());
@@ -1415,6 +1417,51 @@ public class Planetiler {
       }
     } catch (Exception e) {
       throw new PlanetilerException(e);
+    }
+  }
+
+  private DiskSpaceAdvice diskSpaceAdvice() {
+    var sources = inputPaths.stream()
+      .map(input -> new DiskSpaceAdvice.Source(input.id(), input.path(), input.freeAfterReading()))
+      .toList();
+    return new DiskSpaceAdvice(sources, tmpDir, output.getLocalPath(), config.compressTempStorage(),
+      DiskSpaceAdvice.Disk::of);
+  }
+
+  private void checkOutput() {
+    if (config.append()) {
+      if (!output.format().supportsAppend()) {
+        throw new IllegalArgumentException("cannot append to " + output.format().id());
+      }
+      if (!output.exists()) {
+        throw new IllegalArgumentException(outputName() + " must exist when appending");
+      }
+    } else if (overwrite || config.force() || !output.existsWithTiles()) {
+      // also replaces what a run that stopped before writing any tile left behind
+      output.delete();
+    } else {
+      throw new IllegalArgumentException(outputName() + " already exists, add --force to overwrite it" +
+        (output.format().supportsAppend() ? " or --append to add to it" : "") + ".");
+    }
+    if (config.tileWriteThreads() < 1) {
+      throw new IllegalArgumentException("require tile_write_threads >= 1");
+    }
+    if (config.tileWriteThreads() > 1) {
+      if (!output.format().supportsConcurrentWrites()) {
+        throw new IllegalArgumentException(output.format() + " doesn't support concurrent writes");
+      }
+      IntStream.range(1, config.tileWriteThreads())
+        .mapToObj(output::getPathForMultiThreadedWriter)
+        .forEach(p -> {
+          if (!config.append() && (overwrite || config.force())) {
+            FileUtils.delete(p);
+          }
+          if (config.append() && !output.exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
+          } else if (!config.append() && output.exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
+          }
+        });
     }
   }
 
@@ -1463,8 +1510,8 @@ public class Planetiler {
     if (acknowledgments != null) {
       UNTIMED_LOGGER.info(AnsiColors.dim(acknowledgments.strip()));
     }
-    UNTIMED_LOGGER.info(AnsiColors.dim(
-      "Questions or problems: https://github.com/onthegomap/planetiler/issues Sponsor planetiler: https://github.com/sponsors/onthegomap"));
+    UNTIMED_LOGGER.info(AnsiColors.dim("Questions or issues: https://github.com/onthegomap/planetiler"));
+    UNTIMED_LOGGER.info(AnsiColors.dim("Sponsor planetiler: https://github.com/sponsors/onthegomap"));
     // Only the launcher builds the warm-up cache with one command, under java -jar it takes two runs with JVM flags.
     if (ArgumentHelp.wasStartedByLauncher() && !ProcessInfo.usesAotCache()) {
       UNTIMED_LOGGER.info("Tip: run `{}` once to make every later run start faster.",
@@ -1479,8 +1526,9 @@ public class Planetiler {
   }
 
   private void checkDiskSpace() {
-    ResourceUsage readPhase = new ResourceUsage("read phase disk");
-    ResourceUsage writePhase = new ResourceUsage("write phase disk");
+    var advice = diskSpaceAdvice();
+    ResourceUsage readPhase = new ResourceUsage("temporary files while reading the sources", advice.readPhaseHint());
+    ResourceUsage writePhase = new ResourceUsage("temporary files and the output", advice.writePhaseHint());
     long osmSize = osmSizeBytes();
     long nodeMapSize =
       OsmReader.estimateNodeLocationUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize, tmpDir).diskUsage();
@@ -1510,7 +1558,7 @@ public class Planetiler {
 
   private void checkMemory() {
     Format format = Format.defaultInstance();
-    ResourceUsage check = new ResourceUsage("read phase");
+    ResourceUsage check = new ResourceUsage("reading the sources", diskSpaceAdvice().readPhaseHint());
     ResourceUsage nodeMapUsages = OsmReader.estimateNodeLocationUsage(config.nodeMapType(), config.nodeMapStorage(),
       osmSizeBytes(), tmpDir);
     ResourceUsage multipolygonGeometryUsages =
@@ -1524,27 +1572,12 @@ public class Planetiler {
 
     check.checkAgainstLimits(config().force(), true);
 
-    // check off-heap memory if we can get it
-    ProcessInfo.getSystemFreeMemoryBytes().ifPresent(extraMemory -> {
-      if (extraMemory < memoryMappedFiles) {
-        LOGGER.warn(
-          """
-            Planetiler will use ~%s memory-mapped files for node locations and multipolygon geometries but the OS only
-            has %s available to cache pages, this may slow the import down. To speed up, run on a machine with more
-            memory or reduce the -Xmx setting.
-            """
-            .formatted(
-              format.storage(memoryMappedFiles),
-              format.storage(extraMemory)
-            ));
-      } else {
-        LOGGER.debug("✓ %s temporary files and %s of free memory for OS to cache them".formatted(
-          format.storage(memoryMappedFiles),
-          format.storage(extraMemory)
-
-        ));
-      }
-    });
+    // Only at debug level: runs with less free memory than this work fine, just slower (planets on 8 GB machines).
+    if (LOGGER.isDebugEnabled()) {
+      ProcessInfo.getSystemFreeMemoryBytes().ifPresent(freeMemory -> LOGGER.debug(
+        "{} {} memory-mapped temporary files, {} of free memory for the OS to cache them",
+        freeMemory < memoryMappedFiles ? "⚠️" : "✓", format.storage(memoryMappedFiles), format.storage(freeMemory)));
+    }
   }
 
   public Arguments arguments() {
@@ -1979,8 +2012,20 @@ public class Planetiler {
       super(message, e);
     }
 
+    /** Creates an exception with {@code message} and a {@code cause} that may also be an {@link Error}. */
+    public PlanetilerException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
     public PlanetilerException(Exception e) {
       super(e);
+    }
+  }
+
+  /** Thrown by {@link #run()} when it fails for a reason the user can fix, with a message saying how. */
+  public static class ExpectedFailureException extends PlanetilerException {
+    public ExpectedFailureException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 }

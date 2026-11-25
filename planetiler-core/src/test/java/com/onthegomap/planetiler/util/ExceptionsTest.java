@@ -1,6 +1,9 @@
 package com.onthegomap.planetiler.util;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -35,5 +38,14 @@ class ExceptionsTest {
     assertSame(withoutCause, Exceptions.unwrap(withoutCause));
     var notAWrapper = new UncheckedIOException(new IOException("io"));
     assertSame(notAWrapper, Exceptions.unwrap(notAWrapper));
+  }
+
+  @Test
+  void testHasCause() {
+    var exception = new RuntimeException(new ExecutionException(new IOException("disk full")));
+    assertTrue(Exceptions.hasCause(exception, IOException.class));
+    assertTrue(Exceptions.hasCause(exception, RuntimeException.class));
+    assertFalse(Exceptions.hasCause(exception, UncheckedIOException.class));
+    assertFalse(Exceptions.hasCause(null, IOException.class));
   }
 }

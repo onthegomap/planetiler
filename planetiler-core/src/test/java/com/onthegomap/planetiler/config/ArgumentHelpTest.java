@@ -153,4 +153,17 @@ class ArgumentHelpTest {
     assertTrue(helpAll.contains("\nProcessing:\n  --threads=<n>"), helpAll);
     assertFalse(helpAll.contains("--help-all"), helpAll);
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "1, 256m",
+    "268435456, 256m",
+    "314572800, 512m",
+    "2147483648, 2g",
+    "3221225472, 4g",
+  })
+  void testMemoryLimitExample(long bytes, String size) {
+    String example = ArgumentHelp.memoryLimitExample(bytes);
+    assertTrue(example.contains("-Xmx" + size + " ") || example.endsWith("=" + size), example);
+  }
 }

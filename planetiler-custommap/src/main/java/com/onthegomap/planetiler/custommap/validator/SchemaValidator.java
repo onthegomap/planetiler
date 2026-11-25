@@ -5,7 +5,9 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.ConfiguredProfile;
 import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import com.onthegomap.planetiler.custommap.expression.ParseException;
 import com.onthegomap.planetiler.util.AnsiColors;
+import com.onthegomap.planetiler.util.Exceptions;
 import com.onthegomap.planetiler.util.YAML;
 import com.onthegomap.planetiler.validator.BaseSchemaValidator;
 import com.onthegomap.planetiler.validator.SchemaSpecification;
@@ -26,7 +28,8 @@ public class SchemaValidator extends BaseSchemaValidator {
     // `verify schema.yml` is a shortcut for `verify --schema=schema.yml`, read after --watch (in super) in case it
     // comes right after it
     List<String> positional = args.positional();
-    schemaPath = args.file("schema", "the schema to test", positional.isEmpty() ? null : Path.of(positional.getFirst()));
+    schemaPath =
+      args.file("schema", "the schema to test", positional.isEmpty() ? null : Path.of(positional.getFirst()));
   }
 
   public static void main(String[] args) {
@@ -74,9 +77,10 @@ public class SchemaValidator extends BaseSchemaValidator {
       result = validate(schema, spec);
     } catch (Exception exception) {
       Throwable rootCause = ExceptionUtils.getRootCause(exception);
-      if (hasCause(exception, com.onthegomap.planetiler.custommap.expression.ParseException.class)) {
+      if (Exceptions.hasCause(exception, ParseException.class)) {
         output.println(AnsiColors.red("Malformed expression:\n\n" + rootCause.toString().indent(4)));
-      } else if (hasCause(exception, YamlEngineException.class) || hasCause(exception, JacksonException.class)) {
+      } else if (Exceptions.hasCause(exception, YamlEngineException.class) || Exceptions.hasCause(exception,
+        JacksonException.class)) {
         output.println(AnsiColors.red("Malformed yaml input:\n\n" + rootCause.toString().indent(4)));
       } else {
         output.println(AnsiColors.red(

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JacksonException;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.util.AnsiColors;
+import com.onthegomap.planetiler.util.Exceptions;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.Set;
@@ -45,7 +46,8 @@ public class JavaProfileValidator extends BaseSchemaValidator {
       result = validate(profile, spec, config);
     } catch (Exception exception) {
       Throwable rootCause = ExceptionUtils.getRootCause(exception);
-      if (hasCause(exception, YamlEngineException.class) || hasCause(exception, JacksonException.class)) {
+      if (Exceptions.hasCause(exception, YamlEngineException.class) || Exceptions.hasCause(exception,
+        JacksonException.class)) {
         output.println(AnsiColors.red("Malformed yaml input:\n\n" + rootCause.toString().indent(4)));
       } else {
         output.println(AnsiColors.red(

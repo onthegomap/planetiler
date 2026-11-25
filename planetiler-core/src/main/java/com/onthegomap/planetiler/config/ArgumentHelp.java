@@ -77,6 +77,21 @@ public final class ArgumentHelp {
   }
 
   /**
+   * Returns how to run planetiler again with a memory limit of at least {@code bytes}, rounded up to a power of 2:
+   * {@code --memory=4g} under the launcher, {@code java -Xmx4g -jar planetiler.jar} for a jar.
+   */
+  public static String memoryLimitExample(long bytes) {
+    long megabytes = Math.max(256, Long.highestOneBit(Math.max(1, bytes - 1) >> 20) << 1);
+    String size = megabytes >= 1024 ? (megabytes >> 10) + "g" : megabytes + "m";
+    if (wasStartedByLauncher()) {
+      return "--memory=" + size;
+    }
+    String command = planetilerCommand("");
+    return command.startsWith("java ") ? command.replaceFirst("^java ", "java -Xmx" + size + " ") :
+      "the -Xmx" + size + " JVM option";
+  }
+
+  /**
    * Returns help for {@code options}: options without a group first under {@code optionsTitle}, then a section per
    * group followed by its page from {@code footers} (e.g. a table of sources after the input options). Advanced groups
    * only show up when {@code all} is true.
