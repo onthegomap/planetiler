@@ -1165,9 +1165,12 @@ public class Planetiler {
     try {
       doRun();
     } catch (Throwable e) { // NOSONAR
-      String message = FailureReport.expectedFailureMessage(e);
+      Throwable failure = diskSpaceAdvice().explainFailure(e, sourcesRead)
+        .<Throwable>map(message -> new InsufficientResourcesException(message, e))
+        .orElse(e);
+      String message = FailureReport.expectedFailureMessage(failure);
       throw Exceptions.<RuntimeException>throwFatalException(
-        message == null || message.equals(e.getMessage()) ? e : new ExpectedFailureException(message, e));
+        message == null || message.equals(failure.getMessage()) ? failure : new ExpectedFailureException(message, failure));
     }
   }
 
@@ -1323,7 +1326,7 @@ public class Planetiler {
       // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
       TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
-      try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) { // NOSONAR outer catch cleans up failures
+      try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
         featureGroup =
           FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats,
             reuseExistingFeatureDb);
@@ -1391,16 +1394,6 @@ public class Planetiler {
       } catch (IOException e) {
         throw new PlanetilerException("Unable to write to " + output, e);
       }
-    } catch (Throwable e) { // NOSONAR
-      // before deleting the output, so it counts toward what filled up the disk
-      Throwable explained = diskSpaceAdvice().explainFailure(e, sourcesRead)
-        .<Throwable>map(message -> new InsufficientResourcesException(message, e))
-        .orElse(e);
-      if (!config.append()) {
-        // only a finished archive is usable, and without it the next run doesn't need --force
-        FileUtils.deleteQuietly(output.getLocalPath());
-      }
-      throw Exceptions.<RuntimeException>throwFatalException(explained);
     } finally {
       // the sources a stage hasn't read, like when an earlier one failed or nothing reads them
       FileUtils.closeAll(sources.values());
@@ -1424,7 +1417,7 @@ public class Planetiler {
     var sources = inputPaths.stream()
       .map(input -> new DiskSpaceAdvice.Source(input.id(), input.path(), input.freeAfterReading()))
       .toList();
-    return new DiskSpaceAdvice(sources, tmpDir, output.getLocalPath(), config.compressTempStorage(),
+    return new DiskSpaceAdvice(sources, tmpDir, output == null ? null : output.getLocalPath(), config.compressTempStorage(),
       DiskSpaceAdvice.Disk::of);
   }
 

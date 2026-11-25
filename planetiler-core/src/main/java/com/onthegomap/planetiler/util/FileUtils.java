@@ -192,25 +192,6 @@ public class FileUtils {
     }
   }
 
-  /**
-   * Deletes {@code path} (a file, or a directory and everything in it) if it exists, logging a failure at debug level
-   * only, e.g. to clean up after a run that already failed.
-   */
-  public static void deleteQuietly(Path path) {
-    if (path == null) {
-      return;
-    }
-    try (var walker = Files.walk(path)) {
-      for (Path child : walker.sorted(Comparator.reverseOrder()).toList()) {
-        Files.deleteIfExists(child);
-      }
-    } catch (NoSuchFileException _) {
-      // already gone
-    } catch (IOException | UncheckedIOException e) {
-      LOGGER.atDebug().setMessage("Unable to delete {}: {}").addArgument(path).addArgument(e::toString).log();
-    }
-  }
-
   /** Returns the bytes left on {@code disk} for this process to write, or {@code 0} if unable to tell. */
   public static long usableSpace(FileStore disk) {
     try {

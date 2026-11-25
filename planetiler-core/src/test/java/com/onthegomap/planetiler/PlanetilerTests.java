@@ -4092,26 +4092,5 @@ class PlanetilerTests {
     assertTrue(Files.size(output) > size);
   }
 
-  @Test
-  void testFailedRunLeavesNoOutput() {
-    Path osm = TestUtils.pathToResource("monaco-latest.osm.pbf");
-    Path output = tempDir.resolve("output.pmtiles");
-    var failing = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
-      .setProfile((SourceFeature source, FeatureCollector features) -> {
-        throw new AssertionError("bug");
-      })
-      .addOsmSource("osm", osm)
-      .setOutput(output);
 
-    var exception = assertThrows(Throwable.class, failing::run);
-    assertInstanceOf(AssertionError.class, Exceptions.unwrap(exception.getCause()));
-    assertFalse(Files.exists(output));
-    // so a rerun doesn't need --force
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
-      .setProfile(new Profile.NullProfile())
-      .addOsmSource("osm", osm)
-      .setOutput(output)
-      .run();
-    assertTrue(Files.exists(output));
-  }
 }

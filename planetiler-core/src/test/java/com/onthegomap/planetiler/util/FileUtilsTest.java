@@ -212,19 +212,4 @@ class FileUtilsTest {
     assertEquals(outside.toString(), FileUtils.displayPath(outside));
   }
 
-  @Test
-  void testDeleteQuietly(@TempDir Path tempDir) throws IOException {
-    Path dir = tempDir.resolve("dir");
-    Files.createDirectories(dir.resolve("nested"));
-    Files.writeString(dir.resolve("nested").resolve("file.txt"), "contents");
-    Path file = Files.writeString(tempDir.resolve("file.txt"), "contents");
-
-    FileUtils.deleteQuietly(dir);
-    FileUtils.deleteQuietly(file);
-    FileUtils.deleteQuietly(tempDir.resolve("missing"));
-    FileUtils.deleteQuietly(null);
-
-    assertFalse(Files.exists(dir));
-    assertFalse(Files.exists(file));
-  }
 }
