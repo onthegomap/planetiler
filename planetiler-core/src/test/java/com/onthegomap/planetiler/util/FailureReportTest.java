@@ -3,6 +3,10 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.onthegomap.planetiler.reader.FileFormatException;
 import java.io.IOException;
@@ -11,6 +15,8 @@ import java.nio.file.AccessDeniedException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.spi.LoggingEventBuilder;
 
 class FailureReportTest {
 
@@ -55,5 +61,29 @@ class FailureReportTest {
       new ExecutionException(new UncheckedIOException(new IOException("Connection reset")))));
     assertEquals("Permission denied: data/tmp",
       FailureReport.expectedFailureMessage(new UncheckedIOException(new AccessDeniedException("data/tmp"))));
+  }
+
+  @Test
+  void testBugIsLoggedWithStackTrace() {
+    Logger logger = mock(Logger.class);
+    LoggingEventBuilder event = mock(LoggingEventBuilder.class, RETURNS_SELF);
+    when(logger.atError()).thenReturn(event);
+    when(logger.atInfo()).thenReturn(event);
+    var bug = new IllegalStateException("bug");
+
+    FailureReport.log(bug, false, logger);
+
+    verify(event).setCause(bug);
+  }
+
+  @Test
+  void testExpectedFailureIsOneLine() {
+    Logger logger = mock(Logger.class);
+    var failure = new IllegalArgumentException("bad option");
+
+    FailureReport.log(failure, false, logger);
+    verify(logger).error("bad option");
+    FailureReport.log(failure, true, logger);
+    verify(logger).error("bad option", failure);
   }
 }

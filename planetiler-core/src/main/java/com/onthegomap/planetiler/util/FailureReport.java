@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.slf4j.Logger;
 
 /**
  * Says why planetiler stopped, for the top of a command line entry point.
@@ -35,13 +36,17 @@ public class FailureReport {
    * @param verbose true to include the stack trace for expected failures too
    */
   public static void log(Throwable failure, boolean verbose) {
+    log(failure, verbose, UNTIMED_LOGGER);
+  }
+
+  static void log(Throwable failure, boolean verbose, Logger logger) {
     String expected = expectedFailureMessage(failure);
     if (expected == null) {
-      logBug(failure);
+      logBug(failure, logger);
     } else if (verbose) {
-      UNTIMED_LOGGER.error(expected, failure);
+      logger.error(expected, failure);
     } else {
-      UNTIMED_LOGGER.error(expected);
+      logger.error(expected);
     }
   }
 
@@ -79,15 +84,15 @@ public class FailureReport {
     };
   }
 
-  private static void logBug(Throwable failure) {
+  private static void logBug(Throwable failure, Logger logger) {
     Duration elapsed = Duration.ofMillis(ManagementFactory.getRuntimeMXBean().getUptime());
     String stage = LogUtil.getStage();
-    UNTIMED_LOGGER.atError().setMessage("Failed after {}{}:")
+    logger.atError().setMessage("Failed after {}{}:")
       .addArgument(() -> FORMAT.duration(elapsed))
       .addArgument(stage == null ? "" : " in " + stage)
-      .addArgument(failure)
+      .setCause(failure)
       .log();
-    UNTIMED_LOGGER.atInfo()
+    logger.atInfo()
       .setMessage("""
         This may be a bug. Please report it with the logs above to https://github.com/onthegomap/planetiler/issues
         {}""")
