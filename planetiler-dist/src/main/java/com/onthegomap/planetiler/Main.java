@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
 import org.openmaptiles.util.VerifyMonaco;
+import org.versatiles.shortbread.ShortbreadMain;
 
 /**
  * Main entry-point for executable jar and container distributions of Planetiler, which delegates to individual {@code
@@ -60,7 +61,9 @@ public class Main {
     profile("openmaptiles", "OpenMapTiles schema (default)", OpenMapTilesMain::main, "generate-openmaptiles");
   private static final List<Task> TASKS = List.of(
     OPENMAPTILES,
-    profile("shortbread", "Shortbread schema", bundledSchema("shortbread.yml"), "generate-shortbread"),
+    profile("shortbread", "Shortbread schema", ShortbreadMain::main, "generate-shortbread"),
+    profile("shortbread-1.1", "Shortbread 1.1 schema", shortbreadVersion("1.1"), "generate-shortbread-1.1"),
+    // the previous YAML implementation remains available via: custom --schema=shortbread.yml
     example("custom", ConfiguredMapMain::main, "generate-custom"),
     example("example-bikeroutes", BikeRouteOverlay::main),
     example("example-toilets", ToiletsOverlay::main),
@@ -113,9 +116,9 @@ public class Main {
     return new Task(name, null, false, main, List.of());
   }
 
-  private static EntryPoint bundledSchema(String path) {
-    return args -> ConfiguredMapMain.main(Stream.concat(
-      Stream.of("--schema=" + path),
+  private static EntryPoint shortbreadVersion(String version) {
+    return args -> ShortbreadMain.main(Stream.concat(
+      Stream.of("--shortbread_version=" + version),
       Stream.of(args)
     ).toArray(String[]::new));
   }
