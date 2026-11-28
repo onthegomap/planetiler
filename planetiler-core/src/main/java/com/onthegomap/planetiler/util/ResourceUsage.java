@@ -218,7 +218,6 @@ public class ResourceUsage {
 
     @Override
     public String notEnough(String usedFor, long requested, long limit) {
-      // suggest some headroom over the estimate, since a heap that is just big enough spends most of its time in GC
       long suggested = requested * 3 / 2;
       return "Not enough memory for %s: needs about %sB, current limit is %sB. Try %s.".formatted(usedFor,
         FORMAT.storage(requested), FORMAT.storage(limit), ArgumentHelp.memoryLimitExample(suggested));

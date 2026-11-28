@@ -77,12 +77,15 @@ public final class ArgumentHelp {
   }
 
   /**
-   * Returns how to run planetiler again with a memory limit of at least {@code bytes}, rounded up to a power of 2:
-   * {@code --memory=4g} under the launcher, {@code java -Xmx4g -jar planetiler.jar} for a jar.
+   * Returns how to run planetiler again with a memory limit of at least {@code bytes}, rounded up to a multiple of 256
+   * MB up to 1 GB and to whole GB above: {@code --memory=3g} under the launcher, {@code java -Xmx3g -jar
+   * planetiler.jar} for a jar.
    */
   public static String memoryLimitExample(long bytes) {
-    long megabytes = Math.max(256, Long.highestOneBit(Math.max(1, bytes - 1) >> 20) << 1);
-    String size = megabytes >= 1024 ? (megabytes >> 10) + "g" : megabytes + "m";
+    long megabytes = Math.ceilDiv(Math.max(1, bytes), 1L << 20);
+    long stepMegabytes = megabytes > 1024 ? 1024 : 256;
+    long roundedMegabytes = Math.ceilDiv(megabytes, stepMegabytes) * stepMegabytes;
+    String size = roundedMegabytes % 1024 == 0 ? (roundedMegabytes / 1024) + "g" : roundedMegabytes + "m";
     if (wasStartedByLauncher()) {
       return "--memory=" + size;
     }

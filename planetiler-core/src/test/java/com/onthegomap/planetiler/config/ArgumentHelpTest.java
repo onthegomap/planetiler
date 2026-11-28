@@ -159,8 +159,12 @@ class ArgumentHelpTest {
     "1, 256m",
     "268435456, 256m",
     "314572800, 512m",
+    "734003200, 768m",
+    "1073741824, 1g",
+    "1073741825, 2g",
     "2147483648, 2g",
-    "3221225472, 4g",
+    "3221225472, 3g",
+    "45097156608, 42g",
   })
   void testMemoryLimitExample(long bytes, String size) {
     String example = ArgumentHelp.memoryLimitExample(bytes);
