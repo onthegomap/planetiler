@@ -63,8 +63,6 @@ import com.onthegomap.planetiler.validator.JavaProfileValidator;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -124,11 +122,14 @@ import org.slf4j.event.Level;
 public class Planetiler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
+  private static final Format FORMAT = Format.defaultInstance();
   private static final ObjectMapper JSON = new ObjectMapper();
   private static final String OSM_BOUNDS_STAGE = "osm_bounds";
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
   private final Map<String, List<Download>> downloadsBySource = new ConcurrentHashMap<>();
+  // how many bytes each source downloads before it gets read, once that is known
+  private final Map<String, CompletableFuture<Long>> downloadSizes = new ConcurrentHashMap<>();
   private final List<InputPath> inputPaths = new ArrayList<>();
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
@@ -142,18 +143,19 @@ public class Planetiler {
   private final Path multipolygonPath;
   private final Path featureDbPath;
   private final Path onlyRunTests;
-  private final boolean downloadSources;
   private final DownloadMode downloadMode;
   private Downloader downloader;
   private OvertureStac overtureStac;
   private final Map<String, String> sourceMetadata = new TreeMap<>();
   private final boolean refreshSources;
+  // downloads are on by default, this says if the user asked for them
+  private final boolean explicitDownload;
+  private final boolean offline;
   private final boolean onlyDownloadSources;
   private final boolean parseNodeBounds;
   private final boolean readSourcesSequentially;
   private boolean readSourcesTogether = false;
   private boolean nextSourceWaitsForPrevious = false;
-  private int multiSourceStages = 0;
   private Profile profile = null;
   private Function<Planetiler, Profile> profileProvider = null;
   private final PlanetilerConfig config;
@@ -194,18 +196,22 @@ public class Planetiler {
     tmpDir = config.tmpDir();
     onlyDownloadSources = inputArgs.getBoolean("only_download", "download the sources then exit", false);
     onlyRunTests = arguments.file(ArgumentGroup.DEBUGGING, "tests", "run test cases in a yaml then quit", null);
-    downloadMode = DownloadMode.parse(inputArgs.getString(
+    explicitDownload = arguments.contains("download") || onlyDownloadSources;
+    var requestedDownloadMode = DownloadMode.parse(inputArgs.getString(
       "download",
-      "download missing sources: false, cached (same as true), streaming or full",
-      "false"));
-    downloadSources = onlyDownloadSources || downloadMode.enabled();
+      "download missing sources: cached (same as true), streaming, full or false to stay offline",
+      "cached"));
+    offline = inputArgs.getBoolean("offline", "never download anything, same as --download=false", false);
+    downloadMode = offline ? DownloadMode.NONE : requestedDownloadMode;
+    boolean downloadSources = onlyDownloadSources || downloadMode.enabled();
     refreshSources =
       inputArgs.getBoolean("refresh_sources", "download sources again if the remote copy changed", false);
     fetchOsmTileStats = arguments.getBoolean(
       ArgumentGroup.DOWNLOADS,
       "download_osm_tile_weights",
       "download OSM tile weights file",
-      downloadSources);
+      // only download tile weights when user explicitly requests --download
+      downloadSources && explicitDownload);
     nodeDbPath = processingArgs.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
     multipolygonPath =
       processingArgs.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
@@ -270,7 +276,7 @@ public class Planetiler {
   /**
    * Adds a new {@code .osm.pbf} source that will be processed when {@link #run()} is called.
    * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * If the file does not exist and the run isn't {@code offline}, then the file will first be downloaded from
    * {@code defaultUrl}.
    * <p>
    * To override the location of the {@code .osm.pbf} file, set {@code name_path=newpath.osm.pbf} in the arguments and
@@ -280,12 +286,11 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} argument is not set
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
-   *                    "geofabrik:australia" shorthand to find an extract by name from
-   *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
-   *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
-   *                    Open Data Registry</a>.
+   * @param defaultUrl  remote URL that the file to download if the run isn't {@code offline} and {@code name_url}
+   *                    argument is not set. As a shortcut, can use "geofabrik:monaco" or "geofabrik:australia"
+   *                    shorthand to find an extract by name from <a href="https://download.geofabrik.de/">Geofabrik
+   *                    download site</a> or "aws:latest" to download the latest {@code planet.osm.pbf} file from
+   *                    <a href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a>.
    * @return this runner instance for chaining
    * @see OsmInputFile
    * @see OsmReader
@@ -305,7 +310,7 @@ public class Planetiler {
     Path path = getPath(name, "OSM input file", defaultPath, canFillPath ? defaultUrl : null);
     if (!canFillPath && !arguments.contains(name + "_url") && !Files.exists(path)) {
       throw new IllegalArgumentException(path + " does not exist. Set --area or --" + name.replace('_', '-') +
-        "-url (with --download) to download it");
+        "-url to download it");
     }
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
@@ -355,16 +360,15 @@ public class Planetiler {
    * Each feature's {@link SourceFeature#getSourceLayer()} is the name of its {@code .shp} file without the extension,
    * like {@code roads}.
    * <p>
-   * If the file does not exist and the {@code download} argument is set, then it gets downloaded from
-   * {@code defaultUrl} first. To override them, set {@code name_path=newpath} and
-   * {@code name_url=http://url/of/shapefile.zip} in the arguments.
+   * If the file does not exist, it gets downloaded from {@code defaultUrl} first unless the run is {@code offline}. To
+   * override them, set {@code name_path=newpath} and {@code name_url=http://url/of/shapefile.zip} in the arguments.
    * <p>
    * Shapefile sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL to download from if {@code download=true} argument is set and {@code name_url}
-   *                    argument is not set, or {@code null} for a local source
+   * @param defaultUrl  remote URL to download from if the run isn't {@code offline} and {@code name_url} argument is
+   *                    not set, or {@code null} for a local source
    * @param options     the projection, which files to read, and changes to make to the attributes of each feature
    * @return this runner instance for chaining
    * @see ShapefileReader
@@ -380,7 +384,7 @@ public class Planetiler {
    * Adds a new shapefile source downloaded from multiple URLs that will be processed when {@link #run()} is called.
    * <p>
    * {@code defaultDirectory} can be a local directory on disk containing the file names specified in
-   * {@code defaultUrls}. When you run with {@code --download}, it will download those files into that directory.
+   * {@code defaultUrls}. Unless the run is {@code offline}, the missing files get downloaded into that directory.
    * <p>
    * {@code defaultDirectory} can also be a zip file containing all of the necessary files (or set
    * {@code name_path=path/to/shapefiles.zip} in the arguments), and only the shapefiles named like the files in
@@ -390,7 +394,7 @@ public class Planetiler {
    * To override the URLs, set {@code name_urls=http://url/one.zip,http://url/two.zip} in the arguments.
    * <p>
    * For example, to read two Natural Earth tables, downloading only their zip files into
-   * {@code data/sources/natural_earth} with {@code --download}:
+   * {@code data/sources/natural_earth}:
    *
    * {@snippet :
    * List<String> urls = List.of(
@@ -428,7 +432,7 @@ public class Planetiler {
     // the URLs name the local files, so they're needed even when not downloading
     List<String> urls = sourceArgs.getList(name + "_urls", name + " shapefile urls", defaultUrls);
     registerSource(name, defaultDirectory,
-      defaultUrls.isEmpty() ? "" : defaultUrls.size() + " files from " + host(defaultUrls.getFirst()));
+      defaultUrls.isEmpty() ? "" : defaultUrls.size() + " files from " + Downloader.host(defaultUrls.getFirst()));
     if (sourceArgs.getString(
       name + "_url",
       "not supported for " + name + ", use " + name + "_urls",
@@ -571,7 +575,7 @@ public class Planetiler {
   /**
    * Adds a new OGC GeoPackage source that will be processed when {@link #run()} is called.
    * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * If the file does not exist and the run isn't {@code offline}, then the file will first be downloaded from
    * {@code defaultUrl}.
    * <p>
    * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
@@ -586,8 +590,8 @@ public class Planetiler {
    *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if the run isn't {@code offline} and {@code name_url}
+   *                    argument is not set
    * @return this runner instance for chaining
    * @see GeoPackageReader
    * @see Downloader
@@ -610,7 +614,7 @@ public class Planetiler {
   /**
    * Adds a new OGC GeoPackage source that will be processed when {@link #run()} is called.
    * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * If the file does not exist and the run isn't {@code offline}, then the file will first be downloaded from
    * {@code defaultUrl}.
    * <p>
    * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
@@ -623,8 +627,8 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if the run isn't {@code offline} and {@code name_url}
+   *                    argument is not set
    * @return this runner instance for chaining
    * @see GeoPackageReader
    * @see Downloader
@@ -636,7 +640,7 @@ public class Planetiler {
   /**
    * Adds a new GeoJSON or newline-delimited GeoJSON source that will be processed when {@link #run()} is called.
    * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * If the file does not exist and the run isn't {@code offline}, then the file will first be downloaded from
    * {@code defaultUrl}.
    * <p>
    * To override the location of the {@code geojson} file, set {@code name_path=newpath.geojson} in the arguments and to
@@ -646,8 +650,8 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if the run isn't {@code offline} and {@code name_url}
+   *                    argument is not set
    * @return this runner instance for chaining
    * @see GeoJsonReader
    * @see Downloader
@@ -686,7 +690,7 @@ public class Planetiler {
   /**
    * Adds a new Natural Earth sqlite file source that will be processed when {@link #run()} is called.
    * <p>
-   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * If the file does not exist and the run isn't {@code offline}, then the file will first be downloaded from
    * {@code defaultUrl}.
    * <p>
    * To override the location of the {@code sqlite} file, set {@code name_path=newpath.zip} in the arguments and to
@@ -697,8 +701,8 @@ public class Planetiler {
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
-   *                    {@code name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if the run isn't {@code offline} and {@code name_url}
+   *                    argument is not set
    * @return this runner instance for chaining
    * @see NaturalEarthReader
    * @see Downloader
@@ -776,10 +780,10 @@ public class Planetiler {
    * Adds a new <a href="https://github.com/opengeospatial/geoparquet">GeoParquet</a> source that will be processed when
    * {@link #run()} is called.
    * <p>
-   * If the file does not exist and the {@code download} argument is set, then with {@code download=cached} (or
-   * {@code true}) or {@code download=streaming} only the parts of {@code defaultUrl} the map bounds need get read with
-   * range requests (keeping them in a sparse file at the source's path with {@code cached}), and with
-   * {@code download=full} the whole file gets downloaded first. {@code download_<name>} overrides that for this source.
+   * If the file does not exist, then with {@code download=cached} (the default, or {@code true}) or
+   * {@code download=streaming} only the parts of {@code defaultUrl} the map bounds need get read with range requests
+   * (keeping them in a sparse file at the source's path with {@code cached}), and with {@code download=full} the whole
+   * file gets downloaded first. {@code download_<name>} overrides that for this source.
    * <p>
    * To override the location of the file, set {@code name_path=newpath.parquet} in the arguments and to override the
    * download URL set {@code name_url=http://url/of/file.parquet}.
@@ -813,7 +817,9 @@ public class Planetiler {
    * With {@code download=cached} (or {@code true}) or {@code download=streaming}, only the parts of the files in the
    * catalog that the map bounds need get read with range requests (keeping them in sparse files under {@code rootPath}
    * with {@code cached}), and with {@code download=full} the whole files in the map bounds get downloaded first.
-   * {@code download_<name>} overrides that for this source.
+   * {@code download_<name>} overrides that for this source. Parquet files already on disk without the file list an
+   * earlier lookup saved there are a mirror made with another tool, and get read as they are unless {@code download},
+   * {@code download_<name>} or {@code refresh_sources} is set.
    * <p>
    * Overture sources run in parallel with adjacent sources when {@link #readSourcesTogether()} is enabled.
    */
@@ -826,14 +832,20 @@ public class Planetiler {
       "overture_catalog_url",
       "Overture STAC catalog to find files in",
       OvertureStac.DEFAULT_CATALOG_URL);
-    DownloadMode mode = downloadMode(name);
     Path typeDir = downloadDir.resolve("theme=" + theme).resolve("type=" + type);
+    Path savedList = typeDir.resolve("stac-lookup.json");
+    // Files on disk without the list of files from an earlier lookup are a mirror downloaded with another tool, so read
+    // them as they are unless asked to download.
+    boolean alreadyDownloaded = !Files.exists(savedList) && Files.isDirectory(typeDir) &&
+      !Glob.of(downloadDir).resolve("theme=" + theme, "type=" + type, "*.parquet").find().isEmpty();
+    boolean askedToDownload = explicitDownload || refresh || arguments.contains("download_" + name);
+    DownloadMode mode = alreadyDownloaded && !askedToDownload ? DownloadMode.NONE : downloadMode(name);
     Function<String, Path> localPath = url -> typeDir.resolve(url.substring(url.lastIndexOf('/') + 1));
 
     // sources get opened once the map bounds are known, so each one's catalog lookup starts then, all at once
     Supplier<CompletableFuture<List<String>>> lookup = Suppliers.memoize(() -> downloader()
       .async(() -> overtureStac().getParquetUrls(catalogUrl, theme, type, config.bounds(),
-        typeDir.resolve("stac-lookup.json"), refresh)));
+        savedList, refresh)));
 
     if (mode.fetchWhileProcessing()) {
       return addSource(name, "Process features in " + typeDir + " using " + mode.name().toLowerCase(Locale.ROOT) +
@@ -853,16 +865,23 @@ public class Planetiler {
       true,
       fields -> fields.get("id"),
       fields1 -> fields1.get("type"),
-      () -> download ? lookup.get().thenCompose(urls -> {
-        Map<String, Path> urlToPath = new LinkedHashMap<>();
-        for (String url : urls) {
-          if (needsDownload(localPath.apply(url), refresh)) {
-            urlToPath.put(url, localPath.apply(url));
-          }
+      () -> {
+        if (!download) {
+          return CompletableFutures.NULL;
         }
-        startDownloads(name, urlToPath);
-        return whenDownloaded(name);
-      }) : CompletableFutures.NULL,
+        var size = lookup.get().thenCompose(urls -> {
+          Map<String, Path> urlToPath = new LinkedHashMap<>();
+          for (String url : urls) {
+            if (needsDownload(localPath.apply(url), refresh)) {
+              urlToPath.put(url, localPath.apply(url));
+            }
+          }
+          return startDownloads(name, urlToPath);
+        });
+        // make the total download log wait for this size
+        downloadSizes.put(name, size);
+        return size.thenCompose(_ -> whenDownloaded(name));
+      },
       null);
   }
 
@@ -894,10 +913,11 @@ public class Planetiler {
   }
 
   private boolean refreshSource(String name) {
-    return sourceArgs.getBoolean(
+    boolean refresh = sourceArgs.getBoolean(
       "refresh_" + name,
       "download new version of " + name + " if changed",
       refreshSources);
+    return refresh && !offline;
   }
 
   private DownloadMode downloadMode(String name) {
@@ -905,6 +925,9 @@ public class Planetiler {
       "download_" + name,
       "how to download " + name + ": false, cached (same as true), streaming or full",
       downloadMode.name().toLowerCase(Locale.ROOT)));
+    if (offline) {
+      return DownloadMode.NONE;
+    }
     // only_download is for running offline later, which needs whole files (unless explicitly marked as streaming)
     return onlyDownloadSources && mode != DownloadMode.STREAMING ? DownloadMode.FULL : mode;
   }
@@ -1170,7 +1193,8 @@ public class Planetiler {
         .orElse(e);
       String message = FailureReport.expectedFailureMessage(failure);
       throw Exceptions.<RuntimeException>throwFatalException(
-        message == null || message.equals(failure.getMessage()) ? failure : new ExpectedFailureException(message, failure));
+        message == null || message.equals(failure.getMessage()) ? failure :
+          new ExpectedFailureException(message, failure));
     }
   }
 
@@ -1285,10 +1309,12 @@ public class Planetiler {
       ensureInputFilesExist();
       addOsmBoundsFallback();
     }
+    List<Step> steps = steps();
     startPendingDownloads();
     // A reused feature DB, --only-download and --only-fetch-wikidata don't read the sources, but their downloads
     // still run, so only open the sources that need downloading.
     Map<String, SourceReader> sources = openSources(onlyDownloadSources || onlyFetchWikidata || reuseExistingFeatureDb);
+    logTotalDownloadSize(sources.values());
     long tilesWritten;
     try {
       if (fetchOsmTileStats) {
@@ -1339,25 +1365,12 @@ public class Planetiler {
           featureGroup.loadStringEncoders(stringEncoderPath);
           featureGroup.initFromManifest(chunkManifestPath);
         } else {
-          // with readSourcesTogether(), sources next to each other get read together, a sequential stage needs everything
-          // before it to be finished
-          List<SourceReader> readTogether = new ArrayList<>();
-          for (Stage stage : stages) {
-            switch (stage) {
-              case ParallelStage source when sources.containsKey(source.id) -> {
-                if (!readSourcesTogether || readSourcesSequentially || source.waitsForPrevious) {
-                  processSources(readTogether);
-                  readTogether.clear();
-                }
-                // the stage that reads a source closes it
-                readTogether.add(sources.remove(source.id));
-              }
-              case ParallelStage _ -> {
-                // the profile doesn't use this source, so it never got opened
-              }
+          for (Step step : steps) {
+            switch (step) {
+              // the stage that reads a source closes it
+              case ReadSources read -> processSources(read.name(),
+                read.sources().stream().map(source -> sources.remove(source.id)).toList());
               case SequentialStage task -> {
-                processSources(readTogether);
-                readTogether.clear();
                 try { // NOSONAR outer catch cleans up failures
                   awaitDownloads(task.id, downloadsOf(task.id).toList());
                   task.task.run();
@@ -1367,7 +1380,6 @@ public class Planetiler {
               }
             }
           }
-          processSources(readTogether);
           sourcesRead = true;
 
           LOGGER.debug("Deleting node.db to make room for output file");
@@ -1417,8 +1429,8 @@ public class Planetiler {
     var sources = inputPaths.stream()
       .map(input -> new DiskSpaceAdvice.Source(input.id(), input.path(), input.freeAfterReading()))
       .toList();
-    return new DiskSpaceAdvice(sources, tmpDir, output == null ? null : output.getLocalPath(), config.compressTempStorage(),
-      DiskSpaceAdvice.Disk::of);
+    return new DiskSpaceAdvice(sources, tmpDir, output == null ? null : output.getLocalPath(),
+      config.compressTempStorage(), DiskSpaceAdvice.Disk::of);
   }
 
   private void checkOutput() {
@@ -1640,11 +1652,66 @@ public class Planetiler {
     return result;
   }
 
-  /** Reads {@code sources} in one shared pipeline, named after the source when there is only one. */
-  private void processSources(List<SourceReader> sources) {
+  /**
+   * Logs how much the run downloads in total once every source knows its size, including what sources fetch while they
+   * get read, unless it is nothing.
+   */
+  private void logTotalDownloadSize(Collection<SourceReader> sources) {
+    List<CompletableFuture<Long>> sizes = new ArrayList<>(downloadSizes.values());
+    sources.forEach(source -> sizes.add(source.fetchWhileReading().thenApply(SourceReader.Fetch::bytes)));
+    CompletableFutures.allOf(sizes).thenAccept(all -> {
+      long total = all.stream().mapToLong(Long::longValue).sum();
+      if (total > 0) {
+        // the sizes arrive on download threads, which log as [download:source]
+        LogUtil.runInStage(null, () -> LOGGER.info("Total download size: {}B", FORMAT.storage(total)));
+      }
+    });
+  }
+
+  /**
+   * Splits the stages into the steps that run one after another: each sequential stage, and the sources the profile
+   * uses between them, read together with the ones next to them after {@link #readSourcesTogether()}.
+   */
+  private List<Step> steps() {
+    List<Step> steps = new ArrayList<>();
+    List<ParallelStage> readTogether = new ArrayList<>();
+    for (Stage stage : stages) {
+      switch (stage) {
+        case ParallelStage source when profile.caresAboutSource(source.id) -> {
+          if (!readSourcesTogether || readSourcesSequentially || source.waitsForPrevious) {
+            addReadSources(steps, readTogether);
+          }
+          readTogether.add(source);
+        }
+        case ParallelStage _ -> {
+          // the profile doesn't use this source
+        }
+        case SequentialStage task -> {
+          // a sequential stage needs everything before it to be finished
+          addReadSources(steps, readTogether);
+          steps.add(task);
+        }
+      }
+    }
+    addReadSources(steps, readTogether);
+    return steps;
+  }
+
+  /** Adds a step that reads {@code sources} to {@code steps}, named after the source when there is only one. */
+  private static void addReadSources(List<Step> steps, List<ParallelStage> sources) {
     if (sources.isEmpty()) {
       return;
     }
+    long sharedBefore = steps.stream().filter(step -> step instanceof ReadSources read && read.sources().size() > 1)
+      .count();
+    String name = sources.size() == 1 ? sources.getFirst().id :
+      sharedBefore == 0 ? "sources" : "sources-" + (sharedBefore + 1);
+    steps.add(new ReadSources(name, List.copyOf(sources)));
+    sources.clear();
+  }
+
+  /** Reads {@code sources} in one shared pipeline with {@code stageName} in the logs and stats. */
+  private void processSources(String stageName, List<SourceReader> sources) {
     Set<String> names = sources.stream().map(SourceReader::name).collect(Collectors.toSet());
     // show the downloads for later stages too, so every transfer in progress is visible
     List<SourceProgress> otherDownloads = downloadsBySource.entrySet().stream()
@@ -1652,13 +1719,6 @@ public class Planetiler {
       .filter(entry -> !entry.getValue().stream().allMatch(download -> download.done().isDone()))
       .map(entry -> Download.progress(entry.getKey(), entry.getValue()))
       .toList();
-    String stageName;
-    if (sources.size() == 1) {
-      stageName = sources.getFirst().name();
-    } else {
-      multiSourceStages++;
-      stageName = multiSourceStages == 1 ? "sources" : "sources-" + multiSourceStages;
-    }
     try {
       SourceFeatureProcessor.process(
         stageName, List.copyOf(sources), otherDownloads, featureGroup, config, profile, stats);
@@ -1678,14 +1738,33 @@ public class Planetiler {
       }
     }
     toDownload.clear();
-    bySource.forEach(this::startDownloads);
+    bySource.forEach((name, urlToPath) -> downloadSizes.put(name, startDownloads(name, urlToPath)));
   }
 
-  private void startDownloads(String name, Map<String, Path> urlToPath) {
-    if (!urlToPath.isEmpty()) {
-      downloadsBySource.computeIfAbsent(name, _ -> new CopyOnWriteArrayList<>())
-        .addAll(downloader().startAll(name, urlToPath));
+  /**
+   * Starts downloading {@code urlToPath} for source {@code name}, and logs how much that is once the first request of
+   * each download returns its size.
+   *
+   * @return a future with how many bytes the downloads fetch, which completes after that got logged
+   */
+  private CompletableFuture<Long> startDownloads(String name, Map<String, Path> urlToPath) {
+    if (urlToPath.isEmpty()) {
+      return CompletableFuture.completedFuture(0L);
     }
+    var downloads = downloader().startAll(name, urlToPath);
+    downloadsBySource.computeIfAbsent(name, _ -> new CopyOnWriteArrayList<>()).addAll(downloads);
+    String what = downloads.size() == 1 ? downloads.getFirst().output().getFileName().toString() :
+      downloads.size() + " files";
+    String host = Downloader.host(downloads.getFirst().url());
+    return CompletableFutures.allOf(downloads.stream().map(Download::whenBytesToFetchKnown).toList())
+      .thenApply(sizes -> {
+        long bytes = sizes.stream().mapToLong(Long::longValue).sum();
+        if (bytes > 0) {
+          LogUtil.runInStage(name, () -> LOGGER.info(
+            "Downloading {} ({}B) from {} then processing", what, FORMAT.storage(bytes), host));
+        }
+        return bytes;
+      });
   }
 
   /** Returns a future that completes when every download started so far for source {@code name} has finished. */
@@ -1752,8 +1831,9 @@ public class Planetiler {
   /** Reads the arguments of a source with a local path and a download URL, each once so each gets logged once. */
   private SourceArgs sourceArgs(String name, String type, Path defaultPath, String defaultUrl) {
     Path path = sourceArgs.file(name + "_path", name + " " + type + " path", defaultPath);
-    registerSource(name, defaultPath, defaultUrl == null ? "" : defaultUrl.startsWith("http") ? host(defaultUrl) :
-      defaultUrl);
+    registerSource(name, defaultPath,
+      defaultUrl == null ? "" : defaultUrl.startsWith("http") ? Downloader.host(defaultUrl) :
+        defaultUrl);
     boolean refresh = refreshSource(name);
     DownloadMode mode = downloadMode(name);
     String url = mode.enabled() || refresh ?
@@ -1803,6 +1883,9 @@ public class Planetiler {
           byte[] prefix =
             downloader().fetchRange(url, new Downloader.ByteRange(0, OsmInputFile.FILE_PREFIX_BYTES)).bytes();
           return OsmInputFile.parseHeader(prefix).map(OsmHeader::bounds).orElse(null);
+        } catch (Downloader.RequestFailedException e) {
+          // downloading the whole file would fail the same way after retrying
+          throw new UncheckedIOException(e.forDownload(path, 0));
         } catch (IOException e) {
           // If the server doesn't support range requests, for example, read the header once the whole file is here.
           LOGGER.debug("Unable to read the header of {} before downloading it", url, e);
@@ -1854,19 +1937,42 @@ public class Planetiler {
     }
   }
 
+  /**
+   * Fails with one message listing every source the profile uses that isn't on disk and won't get downloaded.
+   *
+   * @throws IllegalArgumentException if any source is missing
+   */
   private void ensureInputFilesExist() {
     Set<Path> queued = toDownload.stream().map(ToDownload::path).collect(Collectors.toSet());
-    for (InputPath inputPath : inputPaths) {
-      if (queued.contains(inputPath.path)) {
-        // about to be downloaded
-      } else if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
-        throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
-      } else if (profile.caresAboutSource(inputPath.id) && !inputPath.readsPartial &&
-        CachedRangeFile.isPartial(inputPath.path)) {
-        throw new IllegalArgumentException(
-          inputPath.path + " is only partially downloaded. Run with --download to finish downloading it");
+    // a source can have many files (one per URL), so list each source once
+    Map<String, List<InputPath>> missing = new LinkedHashMap<>();
+    boolean anyDownloadable = false;
+    for (InputPath input : inputPaths) {
+      boolean isMissing = !Files.exists(input.path) || (!input.readsPartial && CachedRangeFile.isPartial(input.path));
+      if (isMissing && !queued.contains(input.path) && profile.caresAboutSource(input.id)) {
+        missing.computeIfAbsent(input.id, _ -> new ArrayList<>()).add(input);
+        anyDownloadable |=
+          sourcesForHelp.containsKey(input.id) && !sourcesForHelp.get(input.id).downloadedFrom().isEmpty();
       }
     }
+    if (missing.isEmpty()) {
+      return;
+    }
+    StringBuilder message = new StringBuilder(missing.size() == 1 ? "1 source is missing:" :
+      missing.size() + " sources are missing:");
+    missing.forEach((id, files) -> {
+      Path first = files.getFirst().path;
+      message.append("\n  ").append(id).append(": ");
+      if (files.size() > 1) {
+        message.append(FileUtils.displayPath(first.getParent())).append("/ (").append(files.size()).append(" files)");
+      } else {
+        message.append(FileUtils.displayPath(first)).append(Files.exists(first) ? " (only partially downloaded)" : "");
+      }
+    });
+    if (!downloadMode.enabled() && anyDownloadable) {
+      message.append("\nRun without ").append(offline ? "--offline" : "--download=false").append(" to download them.");
+    }
+    throw new IllegalArgumentException(message.toString());
   }
 
   private sealed interface Stage {
@@ -1875,8 +1981,14 @@ public class Planetiler {
     List<String> details();
   }
 
+  /** What {@link #run()} does one after another. */
+  private sealed interface Step permits SequentialStage, ReadSources {}
+
   /** A stage that runs on its own after everything before it has finished, like reading OpenStreetMap data. */
-  private record SequentialStage(String id, List<String> details, RunnableThatThrows task) implements Stage {}
+  private record SequentialStage(String id, List<String> details, RunnableThatThrows task) implements Stage, Step {}
+
+  /** Sources read in one shared pipeline, with {@code name} as their stage in the logs and stats. */
+  private record ReadSources(String name, List<ParallelStage> sources) implements Step {}
 
   /**
    * A source that can be combined with other adjacent parallel stages when {@link #readSourcesTogether()} is enabled.
@@ -1926,6 +2038,11 @@ public class Planetiler {
     }
 
     @Override
+    public CompletableFuture<Fetch> fetchWhileReading() {
+      return source.fetchWhileReading();
+    }
+
+    @Override
     public void close() throws IOException {
       source.close();
     }
@@ -1939,16 +2056,6 @@ public class Planetiler {
 
   private void registerSource(String name, Path defaultPath, String downloadedFrom) {
     sourcesForHelp.putIfAbsent(name, new Source(name, defaultPath, downloadedFrom));
-  }
-
-  private static String host(String url) {
-    try {
-      String host = new URI(url).getHost();
-      return host == null ? url : host;
-    } catch (URISyntaxException _) {
-      // only shown in --help, so it must never fail a run
-      return url;
-    }
   }
 
   /** Returns the text {@code --help} prints: the profile, examples, its options, sources, then core's options. */

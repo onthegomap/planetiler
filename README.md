@@ -41,7 +41,7 @@ brew install planetiler
 Build a map of Monaco:
 
 ```bash
-planetiler --download --area=monaco --output=monaco.pmtiles
+planetiler --area=monaco --output=monaco.pmtiles
 ```
 
 View it by dragging `monaco.pmtiles` onto [pmtiles.io](https://pmtiles.io/).
@@ -157,7 +157,8 @@ The examples in this README use `planetiler` as the command. Substitute the comm
 - `-o` or `--output` tells planetiler where to write output to, and what format to write it in. For
   example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
   It is best to specify the full path to the file. With Docker, use `/data/australia.pmtiles`.
-- `--download` downloads input sources automatically and `--only-download` exits after downloading
+- Missing input sources get downloaded automatically, `--offline` (or `--download=false`) never downloads anything and
+  `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
 - `-f` or `--force` overwrites the output file
@@ -250,7 +251,7 @@ layers:
 To run:
 
 ```bash
-planetiler roads.yaml --download --output=roads.pmtiles
+planetiler roads.yaml --output=roads.pmtiles
 ```
 
 ### Option 2: Custom Maps Using Java Profiles
@@ -301,13 +302,13 @@ public class Roads implements Profile {
 This can be run without any compile step or build tools. With the launcher (which includes a Java runtime):
 
 ```bash
-./planetiler Roads.java --download --output=roads.pmtiles
+./planetiler Roads.java --output=roads.pmtiles
 ```
 
 Or with the jar and Java 22 or later:
 
 ```bash
-java -cp planetiler.jar Roads.java --download --output=roads.pmtiles
+java -cp planetiler.jar Roads.java --output=roads.pmtiles
 ```
 
 ## Use as a library

@@ -42,4 +42,21 @@ public interface SourceReader extends Closeable {
 
   /** Returns how far along this source is, for the logs. */
   SourceProgress progress();
+
+  /**
+   * Returns a future with what reading this source will fetch from a remote server, once that is known, or fails if it
+   * can't be found out. It is known by the time {@link #whenReady()} completes.
+   * <p>
+   * Downloads that have to finish before reading starts don't count, only what {@link #read(Consumer)} fetches.
+   */
+  default CompletableFuture<Fetch> fetchWhileReading() {
+    return CompletableFuture.completedFuture(Fetch.NONE);
+  }
+
+  /** The {@code bytes} a source fetches from {@code host} while it gets read. */
+  record Fetch(long bytes, String host) {
+
+    /** Nothing to fetch. */
+    public static final Fetch NONE = new Fetch(0, null);
+  }
 }

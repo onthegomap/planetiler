@@ -138,12 +138,21 @@ public class Timers {
   }
 
   public Finishable startTimer(String name, boolean logStart) {
+    return startTimer(name, logStart ? "Starting..." : null);
+  }
+
+  /**
+   * Starts a timer for stage {@code name} that logs {@code startMessage} when it starts and "Finished in" when it
+   * finishes, or neither if {@code startMessage} is null.
+   */
+  public Finishable startTimer(String name, String startMessage) {
+    boolean logStart = startMessage != null;
     Timer timer = Timer.start();
     Stage stage = new Stage(timer, logStart);
     timers.put(name, stage);
     Stage last = currentStage.getAndSet(stage);
     if (logStart) {
-      LOGGER.info("Starting...");
+      LOGGER.info(startMessage);
     }
     return new Finishable() {
       @Override

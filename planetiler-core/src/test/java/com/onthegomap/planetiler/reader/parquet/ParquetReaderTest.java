@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -141,7 +142,7 @@ class ParquetReaderTest {
     var files = bostons();
     List<Path> closed = new CopyOnWriteArrayList<>();
     var source = new ParquetReader("source", new Profile.NullProfile(), stats).remoteSource(
-      CompletableFuture.completedFuture(files),
+      CompletableFuture.completedFuture(files.stream().collect(Collectors.toMap(path -> path, _ -> URL))),
       path -> recordingClose(RangeFile.openLocal(path), () -> closed.add(path)),
       new StubDownloader(config), config);
     source.whenReady().join();
@@ -182,7 +183,7 @@ class ParquetReaderTest {
     // The test files are smaller than the footer prefetch, so prefetch only the last 8 bytes to leave the row groups
     // out of the cache when bounds skip them.
     var source = new ParquetReader("source", profile, stats).remoteSource(
-      CompletableFuture.completedFuture(List.of(path)),
+      CompletableFuture.completedFuture(Map.of(path, URL)),
       file -> RangeFile.open(file, URL, 8, DownloadMode.CACHED, false, downloader), downloader, config);
     var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
     SourceFeatureProcessor.process("source", List.of(source), List.of(), featureGroup, config, profile, stats);
