@@ -114,7 +114,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats) {
     boolean readTogether = sources.size() > 1;
     var timer = stats.startStage(stageName, readTogether ?
-      null :
+      "Running in parallel: " + sources.stream().map(it -> it.name()).collect(Collectors.joining(", ")) :
       "Starting...");
     try {
       // Use one reader per source so that a source that waits on range requests doesn't hold up other ones.

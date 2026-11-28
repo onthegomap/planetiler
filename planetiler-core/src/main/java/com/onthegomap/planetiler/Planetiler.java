@@ -148,7 +148,6 @@ public class Planetiler {
   private OvertureStac overtureStac;
   private final Map<String, String> sourceMetadata = new TreeMap<>();
   private final boolean refreshSources;
-  // downloads are on by default, this says if the user asked for them
   private final boolean explicitDownload;
   private final boolean offline;
   private final boolean onlyDownloadSources;
@@ -1368,8 +1367,8 @@ public class Planetiler {
           for (Step step : steps) {
             switch (step) {
               // the stage that reads a source closes it
-              case ReadSources read -> processSources(read.name(),
-                read.sources().stream().map(source -> sources.remove(source.id)).toList());
+              case ReadSources(String name, List<ParallelStage> readTogether) -> processSources(name,
+                readTogether.stream().map(source -> sources.remove(source.id)).toList());
               case SequentialStage task -> {
                 try { // NOSONAR outer catch cleans up failures
                   awaitDownloads(task.id, downloadsOf(task.id).toList());
@@ -1702,7 +1701,8 @@ public class Planetiler {
     if (sources.isEmpty()) {
       return;
     }
-    long sharedBefore = steps.stream().filter(step -> step instanceof ReadSources read && read.sources().size() > 1)
+    long sharedBefore = steps.stream()
+      .filter(step -> step instanceof ReadSources(_, var readTogether) && readTogether.size() > 1)
       .count();
     String name = sources.size() == 1 ? sources.getFirst().id :
       sharedBefore == 0 ? "sources" : "sources-" + (sharedBefore + 1);
