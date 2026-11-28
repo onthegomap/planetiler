@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.files.FilesArchiveUtils;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.stream.StreamArchiveUtils;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -204,6 +205,26 @@ public record TileArchiveConfig(
         throw new UncheckedIOException(e);
       }
     }
+  }
+
+  /**
+   * Returns {@code true} if the archive exists and may hold tiles, {@code false} if it doesn't exist or is no bigger than
+   * what its writer leaves when a run stops before the first tile.
+   */
+  public boolean existsWithTiles() {
+    Path path = getLocalBasePath();
+    if (!exists(path)) {
+      return false;
+    } else if (!Files.isRegularFile(path)) {
+      return true;
+    }
+    long sizeWithoutTiles = switch (format()) {
+      case PMTILES -> WriteablePmtiles.INIT_SECTION;
+      // the first page of the sqlite database, before any table gets created
+      case MBTILES -> 4096;
+      default -> 0;
+    };
+    return FileUtils.size(path) > sizeWithoutTiles;
   }
 
   /**

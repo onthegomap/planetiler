@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
+import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.reader.ShapefileOptions;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -3619,7 +3620,7 @@ class PlanetilerTests {
       TileCoord.ofXYZ(1, 1, 1),
       // TileCoord.ofXYZ(2, 2, 2), - within bounds but outside of triangle
       TileCoord.ofXYZ(2, 3, 2)
-      // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
+    // TileCoord.ofXYZ(3, 2, 2), TileCoord.ofXYZ(3, 3, 2) - within triangle but outside of bounds
     ), result.tiles.keySet());
   }
 
@@ -3730,9 +3731,11 @@ class PlanetilerTests {
         .addParquetSource("water", tempDir.resolve("water.parquet"), "http://host/water.parquet")
         .setOutput(tempDir.resolve("output.mbtiles"));
 
-    var exception = assertThrows(Planetiler.PlanetilerException.class, planetiler::run);
+    var exception = assertThrows(Planetiler.ExpectedFailureException.class, planetiler::run);
+    // the message says what to do, and the cause is what stopped the run
     assertEquals((overrideUrl ? "http://host/water.zip" : zip.toString()) +
-      " is not a valid parquet file, download it from http://host/water.parquet", exception.getCause().getMessage());
+      " is not a valid parquet file, download it from http://host/water.parquet", exception.getMessage());
+    assertEquals("Error occurred during stage water", exception.getCause().getMessage());
   }
 
   private Planetiler shapefileUrlsSource(List<String> urls, Set<Long> featureIds, String... args)
@@ -3977,7 +3980,7 @@ class PlanetilerTests {
 
     assertTrue(Files.exists(tempDir.resolve("sources").resolve("rhode_island.osm.pbf")));
   }
-  
+
   @Test
   void testHelp() {
     var planetiler = Planetiler.create(Arguments.of())
@@ -4058,4 +4061,35 @@ class PlanetilerTests {
     assertFalse(results.tiles.isEmpty());
     assertEquals(List.of(), results.tiles.keySet().stream().filter(tile -> tile.x() % 2 == 1).toList());
   }
+
+  @Test
+  void testExistingOutputNeedsForce() throws IOException {
+    Path output = tempDir.resolve("output.pmtiles");
+    Files.write(output, new byte[WriteablePmtiles.INIT_SECTION + 1]);
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile())
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .setOutput(output);
+
+    var exception = assertThrows(IllegalArgumentException.class, planetiler::run);
+    assertEquals(FileUtils.displayPath(output) + " already exists, add --force to overwrite it.",
+      exception.getMessage());
+  }
+
+  @ParameterizedTest
+  @CsvSource({"output.pmtiles, 16384", "output.mbtiles, 4096"})
+  void testOutputWithoutTilesGetsReplaced(String name, int size) throws IOException {
+    // what the writer leaves when a run stops before the first tile, e.g. after Ctrl-C
+    Path output = tempDir.resolve(name);
+    Files.write(output, new byte[size]);
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile())
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .setOutput(output)
+      .run();
+    assertTrue(Files.size(output) > size);
+  }
+
+
 }

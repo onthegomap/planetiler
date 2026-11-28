@@ -46,6 +46,7 @@ public class FileUtils {
   private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
+
   private FileUtils() {}
 
   /** Returns a stream that lists all files in {@code fileSystem}. */
@@ -175,7 +176,7 @@ public class FileUtils {
         .forEach(FileUtils::deleteFile);
     } catch (NoSuchFileException _) {
       // this is OK, file doesn't exist, so can't walk
-    } catch (IOException e) {
+    } catch ( IOException e) {
       LOGGER.error("Unable to delete " + path, e);
     }
   }
@@ -189,6 +190,28 @@ public class FileUtils {
         deleteFile(path);
       }
     }
+  }
+
+  /** Returns the bytes left on {@code disk} for this process to write, or {@code 0} if unable to tell. */
+  public static long usableSpace(FileStore disk) {
+    try {
+      return disk.getUsableSpace();
+    } catch (IOException _) {
+      return 0;
+    }
+  }
+
+  /** Returns true if {@code failure}, or what caused it, is the operating system saying a disk is full. */
+  public static boolean isOutOfDiskSpace(Throwable failure) {
+    for (Throwable e = failure; e != null; e = e.getCause()) {
+      // The JDK only passes on the operating system's message: ENOSPC on Linux and macOS, ERROR_DISK_FULL on Windows.
+      if (e instanceof IOException && e.getMessage() != null &&
+        (e.getMessage().contains("No space left on device") ||
+          e.getMessage().contains("There is not enough space on the disk"))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Returns the {@link FileStore} for {@code path}, or its nearest parent directory if it does not exist yet. */

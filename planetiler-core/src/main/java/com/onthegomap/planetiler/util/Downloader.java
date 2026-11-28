@@ -94,7 +94,8 @@ public class Downloader implements Closeable {
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
   private final ExecutorService executor;
   private final RequestPlanner planner;
-  private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
+  private final ResourceUsage diskSpaceCheck = new ResourceUsage("the downloads",
+    "Free up space, or download the sources to another disk.");
   private final RateLimiter rateLimiter;
   private final Semaphore globalRequestLimiter;
 

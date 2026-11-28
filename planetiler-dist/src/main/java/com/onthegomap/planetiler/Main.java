@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler;
 
-import static com.onthegomap.planetiler.util.LogUtil.UNTIMED_LOGGER;
 
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
@@ -16,10 +15,10 @@ import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.examples.overture.OvertureBasemap;
 import com.onthegomap.planetiler.fuzz.DeterminismFuzzer;
 import com.onthegomap.planetiler.mbtiles.Verify;
-import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.CompareArchives;
 import com.onthegomap.planetiler.util.EditDistance;
+import com.onthegomap.planetiler.util.FailureReport;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
 import java.util.Arrays;
@@ -27,7 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
@@ -129,17 +127,17 @@ public class Main {
     return result;
   }
 
-  public static void main(String[] args) throws Exception {
+  @SuppressWarnings("java:S1181")
+  public static void main(String[] args) {
     try {
       run(args);
-    } catch (IllegalArgumentException | FileFormatException e) {
-      // Bad options or inputs: the message says what to fix, so the stack trace only shows when asked for.
-      if (verbose(args)) {
-        throw e;
+    } catch (Throwable e) {
+      try {
+        FailureReport.log(e, verbose(args));
+      } finally {
+        // also when logging fails, e.g. after running out of memory
+        System.exit(1);
       }
-      // Omit elapsed time since it's the one line saying why the run stopped, often before it started.
-      UNTIMED_LOGGER.error("{}", Objects.requireNonNullElse(e.getMessage(), e + " (run with --verbose for details)"));
-      System.exit(1);
     }
   }
 

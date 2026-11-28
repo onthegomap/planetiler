@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import com.onthegomap.planetiler.collection.Storage;
+import com.onthegomap.planetiler.config.ArgumentHelp;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import java.io.IOException;
 import java.nio.file.FileStore;
@@ -36,19 +37,25 @@ public class ResourceUsage {
     () -> OptionalLong.of(ProcessInfo.getMaxMemoryBytes())
   );
   /** Memory used JVM heap. */
-  public static final LimitedResource HEAP = new Global(
-    "JVM heap",
-    "increase JVM -Xmx setting",
-    () -> OptionalLong.of(ProcessInfo.getMaxMemoryBytes())
-  );
+  public static final LimitedResource HEAP = new Heap();
   private static final Format FORMAT = Format.defaultInstance();
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourceUsage.class);
   private final CopyOnWriteArrayList<Usage> usages = new CopyOnWriteArrayList<>();
   private final String description;
+  private final String howToFreeDisk;
 
   /** Creates a new resource checker for a part of execution described by {@code description}. */
   public ResourceUsage(String description) {
+    this(description, null);
+  }
+
+  /**
+   * Creates a new resource checker for a part of execution described by {@code description} (e.g. "reading the
+   * sources"), where {@code howToFreeDisk} says what to do when a disk is too small for it.
+   */
+  public ResourceUsage(String description, String howToFreeDisk) {
     this.description = description;
+    this.howToFreeDisk = howToFreeDisk;
   }
 
   /** Returns the total amount of disk requested so far. */
@@ -112,54 +119,52 @@ public class ResourceUsage {
   }
 
   /**
-   * Add up all the resource requests and logs an error if any exceed the limit for that resource.
+   * Adds up the resource requests and fails if any exceeds what is available by more than a small margin, since the
+   * estimates are rough and a run that might just fit should go ahead.
    *
-   * @param force   If false, then throws an exception, otherwise just logs a warning
-   * @param verbose If true then print each resource request even if it is under the limit
+   * @param force   If true, then logs the problems as warnings instead of failing
+   * @param verbose If true then log each resource request at debug level even if it is under the limit
+   * @throws InsufficientResourcesException if a resource will run out and {@code force} is false, with one line per
+   *                                        resource
    */
   public void checkAgainstLimits(boolean force, boolean verbose) {
     List<String> issues = new ArrayList<>();
     var grouped = usages.stream().collect(Collectors.groupingBy(Usage::resource));
     for (var entry : grouped.entrySet()) {
       LimitedResource resource = entry.getKey();
-      List<Usage> usages = entry.getValue();
-      long requested = usages.stream().mapToLong(Usage::amount).sum();
-      String requestedString = FORMAT.storage(requested);
+      List<Usage> resourceUsages = entry.getValue();
+      long requested = resourceUsages.stream().mapToLong(Usage::amount).sum();
       OptionalLong limitMaybe = resource.limit();
       if (limitMaybe.isEmpty()) {
-        LOGGER
-          .warn(requestedString + " requested but unable to get limit for " + resource.description() + ", may fail.");
-      } else {
-        long limit = limitMaybe.getAsLong();
-        String limitString = FORMAT.storage(limit);
-        String summary = requestedString + " " + resource.description() + " requested for " + description + ", " +
-          limitString + " available";
-
-        if (limit < requested) {
-          LOGGER.warn("❌️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
-          for (var usage : usages) {
-            LOGGER.warn("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
-          }
-        } else if (limit < requested * 1.1) {
-          LOGGER.info("⚠️️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
-          for (var usage : usages) {
-            LOGGER.info("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
-          }
-        } else if (verbose) {
-          LOGGER.debug("✓ " + summary);
-          for (var usage : usages) {
-            LOGGER.debug(" - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
-          }
-        }
-
-        if (limit < requested) {
-          issues.add(summary);
+        LOGGER.atDebug().setMessage("{} requested but unable to get limit for {}")
+          .addArgument(() -> FORMAT.storage(requested))
+          .addArgument(resource::description)
+          .log();
+        continue;
+      }
+      long limit = limitMaybe.getAsLong();
+      boolean fails = requested > limit + resource.margin(requested);
+      if (fails) {
+        String howToFix = resource instanceof Fixable fixable ? fixable.howToFix() :
+          resource instanceof DiskUsage ? howToFreeDisk : null;
+        issues.add(resource.notEnough(description, requested, limit) + (howToFix == null ? "" : " " + howToFix));
+      }
+      if ((verbose || fails) && LOGGER.isDebugEnabled()) {
+        LOGGER.debug("{} {} {} requested for {}, {} available", fails ? "❌️" : "✓", FORMAT.storage(requested),
+          resource.description(), description, FORMAT.storage(limit));
+        for (var usage : resourceUsages) {
+          LOGGER.debug("   - {} used for {}", FORMAT.storage(usage.amount), usage.description);
         }
       }
     }
-    if (!force && !issues.isEmpty()) {
-      throw new IllegalStateException("Insufficient resources for " + description +
-        ", use the --force argument to continue anyway:\n" + String.join("\n", issues));
+    if (issues.isEmpty()) {
+      return;
+    }
+    if (!force) {
+      throw new InsufficientResourcesException(String.join("\n", issues));
+    }
+    for (String issue : issues) {
+      LOGGER.warn("{} Continuing anyway because of --force.", issue);
     }
   }
 
@@ -177,6 +182,46 @@ public class ResourceUsage {
     OptionalLong limit();
 
     String description();
+
+    /**
+     * Returns how far {@code requested} may go over the limit before the check fails, since the estimates are rough:
+     * 15% by default.
+     */
+    default long margin(long requested) {
+      return requested * 15 / 100;
+    }
+
+    /** Returns the sentence saying that {@code usedFor} needs {@code requested} but only {@code limit} is there. */
+    default String notEnough(String usedFor, long requested, long limit) {
+      return "Not enough %s for %s: needs about %sB, %sB available.".formatted(description(), usedFor,
+        FORMAT.storage(requested), FORMAT.storage(limit));
+    }
+  }
+
+  /** The JVM heap, which the launcher's {@code --memory} or the {@code -Xmx} JVM option limits. */
+  private record Heap() implements LimitedResource {
+
+    @Override
+    public OptionalLong limit() {
+      return OptionalLong.of(ProcessInfo.getMaxMemoryBytes());
+    }
+
+    @Override
+    public String description() {
+      return "JVM heap";
+    }
+
+    @Override
+    public long margin(long requested) {
+      return requested / 4;
+    }
+
+    @Override
+    public String notEnough(String usedFor, long requested, long limit) {
+      long suggested = requested * 3 / 2;
+      return "Not enough memory for %s: needs about %sB, current limit is %sB. Try %s.".formatted(usedFor,
+        FORMAT.storage(requested), FORMAT.storage(limit), ArgumentHelp.memoryLimitExample(suggested));
+    }
   }
 
   /** An amount of a resource that has been requested. */
@@ -215,6 +260,18 @@ public class ResourceUsage {
     @Override
     public String description() {
       return "storage on " + fileStore.toString();
+    }
+
+    @Override
+    public long margin(long requested) {
+      // Output size estimates are often several times too high on extracts.
+      return Math.max(requested * 15 / 100, 1L << 30);
+    }
+
+    @Override
+    public String notEnough(String usedFor, long requested, long limit) {
+      return "Not enough disk space on %s for %s: needs about %sB, %sB free.".formatted(fileStore, usedFor,
+        FORMAT.storage(requested), FORMAT.storage(limit));
     }
   }
 }

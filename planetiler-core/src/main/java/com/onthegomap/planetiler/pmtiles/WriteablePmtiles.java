@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class WriteablePmtiles implements WriteableTileArchive {
 
-  static final int INIT_SECTION = 16384;
+  /** Bytes reserved at the start of the file for the header and root directory, before the first tile. */
+  public static final int INIT_SECTION = 16384;
   private static final Logger LOGGER = LoggerFactory.getLogger(WriteablePmtiles.class);
   final LongLongHashMap hashToOffset = Hppc.newLongLongHashMap();
   final ArrayList<Pmtiles.Entry> entries = new ArrayList<>();

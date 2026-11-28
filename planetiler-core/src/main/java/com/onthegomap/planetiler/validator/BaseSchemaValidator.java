@@ -52,10 +52,6 @@ public abstract class BaseSchemaValidator {
     this.output = output;
   }
 
-  protected static boolean hasCause(Throwable t, Class<?> cause) {
-    return t != null && (cause.isInstance(t) || hasCause(t.getCause(), cause));
-  }
-
   protected boolean runOrWatch() {
     output.println("OK");
     var response = validateFromCli();

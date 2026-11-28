@@ -211,4 +211,5 @@ class FileUtilsTest {
     Path outside = tempDir.resolve("output.pmtiles").toAbsolutePath();
     assertEquals(outside.toString(), FileUtils.displayPath(outside));
   }
+
 }

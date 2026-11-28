@@ -64,6 +64,16 @@ public class Exceptions {
     return result;
   }
 
+  /** Returns true if {@code exception} or anything in its chain of causes is an instance of {@code type}. */
+  public static boolean hasCause(Throwable exception, Class<?> type) {
+    for (Throwable e = exception; e != null; e = e.getCause()) {
+      if (type.isInstance(e)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
    * Fatal exception that will result in planetiler exiting early and shutting down.
    */

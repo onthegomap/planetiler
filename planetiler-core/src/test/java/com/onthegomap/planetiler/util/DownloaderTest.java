@@ -133,8 +133,8 @@ class DownloaderTest {
 
     var resource = new Downloader.ResourceToDownload("resource", "http://url", dest);
     var exception = assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource).get());
-    assertInstanceOf(IllegalStateException.class, exception.getCause());
-    assertTrue(exception.getMessage().contains("--force"), exception.getMessage());
+    assertInstanceOf(InsufficientResourcesException.class, exception.getCause());
+    assertTrue(exception.getMessage().contains("Not enough disk space"), exception.getMessage());
   }
 
   @Test

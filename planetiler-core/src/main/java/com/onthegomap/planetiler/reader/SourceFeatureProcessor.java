@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.reader;
 
+import com.onthegomap.planetiler.util.RepeatedErrorLogger;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -114,6 +115,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
       // Use one reader per source so that a source that waits on range requests doesn't hold up other ones.
       int readThreads = Math.min(sources.size(), config.threads());
       AtomicLong sourcesRead = new AtomicLong();
+      var featureErrors = new RepeatedErrorLogger(LOGGER, 10);
       // lets finished workers divvy up any remaining work from busy ones
       Distributor<SourceFeature> distributor = Distributor.createWithCapacity(1_000);
       Map<String, SourceProgress> progressBySource =
@@ -157,7 +159,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
                     renderer.accept(renderable);
                   }
                 } catch (Exception e) {
-                  LOGGER.error("Error processing {}", sourceFeature, e);
+                  featureErrors.log("Error processing " + sourceFeature, e);
                 }
                 sourceStats.featureProcessed();
               })
