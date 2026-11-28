@@ -3206,15 +3206,15 @@ class PlanetilerTests {
     Path osm = tempDir.resolve("sources").resolve("monaco.osm.pbf");
     markAsPartialDownload(TestUtils.pathToResource("monaco-latest.osm.pbf"), osm);
 
-    // parquet sources read the ranges a cached run fetched without --download
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+    // parquet sources read the ranges a cached run fetched while offline
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=false"))
       .setProfile((SourceFeature source, FeatureCollector features) -> features.polygon("buildings"))
       .addParquetSource("parquet", parquet, "http://host/boston.parquet")
       .setOutput(tempDir.resolve("parquet.mbtiles"))
       .run();
 
     // other sources can only be read complete
-    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+    var planetiler = Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data"), "--download=false"))
       .setProfile(new Profile.NullProfile())
       .addOsmSource("osm", osm, "http://host/monaco.osm.pbf")
       .setOutput(tempDir.resolve("osm.mbtiles"));
@@ -4091,5 +4091,79 @@ class PlanetilerTests {
     assertTrue(Files.size(output) > size);
   }
 
+  @ParameterizedTest
+  @CsvSource({
+    "'', true",
+    "--download, true",
+    "--offline, false",
+    "--download=false, false"
+  })
+  void testMissingSourcesGetDownloadedUnlessOffline(String arg, boolean downloads) throws IOException {
+    byte[] zip = Files.readAllBytes(TestUtils.pathToResource("shapefile.zip"));
+    var downloader = new StubDownloader(PlanetilerConfig.defaults())
+      .put("http://host/features.geojson", Files.readAllBytes(TestUtils.pathToResource("featurecollection.geojson")))
+      .put("http://host/a.zip", zip)
+      .put("http://host/b.zip", zip);
+    Path sources = tempDir.resolve("sources");
+    List<String> args = new ArrayList<>(List.of("--tmpdir=" + tempDir.resolve("data")));
+    if (!arg.isEmpty()) {
+      args.add(arg);
+    }
+    var planetiler = Planetiler.create(Arguments.fromArgs(args.toArray(String[]::new)))
+      .setDownloader(downloader)
+      .setProfile(new Profile.NullProfile())
+      .addGeoJsonSource("geojson", sources.resolve("features.geojson"), "http://host/features.geojson")
+      .addShapefileMultiUrlSource("shapefiles", sources.resolve("shapefiles"),
+        List.of("http://host/a.zip", "http://host/b.zip"), ShapefileOptions.DEFAULT)
+      .setOutput(tempDir.resolve("output.mbtiles"));
 
+    if (downloads) {
+      planetiler.run();
+      assertTrue(Files.exists(sources.resolve("features.geojson")));
+      assertTrue(Files.exists(sources.resolve("shapefiles").resolve("b.zip")));
+    } else {
+      var exception = assertThrows(IllegalArgumentException.class, planetiler::run);
+      assertEquals("""
+        2 sources are missing:
+          geojson: %s
+          shapefiles: %s/ (2 files)
+        Run without %s to download them.""".formatted(
+        FileUtils.displayPath(sources.resolve("features.geojson")),
+        FileUtils.displayPath(sources.resolve("shapefiles")),
+        arg), exception.getMessage());
+      assertEquals(List.of(), downloader.requests());
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "false, '', 1",
+    "true, '', 0",
+    "true, --download, 1",
+    "true, --refresh-sources, 1"
+  })
+  void testOvertureReadsMirrorOnDiskUnlessAskedToDownload(boolean mirrorOnDisk, String arg, int expectedLookups)
+    throws IOException {
+    Path overture = tempDir.resolve("overture");
+    if (mirrorOnDisk) {
+      Path file = overture.resolve("theme=buildings").resolve("type=building").resolve("boston.parquet");
+      FileUtils.createParentDirectories(file);
+      Files.copy(TestUtils.pathToResource("parquet").resolve("boston.parquet"), file);
+    }
+    List<Envelope> lookups = new CopyOnWriteArrayList<>();
+    List<String> args = new ArrayList<>(List.of("--tmpdir=" + tempDir.resolve("data")));
+    if (!arg.isEmpty()) {
+      args.add(arg);
+    }
+
+    Planetiler.create(Arguments.fromArgs(args.toArray(String[]::new)))
+      .setOvertureStac(recordingOvertureStac(lookups))
+      .setProfile(new Profile.NullProfile())
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .addOvertureSource("overture-buildings", "buildings", "building", overture)
+      .setOutput(tempDir.resolve("output.mbtiles"))
+      .run();
+
+    assertEquals(expectedLookups, lookups.size());
+  }
 }

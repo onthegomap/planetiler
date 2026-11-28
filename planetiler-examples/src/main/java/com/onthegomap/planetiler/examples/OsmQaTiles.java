@@ -29,7 +29,7 @@ import java.nio.file.Path;
  * <ol>
  * <li>build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
- * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.OsmQaTiles --area=monaco --download}</li>
+ * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.OsmQaTiles --area=monaco}</li>
  * <li>then run the demo tileserver: {@code tileserver-gl-light data/output.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>

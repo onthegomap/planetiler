@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.Test;
@@ -490,5 +492,59 @@ class DownloaderTest {
     assertEquals(9, byPath.get(a).bytesDownloaded());
     assertArrayEquals(bytes("0123456789"), Files.readAllBytes(a));
     assertArrayEquals(bytes("abcde"), Files.readAllBytes(b));
+  }
+
+  @Test
+  void testFailedDownloadSaysWhereToGetTheFile() {
+    Path dest = path.resolve("out");
+    var downloader = new StubDownloader(config);
+    var resource = new Downloader.ResourceToDownload("resource", "http://host/file.zip", dest);
+    var future = downloader.downloadIfNecessary(resource);
+
+    var exception = assertThrows(ExecutionException.class, future::get);
+    assertEquals("Downloading file.zip failed: host returned HTTP 404. Try again later, or download " +
+      "http://host/file.zip manually to " + FileUtils.displayPath(dest) + ".",
+      ExceptionUtils.throwableOfType(exception, Downloader.RequestFailedException.class).getMessage());
+  }
+
+  @Test
+  void testFailedDownloadSaysHowManyRetries() {
+    var downloader = new StubDownloader(config).put("http://host/file.zip", bytes("abc"))
+      .failNext(config.httpRetries() + 1, 503);
+    var resource = new Downloader.ResourceToDownload("resource", "http://host/file.zip", path.resolve("out"));
+    var future = downloader.downloadIfNecessary(resource);
+
+    var exception = assertThrows(ExecutionException.class, future::get);
+    assertTrue(ExceptionUtils.throwableOfType(exception, Downloader.RequestFailedException.class).getMessage()
+      .startsWith("Downloading file.zip failed: host returned HTTP 503 after 5 retries. Try again later"),
+      ExceptionUtils.throwableOfType(exception, Downloader.RequestFailedException.class).getMessage());
+  }
+
+  @Test
+  void testUnreachableHost() {
+    var retries = new AtomicInteger();
+    var downloader = new Downloader(config, 1000) {
+      @Override
+      Response sendOverNetwork(Downloader.Request request) throws IOException {
+        throw new UnknownHostException("host");
+      }
+
+      @Override
+      protected void retrySleep(Duration wait) {
+        retries.incrementAndGet();
+      }
+    };
+
+    var exception =
+      assertThrows(Downloader.RequestFailedException.class, () -> downloader.fetchTail("http://host/x", 1));
+    assertEquals("Can't reach host (no network connection?). Try again later.", exception.getMessage());
+    assertEquals(config.httpRetries(), retries.get());
+  }
+
+  @Test
+  void testOnlyLongRetryWaitsGetLoggedByDefault() {
+    assertFalse(Downloader.isLongRetryWait(Duration.ofSeconds(5)));
+    assertTrue(Downloader.isLongRetryWait(Duration.ofSeconds(30)));
+    assertTrue(Downloader.isLongRetryWait(Duration.ofMinutes(5)));
   }
 }

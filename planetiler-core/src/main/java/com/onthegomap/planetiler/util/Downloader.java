@@ -15,8 +15,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.UncheckedIOException;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.NoRouteToHostException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.net.http.HttpHeaders;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -46,7 +50,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 
 /**
  * A utility for making external HTTP requests and downloading remote HTTP files to disk.
@@ -89,6 +92,7 @@ public class Downloader implements Closeable {
   // write 1 MB blocks to disk instead of 16 KB to reduce CPU usage when downloading large files on big machines
   private static final int BUFFER_SIZE = 1 << 20;
   private static final Pattern CONTENT_RANGE_PATTERN = Pattern.compile("bytes (\\d+)-(\\d+)/(\\d+)");
+  private static final Duration LONG_RETRY_WAIT = Duration.ofSeconds(30);
   private static final Logger LOGGER = LoggerFactory.getLogger(Downloader.class);
   private final PlanetilerConfig config;
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
@@ -144,7 +148,7 @@ public class Downloader implements Closeable {
       // local file:///... don't need retries or request limiting
       return uri.toURL().openStream();
     }
-    return withRetries("fetching " + url, () -> getFollowingRedirects(url, null, null).body());
+    return withRetries(url, "fetching " + url, () -> getFollowingRedirects(url, null, null).body());
   }
 
   /**
@@ -185,24 +189,13 @@ public class Downloader implements Closeable {
    * handle per file to follow its progress.
    * <p>
    * Only fetches the files, or the parts of them, that haven't been fetched yet. {@code id} and each URL are as in
-   * {@link #add(String, String, Path)}. With more than one file, logs when they start and when all of them have
-   * finished instead of once per file.
+   * {@link #add(String, String, Path)}.
    */
   public List<Download> startAll(String id, Map<String, Path> urlToOutput) {
-    if (urlToOutput.size() == 1) {
-      var only = urlToOutput.entrySet().iterator().next();
-      var resource = new ResourceToDownload(id, resolve(only.getKey()), only.getValue());
-      return List.of(new Download(resource, downloadIfNecessary(resource)));
-    }
-    LOGGER.info("Downloading {} files for {}", urlToOutput.size(), id);
-    List<Download> result = urlToOutput.entrySet().stream().map(entry -> {
-      var resource = new ResourceToDownload(id, resolve(entry.getKey()), entry.getValue(), false);
+    return urlToOutput.entrySet().stream().map(entry -> {
+      var resource = new ResourceToDownload(id, resolve(entry.getKey()), entry.getValue());
       return new Download(resource, downloadIfNecessary(resource));
     }).toList();
-    CompletableFuture.allOf(result.stream().map(Download::done).toArray(CompletableFuture[]::new))
-      .thenRun(() -> LOGGER.info("Finished downloading {} files for {} ({}B)", result.size(), id,
-        FORMAT.storage(result.stream().mapToLong(Download::bytesDownloaded).sum())));
-    return result;
   }
 
   /**
@@ -243,8 +236,14 @@ public class Downloader implements Closeable {
         download(resource);
       } catch (Exception e) { // NOSONAR
         resource.length.completeExceptionally(e);
-        LOGGER.error("Error downloading {} to {}", resource.url, resource.output, e);
-        throw e;
+        // the run stops with this one message, so the other downloads that fail meanwhile only show with --verbose
+        LOGGER.debug("Error downloading {} to {}", resource.url, resource.output, e);
+        throw switch (Exceptions.unwrap(e)) {
+          case RequestFailedException failed -> failed.forDownload(resource.output, resource.bytesDownloaded());
+          case BadResponseException bad -> new RequestFailedException(resource.url, 0, bad)
+            .forDownload(resource.output, resource.bytesDownloaded());
+          default -> e;
+        };
       }
     }), executor);
   }
@@ -253,7 +252,7 @@ public class Downloader implements Closeable {
     Path output = resource.output;
     try {
       if (CachedRangeFile.isCompleteCopy(output, resource.url, true, this)) {
-        LOGGER.atLevel(resource.fileLogLevel()).log("Skipping {}: {} already up-to-date", resource.id, output);
+        LOGGER.debug("Skipping {}: {} already up-to-date", resource.id, output);
         resource.length.complete(0L);
         return;
       }
@@ -270,8 +269,7 @@ public class Downloader implements Closeable {
         String resumeInfo =
           resuming ? " (resuming, " + FORMAT.storage(missing) + "B of " + FORMAT.storage(file.length()) + "B left)" :
             "";
-        LOGGER.atLevel(resource.fileLogLevel())
-          .log("Downloading {}{} to {}{}", resource.url, redirectInfo, output, resumeInfo);
+        LOGGER.debug("Downloading {}{} to {}{}", resource.url, redirectInfo, output, resumeInfo);
         diskSpaceCheck.addDisk(output, missing, resource.id);
         diskSpaceCheck.checkAgainstLimits(config.force(), false);
         file.fetchMissing(resource.progress::add);
@@ -279,7 +277,7 @@ public class Downloader implements Closeable {
     } catch (RangesNotSupportedException _) {
       downloadWhole(resource);
     }
-    LOGGER.atLevel(resource.fileLogLevel()).log("Finished downloading {} to {}", resource.url, output);
+    LOGGER.debug("Finished downloading {} to {}", resource.url, output);
   }
 
   /**
@@ -290,21 +288,22 @@ public class Downloader implements Closeable {
    */
   public void downloadWhole(String url, Path output) throws IOException {
     downloadWhole(new ResourceToDownload(output.getFileName().toString(), url, output));
-    LOGGER.info("Finished downloading {} to {}", url, output);
+    LOGGER.debug("Finished downloading {} to {}", url, output);
   }
 
   private void downloadWhole(ResourceToDownload resource) throws IOException {
-    LOGGER.info("{} does not support range requests, downloading it to {} in one request that can't resume",
+    LOGGER.debug("{} does not support range requests, downloading it to {} in one request that can't resume",
       resource.url, resource.output);
-    withRetries("downloading " + resource.url, () -> {
+    withRetries(resource.url, "downloading " + resource.url, () -> {
       var written = new Object() {
         long bytes = 0;
       };
       try (var response = getFollowingRedirects(resource.url, null, null)) {
         var version = response.version();
         // servers that stream generated content may not send a Content-Length, so progress gets logged without a total
-        resource.length.complete(Math.max(0, version.length()));
-        resource.bytesToFetch.set(Math.max(0, version.length()));
+        var size = Math.max(0, version.length());
+        resource.bytesToFetch.set(size);
+        resource.length.complete(size);
         try (var file = CachedRangeFile.create(resource.output, version)) {
           Sink sink = (position, buffer, offset, length) -> {
             file.write(position, buffer, offset, length);
@@ -360,7 +359,7 @@ public class Downloader implements Closeable {
 
   /** Returns the bytes of one GET request for {@code range} of {@code url}, read into memory. */
   private RangeResponse requestRange(String url, String range) throws IOException {
-    return withRetries("fetching " + range + " of " + url, () -> {
+    return withRetries(url, "fetching " + range + " of " + url, () -> {
       try (var response = getFollowingRedirects(url, range, null)) {
         ByteRange contentRange = response.responseBytes();
         byte[] bytes = new byte[Math.toIntExact(contentRange.length())];
@@ -382,7 +381,7 @@ public class Downloader implements Closeable {
   public void fetch(String url, RemoteVersion expected, ByteRange range, Sink sink) throws IOException {
     // not for thread safety (bytes arrive on this thread), just a counter the lambdas below can update
     var bytesDone = new AtomicLong();
-    withRetries("fetching " + range + " of " + url, bytesDone::get, () -> {
+    withRetries(url, "fetching " + range + " of " + url, bytesDone::get, () -> {
       var remaining = new ByteRange(range.offset() + bytesDone.get(), range.length() - bytesDone.get());
       try (
         var response = getFollowingRedirects(url, "bytes=" + remaining.offset() + "-" + (range.end() - 1),
@@ -441,7 +440,7 @@ public class Downloader implements Closeable {
    * @throws IOException if the request or reading its response fails after all retries
    */
   <T> T sendWithRetries(Request request, BodyReader<T> reader) throws IOException {
-    return withRetries("sending request to " + request.url(), () -> {
+    return withRetries(request.url(), "sending request to " + request.url(), () -> {
       try (var response = sendWithLimits(request)) {
         if (response.status() / 100 != 2) {
           throw badResponse(response);
@@ -458,15 +457,21 @@ public class Downloader implements Closeable {
     T read(InputStream body) throws IOException;
   }
 
-  private <T> T withRetries(String what, Callable<T> attempt) throws IOException {
-    return withRetries(what, () -> 0, attempt);
+  /**
+   * Runs {@code attempt}, a request to {@code url}, retrying errors that might go away.
+   *
+   * @throws RequestFailedException if it still fails after all retries
+   */
+  private <T> T withRetries(String url, String description, Callable<T> attempt) throws IOException {
+    return withRetries(url, description, () -> 0, attempt);
   }
 
   /**
-   * Like {@link #withRetries(String, Callable)}, but an attempt that failed after {@code progress} went up gets retried
-   * right away and the retries start over.
+   * Like {@link #withRetries(String, String, Callable)}, but an attempt that failed after {@code progress} went up gets
+   * retried right away and the retries start over.
    */
-  private <T> T withRetries(String what, LongSupplier progress, Callable<T> attempt) throws IOException {
+  private <T> T withRetries(String url, String description, LongSupplier progress, Callable<T> attempt)
+    throws IOException {
     int retry = 0;
     while (true) {
       long progressBefore = progress.getAsLong();
@@ -481,20 +486,25 @@ public class Downloader implements Closeable {
           // in that case, restart the request where we left off and don't count against our retries
           retry = 0;
         } else if (retriesRemaining <= 0) {
-          throw e;
+          throw new RequestFailedException(url, config.httpRetries(), e);
         } else {
-          waitBeforeRetry(what, retriesRemaining, e);
+          waitBeforeRetry(url, description, retriesRemaining, e);
           retry++;
         }
       } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
-        throw new InterruptedIOException("Interrupted " + what);
+        throw new InterruptedIOException("Interrupted " + description);
       } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
     }
+  }
+
+  // Short waits are routine, but a long one gets logged by default so the run doesn't look stuck.
+  static boolean isLongRetryWait(Duration wait) {
+    return wait.compareTo(LONG_RETRY_WAIT) >= 0;
   }
 
   private static boolean isRetryable(IOException e) {
@@ -505,7 +515,7 @@ public class Downloader implements Closeable {
     };
   }
 
-  private void waitBeforeRetry(String what, int retriesRemaining, IOException e) throws IOException {
+  private void waitBeforeRetry(String url, String description, int retriesRemaining, IOException e) throws IOException {
     Duration wait = config.httpRetryWait();
     Duration retryAfter = e instanceof BadResponseException bad ? bad.retryAfter : null;
     String reason = "";
@@ -514,19 +524,24 @@ public class Downloader implements Closeable {
       Duration asked = capped ? config.httpRetryMaxWait() : retryAfter;
       if (asked.compareTo(wait) > 0) {
         wait = asked;
-        reason = capped ? " (--http-retry-max-wait)" : " as the server asked";
+        reason = capped ? " (the server asked for longer than --http-retry-max-wait)" : " (the server asked)";
       }
     }
-    String cause = e instanceof BadResponseException bad ? "server responded: " + bad.response : e.getMessage();
-    if (LOGGER.isWarnEnabled()) {
-      LOGGER.warn("Error {}, retrying in {}{}, {}, {} {} left", what, FORMAT.duration(wait), reason, cause,
-        retriesRemaining, retriesRemaining == 1 ? "retry" : "retries");
+    String retriesLeft = retriesRemaining + (retriesRemaining == 1 ? " retry" : " retries") + " left";
+    if (isLongRetryWait(wait)) {
+      if (LOGGER.isWarnEnabled()) {
+        LOGGER.warn("Waiting {} before retrying {}{}, {}", FORMAT.duration(wait), host(url), reason, retriesLeft);
+      }
+    } else if (LOGGER.isDebugEnabled()) {
+      String cause = e instanceof BadResponseException bad ? "server responded: " + bad.response : e.getMessage();
+      LOGGER.debug("Error {}, retrying in {}{}, {}, {}", description, FORMAT.duration(wait), reason, cause,
+        retriesLeft);
     }
     try {
       retrySleep(wait);
     } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
-      throw new InterruptedIOException("Interrupted " + what);
+      throw new InterruptedIOException("Interrupted " + description);
     }
   }
 
@@ -886,6 +901,64 @@ public class Downloader implements Closeable {
     }
   }
 
+  /**
+   * Thrown when a request still fails after all retries, with a message saying what went wrong and what to do next.
+   */
+  public static class RequestFailedException extends IOException {
+
+    private final String url;
+    private final int retries;
+
+    RequestFailedException(String url, int retries, IOException cause) {
+      this(url, retries, cause, problem("Request to " + host(url), url, retries, cause) + ". Try again later.");
+    }
+
+    private RequestFailedException(String url, int retries, IOException cause, String message) {
+      super(message, cause);
+      this.url = url;
+      this.retries = retries;
+    }
+
+    /** Returns this failure as one of downloading the file to {@code output}, with how to get the file another way. */
+    public RequestFailedException forDownload(Path output, long bytesSaved) {
+      IOException cause = (IOException) getCause();
+      String fileName = url.substring(url.lastIndexOf('/') + 1);
+      String problem = problem("Downloading " + fileName, url, retries, cause);
+      // a dropped connection is worth trying again from where it stopped, an unreachable or failing server isn't yet
+      String next = bytesSaved > 0 && !isUnreachable(cause) && !(cause instanceof BadResponseException) ?
+        FORMAT.storage(bytesSaved) + "B saved, run again to continue." :
+        "Try again later, or download " + url + " manually to " + FileUtils.displayPath(output) + ".";
+      return new RequestFailedException(url, retries, cause, problem + ". " + next);
+    }
+
+    private static String problem(String description, String url, int retries, IOException cause) {
+      if (isUnreachable(cause)) {
+        return "Can't reach " + host(url) + " (no network connection?)";
+      }
+      String afterRetries = retries == 0 ? "" : " after " + retries + (retries == 1 ? " retry" : " retries");
+      return cause instanceof BadResponseException bad ?
+        description + " failed: " + host(url) + " returned HTTP " + bad.status + afterRetries :
+        description + " failed" + afterRetries + ": " +
+          Objects.requireNonNullElse(cause.getMessage(), cause.toString());
+    }
+
+    private static boolean isUnreachable(IOException e) {
+      return e instanceof UnknownHostException || e instanceof ConnectException ||
+        e instanceof NoRouteToHostException;
+    }
+  }
+
+  /** Returns the host name of {@code url}, or {@code url} itself if it doesn't have one. */
+  public static String host(String url) {
+    try {
+      String host = new URI(url).getHost();
+      return host == null ? url : host;
+    } catch (URISyntaxException _) {
+      // only used in messages, so it must never fail
+      return url;
+    }
+  }
+
   /** Waits {@code wait} before retrying a request; tests override it to retry right away. */
   protected void retrySleep(Duration wait) throws InterruptedException {
     Thread.sleep(wait);
@@ -897,7 +970,7 @@ public class Downloader implements Closeable {
     private final ResourceToDownload resource;
     private final CompletableFuture<Void> done;
 
-    private Download(ResourceToDownload resource, CompletableFuture<Void> done) {
+    Download(ResourceToDownload resource, CompletableFuture<Void> done) {
       this.resource = resource;
       this.done = done;
     }
@@ -917,6 +990,11 @@ public class Downloader implements Closeable {
       return resource.output;
     }
 
+    /** Returns the URL this downloads from, after resolving shortcuts like {@code geofabrik:}. */
+    public String url() {
+      return resource.url;
+    }
+
     /** Returns how many bytes this run needs to fetch, without what earlier runs fetched, or 0 while not known. */
     public long bytesToFetch() {
       return resource.bytesToFetch.get();
@@ -925,6 +1003,14 @@ public class Downloader implements Closeable {
     /** Returns a future with the size of the file in bytes, which completes soon after the download starts. */
     public CompletableFuture<Long> whenSizeKnown() {
       return resource.length;
+    }
+
+    /**
+     * Returns a future with how many bytes this run needs to fetch, which completes soon after the download starts (0
+     * if the file turned out to be up to date).
+     */
+    public CompletableFuture<Long> whenBytesToFetchKnown() {
+      return resource.length.thenApply(_ -> bytesToFetch());
     }
 
     /** Returns how many bytes of the file this run has fetched so far. */
@@ -942,21 +1028,11 @@ public class Downloader implements Closeable {
   }
 
   record ResourceToDownload(
-    String id, String url, Path output, boolean logEachFile, CompletableFuture<Long> length, AtomicLong bytesToFetch,
-    LongAdder progress
+    String id, String url, Path output, CompletableFuture<Long> length, AtomicLong bytesToFetch, LongAdder progress
   ) {
 
     ResourceToDownload(String id, String url, Path output) {
-      this(id, url, output, true);
-    }
-
-    ResourceToDownload(String id, String url, Path output, boolean logEachFile) {
-      this(id, url, output, logEachFile, new CompletableFuture<>(), new AtomicLong(), new LongAdder());
-    }
-
-    // log files that are part of a bigger download at trace
-    Level fileLogLevel() {
-      return logEachFile ? Level.INFO : Level.TRACE;
+      this(id, url, output, new CompletableFuture<>(), new AtomicLong(), new LongAdder());
     }
 
     public long bytesDownloaded() {

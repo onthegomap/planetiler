@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.reader.SourceReader;
+import com.onthegomap.planetiler.reader.SourceReader.Fetch;
 import com.onthegomap.planetiler.reader.remote.CachedRangeFile;
 import com.onthegomap.planetiler.reader.remote.DownloadMode;
 import com.onthegomap.planetiler.reader.remote.RangeFile;
@@ -126,7 +127,7 @@ public class ParquetReader {
     };
     Runnable closeUnread = () -> {
     };
-    return new Source(downloaded, open, closeUnread, config);
+    return new Source(downloaded, open, closeUnread, CompletableFuture.completedFuture(Fetch.NONE), config);
   }
 
   /**
@@ -138,24 +139,34 @@ public class ParquetReader {
    */
   public SourceReader remoteSource(CompletableFuture<Map<Path, String>> pathToUrl, DownloadMode mode, boolean refresh,
     Downloader downloader, PlanetilerConfig config) {
-    var paths = pathToUrl.thenApply(files -> files.keySet().stream().sorted().toList());
-    return remoteSource(paths,
+    return remoteSource(pathToUrl,
       path -> RangeFile.open(path, pathToUrl.join().get(path), FOOTER_PREFETCH_BYTES, mode, refresh, downloader),
       downloader, config);
   }
 
-  /** Returns a source that opens each of {@code paths} with {@code openFile} on {@code downloader}'s threads. */
-  SourceReader remoteSource(CompletableFuture<List<Path>> paths, FunctionThatThrows<Path, RangeFile> openFile,
-    Downloader downloader, PlanetilerConfig config) {
+  /**
+   * Returns a source that opens each file of {@code pathToUrl} with {@code openFile} on {@code downloader}'s threads.
+   */
+  SourceReader remoteSource(CompletableFuture<Map<Path, String>> pathToUrl,
+    FunctionThatThrows<Path, RangeFile> openFile, Downloader downloader, PlanetilerConfig config) {
     // opening a remote file and reading its footer take a round trip or two each, so open them all at once
-    var opening = paths.thenApply(files -> files.stream()
+    var opening = pathToUrl.thenApply(files -> files.keySet().stream()
+      .sorted()
       .map(path -> downloader.async(() -> openRemoteInputFile(path, openFile, config)))
       .toList());
-    var opened = opening.thenCompose(files -> CompletableFuture.allOf(files.toArray(CompletableFuture[]::new)));
+    var fetch = opening
+      .thenCompose(CompletableFutures::allOf)
+      .thenCombine(pathToUrl, (files, urls) -> new Fetch(
+        files.stream().filter(file -> !file.shouldSkip(profile)).mapToLong(file -> file.planFetch().bytes()).sum(),
+        urls.isEmpty() ? null : Downloader.host(urls.values().iterator().next())));
+    // ready only once the fetch is known, so it can be logged when reading starts
+    CompletableFuture<Void> ready = fetch.thenAccept(_ -> {
+    });
     return new Source(
-      opened,
+      ready,
       () -> CompletableFutures.joinAllOrClose(opening.join()),
       () -> opening.thenAccept(CompletableFutures::closeWhenDone),
+      fetch,
       config);
   }
 
@@ -188,6 +199,7 @@ public class ParquetReader {
     private final CompletableFuture<Void> ready;
     private final Callable<List<ParquetInputFile>> open;
     private final Runnable onClose;
+    private final CompletableFuture<Fetch> fetch;
     private final PlanetilerConfig config;
     private final SourceProgress progress = new SourceProgress(sourceName);
     private final LongAdder featuresRead = new LongAdder();
@@ -196,10 +208,11 @@ public class ParquetReader {
     private List<ParquetInputFile> files = List.of();
 
     Source(CompletableFuture<Void> ready, Callable<List<ParquetInputFile>> open, Runnable onClose,
-      PlanetilerConfig config) {
+      CompletableFuture<Fetch> fetch, PlanetilerConfig config) {
       this.ready = ready;
       this.open = open;
       this.onClose = onClose;
+      this.fetch = fetch;
       this.config = config;
     }
 
@@ -216,6 +229,11 @@ public class ParquetReader {
     @Override
     public SourceProgress progress() {
       return progress;
+    }
+
+    @Override
+    public CompletableFuture<Fetch> fetchWhileReading() {
+      return fetch;
     }
 
     @Override

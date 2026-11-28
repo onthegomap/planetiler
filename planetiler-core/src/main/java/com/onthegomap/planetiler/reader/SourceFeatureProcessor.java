@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.reader;
 
-import com.onthegomap.planetiler.util.RepeatedErrorLogger;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -14,7 +13,9 @@ import com.onthegomap.planetiler.stats.SourceProgress;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CompletableFutures;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.RepeatedErrorLogger;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
 public class SourceFeatureProcessor<F extends SourceFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFeatureProcessor.class);
+  private static final Format FORMAT = Format.defaultInstance();
   private final Profile profile;
   private final Stats stats;
   private final String sourceName;
@@ -110,7 +112,10 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
    */
   public static void process(String stageName, List<SourceReader> sources, List<SourceProgress> alsoRunning,
     FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats) {
-    var timer = stats.startStage(stageName);
+    boolean readTogether = sources.size() > 1;
+    var timer = stats.startStage(stageName, readTogether ?
+      "Running in parallel: " + sources.stream().map(it -> it.name()).collect(Collectors.joining(", ")) :
+      "Starting...");
     try {
       // Use one reader per source so that a source that waits on range requests doesn't hold up other ones.
       int readThreads = Math.min(sources.size(), config.threads());
@@ -131,12 +136,31 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
             source.whenReady().join();
             var progress = source.progress();
             var workLeft = progress.workLeftCounterForThread();
-            progress.start();
-            source.read(features -> {
-              workLeft.inc();
-              next.accept(new SourceBatch(progress, features));
-            });
-            progress.finish();
+            String workerStage = LogUtil.getStage();
+            var fetch = source.fetchWhileReading().join();
+            String fetchMessage = fetch.bytes() == 0 ? null : "only data in bounds (" +
+              FORMAT.storage(fetch.bytes()) + "B) from " + fetch.host() + " while processing";
+            // While a source gets read, its logs show [source], not [stage:read].
+            if (readTogether) {
+              // sources read together start one by one as their data arrives
+              LogUtil.setStage(source.name());
+              LOGGER.info(fetchMessage == null ? "Starting..." : "Downloading " + fetchMessage + "...");
+            } else {
+              LogUtil.setStage(stageName);
+              if (fetchMessage != null) {
+                LOGGER.info("Downloading {}", fetchMessage);
+              }
+            }
+            try {
+              progress.start();
+              source.read(features -> {
+                workLeft.inc();
+                next.accept(new SourceBatch(progress, features));
+              });
+              progress.finish();
+            } finally {
+              LogUtil.setStage(workerStage);
+            }
             sourcesRead.incrementAndGet();
           }
         })
@@ -197,7 +221,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
 
       for (SourceReader source : sources) {
         if (!source.name().equals(stageName)) {
-          LogUtil.setStage(stageName, source.name());
+          LogUtil.setStage(source.name());
         }
         LOGGER.atDebug().setMessage("Finished {}").addArgument(source.progress()::summary).log();
         // hook for profile to do any post-processing after this source is read

@@ -45,11 +45,16 @@ public class LogUtil {
   }
 
   /**
-   * Runs {@code task} with {@code [stage]} prepended to the logs from this thread, then goes back to the stage before.
+   * Runs {@code task} with {@code [stage]} prepended to the logs from this thread (nothing if {@code stage} is null),
+   * then goes back to the stage before.
    */
   public static void runInStage(String stage, Runnable task) {
     String previousStage = getStage();
-    setStage(stage);
+    if (stage == null) {
+      clearStage();
+    } else {
+      setStage(stage);
+    }
     try {
       task.run();
     } finally {

@@ -95,11 +95,20 @@ public interface Stats extends AutoCloseable {
    * sets the "stage" prefix that shows up in the logs to {@code name} until the stage finishes.
    */
   default Timers.Finishable startStage(String name, boolean log) {
+    return startStage(name, log ? "Starting..." : null);
+  }
+
+  /**
+   * Same as {@link #startStage(String)} except logs {@code startMessage} instead of "Starting..." when it starts, or
+   * behaves like {@link #startStageQuietly(String)} if {@code startMessage} is null.
+   */
+  default Timers.Finishable startStage(String name, String startMessage) {
+    boolean log = startMessage != null;
     String previousStage = LogUtil.getStage();
     if (log) {
       LogUtil.setStage(name);
     }
-    var timer = timers().startTimer(name, log);
+    var timer = timers().startTimer(name, startMessage);
     return new Timers.Finishable() {
       @Override
       public void stop() {

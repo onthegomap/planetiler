@@ -52,6 +52,18 @@ public class CompletableFutures {
   }
 
   /**
+   * Returns a future with the results of {@code futures} in the same order once all of them complete, or that fails
+   * once all of them complete if any failed.
+   * <p>
+   * Unlike {@link #joinFutures(Collection)}, this waits for every future even when one fails, so the caller can still
+   * get to the ones that succeeded (for example to close them).
+   */
+  public static <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futures) {
+    return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+      .thenApply(_ -> futures.stream().map(CompletableFuture::join).toList());
+  }
+
+  /**
    * Runs {@code task} on {@code executor} like
    * {@link CompletableFuture#supplyAsync(java.util.function.Supplier, Executor)}, except that {@code task} may throw
    * checked exceptions.

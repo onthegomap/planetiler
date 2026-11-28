@@ -177,4 +177,29 @@ class CompletableFuturesTest {
     later.complete(openedLater);
     assertTrue(openedLater.closed);
   }
+
+  @Test
+  void testAllOfReturnsResultsInOrder() {
+    var first = new CompletableFuture<String>();
+    var second = new CompletableFuture<String>();
+    var all = CompletableFutures.allOf(List.of(first, second));
+
+    second.complete("b");
+    assertFalse(all.isDone());
+    first.complete("a");
+
+    assertEquals(List.of("a", "b"), all.join());
+  }
+
+  @Test
+  void testAllOfWaitsForAllWhenOneFails() {
+    var failed = CompletableFuture.<String>failedFuture(new IllegalStateException("failed"));
+    var pending = new CompletableFuture<String>();
+    var all = CompletableFutures.allOf(List.of(failed, pending));
+
+    assertFalse(all.isDone());
+    pending.complete("b");
+
+    assertTrue(all.isCompletedExceptionally());
+  }
 }
